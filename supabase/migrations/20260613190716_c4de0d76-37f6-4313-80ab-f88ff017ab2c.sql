@@ -1,0 +1,1 @@
+TRUNCATE TABLE public.courier_history_cache;
