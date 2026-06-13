@@ -370,34 +370,77 @@ function OrderDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
-  /* ------------------------------ BD geo cascades -------------------------- */
+  /* ------------------------------ Pathao geo cascades ---------------------- */
+
+  const fetchCities = useServerFn(pathaoCitiesFn);
+  const fetchZones = useServerFn(pathaoZonesFn);
+  const fetchAreas = useServerFn(pathaoAreasFn);
+  const detectAddress = useServerFn(pathaoDetectAddressFn);
 
   const { data: cities } = useQuery({
-    queryKey: ["bd_cities"],
+    queryKey: ["pathao-cities", order?.brand_id],
+    enabled: !!order,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_cities").select("id,name_en").eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchCities({ data: order?.brand_id ? { brandId: order.brand_id } : {} });
+      return ((r as { items: { city_id: number; city_name: string }[] }).items ?? []).map((c) => ({
+        id: String(c.city_id),
+        name_en: c.city_name,
+      }));
     },
-    staleTime: 30 * 60_000,
   });
   const { data: zones } = useQuery({
-    queryKey: ["bd_zones", form.city_id],
+    queryKey: ["pathao-zones", form.city_id, order?.brand_id],
     enabled: !!form.city_id,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_zones").select("id,name_en").eq("city_id", form.city_id).eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchZones({ data: { cityId: Number(form.city_id), brandId: order?.brand_id ?? undefined } });
+      return ((r as { items: { zone_id: number; zone_name: string }[] }).items ?? []).map((z) => ({
+        id: String(z.zone_id),
+        name_en: z.zone_name,
+      }));
     },
   });
   const { data: areas } = useQuery({
-    queryKey: ["bd_areas", form.zone_id],
+    queryKey: ["pathao-areas", form.zone_id, order?.brand_id],
     enabled: !!form.zone_id,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_areas").select("id,name_en").eq("zone_id", form.zone_id).eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchAreas({ data: { zoneId: Number(form.zone_id), brandId: order?.brand_id ?? undefined } });
+      return ((r as { items: { area_id: number; area_name: string }[] }).items ?? []).map((a) => ({
+        id: String(a.area_id),
+        name_en: a.area_name,
+      }));
     },
+  });
+
+  const detectLocation = useMutation({
+    mutationFn: async () => {
+      if (!form.address || form.address.trim().length < 3) {
+        throw new Error("Address is too short to detect");
+      }
+      const r = (await detectAddress({
+        data: { address: form.address.trim(), brandId: order?.brand_id ?? undefined },
+      })) as {
+        city: { id: number; name: string } | null;
+        zone: { id: number; name: string } | null;
+        area: { id: number; name: string } | null;
+      };
+      return r;
+    },
+    onSuccess: (r) => {
+      setForm((f) => ({
+        ...f,
+        city_id: r.city ? String(r.city.id) : "",
+        zone_id: r.zone ? String(r.zone.id) : "",
+        area_id: r.area ? String(r.area.id) : "",
+      }));
+      if (!r.city) toast.error("Could not detect city from address");
+      else if (!r.zone) toast.warning(`Found city ${r.city.name} — please pick zone manually`);
+      else if (!r.area) toast.success(`Detected ${r.city.name} → ${r.zone.name}. Pick area if needed.`);
+      else toast.success(`Detected ${r.city.name} → ${r.zone.name} → ${r.area.name}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   /* ------------------------------ Courier history -------------------------- */
