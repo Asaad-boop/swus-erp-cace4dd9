@@ -14,7 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
+import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
+import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
+import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
+import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -40,9 +45,37 @@ const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedErpSuppliersRoute =
+  AuthenticatedErpSuppliersRouteImport.update({
+    id: '/suppliers',
+    path: '/suppliers',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpSettingsRoute =
+  AuthenticatedErpSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
 const AuthenticatedErpOrdersRoute = AuthenticatedErpOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
+const AuthenticatedErpInventoryRoute =
+  AuthenticatedErpInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpFinanceRoute = AuthenticatedErpFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
+const AuthenticatedErpCourierRoute = AuthenticatedErpCourierRouteImport.update({
+  id: '/courier',
+  path: '/courier',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
 
@@ -50,13 +83,23 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
+  '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/finance': typeof AuthenticatedErpFinanceRoute
+  '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/erp/settings': typeof AuthenticatedErpSettingsRoute
+  '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/finance': typeof AuthenticatedErpFinanceRoute
+  '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/erp/settings': typeof AuthenticatedErpSettingsRoute
+  '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRoutesById {
@@ -65,21 +108,50 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
+  '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRoute
+  '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
+  '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/erp' | '/erp/orders' | '/erp/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/erp'
+    | '/erp/courier'
+    | '/erp/finance'
+    | '/erp/inventory'
+    | '/erp/orders'
+    | '/erp/settings'
+    | '/erp/suppliers'
+    | '/erp/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/erp/orders' | '/erp'
+  to:
+    | '/'
+    | '/auth'
+    | '/erp/courier'
+    | '/erp/finance'
+    | '/erp/inventory'
+    | '/erp/orders'
+    | '/erp/settings'
+    | '/erp/suppliers'
+    | '/erp'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/erp'
+    | '/_authenticated/erp/courier'
+    | '/_authenticated/erp/finance'
+    | '/_authenticated/erp/inventory'
     | '/_authenticated/erp/orders'
+    | '/_authenticated/erp/settings'
+    | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
   fileRoutesById: FileRoutesById
 }
@@ -126,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
+    '/_authenticated/erp/suppliers': {
+      id: '/_authenticated/erp/suppliers'
+      path: '/suppliers'
+      fullPath: '/erp/suppliers'
+      preLoaderRoute: typeof AuthenticatedErpSuppliersRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/settings': {
+      id: '/_authenticated/erp/settings'
+      path: '/settings'
+      fullPath: '/erp/settings'
+      preLoaderRoute: typeof AuthenticatedErpSettingsRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
     '/_authenticated/erp/orders': {
       id: '/_authenticated/erp/orders'
       path: '/orders'
@@ -133,16 +219,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
+    '/_authenticated/erp/inventory': {
+      id: '/_authenticated/erp/inventory'
+      path: '/inventory'
+      fullPath: '/erp/inventory'
+      preLoaderRoute: typeof AuthenticatedErpInventoryRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/finance': {
+      id: '/_authenticated/erp/finance'
+      path: '/finance'
+      fullPath: '/erp/finance'
+      preLoaderRoute: typeof AuthenticatedErpFinanceRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/courier': {
+      id: '/_authenticated/erp/courier'
+      path: '/courier'
+      fullPath: '/erp/courier'
+      preLoaderRoute: typeof AuthenticatedErpCourierRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
   }
 }
 
 interface AuthenticatedErpRouteChildren {
+  AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
+  AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRoute
+  AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRoute
+  AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
+  AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
 }
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
+  AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
+  AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRoute,
+  AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRoute,
+  AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
+  AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
 }
 
@@ -168,3 +285,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
