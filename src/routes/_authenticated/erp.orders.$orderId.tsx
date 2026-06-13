@@ -754,7 +754,12 @@ function OrderDetailsPage() {
       const { error } = await supabase.rpc("add_order_note", { _order_id: orderId, _body: form.note_input, _is_internal: true });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Note added"); setForm((f) => ({ ...f, note_input: "" })); invalidate(); },
+    onSuccess: () => {
+      toast.success("Note added");
+      setForm((f) => ({ ...f, note_input: "" }));
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
