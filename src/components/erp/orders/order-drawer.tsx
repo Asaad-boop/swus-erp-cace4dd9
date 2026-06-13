@@ -52,7 +52,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
 
   const updateWebStatus = useMutation({
     mutationFn: async (web_status: string) => {
-      const { error } = await supabase.from("orders").update({ web_status }).eq("id", orderId!);
+      const { error } = await supabase.from("orders").update({ web_status: web_status as never }).eq("id", orderId!);
       if (error) throw error;
     },
     onSuccess: () => {
