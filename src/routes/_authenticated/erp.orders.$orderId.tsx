@@ -493,7 +493,7 @@ function OrderDetailsPage() {
       // 1) Persist any pending customer + pricing edits first
       const subtotal = itemsSubtotal;
       const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
-      const updatePayload: Record<string, unknown> = {
+      const basePayload = {
         shipping_phone: form.mobile,
         shipping_name: form.name,
         delivery_method: form.delivery_method || null,
@@ -512,12 +512,11 @@ function OrderDetailsPage() {
         discount_amount: Number(form.discount),
         advance_amount: Number(form.advance),
         total,
-        web_status: "complete",
+        web_status: "complete" as const,
       };
-      if (order?.is_guest_order) {
-        updatePayload.guest_name = form.name;
-        updatePayload.guest_phone = form.mobile;
-      }
+      const updatePayload = order?.is_guest_order
+        ? { ...basePayload, guest_name: form.name, guest_phone: form.mobile }
+        : basePayload;
       const { error: upErr } = await supabase.from("orders").update(updatePayload).eq("id", orderId);
       if (upErr) throw upErr;
 
