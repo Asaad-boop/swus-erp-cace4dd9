@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { useState } from "react";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Phone, PhoneOff } from "lucide-react";
+import { Eye, Phone, MapPin, MessageSquare, Globe, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,20 +45,53 @@ type WebOrderRow = {
   created_at: string;
   shipping_name: string | null;
   shipping_phone: string | null;
+  shipping_address: string | null;
+  shipping_city: string | null;
+  shipping_district: string | null;
   guest_name: string | null;
   guest_phone: string | null;
   latest_note: string | null;
   customer_note: string | null;
   tags: string[] | null;
   source_website: string | null;
-  auto_call_enabled: boolean | null;
   web_status: WebStatus | null;
   total: number;
   call_attempt_count: number | null;
   call_status: string | null;
   brand_id: string | null;
-  items_summary?: { name: string; quantity: number }[];
+  items_summary?: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
 };
+
+type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number };
+
+const STATUS_ACCENT: Record<string, string> = {
+  processing: "bg-blue-500",
+  incomplete: "bg-orange-500",
+  good_but_no_response: "bg-amber-500",
+  no_response: "bg-red-500",
+  advance_payment: "bg-purple-500",
+  on_hold: "bg-yellow-500",
+  complete: "bg-emerald-500",
+  cancelled: "bg-zinc-400",
+};
+
+const TAG_PALETTE = [
+  "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+];
+
+function tagColor(tag: string) {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  return TAG_PALETTE[hash % TAG_PALETTE.length];
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+}
 
 function WebOrdersPage() {
   const { activeBrand } = useBrand();
@@ -73,7 +106,7 @@ function WebOrdersPage() {
       let q = supabase
         .from("orders")
         .select(
-          "id,created_at,shipping_name,shipping_phone,guest_name,guest_phone,latest_note,customer_note,tags,source_website,auto_call_enabled,web_status,total,call_attempt_count,call_status,brand_id",
+          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
         .eq("brand_id", activeBrand!.id)
@@ -97,12 +130,12 @@ function WebOrdersPage() {
       if (ids.length) {
         const { data: items } = await supabase
           .from("order_items")
-          .select("order_id,name,quantity")
+          .select("order_id,name,quantity,image,unit_price")
           .in("order_id", ids);
-        const byOrder = new Map<string, { name: string; quantity: number }[]>();
+        const byOrder = new Map<string, { name: string; quantity: number; image: string | null; unit_price: number | null }[]>();
         (items ?? []).forEach((it) => {
           const arr = byOrder.get(it.order_id) ?? [];
-          arr.push({ name: it.name ?? "—", quantity: it.quantity ?? 0 });
+          arr.push({ name: it.name ?? "—", quantity: it.quantity ?? 0, image: it.image ?? null, unit_price: it.unit_price ?? null });
           byOrder.set(it.order_id, arr);
         });
         rows.forEach((r) => (r.items_summary = byOrder.get(r.id) ?? []));
@@ -135,11 +168,39 @@ function WebOrdersPage() {
 
   const rows = data ?? [];
 
-  const successRate = (r: WebOrderRow) => {
-    const attempts = r.call_attempt_count ?? 0;
-    if (attempts === 0) return { pct: 0, label: "—" };
-    const success = r.call_status === "customer_confirmed" || r.call_status === "reached" ? 1 : 0;
-    return { pct: Math.round((success / Math.max(attempts, 1)) * 100), label: `${success}/${attempts}` };
+  // customer breakdown by phone — historical totals across all orders in this brand
+  const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
+  const { data: breakdowns } = useQuery({
+    queryKey: ["customer-breakdown", activeBrand?.id, phones.sort().join(",")],
+    enabled: !!activeBrand?.id && phones.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("shipping_phone,guest_phone,web_status")
+        .eq("brand_id", activeBrand!.id)
+        .or(phones.map((p) => `shipping_phone.eq.${p},guest_phone.eq.${p}`).join(","))
+        .limit(5000);
+      if (error) throw error;
+      const map = new Map<string, Breakdown>();
+      (data ?? []).forEach((o) => {
+        const ph = (o as { shipping_phone: string | null; guest_phone: string | null }).shipping_phone
+          ?? (o as { guest_phone: string | null }).guest_phone;
+        if (!ph) return;
+        const b = map.get(ph) ?? { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
+        b.total++;
+        const s = (o as { web_status: string | null }).web_status;
+        if (s === "complete") b.confirmed++;
+        else if (s === "cancelled") b.cancelled++;
+        map.set(ph, b);
+      });
+      return map;
+    },
+  });
+
+  const getBreakdown = (r: WebOrderRow): Breakdown => {
+    const phone = r.shipping_phone ?? r.guest_phone;
+    if (!phone) return { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
+    return breakdowns?.get(phone) ?? { total: 1, confirmed: 0, cancelled: 0, returned: 0 };
   };
 
   return (
@@ -183,18 +244,18 @@ function WebOrdersPage() {
         })}
       </div>
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
+      <div className="rounded-xl border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs uppercase">Created At</TableHead>
-              <TableHead className="text-xs uppercase">Customer</TableHead>
-              <TableHead className="text-xs uppercase">Note</TableHead>
-              <TableHead className="text-xs uppercase">Order Items</TableHead>
-              <TableHead className="text-xs uppercase">Success Rate</TableHead>
-              <TableHead className="text-xs uppercase">Tags</TableHead>
-              <TableHead className="text-xs uppercase">Site</TableHead>
-              <TableHead className="text-xs uppercase text-right">Actions</TableHead>
+            <TableRow className="bg-muted/40">
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Created</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[220px]">Customer</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Note</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[240px]">Order Items</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[160px]">Success Rate</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[140px]">Tags</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Site</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[110px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -202,7 +263,7 @@ function WebOrdersPage() {
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 8 }).map((_, j) => (
-                    <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                    <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
@@ -214,54 +275,184 @@ function WebOrdersPage() {
               </TableRow>
             ) : (
               rows.map((r) => {
-                const sr = successRate(r);
                 const name = r.shipping_name ?? r.guest_name ?? "—";
                 const phone = r.shipping_phone ?? r.guest_phone ?? "";
                 const note = r.latest_note ?? r.customer_note ?? "";
+                const address = [r.shipping_address, r.shipping_city, r.shipping_district].filter(Boolean).join(", ");
+                const items = r.items_summary ?? [];
+                const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
+                const b = getBreakdown(r);
+                const pct = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
+                const accent = STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
+                const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+                const favicon = r.source_website
+                  ? `https://www.google.com/s2/favicons?domain=${siteLabel}&sz=32`
+                  : null;
                 return (
-                  <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
-                    <TableCell className="text-xs whitespace-nowrap">
-                      <div>{format(new Date(r.created_at), "dd MMM yy")}</div>
-                      <div className="text-muted-foreground">{format(new Date(r.created_at), "hh:mm a")}</div>
-                    </TableCell>
-                    <TableCell className="text-sm min-w-[150px]">
-                      <div className="font-medium truncate">{name}</div>
-                      <div className="text-xs text-muted-foreground">{phone}</div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
-                      {note || "—"}
-                    </TableCell>
-                    <TableCell className="text-xs max-w-[220px]">
-                      {(r.items_summary ?? []).slice(0, 3).map((it, i) => (
-                        <div key={i} className="truncate">
-                          <span className="font-medium">{it.quantity}×</span> {it.name}
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top"
+                    onClick={() => setOpenId(r.id)}
+                  >
+                    {/* Created */}
+                    <TableCell className="py-4">
+                      <div className="flex gap-2">
+                        <div className={cn("w-1 rounded-full self-stretch", accent)} />
+                        <div className="text-xs">
+                          <div className="font-semibold text-foreground">{format(new Date(r.created_at), "dd MMM, yy")}</div>
+                          <div className="text-muted-foreground">{format(new Date(r.created_at), "hh:mm a")}</div>
+                          <div className="text-[10px] text-muted-foreground/80 mt-1">
+                            {formatDistanceToNowStrict(new Date(r.created_at), { addSuffix: true })}
+                          </div>
                         </div>
-                      ))}
-                      {(r.items_summary?.length ?? 0) > 3 && (
-                        <div className="text-muted-foreground">+{(r.items_summary!.length - 3)} more</div>
+                      </div>
+                    </TableCell>
+
+                    {/* Customer */}
+                    <TableCell className="py-4">
+                      <div className="flex gap-2.5">
+                        <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-primary flex items-center justify-center text-xs font-bold">
+                          {initials(name)}
+                        </div>
+                        <div className="min-w-0 text-xs space-y-0.5">
+                          <div className="font-semibold text-foreground truncate">{name}</div>
+                          {phone && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Phone className="h-3 w-3 shrink-0" />
+                              <span className="truncate font-mono">{phone}</span>
+                            </div>
+                          )}
+                          {address && (
+                            <div className="flex items-start gap-1 text-muted-foreground">
+                              <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2 leading-tight">{address}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Note */}
+                    <TableCell className="py-4">
+                      {note ? (
+                        <div className="flex gap-1.5 text-xs text-foreground/80 bg-muted/40 rounded-md px-2 py-1.5 border border-border/50">
+                          <MessageSquare className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
+                          <span className="line-clamp-3 italic leading-snug">{note}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/60">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="text-xs">
-                        <div className="font-semibold">{sr.pct}%</div>
-                        <div className="text-muted-foreground">{sr.label}</div>
+
+                    {/* Order Items */}
+                    <TableCell className="py-4">
+                      <div className="flex items-start gap-2">
+                        <div className="flex -space-x-2">
+                          {items.slice(0, 3).map((it, i) => (
+                            <div
+                              key={i}
+                              className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0"
+                              title={it.name}
+                            >
+                              {it.image ? (
+                                <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
+                                  {it.name.slice(0, 2)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {items.length > 3 && (
+                            <div className="h-10 w-10 rounded-md border-2 border-card bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
+                              +{items.length - 3}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs space-y-0.5 min-w-0">
+                          <div className="font-semibold text-foreground">৳ {Number(r.total).toLocaleString()}</div>
+                          <div className="text-muted-foreground">
+                            {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[140px]">
+
+                    {/* Success Rate */}
+                    <TableCell className="py-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="text-base font-bold tabular-nums text-foreground">{pct}%</div>
+                          <div className="text-[10px] text-muted-foreground">{b.confirmed}/{b.total}</div>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex">
+                          {b.total > 0 && (
+                            <>
+                              <div className="bg-emerald-500" style={{ width: `${(b.confirmed / b.total) * 100}%` }} />
+                              <div className="bg-rose-500" style={{ width: `${(b.cancelled / b.total) * 100}%` }} />
+                            </>
+                          )}
+                        </div>
+                        <div className="flex gap-2 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{b.confirmed}</span>
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" />{b.cancelled}</span>
+                          <span className="ml-auto">T:{b.total}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Tags */}
+                    <TableCell className="py-4">
                       <div className="flex flex-wrap gap-1">
-                        {(r.tags ?? []).slice(0, 2).map((t) => (
-                          <Badge key={t} variant="outline" className="text-[10px] px-1.5 py-0">{t}</Badge>
+                        {(r.tags ?? []).slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className={cn(
+                              "inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md",
+                              tagColor(t),
+                            )}
+                          >
+                            {t}
+                          </span>
                         ))}
-                        {(r.tags?.length ?? 0) === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                        {(r.tags?.length ?? 0) > 3 && (
+                          <span className="text-[10px] text-muted-foreground self-center">+{r.tags!.length - 3}</span>
+                        )}
+                        {(r.tags?.length ?? 0) === 0 && <span className="text-xs text-muted-foreground/60">—</span>}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]">
-                      {r.source_website ?? "—"}
+
+                    {/* Site */}
+                    <TableCell className="py-4">
+                      {siteLabel ? (
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs">
+                          {favicon ? (
+                            <img src={favicon} alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
+                          ) : (
+                            <Globe className="h-3 w-3 text-muted-foreground" />
+                          )}
+                          <span className="truncate max-w-[90px] font-medium text-foreground">{siteLabel}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/60">—</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setOpenId(r.id); }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+
+                    {/* Actions */}
+                    <TableCell className="py-4 text-right">
+                      <div className="inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-background p-0.5" onClick={(e) => e.stopPropagation()}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOpenId(r.id)} title="View">
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        {phone && (
+                          <a href={`tel:${phone}`} className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-muted" title="Call">
+                            <Phone className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="More">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
