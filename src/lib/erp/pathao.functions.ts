@@ -135,7 +135,7 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
     if (sErr) throw sErr;
 
     if (fee > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee, _account_id: null });
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
     }
 
     await supabase
