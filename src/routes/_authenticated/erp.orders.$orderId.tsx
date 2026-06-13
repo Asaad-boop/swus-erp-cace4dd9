@@ -940,7 +940,7 @@ function QtyInput({ value, onChange, step = 1 }: { value: number; onChange: (v: 
   );
 }
 
-function NumInput({ value, onChange, onCommit }: { value: number; onChange: (v: number) => void; onCommit: () => void }) {
+function NumInput({ value, onChange, onCommit }: { value: number; onChange: (v: number) => void; onCommit?: () => void }) {
   return (
     <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} onBlur={onCommit} className="h-9 tabular-nums" />
   );
