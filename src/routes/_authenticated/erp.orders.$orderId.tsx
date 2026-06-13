@@ -742,19 +742,6 @@ function OrderDetailsPage() {
           <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
           <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
           <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
-          {order.status !== "confirmed" && order.web_status !== "complete" && (
-            <Button
-              size="sm"
-              disabled={confirmOrder.isPending}
-              onClick={() => confirmOrder.mutate()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {confirmOrder.isPending
-                ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-              Confirm Order
-            </Button>
-          )}
         </div>
       </div>
 
@@ -950,9 +937,28 @@ function OrderDetailsPage() {
             {order.payment_method?.toLowerCase().includes("cod") && (
               <p className="text-center text-xs text-rose-600 mt-3">The payment method is Cash on Delivery (COD). Please confirm with the customer.</p>
             )}
-            <Button className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white" size="lg" disabled={savePricing.isPending} onClick={() => savePricing.mutate()}>
-              {savePricing.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Order (${bdtCompact(grandTotal)}.00)`}
-            </Button>
+            {order.status !== "confirmed" && order.web_status !== "complete" ? (
+              <Button
+                className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+                size="lg"
+                disabled={confirmOrder.isPending}
+                onClick={() => confirmOrder.mutate()}
+              >
+                {confirmOrder.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <><CheckCircle2 className="h-4 w-4 mr-1.5" />Confirm Order (৳{bdtCompact(grandTotal)}.00)</>}
+              </Button>
+            ) : (
+              <Button
+                className="w-full mt-3"
+                size="lg"
+                variant="outline"
+                disabled={savePricing.isPending}
+                onClick={() => savePricing.mutate()}
+              >
+                {savePricing.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Order (৳${bdtCompact(grandTotal)}.00)`}
+              </Button>
+            )}
           </section>
         </div>
 
