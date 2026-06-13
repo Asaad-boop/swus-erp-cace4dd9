@@ -556,9 +556,11 @@ function OrderDetailsPage() {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Record<string, unknown> }) => {
-      const payload: Record<string, unknown> = { web_status: status, ...(extra ?? {}) };
-      const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number }> }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status, ...(extra ?? {}) })
+        .eq("id", orderId);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
