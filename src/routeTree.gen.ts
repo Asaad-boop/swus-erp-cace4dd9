@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -39,16 +40,23 @@ const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedErpOrdersRoute = AuthenticatedErpOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
+  '/erp/orders': typeof AuthenticatedErpOrdersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/erp/orders': typeof AuthenticatedErpOrdersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRoutesById {
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
+  '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/erp' | '/erp/'
+  fullPaths: '/' | '/auth' | '/erp' | '/erp/orders' | '/erp/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/erp'
+  to: '/' | '/auth' | '/erp/orders' | '/erp'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/erp'
+    | '/_authenticated/erp/orders'
     | '/_authenticated/erp/'
   fileRoutesById: FileRoutesById
 }
@@ -116,14 +126,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
+    '/_authenticated/erp/orders': {
+      id: '/_authenticated/erp/orders'
+      path: '/orders'
+      fullPath: '/erp/orders'
+      preLoaderRoute: typeof AuthenticatedErpOrdersRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
   }
 }
 
 interface AuthenticatedErpRouteChildren {
+  AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
 }
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
+  AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
 }
 
