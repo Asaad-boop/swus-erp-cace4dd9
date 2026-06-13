@@ -403,7 +403,7 @@ function OrderDetailsPage() {
 
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const [refreshing, setRefreshing] = useState(false);
-  const { data: courierHistory, refetch: refetchHistory } = useQuery({
+  const { data: courierHistory, refetch: refetchHistory, isLoading: courierLoading, isFetching: courierFetching } = useQuery({
     queryKey: ["courier-history", order?.brand_id, phone],
     enabled: !!order?.brand_id && !!phone && phone.length >= 11,
     staleTime: 5 * 60_000,
@@ -604,6 +604,7 @@ function OrderDetailsPage() {
             customerName={form.name}
             fraudNote={fraudNote}
             refreshing={refreshing}
+            loading={courierLoading || (courierFetching && !courierHistory)}
             onRefresh={async () => { setRefreshing(true); await refetchHistory(); setRefreshing(false); }}
           />
 
