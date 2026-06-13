@@ -1,0 +1,156 @@
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Loader2, Save, PlugZap, Eye, EyeOff } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useBrand } from "@/contexts/brand-context";
+import {
+  steadfastGetSettingsFn,
+  steadfastSaveSettingsFn,
+  steadfastTestConnectionFn,
+} from "@/lib/erp/steadfast.functions";
+
+type FormState = {
+  base_url: string;
+  api_key: string;
+  secret_key: string;
+  is_active: boolean;
+};
+
+const EMPTY: FormState = {
+  base_url: "https://portal.packzy.com/api/v1",
+  api_key: "",
+  secret_key: "",
+  is_active: true,
+};
+
+export function SteadfastSettings() {
+  const qc = useQueryClient();
+  const { brands, activeBrand, setActiveBrandId } = useBrand();
+  const brandId = activeBrand?.id ?? "";
+  const [form, setForm] = useState<FormState>(EMPTY);
+  const [showSecrets, setShowSecrets] = useState(false);
+
+  const getFn = useServerFn(steadfastGetSettingsFn);
+  const saveFn = useServerFn(steadfastSaveSettingsFn);
+  const testFn = useServerFn(steadfastTestConnectionFn);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["steadfast-settings", brandId],
+    enabled: !!brandId,
+    queryFn: () => getFn({ data: { brandId } }),
+  });
+
+  useEffect(() => {
+    const s = data?.settings;
+    setForm(
+      s
+        ? {
+            base_url: s.base_url ?? EMPTY.base_url,
+            api_key: s.api_key ?? "",
+            secret_key: s.secret_key ?? "",
+            is_active: !!s.is_active,
+          }
+        : EMPTY,
+    );
+  }, [data?.settings, brandId]);
+
+  const save = useMutation({
+    mutationFn: async () => saveFn({ data: { brand_id: brandId, ...form } }),
+    onSuccess: () => {
+      toast.success("Steadfast credentials saved");
+      qc.invalidateQueries({ queryKey: ["steadfast-settings", brandId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const test = useMutation({
+    mutationFn: async () => testFn({ data: { brandId } }),
+    onSuccess: (r) => toast.success(`Connected. Balance: ৳ ${r.balance.toLocaleString()}`),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><PlugZap className="h-4 w-4" /> Steadfast integration</CardTitle>
+        <CardDescription>
+          Credentials are stored per brand. Find them in Steadfast Merchant Portal → API.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px]">
+            <Label className="text-xs">Brand</Label>
+            <Select value={brandId} onValueChange={setActiveBrandId}>
+              <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
+              <SelectContent>
+                {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 pb-2">
+            <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
+            <Label className="text-sm">Active</Label>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSecrets((s) => !s)}>
+              {showSecrets ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+              {showSecrets ? "Hide" : "Show"} secrets
+            </Button>
+          </div>
+        </div>
+
+        {error ? <Alert variant="destructive"><AlertDescription>{(error as Error).message}</AlertDescription></Alert> : null}
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Base URL" hint="Default: production">
+            <Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://portal.packzy.com/api/v1" />
+          </Field>
+          <div />
+          <Field label="Api Key">
+            <Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} />
+          </Field>
+          <Field label="Secret Key">
+            <Input type={showSecrets ? "text" : "password"} value={form.secret_key} onChange={(e) => setForm({ ...form, secret_key: e.target.value })} />
+          </Field>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!brandId || save.isPending || !form.api_key || !form.secret_key}
+          >
+            {save.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+            Save
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => test.mutate()}
+            disabled={!brandId || test.isPending || isLoading}
+          >
+            {test.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <PlugZap className="h-3.5 w-3.5 mr-1" />}
+            Test connection
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      {children}
+      {hint ? <p className="text-[11px] text-muted-foreground mt-1">{hint}</p> : null}
+    </div>
+  );
+}
