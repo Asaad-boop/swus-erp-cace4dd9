@@ -54,6 +54,7 @@ type WebOrderRow = {
   guest_phone: string | null;
   latest_note: string | null;
   customer_note: string | null;
+  notes: string | null;
   tags: string[] | null;
   source_website: string | null;
   web_status: WebStatus | null;
@@ -170,7 +171,7 @@ function WebOrdersPage() {
       let q = supabase
         .from("orders")
         .select(
-          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
+          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
         .eq("brand_id", activeBrand!.id)
@@ -409,7 +410,7 @@ function WebOrdersPage() {
               rows.map((r) => {
                 const name = r.shipping_name ?? r.guest_name ?? "—";
                 const phone = r.shipping_phone ?? r.guest_phone ?? "";
-                const note = r.latest_note ?? r.customer_note ?? "";
+                const note = r.latest_note ?? r.customer_note ?? r.notes ?? "";
                 const address = [r.shipping_address, r.shipping_city, r.shipping_district].filter(Boolean).join(", ");
                 const items = r.items_summary ?? [];
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
