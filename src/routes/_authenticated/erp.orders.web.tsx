@@ -436,7 +436,9 @@ function WebOrdersPage() {
                     {/* Success Rate */}
                     <TableCell className="py-4">
                       <div className="space-y-1 text-[10px]">
-                        <SuccessRow label="Our" dot="bg-slate-500" total={b.total} success={b.confirmed} cancelled={b.cancelled} />
+                        {b.total > 1 || b.confirmed > 0 || b.cancelled > 0 ? (
+                          <SuccessRow label="Our" dot="bg-slate-500" total={b.total} success={b.confirmed} cancelled={b.cancelled} />
+                        ) : null}
                         <SuccessRow label="Pathao" dot="bg-rose-500" total={courier.pathao.total} success={courier.pathao.success} cancelled={courier.pathao.cancelled} />
                         <SuccessRow label="Steadfast" dot="bg-amber-500" total={courier.steadfast.total} success={courier.steadfast.success} cancelled={courier.steadfast.cancelled} />
                       </div>
