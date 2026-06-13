@@ -109,7 +109,7 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
-function SuccessRow({ label, dot, total, success, cancelled }: { label: string; dot: string; total: number; success: number; cancelled: number }) {
+function SuccessBlock({ total, success }: { total: number; success: number }) {
   const pct = total > 0 ? Math.round((success / total) * 100) : 0;
   const pctClass = total === 0
     ? "text-muted-foreground/50"
@@ -118,30 +118,21 @@ function SuccessRow({ label, dot, total, success, cancelled }: { label: string; 
       : pct >= 50
         ? "text-amber-600 dark:text-amber-400"
         : "text-rose-600 dark:text-rose-400";
+  if (total === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
   return (
-    <div className="space-y-0.5">
-      <div className="flex items-center gap-1.5">
-        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dot)} />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+    <div className="text-xs tabular-nums leading-tight space-y-0.5">
+      <div>
+        <span className="text-muted-foreground">Success: </span>
+        <span className={cn("font-bold", pctClass)}>{pct}%</span>
       </div>
-      {total > 0 ? (
-        <dl className="pl-3 space-y-0.5 tabular-nums">
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-muted-foreground">Success:</dt>
-            <dd className={cn("font-semibold", pctClass)}>{pct}%</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-muted-foreground">Order:</dt>
-            <dd className="font-semibold text-foreground">{success}/{total}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-muted-foreground">Rating:</dt>
-            <dd className="font-semibold text-foreground">{total}</dd>
-          </div>
-        </dl>
-      ) : (
-        <div className="pl-3 text-muted-foreground/50">—</div>
-      )}
+      <div>
+        <span className="text-muted-foreground">Order: </span>
+        <span className="font-semibold text-foreground">{success}/{total}</span>
+      </div>
+      <div>
+        <span className="text-muted-foreground">Rating: </span>
+        <span className="font-semibold text-foreground">{success}</span>
+      </div>
     </div>
   );
 }
@@ -456,13 +447,10 @@ function WebOrdersPage() {
 
                     {/* Success Rate */}
                     <TableCell className="py-4">
-                      <div className="space-y-1 text-[10px]">
-                        {b.total > 1 || b.confirmed > 0 || b.cancelled > 0 ? (
-                          <SuccessRow label="Our" dot="bg-slate-500" total={b.total} success={b.confirmed} cancelled={b.cancelled} />
-                        ) : null}
-                        <SuccessRow label="Pathao" dot="bg-rose-500" total={courier.pathao.total} success={courier.pathao.success} cancelled={courier.pathao.cancelled} />
-                        <SuccessRow label="Steadfast" dot="bg-amber-500" total={courier.steadfast.total} success={courier.steadfast.success} cancelled={courier.steadfast.cancelled} />
-                      </div>
+                      <SuccessBlock
+                        total={courier.pathao.total + courier.steadfast.total || b.total}
+                        success={courier.pathao.success + courier.steadfast.success || b.confirmed}
+                      />
                     </TableCell>
 
                     {/* Tags */}
