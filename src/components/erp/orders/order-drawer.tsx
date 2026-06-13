@@ -258,7 +258,8 @@ export function OrderDrawer({ orderId, onClose }: Props) {
             )}
           </>
         )}
-      </SheetContent>
-    </Sheet>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
