@@ -2216,6 +2216,10 @@ export type Database = {
         Args: { _body: string; _is_internal?: boolean; _order_id: string }
         Returns: string
       }
+      adjust_account_balance: {
+        Args: { _account_id: string; _delta: number; _reason: string }
+        Returns: string
+      }
       adjust_product_stock: {
         Args: {
           _delta: number
@@ -2241,6 +2245,10 @@ export type Database = {
       append_order_status_log: {
         Args: { _entry: Json; _log_field: string; _order_id: string }
         Returns: undefined
+      }
+      erp_profit_loss: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: Json
       }
       finalize_order_on_confirm: {
         Args: { _order_id: string }
