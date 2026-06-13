@@ -652,7 +652,9 @@ function OrderDetailsPage() {
                     <a href={`https://wa.me/${form.mobile.replace(/^0/, "880")}`} target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-muted text-emerald-600"><MessageCircle className="h-3.5 w-3.5" /></a>
                   </div>
                 </div>
-                <p className="text-[10px] text-sky-600">Check Our Record above for customer history</p>
+                {courierHistory && (stats.totalParcel > 0) && (
+                  <p className="text-[10px] text-sky-600">Check Our Record above for customer history</p>
+                )}
               </FieldShell>
               <FieldShell label="Name">
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9" />
