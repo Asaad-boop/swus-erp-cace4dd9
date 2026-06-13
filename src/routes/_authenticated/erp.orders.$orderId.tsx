@@ -1030,10 +1030,16 @@ function OrderDetailsPage() {
           <section className="rounded-xl border bg-card overflow-hidden">
             <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Actions</h3></header>
             <div className="p-4 space-y-3">
-              <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+              <Select
+                value={(order.web_status as WebStatus) ?? ""}
+                disabled={updateWebStatus.isPending}
+                onValueChange={(v) => onPickWebStatus(v as WebStatus)}
+              >
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Change status" /></SelectTrigger>
                 <SelectContent>
-                  {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize text-xs">{s.replace(/_/g, " ")}</SelectItem>)}
+                  {WEB_STATUSES.map((s) => (
+                    <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button asChild size="sm" variant="ghost" className="w-full justify-start h-7 text-xs">
