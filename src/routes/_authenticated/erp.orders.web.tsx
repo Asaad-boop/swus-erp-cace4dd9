@@ -135,8 +135,8 @@ function SuccessRow({ label, dot, total, success, cancelled }: { label: string; 
             <dd className="font-semibold text-foreground">{success}/{total}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-muted-foreground">Cancel:</dt>
-            <dd className="font-semibold text-rose-600 dark:text-rose-400">{cancelled}</dd>
+            <dt className="text-muted-foreground">Rating:</dt>
+            <dd className="font-semibold text-foreground">{total}</dd>
           </div>
         </dl>
       ) : (
@@ -395,10 +395,7 @@ function WebOrdersPage() {
 
                     {/* Customer */}
                     <TableCell className="py-4">
-                      <div className="flex gap-2.5">
-                        <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-primary flex items-center justify-center text-xs font-bold">
-                          {initials(name)}
-                        </div>
+                      <div>
                         <div className="min-w-0 text-xs space-y-0.5">
                           <div className="font-semibold text-foreground truncate">{name}</div>
                           {phone && (
