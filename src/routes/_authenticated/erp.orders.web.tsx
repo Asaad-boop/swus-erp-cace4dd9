@@ -73,6 +73,13 @@ type CourierBreakdown = {
   found: boolean;
 };
 
+function normalizePhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880")) return "0" + digits.slice(3);
+  if (digits.length === 10 && digits.startsWith("1")) return "0" + digits;
+  return digits;
+}
+
 const STATUS_ACCENT: Record<string, string> = {
   processing: "bg-blue-500",
   incomplete: "bg-orange-500",
@@ -201,6 +208,7 @@ function WebOrdersPage() {
 
   // customer breakdown by phone — historical totals across all orders in this brand
   const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
+  const courierPhones = Array.from(new Set(phones.map(normalizePhone).filter(Boolean)));
   const { data: breakdowns } = useQuery({
     queryKey: ["customer-breakdown", activeBrand?.id, phones.sort().join(",")],
     enabled: !!activeBrand?.id && phones.length > 0,
@@ -231,11 +239,11 @@ function WebOrdersPage() {
   // Courier history (Pathao + Steadfast) by phone — from cache
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const { data: courierHistory } = useQuery({
-    queryKey: ["courier-history", activeBrand?.id, phones.sort().join(",")],
-    enabled: phones.length > 0 && !!activeBrand?.id,
+    queryKey: ["courier-history", activeBrand?.id, courierPhones.sort().join(",")],
+    enabled: courierPhones.length > 0 && !!activeBrand?.id,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { results } = await fetchCourierHistory({ data: { phones, brandId: activeBrand!.id } });
+      const { results } = await fetchCourierHistory({ data: { phones: courierPhones, brandId: activeBrand!.id } });
       const map = new Map<string, CourierBreakdown>();
       Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
@@ -249,6 +257,7 @@ function WebOrdersPage() {
           else if (p.name === "steadfast") result.steadfast = stat;
         });
         map.set(phone, result);
+        map.set(normalizePhone(phone), result);
       });
       return map;
     },
@@ -262,7 +271,7 @@ function WebOrdersPage() {
 
   const emptyProvider: ProviderStat = { total: 0, success: 0, cancelled: 0 };
   const getCourier = (r: WebOrderRow): CourierBreakdown => {
-    const phone = r.shipping_phone ?? r.guest_phone;
+    const phone = normalizePhone(r.shipping_phone ?? r.guest_phone ?? "");
     if (!phone) return { pathao: emptyProvider, steadfast: emptyProvider, found: false };
     return courierHistory?.get(phone) ?? { pathao: emptyProvider, steadfast: emptyProvider, found: false };
   };

@@ -29,6 +29,22 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+function cachedProvider(data: HistoryData | null, name: ProviderResult["name"]): ProviderResult | null {
+  const provider = data?.providers?.find((p) => p.name === name);
+  return provider?.ok ? provider : null;
+}
+
+function readNumber(source: any, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && value !== "") {
+      const n = Number(value);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
 async function fetchPathao(supabase: any, brandId: string | null, phone: string): Promise<ProviderResult> {
   try {
     const { loadPathaoCreds } = await import("./pathao.server");
@@ -89,11 +105,18 @@ async function fetchSteadfast(supabase: any, brandId: string | null, phone: stri
     const text = await res.text();
     if (!res.ok) throw new Error(`${res.status}: ${text.slice(0, 120)}`);
     const j = JSON.parse(text);
+    const c = j?.data ?? j?.result ?? j?.customer ?? j;
     // Steadfast /fraud_check/{phone} returns:
     // { status, total_consignments, delivered_consignments, cancelled_consignments, success_ratio }
-    const total = Number(j.total_consignments ?? j.total_parcels ?? j.total ?? 0);
-    const success = Number(j.delivered_consignments ?? j.total_delivered ?? j.successful_consignments ?? j.success ?? 0);
-    const cancelled = Number(j.cancelled_consignments ?? j.total_cancelled ?? j.cancelled ?? Math.max(0, total - success));
+    const total = readNumber(c, ["total_consignments", "total_consignment", "total_parcels", "total_parcel", "total"])
+      ?? readNumber(j, ["total_consignments", "total_consignment", "total_parcels", "total_parcel", "total"])
+      ?? 0;
+    const success = readNumber(c, ["delivered_consignments", "delivered_consignment", "total_delivered", "successful_consignments", "successful_consignment", "delivered", "success"])
+      ?? readNumber(j, ["delivered_consignments", "delivered_consignment", "total_delivered", "successful_consignments", "successful_consignment", "delivered", "success"])
+      ?? 0;
+    const cancelled = readNumber(c, ["cancelled_consignments", "cancelled_consignment", "total_cancelled", "cancelled", "cancel"])
+      ?? readNumber(j, ["cancelled_consignments", "cancelled_consignment", "total_cancelled", "cancelled", "cancel"])
+      ?? Math.max(0, total - success);
     return { name: "steadfast", label: "Steadfast", ok: true, total, success, cancelled };
   } catch (e) {
     return { name: "steadfast", label: "Steadfast", ok: false, total: 0, success: 0, cancelled: 0, error: (e as Error).message };
@@ -117,21 +140,25 @@ async function getOneWithCache(
     };
   }
 
-  if (!force) {
-    const { data: cached } = await supabase
-      .from("courier_history_cache")
-      .select("data, fetched_at")
-      .eq("phone", normalized)
-      .maybeSingle();
-    if (cached?.data && cached.fetched_at) {
-      const ageHours = (Date.now() - new Date(cached.fetched_at).getTime()) / 3_600_000;
-      if (ageHours < CACHE_TTL_HOURS) return cached.data as HistoryData;
-    }
-  }
+  const { data: cached } = !force
+    ? await supabase
+        .from("courier_history_cache")
+        .select("data, fetched_at")
+        .eq("phone", normalized)
+        .maybeSingle()
+    : { data: null };
+
+  const cachedData = cached?.data && cached.fetched_at ? (cached.data as HistoryData) : null;
+  const cacheFresh = cached?.fetched_at
+    ? (Date.now() - new Date(cached.fetched_at).getTime()) / 3_600_000 < CACHE_TTL_HOURS
+    : false;
+  const cachedPathao = cacheFresh ? cachedProvider(cachedData, "pathao") : null;
+  const cachedSteadfast = cacheFresh ? cachedProvider(cachedData, "steadfast") : null;
+  if (cachedPathao && cachedSteadfast) return cachedData!;
 
   const [pathao, steadfast] = await Promise.all([
-    fetchPathao(supabase, brandId, normalized),
-    fetchSteadfast(supabase, brandId, normalized),
+    cachedPathao ?? fetchPathao(supabase, brandId, normalized),
+    cachedSteadfast ?? fetchSteadfast(supabase, brandId, normalized),
   ]);
   const providers: ProviderResult[] = [pathao, steadfast];
   const summary = {

@@ -36,6 +36,13 @@ const STAT_COLUMNS = [
   { key: "steadfast", label: "Steadfast", dot: "bg-amber-500" },
 ] as const;
 
+function normalizePhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880")) return "0" + digits.slice(3);
+  if (digits.length === 10 && digits.startsWith("1")) return "0" + digits;
+  return digits;
+}
+
 function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
@@ -91,7 +98,7 @@ function OrderDetailsPage() {
   const items = data?.items ?? [];
   const history = data?.history ?? [];
   const notes = data?.notes ?? [];
-  const phone = order ? customerPhone(order) : "";
+  const phone = order ? normalizePhone(customerPhone(order)) : "";
 
   // Our Record — past orders for this customer phone (brand-scoped, excluding current order)
   const { data: ourRecord } = useQuery({
