@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, formatDistanceToNow } from "date-fns";
 import {
-  ArrowLeft, Printer, Truck, User, Phone, MapPin, Package, MessageSquare,
-  Clock, Loader2, MessageCircle, Send, Tag as TagIcon, Activity,
-  Globe, CreditCard, FileText, XCircle, Hash,
+  ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
+  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,9 +13,9 @@ import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useOrderDetail } from "@/hooks/erp/use-orders-query";
 import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
@@ -25,129 +24,328 @@ import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dia
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
-  head: () => ({ meta: [{ title: "Order Details — ERP" }] }),
+  head: () => ({ meta: [{ title: "Web Order Details — ERP" }] }),
   component: OrderDetailsPage,
 });
 
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function normalizePhone(raw: string) {
-  const digits = raw.replace(/\D/g, "");
+  const digits = (raw || "").replace(/\D/g, "");
   if (digits.startsWith("880")) return "0" + digits.slice(3);
   if (digits.length === 10 && digits.startsWith("1")) return "0" + digits;
   return digits;
 }
 
+function bdtCompact(n: number) {
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Stats strip — donut design (ours) + RedX + Fraud Note                      */
+/* -------------------------------------------------------------------------- */
+
+type StatCell = { total: number; success: number; cancel: number };
+
 const STAT_COLUMNS = [
-  { key: "ourRecord", label: "Our Record", dot: "bg-indigo-500", tint: "from-indigo-500/[0.06]" },
-  { key: "overall", label: "Overall", dot: "bg-sky-500", tint: "from-sky-500/[0.06]" },
-  { key: "pathao", label: "Pathao", dot: "bg-rose-500", tint: "from-rose-500/[0.06]" },
-  { key: "steadfast", label: "Steadfast", dot: "bg-amber-500", tint: "from-amber-500/[0.06]" },
+  { key: "ourRecord", label: "Our Record", dot: "bg-indigo-500", bar: "bg-indigo-500", tint: "from-indigo-500/[0.07]" },
+  { key: "overall",   label: "Overall",    dot: "bg-sky-500",    bar: "bg-sky-500",    tint: "from-sky-500/[0.07]" },
+  { key: "pathao",    label: "Pathao",     dot: "bg-rose-500",   bar: "bg-rose-500",   tint: "from-rose-500/[0.07]" },
+  { key: "redx",      label: "RedX",       dot: "bg-orange-500", bar: "bg-orange-500", tint: "from-orange-500/[0.07]" },
+  { key: "steadfast", label: "Steadfast",  dot: "bg-amber-500",  bar: "bg-amber-500",  tint: "from-amber-500/[0.07]" },
 ] as const;
 
-function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
-  const columns = STAT_COLUMNS.filter((c) => c.key !== "ourRecord" || (stats.ourRecord?.total ?? 0) > 0);
-  const gridCols = columns.length === 4 ? "sm:grid-cols-4" : columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
-
+function StatsStrip({
+  stats,
+  customerName: cname,
+  fraudNote,
+  onRefresh,
+  refreshing,
+}: {
+  stats: Record<string, StatCell>;
+  customerName: string;
+  fraudNote: string;
+  onRefresh: () => void;
+  refreshing: boolean;
+}) {
   return (
     <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
-      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
-        {columns.map((c) => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y sm:divide-y-0 divide-border/60">
+        {STAT_COLUMNS.map((c) => {
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
           const isEmpty = s.total === 0;
           const tone = isEmpty
-            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
+            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border" }
             : successPct >= 80
-              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]" }
+              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30" }
               : successPct >= 50
-                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]" }
-                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]" };
+                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30" }
+                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30" };
           const R = 15;
           const C = 2 * Math.PI * R;
           const offset = denom === 0 ? C : C * (1 - successPct / 100);
           return (
-            <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
+            <div key={c.key} className="group relative px-3 py-3 transition-colors hover:bg-muted/30">
               <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
-              <div className="relative space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
+              <div className="relative space-y-2.5">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", c.dot)} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
+                  </div>
+                  {c.key === "ourRecord" && cname && (
+                    <span className="text-[10px] text-muted-foreground/80 truncate">{cname}</span>
+                  )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
-                    <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
+                <div className="flex items-center gap-2.5">
+                  <div className="relative shrink-0">
+                    <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
                       <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
-                      <circle
-                        cx="18" cy="18" r={R}
+                      <circle cx="18" cy="18" r={R}
                         className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={C}
-                        strokeDashoffset={offset}
-                      />
+                        strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>
+                      <span className={cn("text-[10px] font-bold tabular-nums tracking-tight", tone.text)}>
                         {denom === 0 ? "—" : `${successPct}%`}
                       </span>
                     </div>
                   </div>
-                  <div className="text-xs tabular-nums leading-tight space-y-1">
-                    <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
-                      {denom === 0 ? "no data" : `${successPct}% success`}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
-                      <span className="font-semibold text-foreground">{s.success}<span className="text-muted-foreground/50">/{denom || s.total}</span></span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Rating</span>
-                      <span className="font-semibold text-foreground">{s.success}</span>
-                    </div>
+                  <div className="text-[11px] tabular-nums leading-tight space-y-0.5">
+                    <div className="text-foreground">Total: <span className="font-semibold">{s.total}</span></div>
+                    <div className="text-emerald-600 dark:text-emerald-400">Success: <span className="font-semibold">{s.success}</span></div>
+                    <div className="text-rose-600 dark:text-rose-400">Cancelled: <span className="font-semibold">{s.cancel}</span></div>
                   </div>
                 </div>
+              </div>
+              {/* Bottom progress bar */}
+              <div className="relative mt-2 h-1 rounded-full bg-muted/40 overflow-hidden">
+                <div className={cn("h-full transition-all duration-700 ease-out", isEmpty ? "bg-muted-foreground/30" : c.bar)}
+                     style={{ width: `${isEmpty ? 0 : successPct}%` }} />
               </div>
             </div>
           );
         })}
+        {/* Fraud Note card */}
+        <div className="group relative px-3 py-3">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-500/[0.06] to-transparent opacity-60" />
+          <div className="relative space-y-2">
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-fuchsia-500" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">Fraud Note</span>
+              </div>
+              <button onClick={onRefresh} disabled={refreshing} className="text-muted-foreground hover:text-foreground disabled:opacity-50">
+                <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+              </button>
+            </div>
+            <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">
+              {fraudNote || <span className="text-muted-foreground italic">No fraud notes for this customer.</span>}
+            </p>
+          </div>
+          <div className="relative mt-2 h-1 rounded-full bg-muted/40 overflow-hidden">
+            <div className={cn("h-full bg-fuchsia-500/70", !fraudNote && "opacity-30")} style={{ width: fraudNote ? "100%" : "0%" }} />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function SectionCard({ icon, title, action, children }: {
-  icon?: React.ReactNode; title: string; action?: React.ReactNode; children: React.ReactNode;
-}) {
+/* -------------------------------------------------------------------------- */
+/*  Field shell                                                                */
+/* -------------------------------------------------------------------------- */
+
+function FieldShell({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
-      <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b bg-muted/30">
-        <h3 className="text-sm font-semibold flex items-center gap-1.5">
-          {icon}{title}
-        </h3>
-        {action}
-      </header>
-      <div className="p-4">{children}</div>
-    </section>
+    <div className={cn("space-y-1", className)}>
+      <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
+      {children}
+    </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Click to Add Products panel                                                */
+/* -------------------------------------------------------------------------- */
+
+type ProductLite = {
+  id: string;
+  title: string;
+  price: number;
+  image: string | null;
+  stock: number;
+  is_featured: boolean | null;
+};
+
+function ProductSearchPanel({
+  brandId, onAdd,
+}: { brandId: string | null; onAdd: (p: ProductLite) => void }) {
+  const [codeQ, setCodeQ] = useState("");
+  const [nameQ, setNameQ] = useState("");
+  const [debounced, setDebounced] = useState({ code: "", name: "" });
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced({ code: codeQ.trim(), name: nameQ.trim() }), 300);
+    return () => clearTimeout(t);
+  }, [codeQ, nameQ]);
+
+  const { data: results, isFetching } = useQuery({
+    queryKey: ["erp-product-search", brandId, debounced],
+    enabled: !!brandId,
+    queryFn: async () => {
+      let q = supabase
+        .from("products")
+        .select("id,title,price,image,stock,is_featured,slug")
+        .eq("brand_id", brandId!)
+        .eq("is_active", true)
+        .order("is_featured", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (debounced.name) q = q.ilike("title", `%${debounced.name}%`);
+      if (debounced.code) q = q.or(`slug.ilike.%${debounced.code}%,id.eq.${debounced.code}`);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as (ProductLite & { slug: string })[];
+    },
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <FieldShell label="Code/sku">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input value={codeQ} onChange={(e) => setCodeQ(e.target.value)} placeholder="Type to Search…" className="h-8 pl-7 text-xs" />
+          </div>
+        </FieldShell>
+        <FieldShell label="Name">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input value={nameQ} onChange={(e) => setNameQ(e.target.value)} placeholder="Type to Search…" className="h-8 pl-7 text-xs" />
+          </div>
+        </FieldShell>
+      </div>
+      <div className="max-h-[360px] overflow-y-auto -mx-2">
+        {isFetching && (results ?? []).length === 0 && (
+          <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        )}
+        {!isFetching && (results ?? []).length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-6">No products found</p>
+        )}
+        <ul className="divide-y">
+          {(results ?? []).map((p) => (
+            <li key={p.id} className="flex items-center gap-3 px-2 py-2 hover:bg-muted/40 transition-colors">
+              <div className="h-10 w-10 rounded-md bg-muted shrink-0 overflow-hidden flex items-center justify-center">
+                {p.image
+                  ? <img src={p.image} alt="" className="h-full w-full object-cover" />
+                  : <span className="text-[8px] text-muted-foreground">No Image</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate flex items-center gap-1">
+                  {p.is_featured && <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />}
+                  {p.title}
+                </div>
+                <div className="text-[10px] text-muted-foreground font-mono">SKU: {p.slug?.slice(0, 24) ?? p.id.slice(0, 8)}</div>
+                <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                  <span className="text-rose-600">Price: ৳{bdtCompact(Number(p.price))}</span>
+                  <span className={cn("text-muted-foreground", p.stock <= 0 && "text-rose-600")}>Stock: {p.stock}</span>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="h-7 px-2"
+                disabled={p.stock <= 0}
+                onClick={() => onAdd({ id: p.id, title: p.title, price: Number(p.price), image: p.image, stock: p.stock, is_featured: p.is_featured })}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Page                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function OrderDetailsPage() {
   const { orderId } = Route.useParams();
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
-  const [note, setNote] = useState("");
-  const [bookOpen, setBookOpen] = useState(false);
-  const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
-  const [memo, setMemo] = useState("");
-  const [tagInput, setTagInput] = useState("");
 
   const order = data?.order;
   const items = data?.items ?? [];
-  const history = data?.history ?? [];
-  const notes = data?.notes ?? [];
   const phone = order ? normalizePhone(customerPhone(order)) : "";
 
-  // Our Record — past orders for this customer phone (brand-scoped, excluding current order)
+  /* ------------------------------ Local form state ------------------------- */
+
+  const [form, setForm] = useState({
+    mobile: "", name: "", delivery_method: "", address: "", shipping_note: "",
+    city_id: "", zone_id: "", area_id: "",
+    source_platform: "", is_preorder: false, is_cross_sale: false,
+    discount: 0, advance: 0, shipping_fee: 0,
+    note_input: "", tag_input: "",
+  });
+
+  useEffect(() => {
+    if (!order) return;
+    setForm((f) => ({
+      ...f,
+      mobile: phone,
+      name: customerName(order),
+      delivery_method: order.delivery_method ?? "",
+      address: order.shipping_address ?? "",
+      shipping_note: order.shipping_note ?? "",
+      city_id: order.delivery_city_id ?? "",
+      zone_id: order.delivery_zone_id ?? "",
+      area_id: order.delivery_area_id ?? "",
+      source_platform: order.source_platform ?? order.source_website ?? "Website",
+      is_preorder: !!order.is_preorder,
+      is_cross_sale: !!order.is_cross_sale,
+      discount: Number(order.discount_amount ?? 0),
+      advance: Number(order.advance_amount ?? 0),
+      shipping_fee: Number(order.shipping_fee ?? 0),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id]);
+
+  /* ------------------------------ BD geo cascades -------------------------- */
+
+  const { data: cities } = useQuery({
+    queryKey: ["bd_cities"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bd_cities").select("id,name_en").eq("is_active", true).order("name_en");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30 * 60_000,
+  });
+  const { data: zones } = useQuery({
+    queryKey: ["bd_zones", form.city_id],
+    enabled: !!form.city_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bd_zones").select("id,name_en").eq("city_id", form.city_id).eq("is_active", true).order("name_en");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: areas } = useQuery({
+    queryKey: ["bd_areas", form.zone_id],
+    enabled: !!form.zone_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bd_areas").select("id,name_en").eq("zone_id", form.zone_id).eq("is_active", true).order("name_en");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  /* ------------------------------ Courier history -------------------------- */
+
   const { data: ourRecord } = useQuery({
     queryKey: ["customer-our-record", order?.brand_id, phone, orderId],
     enabled: !!order?.brand_id && !!phone,
@@ -171,9 +369,9 @@ function OrderDetailsPage() {
     },
   });
 
-  // Live Pathao + Steadfast history by customer phone
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
-  const { data: courierHistory } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: courierHistory, refetch: refetchHistory } = useQuery({
     queryKey: ["courier-history", order?.brand_id, phone],
     enabled: !!order?.brand_id && !!phone && phone.length >= 11,
     staleTime: 5 * 60_000,
@@ -185,57 +383,119 @@ function OrderDetailsPage() {
       return {
         pathao: { total: pathao?.total ?? 0, success: pathao?.success ?? 0, cancel: pathao?.cancelled ?? 0 },
         steadfast: { total: steadfast?.total ?? 0, success: steadfast?.success ?? 0, cancel: steadfast?.cancelled ?? 0 },
+        steadfastError: steadfast?.ok ? "" : steadfast?.error ?? "",
       };
     },
   });
 
-  const stats = useMemo(() => {
+  const stats = useMemo<Record<string, StatCell>>(() => {
     const our = ourRecord ?? { total: 0, success: 0, cancel: 0 };
     const pathao = courierHistory?.pathao ?? { total: 0, success: 0, cancel: 0 };
     const steadfast = courierHistory?.steadfast ?? { total: 0, success: 0, cancel: 0 };
+    const redx = { total: 0, success: 0, cancel: 0 };
     const overall = {
-      total: pathao.total + steadfast.total,
-      success: pathao.success + steadfast.success,
-      cancel: pathao.cancel + steadfast.cancel,
+      total: pathao.total + steadfast.total + redx.total,
+      success: pathao.success + steadfast.success + redx.success,
+      cancel: pathao.cancel + steadfast.cancel + redx.cancel,
     };
-    return { ourRecord: our, overall, pathao, steadfast };
+    return { ourRecord: our, overall, pathao, redx, steadfast };
   }, [ourRecord, courierHistory]);
+
+  /* ------------------------------ Item arithmetic -------------------------- */
+
+  const itemsSubtotal = useMemo(
+    () => items.reduce((s, it) => s + Number(it.line_total ?? Number(it.unit_price ?? it.price) * it.quantity), 0),
+    [items],
+  );
+  const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount));
+
+  /* ------------------------------ Mutations -------------------------------- */
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
 
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
       const { error } = await supabase.rpc("transition_order_status", { _order_id: orderId, _new_status: status });
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Status updated");
-      qc.invalidateQueries({ queryKey: ["orders"] });
-      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
-    },
+    onSuccess: () => { toast.success("Status updated"); qc.invalidateQueries({ queryKey: ["orders"] }); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const addNote = useMutation({
+  const saveCustomer = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("add_order_note", { _order_id: orderId, _body: note, _is_internal: true });
+      const payload = {
+        shipping_phone: form.mobile,
+        shipping_name: form.name,
+        delivery_method: form.delivery_method || null,
+        shipping_address: form.address,
+        shipping_note: form.shipping_note,
+        delivery_city_id: form.city_id || null,
+        delivery_zone_id: form.zone_id || null,
+        delivery_area_id: form.area_id || null,
+        shipping_city: cities?.find((c) => c.id === form.city_id)?.name_en ?? order?.shipping_city ?? null,
+        shipping_thana: zones?.find((z) => z.id === form.zone_id)?.name_en ?? order?.shipping_thana ?? null,
+        source_platform: form.source_platform,
+        is_preorder: form.is_preorder,
+        is_cross_sale: form.is_cross_sale,
+        ...(order?.is_guest_order ? { guest_name: form.name, guest_phone: form.mobile } : {}),
+      } as const;
+      const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Note added");
-      setNote("");
-      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
-    },
+    onSuccess: () => { toast.success("Customer details saved"); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const saveMemo = useMutation({
+  const savePricing = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("orders").update({ admin_notes: memo }).eq("id", orderId);
+      const subtotal = itemsSubtotal;
+      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
+      const { error } = await supabase.from("orders").update({
+        subtotal, shipping_fee: Number(form.shipping_fee), discount_amount: Number(form.discount),
+        advance_amount: Number(form.advance), total,
+      }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Memo saved");
-      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+    onSuccess: () => { toast.success("Pricing saved"); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async (input: { id: string; quantity?: number; unit_price?: number }) => {
+      const it = items.find((x) => x.id === input.id); if (!it) return;
+      const quantity = input.quantity ?? it.quantity;
+      const unit_price = input.unit_price ?? Number(it.unit_price ?? it.price);
+      const line_total = quantity * unit_price;
+      const { error } = await supabase.from("order_items")
+        .update({ quantity, unit_price, price: unit_price, line_total }).eq("id", input.id);
+      if (error) throw error;
     },
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteItem = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("order_items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Item removed"); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addItem = useMutation({
+    mutationFn: async (p: ProductLite) => {
+      const existing = items.find((x) => x.product_id === p.id);
+      if (existing) { await updateItem.mutateAsync({ id: existing.id, quantity: existing.quantity + 1 }); return; }
+      const unit_price = p.price;
+      const { error } = await supabase.from("order_items").insert({
+        order_id: orderId, product_id: p.id, name: p.title, image: p.image,
+        quantity: 1, price: unit_price, unit_price, line_total: unit_price,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Item added"); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -244,263 +504,345 @@ function OrderDetailsPage() {
       const { error } = await supabase.from("orders").update({ order_tags: tags }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
-    },
+    onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const addNote = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("add_order_note", { _order_id: orderId, _body: form.note_input, _is_internal: true });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Note added"); setForm((f) => ({ ...f, note_input: "" })); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  /* ------------------------------ Dialogs ---------------------------------- */
+
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
+
   if (isLoading || !order) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
 
   const tags: string[] = order.order_tags ?? [];
-  const fullAddress = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
-    .filter(Boolean).join(", ");
+  const fraudNote = courierHistory?.steadfastError || "";
+
+  /* ------------------------------ Render ----------------------------------- */
 
   return (
-    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-4 print:hidden">
+    <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-4 print:hidden">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="ghost">
-            <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Back to orders</Link>
+            <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Web Order Details</Link>
           </Button>
-          <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 text-muted-foreground" />
-            <h1 className="text-lg font-bold font-mono tracking-tight">{shortId(order.id)}</h1>
-            <Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>
-          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 text-[11px] rounded-lg border bg-card px-3 py-1.5">
+            <span className="text-muted-foreground">Created</span>
+            <span className="text-emerald-600 font-medium">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}</span>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-muted-foreground">Updated</span>
+            <span className="font-medium">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-muted-foreground">Status</span>
+            <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px]", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-muted-foreground">Source</span>
+            <Badge variant="outline" className="h-5 px-1.5 text-[10px] capitalize">{order.source ?? "—"}</Badge>
+          </div>
           <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
-          <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Book Pathao</Button>
-          <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Book Steadfast</Button>
+          <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
+          <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
         </div>
       </div>
 
-      {/* Courier stats strip */}
-      <StatsStrip stats={stats} />
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+        {/* MAIN */}
+        <div className="space-y-4">
+          {/* Stats strip */}
+          <StatsStrip
+            stats={stats}
+            customerName={form.name}
+            fraudNote={fraudNote}
+            refreshing={refreshing}
+            onRefresh={async () => { setRefreshing(true); await refetchHistory(); setRefreshing(false); }}
+          />
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left / Main */}
-        <div className="lg:col-span-2 space-y-4">
-          <SectionCard
-            icon={<User className="h-4 w-4" />}
-            title="Customer Information"
-          >
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <Field label="Name" value={customerName(order)} />
-              <Field label="Mobile" value={phone || "—"} mono />
-              {order.alternate_phone && <Field label="Alt phone" value={order.alternate_phone} mono />}
-              <Field label="Delivery method" value={order.delivery_method ?? "—"} />
-              <Field label="Payment" value={order.payment_method ?? "—"} />
-              <Field label="Source" value={order.source ?? "—"} />
-              <div className="sm:col-span-2">
-                <Field label="Shipping note" value={order.shipping_note ?? order.customer_note ?? "—"} />
+          {/* Customer row */}
+          <section className="rounded-xl border bg-card p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FieldShell label="Mobile Number">
+                <div className="relative">
+                  <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} onBlur={() => saveCustomer.mutate()} className="h-9 pr-16 font-mono" />
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
+                    <a href={`tel:${form.mobile}`} className="p-1 rounded hover:bg-muted text-emerald-600"><Phone className="h-3.5 w-3.5" /></a>
+                    <a href={`https://wa.me/${form.mobile.replace(/^0/, "880")}`} target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-muted text-emerald-600"><MessageCircle className="h-3.5 w-3.5" /></a>
+                  </div>
+                </div>
+                <p className="text-[10px] text-sky-600">Check Our Record above for customer history</p>
+              </FieldShell>
+              <FieldShell label="Name">
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} onBlur={() => saveCustomer.mutate()} className="h-9" />
+              </FieldShell>
+              <FieldShell label="Delivery Method">
+                <Select value={form.delivery_method || ""} onValueChange={(v) => { setForm({ ...form, delivery_method: v }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Choose courier" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pathao">Pathao</SelectItem>
+                    <SelectItem value="steadfast">Steadfast</SelectItem>
+                    <SelectItem value="redx">RedX</SelectItem>
+                    <SelectItem value="own">Own Delivery</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldShell>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FieldShell label="Address">
+                <Textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} onBlur={() => saveCustomer.mutate()} className="resize-none" />
+              </FieldShell>
+              <FieldShell label="Shipping Note">
+                <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} onBlur={() => saveCustomer.mutate()} className="resize-none" />
+                <div className="text-[10px] text-right text-muted-foreground">{form.shipping_note.length}/150</div>
+              </FieldShell>
+              <div className="space-y-3">
+                <FieldShell label="Source Platform">
+                  <Select value={form.source_platform} onValueChange={(v) => { setForm({ ...form, source_platform: v }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Website">Website</SelectItem>
+                      <SelectItem value="Facebook">Facebook</SelectItem>
+                      <SelectItem value="Instagram">Instagram</SelectItem>
+                      <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                      <SelectItem value="Phone">Phone</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldShell>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span className="text-xs">Preorder</span>
+                  <Switch checked={form.is_preorder} onCheckedChange={(v) => { setForm({ ...form, is_preorder: v }); setTimeout(() => saveCustomer.mutate(), 0); }} />
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span className="text-xs">Cross Sale</span>
+                  <Switch checked={form.is_cross_sale} onCheckedChange={(v) => { setForm({ ...form, is_cross_sale: v }); setTimeout(() => saveCustomer.mutate(), 0); }} />
+                </div>
               </div>
             </div>
-          </SectionCard>
 
-          <SectionCard icon={<MapPin className="h-4 w-4" />} title="Location">
-            <div className="grid sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
-              <Field label="City" value={order.shipping_city ?? "—"} />
-              <Field label="District" value={order.shipping_district ?? "—"} />
-              <Field label="Thana / Zone" value={order.shipping_thana ?? "—"} />
-              <div className="sm:col-span-3">
-                <Field label="Address" value={order.shipping_address ?? "—"} />
-              </div>
-              <div className="sm:col-span-3 text-xs text-muted-foreground truncate">
-                <span className="mr-1">Full:</span>{fullAddress || "—"}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FieldShell label="City">
+                <Select value={form.city_id} onValueChange={(v) => { setForm({ ...form, city_id: v, zone_id: "", area_id: "" }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
+                </Select>
+              </FieldShell>
+              <FieldShell label="Zone">
+                <Select value={form.zone_id} onValueChange={(v) => { setForm({ ...form, zone_id: v, area_id: "" }); setTimeout(() => saveCustomer.mutate(), 0); }} disabled={!form.city_id}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select zone" /></SelectTrigger>
+                  <SelectContent>{(zones ?? []).map((z) => <SelectItem key={z.id} value={z.id}>{z.name_en}</SelectItem>)}</SelectContent>
+                </Select>
+              </FieldShell>
+              <FieldShell label="Area">
+                <Select value={form.area_id} onValueChange={(v) => { setForm({ ...form, area_id: v }); setTimeout(() => saveCustomer.mutate(), 0); }} disabled={!form.zone_id}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select an area" /></SelectTrigger>
+                  <SelectContent>{(areas ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.name_en}</SelectItem>)}</SelectContent>
+                </Select>
+              </FieldShell>
             </div>
-          </SectionCard>
+          </section>
 
-          <SectionCard
-            icon={<Package className="h-4 w-4" />}
-            title={`Ordered Products (${items.length})`}
-          >
-            {items.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No items</p>
-            ) : (
-              <div className="divide-y -my-2">
-                {items.map((it) => {
-                  const price = Number(it.unit_price ?? it.price);
-                  const total = Number(it.line_total ?? price * it.quantity);
-                  return (
-                    <div key={it.id} className="flex items-center gap-3 py-2.5">
-                      <div className="h-12 w-12 rounded-md bg-muted shrink-0 overflow-hidden">
-                        {it.image
-                          ? <img src={it.image} alt="" className="h-full w-full object-cover" />
-                          : <div className="h-full w-full flex items-center justify-center"><Package className="h-4 w-4 text-muted-foreground" /></div>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{it.name}</div>
-                        <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-2">
-                          {it.variant_label && <span>{it.variant_label}</span>}
-                          <span className="font-mono">SKU: {it.product_id.slice(0, 8)}</span>
+          {/* Ordered Products + Add Products */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section className="rounded-xl border bg-card p-4">
+              <header className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Ordered Products <span className="ml-1 text-xs text-muted-foreground">{items.length}</span></h3>
+              </header>
+              {items.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">No items in this order</p>
+              ) : (
+                <ul className="divide-y -mx-2">
+                  {items.map((it) => {
+                    const unit = Number(it.unit_price ?? it.price);
+                    const total = Number(it.line_total ?? unit * it.quantity);
+                    return (
+                      <li key={it.id} className="px-2 py-3">
+                        <div className="flex items-start gap-3">
+                          <div className="h-12 w-12 rounded-md bg-muted shrink-0 overflow-hidden flex items-center justify-center">
+                            {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : <span className="text-[8px] text-muted-foreground">No Image</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
+                            <div className="text-sm font-medium truncate">{it.name}</div>
+                            <div className="text-[10px] text-rose-600">৳{bdtCompact(unit)} <span className="text-muted-foreground">Stock</span></div>
+                          </div>
+                          <button onClick={() => deleteItem.mutate(it.id)} className="p-1 rounded hover:bg-rose-500/10 text-rose-600">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      </div>
-                      <div className="text-xs tabular-nums text-muted-foreground w-16 text-right">× {it.quantity}</div>
-                      <div className="text-sm tabular-nums w-24 text-right">৳ {price.toLocaleString()}</div>
-                      <div className="text-sm font-semibold tabular-nums w-28 text-right">৳ {total.toLocaleString()}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                          <FieldShell label="Qty">
+                            <QtyInput value={it.quantity} onChange={(v) => updateItem.mutate({ id: it.id, quantity: v })} />
+                          </FieldShell>
+                          <FieldShell label="Price">
+                            <QtyInput value={unit} onChange={(v) => updateItem.mutate({ id: it.id, unit_price: v })} step={10} />
+                          </FieldShell>
+                          <FieldShell label="Total">
+                            <Input value={bdtCompact(total)} readOnly className="h-8 text-xs bg-muted/40 tabular-nums" />
+                          </FieldShell>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+            <section className="rounded-xl border bg-card p-4">
+              <header className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Click To Add Products</h3>
+              </header>
+              <ProductSearchPanel brandId={order.brand_id ?? null} onAdd={(p) => addItem.mutate(p)} />
+            </section>
+          </div>
 
-          <SectionCard icon={<CreditCard className="h-4 w-4" />} title="Pricing & Payment">
-            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
-              <Row label="Sub Total" value={`৳ ${Number(order.subtotal).toLocaleString()}`} />
-              <Row label="Delivery Charge" value={`৳ ${Number(order.shipping_fee).toLocaleString()}`} />
-              <Row label="Discount" value={`− ৳ ${Number(order.discount_amount).toLocaleString()}`} muted={Number(order.discount_amount) === 0} />
-              <Row label="Advance" value={`৳ ${Number(order.advance_amount ?? 0).toLocaleString()}`} muted={Number(order.advance_amount ?? 0) === 0} />
+          {/* Totals row */}
+          <section className="rounded-xl border bg-card p-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <FieldShell label="Discount">
+                <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} onCommit={() => savePricing.mutate()} />
+              </FieldShell>
+              <FieldShell label="Advance">
+                <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} onCommit={() => savePricing.mutate()} />
+              </FieldShell>
+              <FieldShell label="Sub Total">
+                <Input value={bdtCompact(itemsSubtotal)} readOnly className="h-9 bg-muted/40 tabular-nums" />
+              </FieldShell>
+              <FieldShell label="Delivery Charge">
+                <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} onCommit={() => savePricing.mutate()} />
+              </FieldShell>
+              <FieldShell label="Grand Total">
+                <Input value={bdtCompact(grandTotal)} readOnly className="h-9 bg-rose-500/5 border-rose-500/30 text-rose-600 font-bold tabular-nums" />
+              </FieldShell>
             </div>
-            <Separator className="my-3" />
-            <div className="flex items-end justify-between">
-              <div className="text-xs text-muted-foreground">Grand Total</div>
-              <div className="text-2xl font-bold tabular-nums">৳ {Number(order.total).toLocaleString()}</div>
-            </div>
-          </SectionCard>
+            {order.payment_method?.toLowerCase().includes("cod") && (
+              <p className="text-center text-xs text-rose-600 mt-3">The payment method is Cash on Delivery (COD). Please confirm with the customer.</p>
+            )}
+            <Button className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white" size="lg" disabled={savePricing.isPending} onClick={() => savePricing.mutate()}>
+              {savePricing.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Order (${bdtCompact(grandTotal)}.00)`}
+            </Button>
+          </section>
         </div>
 
-        {/* Right sidebar */}
+        {/* RIGHT SIDEBAR */}
         <aside className="space-y-4">
-          <SectionCard icon={<FileText className="h-4 w-4" />} title="Order Summary">
-            <div className="space-y-2 text-sm">
+          <section className="rounded-xl border bg-card overflow-hidden">
+            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Order Summary</h3>
+              <span className="text-[10px] font-mono text-muted-foreground">#{shortId(order.id)}</span>
+            </header>
+            <div className="p-4 space-y-2 text-xs">
               <Row label="Date" value={format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} />
               <Row label="Status" value={<Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>} />
-              <Row label="Courier" value={order.courier_name ?? "—"} />
-              <Row label="Tracking" value={order.tracking_number ?? "—"} mono />
-              <Row label="Total" value={<span className="font-bold">৳ {Number(order.total).toLocaleString()}</span>} />
+              <Row label="Payment" value={order.payment_method ?? "—"} />
+              <Row label="Source" value={order.source ?? "—"} />
+              <div className="h-px bg-border my-2" />
+              <Row label="Subtotal" value={`৳${bdtCompact(itemsSubtotal)}`} />
+              <Row label="Delivery" value={`৳${bdtCompact(form.shipping_fee)}`} />
+              <Row label="Total" value={<span className="font-bold text-foreground">৳{bdtCompact(grandTotal)}</span>} />
             </div>
-            <Separator className="my-3" />
-            <div className="space-y-2">
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Change status</Label>
-              <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ORDER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </SectionCard>
+          </section>
 
-          <SectionCard icon={<FileText className="h-4 w-4" />} title="Order Memo">
-            <Textarea
-              rows={3}
-              placeholder={order.admin_notes ?? "Add an internal memo…"}
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-            />
-            <Button size="sm" className="w-full mt-2" disabled={!memo.trim() || saveMemo.isPending} onClick={() => saveMemo.mutate()}>
-              Save Memo
-            </Button>
-          </SectionCard>
+          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2"><Globe className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">IP:</span></div>
+            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
+            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span>Not available</span></div>
+          </section>
 
-          <SectionCard icon={<TagIcon className="h-4 w-4" />} title="Order Tags">
-            <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px]">
-              {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags</span>}
-              {tags.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => updateTags.mutate(tags.filter((x) => x !== t))}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20"
-                  title="Remove tag"
-                >
-                  {t} <XCircle className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="Add tag…"
-                className="h-8"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && tagInput.trim()) {
-                    e.preventDefault();
-                    const next = Array.from(new Set([...tags, tagInput.trim()]));
-                    updateTags.mutate(next);
-                    setTagInput("");
-                  }
-                }}
-              />
-              <Button size="sm" variant="outline" onClick={() => {
-                if (!tagInput.trim()) return;
-                updateTags.mutate(Array.from(new Set([...tags, tagInput.trim()])));
-                setTagInput("");
-              }}>Add</Button>
-            </div>
-          </SectionCard>
-
-          <SectionCard icon={<Send className="h-4 w-4" />} title="Order Actions">
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant="outline" onClick={() => toast.info("Invoice SMS queued (stub)")}>Invoice SMS</Button>
-              <Button size="sm" variant="outline" onClick={() => toast.info("Reminder SMS queued (stub)")}>Reminder SMS</Button>
-            </div>
-            <Separator className="my-3" />
-            <div className="space-y-2">
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Add note</Label>
-              <Textarea rows={2} placeholder="Internal note…" value={note} onChange={(e) => setNote(e.target.value)} />
-              <Button size="sm" className="w-full" disabled={!note.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add note</Button>
-            </div>
-            {notes.length > 0 && (
-              <div className="space-y-1.5 mt-3 max-h-44 overflow-y-auto pr-1">
-                {notes.map((n) => (
-                  <div key={n.id} className="text-[11px] p-2 rounded border bg-muted/30">
-                    <div className="text-muted-foreground mb-0.5">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
-                    <div>{n.body}</div>
+          <section className="rounded-xl border bg-card overflow-hidden">
+            <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Items</h3></header>
+            <ul className="p-2 space-y-1.5 max-h-60 overflow-y-auto">
+              {items.map((it) => (
+                <li key={it.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/40">
+                  <div className="h-9 w-9 rounded bg-muted shrink-0 overflow-hidden">
+                    {it.image && <img src={it.image} alt="" className="h-full w-full object-cover" />}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium truncate">{it.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{it.quantity}× ৳{bdtCompact(Number(it.unit_price ?? it.price))}</div>
+                  </div>
+                </li>
+              ))}
+              {items.length === 0 && <li className="text-xs text-center text-muted-foreground py-3">No items</li>}
+            </ul>
+          </section>
+
+          <section className="rounded-xl border bg-card overflow-hidden">
+            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+              <TagIcon className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Order Tags</h3>
+            </header>
+            <div className="p-4 space-y-2">
+              <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags</span>}
+                {tags.map((t) => (
+                  <button key={t} onClick={() => updateTags.mutate(tags.filter((x) => x !== t))}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20">
+                    {t}<XCircle className="h-3 w-3" />
+                  </button>
                 ))}
               </div>
-            )}
-          </SectionCard>
-
-          <SectionCard icon={<Globe className="h-4 w-4" />} title="Attribution">
-            <div className="grid grid-cols-1 gap-1.5 text-xs">
-              <Field label="Source" value={order.source ?? "—"} />
-              <Field label="Site / Platform" value={order.source_platform ?? order.source_website ?? "—"} />
-              <Field label="Facebook Source" value="—" />
-              <Field label="Meta Ad Account" value="—" />
-              <Field label="Facebook Pixel" value="—" mono />
-              <Field label="Entry URL" value="—" mono />
+              <div className="flex gap-2">
+                <Input value={form.tag_input} onChange={(e) => setForm({ ...form, tag_input: e.target.value })}
+                  placeholder="Add tag…" className="h-8 text-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && form.tag_input.trim()) {
+                      e.preventDefault();
+                      updateTags.mutate(Array.from(new Set([...tags, form.tag_input.trim()])));
+                      setForm((f) => ({ ...f, tag_input: "" }));
+                    }
+                  }} />
+              </div>
             </div>
-          </SectionCard>
+          </section>
 
-          <SectionCard icon={<Activity className="h-4 w-4" />} title="Activity Log">
-            {history.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No activity yet</p>
-            ) : (
-              <ol className="relative border-l border-border pl-4 space-y-3 max-h-72 overflow-y-auto">
-                {history.map((h) => (
-                  <li key={h.id} className="relative">
-                    <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-primary ring-4 ring-background" />
-                    <div className="text-xs">
-                      <span className="capitalize text-muted-foreground">{(h.from_status ?? "—").replace(/_/g, " ")}</span>
-                      <span className="mx-1">→</span>
-                      <span className="font-medium capitalize">{(h.to_status ?? "").replace(/_/g, " ")}</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Clock className="h-2.5 w-2.5" />
-                      {format(new Date(h.created_at), "dd MMM, hh:mm a")}
-                    </div>
-                    {h.note && <div className="text-[11px] text-muted-foreground italic mt-0.5">{h.note}</div>}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </SectionCard>
+          <section className="rounded-xl border bg-card overflow-hidden">
+            <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Actions</h3></header>
+            <div className="p-4 space-y-3">
+              <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Change status" /></SelectTrigger>
+                <SelectContent>
+                  {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize text-xs">{s.replace(/_/g, " ")}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button asChild size="sm" variant="ghost" className="w-full justify-start h-7 text-xs">
+                <Link to="/erp/orders/web"><ArrowLeft className="h-3 w-3 mr-1" />Back to List</Link>
+              </Button>
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-muted-foreground">Note</label>
+                <Textarea rows={2} value={form.note_input} onChange={(e) => setForm({ ...form, note_input: e.target.value })} placeholder="Internal note…" className="text-xs resize-none" />
+                <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!form.note_input.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add Note</Button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Reminder SMS queued")}>Send Reminder SMS</Button>
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Advance SMS queued")}>Send Advance SMS</Button>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-card overflow-hidden">
+            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+              <Hash className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Attribution</h3>
+            </header>
+            <div className="p-4 space-y-2 text-xs">
+              <p className="text-[10px] text-muted-foreground">Track where this order came from</p>
+              <Badge variant="outline" className="text-[10px]">{form.source_platform || "utm"}</Badge>
+              <Row label="Site" value={order.source_website ?? "—"} />
+              <Row label="Platform" value={order.source_platform ?? "—"} />
+            </div>
+          </section>
         </aside>
       </div>
 
@@ -511,24 +853,35 @@ function OrderDetailsPage() {
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+/* -------------------------------------------------------------------------- */
+/*  Small input helpers                                                        */
+/* -------------------------------------------------------------------------- */
+
+function QtyInput({ value, onChange, step = 1 }: { value: number; onChange: (v: number) => void; step?: number }) {
+  const [local, setLocal] = useState(String(value));
+  useEffect(() => { setLocal(String(value)); }, [value]);
+  const commit = (n: number) => { const v = Math.max(0, Number.isFinite(n) ? n : 0); onChange(v); setLocal(String(v)); };
   return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">{label}</div>
-      <div className={cn("text-sm truncate", mono && "font-mono")}>{value}</div>
+    <div className="flex items-center h-8 rounded-md border overflow-hidden">
+      <button type="button" className="px-2 h-full hover:bg-muted text-muted-foreground" onClick={() => commit(Number(local) - step)}><Minus className="h-3 w-3" /></button>
+      <input value={local} onChange={(e) => setLocal(e.target.value)} onBlur={() => commit(Number(local))}
+        className="flex-1 min-w-0 text-center text-xs bg-transparent outline-none tabular-nums" />
+      <button type="button" className="px-2 h-full hover:bg-muted text-muted-foreground" onClick={() => commit(Number(local) + step)}><Plus className="h-3 w-3" /></button>
     </div>
   );
 }
 
-function Row({ label, value, muted, mono }: { label: string; value: React.ReactNode; muted?: boolean; mono?: boolean }) {
+function NumInput({ value, onChange, onCommit }: { value: number; onChange: (v: number) => void; onCommit: () => void }) {
+  return (
+    <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} onBlur={onCommit} className="h-9 tabular-nums" />
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className={cn("text-muted-foreground text-xs", muted && "opacity-50")}>{label}</span>
-      <span className={cn("tabular-nums truncate", muted && "opacity-50", mono && "font-mono text-xs")}>{value}</span>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="tabular-nums truncate text-right">{value}</span>
     </div>
   );
-}
-
-function Label({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("text-xs font-medium", className)}>{children}</div>;
 }
