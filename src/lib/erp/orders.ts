@@ -31,6 +31,34 @@ export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderSt
   { key: "closing", label: "Closing", statuses: ["on_hold", "cancelled"] },
 ];
 
+// Top-of-page tabs (reference layout). Each tab maps to one or more of our statuses.
+export type StatusTabKey =
+  | "all" | "pending" | "packing" | "rts" | "shipped" | "delivered"
+  | "partial" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled";
+
+export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
+  { key: "all", label: "All", statuses: [] },
+  { key: "pending", label: "Pending", statuses: ["confirmed"] },
+  { key: "packing", label: "Packing", statuses: ["ready_to_pack", "packed"] },
+  { key: "rts", label: "RTS", statuses: ["ready_to_ship"] },
+  { key: "shipped", label: "Shipped", statuses: ["shipped", "in_transit"] },
+  { key: "delivered", label: "Delivered", statuses: ["delivered"] },
+  { key: "partial", label: "Partial", statuses: ["partial_delivered", "partial_return"] },
+  { key: "pending_return", label: "Pending Return", statuses: ["pending_return"] },
+  { key: "returned", label: "Returned", statuses: ["returned"] },
+  { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
+  { key: "on_hold", label: "On Hold", statuses: ["on_hold"] },
+  { key: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
+];
+
+export function tabForStatuses(statuses: OrderStatus[]): StatusTabKey {
+  if (!statuses.length) return "all";
+  for (const t of STATUS_TABS) {
+    if (t.statuses.length === statuses.length && t.statuses.every((s) => statuses.includes(s))) return t.key;
+  }
+  return "all";
+}
+
 export const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   // Fulfillment
   confirmed: { label: "Pending", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
