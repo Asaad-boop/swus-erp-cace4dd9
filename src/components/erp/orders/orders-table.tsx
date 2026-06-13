@@ -1,10 +1,11 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, User as UserIcon, Copy } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, User as UserIcon, Copy, Package, ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,6 +74,10 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
           </div>
         );
       },
+    },
+    {
+      header: "Products",
+      cell: ({ row }) => <ProductsCell items={row.original.items ?? []} />,
     },
     {
       header: "Customer",
