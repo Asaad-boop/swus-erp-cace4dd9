@@ -2216,6 +2216,15 @@ export type Database = {
         Args: { _body: string; _is_internal?: boolean; _order_id: string }
         Returns: string
       }
+      adjust_product_stock: {
+        Args: {
+          _delta: number
+          _note?: string
+          _product_id: string
+          _reason: string
+        }
+        Returns: Json
+      }
       admin_rls_audit: {
         Args: never
         Returns: {
@@ -2262,6 +2271,17 @@ export type Database = {
       recalc_product_rating: {
         Args: { _product_id: string }
         Returns: undefined
+      }
+      record_supplier_payment: {
+        Args: {
+          _account_id: string
+          _amount: number
+          _notes?: string
+          _payment_date: string
+          _reference_no?: string
+          _supplier_id: string
+        }
+        Returns: string
       }
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
