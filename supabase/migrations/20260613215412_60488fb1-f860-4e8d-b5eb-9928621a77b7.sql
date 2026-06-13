@@ -1,0 +1,1 @@
+UPDATE public.orders SET status = 'new'::public.order_status, updated_at = now() WHERE status <> 'new'::public.order_status;
