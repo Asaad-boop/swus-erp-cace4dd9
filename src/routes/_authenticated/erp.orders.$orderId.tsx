@@ -403,7 +403,32 @@ function OrderDetailsPage() {
 
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const [refreshing, setRefreshing] = useState(false);
-  const { data: courierHistory, refetch: refetchHistory, isLoading: courierLoading, isFetching: courierFetching } = useQuery({
+
+  // FAST PATH: read the DB-cached row directly so cards appear instantly on reload
+  const { data: cachedCourierHistory } = useQuery({
+    queryKey: ["courier-history-cache", phone],
+    enabled: !!phone && phone.length >= 11,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("courier_history_cache")
+        .select("data")
+        .eq("phone", phone)
+        .maybeSingle();
+      const hist = data?.data as { providers?: Array<{ name: string; total: number; success: number; cancelled: number; ok: boolean; error?: string }> } | null;
+      if (!hist) return null;
+      const pathao = hist.providers?.find((p) => p.name === "pathao");
+      const steadfast = hist.providers?.find((p) => p.name === "steadfast");
+      return {
+        pathao: { total: pathao?.total ?? 0, success: pathao?.success ?? 0, cancel: pathao?.cancelled ?? 0 },
+        steadfast: { total: steadfast?.total ?? 0, success: steadfast?.success ?? 0, cancel: steadfast?.cancelled ?? 0 },
+        steadfastError: steadfast?.ok ? "" : steadfast?.error ?? "",
+      };
+    },
+  });
+
+  // SLOW PATH: hits external couriers if cache stale; runs in background
+  const { data: freshCourierHistory, refetch: refetchHistory, isFetching: courierFetching } = useQuery({
     queryKey: ["courier-history", order?.brand_id, phone],
     enabled: !!order?.brand_id && !!phone && phone.length >= 11,
     staleTime: 5 * 60_000,
@@ -419,6 +444,9 @@ function OrderDetailsPage() {
       };
     },
   });
+  // Prefer fresh data when available; fall back to cached for instant render
+  const courierHistory = freshCourierHistory ?? cachedCourierHistory;
+  const courierLoading = !cachedCourierHistory && !freshCourierHistory && courierFetching;
 
   const stats = useMemo<Record<string, StatCell>>(() => {
     const our = ourRecord ?? { total: 0, success: 0, cancel: 0 };
