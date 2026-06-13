@@ -126,8 +126,10 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       header: "Status",
       cell: ({ row }) => {
         const b = statusBadge(row.original.status);
+        const accent = statusAccent(row.original.status);
         return (
-          <span className={cn("inline-flex items-center px-2 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+          <span className={cn("inline-flex items-center gap-1.5 pl-1.5 pr-2.5 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
             {b.label}
           </span>
         );
