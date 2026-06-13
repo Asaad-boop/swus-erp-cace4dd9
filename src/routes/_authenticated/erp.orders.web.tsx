@@ -264,7 +264,38 @@ function WebOrdersPage() {
 
   // Courier history (Pathao + Steadfast) by phone — from cache
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
-  const { data: courierHistory } = useQuery({
+  // FAST PATH: read DB-cached rows directly so cards appear instantly on reload
+  const { data: cachedCourierHistory } = useQuery({
+    queryKey: ["courier-history-cache", activeBrand?.id, courierPhones.sort().join(",")],
+    enabled: courierPhones.length > 0,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("courier_history_cache")
+        .select("phone, data")
+        .in("phone", courierPhones);
+      const map = new Map<string, CourierBreakdown>();
+      (data ?? []).forEach((row) => {
+        const hist = row.data as { providers?: Array<{ name: string; total: number; success: number; cancelled: number; ok: boolean }> } | null;
+        if (!hist) return;
+        const result: CourierBreakdown = {
+          pathao: { total: 0, success: 0, cancelled: 0 },
+          steadfast: { total: 0, success: 0, cancelled: 0 },
+          found: false,
+        };
+        (hist.providers ?? []).forEach((p) => {
+          const stat = { total: p.total ?? 0, success: p.success ?? 0, cancelled: p.cancelled ?? 0 };
+          if (p.name === "pathao") result.pathao = stat;
+          else if (p.name === "steadfast") result.steadfast = stat;
+        });
+        result.found = result.pathao.total + result.steadfast.total > 0;
+        map.set(row.phone, result);
+      });
+      return map;
+    },
+  });
+  // SLOW PATH: hits external couriers if cache stale; runs in background
+  const { data: freshCourierHistory } = useQuery({
     queryKey: ["courier-history", activeBrand?.id, courierPhones.sort().join(",")],
     enabled: courierPhones.length > 0 && !!activeBrand?.id,
     staleTime: 5 * 60_000,
@@ -288,6 +319,8 @@ function WebOrdersPage() {
       return map;
     },
   });
+  // Prefer fresh data when available; fall back to cached for instant render
+  const courierHistory = freshCourierHistory ?? cachedCourierHistory;
 
   const getBreakdown = (r: WebOrderRow): Breakdown => {
     const phone = r.shipping_phone ?? r.guest_phone;
