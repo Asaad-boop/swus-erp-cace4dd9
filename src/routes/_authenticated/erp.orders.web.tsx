@@ -207,7 +207,8 @@ function WebOrdersPage() {
   const rows = data ?? [];
 
   // customer breakdown by phone — historical totals across all orders in this brand
-  const phones = Array.from(new Set(rows.map((r) => normalizePhone(r.shipping_phone ?? r.guest_phone ?? "")).filter(Boolean)));
+  const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
+  const courierPhones = Array.from(new Set(phones.map(normalizePhone).filter(Boolean)));
   const { data: breakdowns } = useQuery({
     queryKey: ["customer-breakdown", activeBrand?.id, phones.sort().join(",")],
     enabled: !!activeBrand?.id && phones.length > 0,
@@ -238,11 +239,11 @@ function WebOrdersPage() {
   // Courier history (Pathao + Steadfast) by phone — from cache
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const { data: courierHistory } = useQuery({
-    queryKey: ["courier-history", activeBrand?.id, phones.sort().join(",")],
-    enabled: phones.length > 0 && !!activeBrand?.id,
+    queryKey: ["courier-history", activeBrand?.id, courierPhones.sort().join(",")],
+    enabled: courierPhones.length > 0 && !!activeBrand?.id,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { results } = await fetchCourierHistory({ data: { phones, brandId: activeBrand!.id } });
+      const { results } = await fetchCourierHistory({ data: { phones: courierPhones, brandId: activeBrand!.id } });
       const map = new Map<string, CourierBreakdown>();
       Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
