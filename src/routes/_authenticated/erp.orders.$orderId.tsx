@@ -44,10 +44,12 @@ function normalizePhone(raw: string) {
 }
 
 function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
+  const columns = STAT_COLUMNS.filter((c) => c.key !== "ourRecord" || (stats.ourRecord?.total ?? 0) > 0);
+  const gridCols = columns.length === 4 ? "sm:grid-cols-4" : columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0">
-        {STAT_COLUMNS.map((c) => {
+      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0", gridCols)}>
+        {columns.map((c) => {
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           return (
             <div key={c.key} className="px-4 py-3 flex flex-col gap-1">
