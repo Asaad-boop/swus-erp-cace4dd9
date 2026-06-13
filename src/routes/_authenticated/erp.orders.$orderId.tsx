@@ -742,19 +742,6 @@ function OrderDetailsPage() {
           <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
           <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
           <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
-          {order.status !== "confirmed" && order.web_status !== "complete" && (
-            <Button
-              size="sm"
-              disabled={confirmOrder.isPending}
-              onClick={() => confirmOrder.mutate()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {confirmOrder.isPending
-                ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-              Confirm Order
-            </Button>
-          )}
         </div>
       </div>
 
