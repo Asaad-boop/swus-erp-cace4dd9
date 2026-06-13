@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { customerName, customerPhone, shortId, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -59,14 +59,14 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     {
       header: "Invoice",
       cell: ({ row }) => {
-        const id = shortId(row.original.id);
+        const inv = invoiceDisplay(row.original);
         return (
           <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="font-mono text-xs font-semibold">{id}</span>
+            <span className="font-mono text-xs font-semibold">{inv}</span>
             <button
-              onClick={(e) => { e.stopPropagation(); copyText(row.original.id, "Order ID"); }}
+              onClick={(e) => { e.stopPropagation(); copyText(inv, "Invoice"); }}
               className="p-0.5 rounded hover:bg-muted text-muted-foreground"
-              title="Copy ID"
+              title="Copy invoice number"
             >
               <Copy className="h-3 w-3" />
             </button>
