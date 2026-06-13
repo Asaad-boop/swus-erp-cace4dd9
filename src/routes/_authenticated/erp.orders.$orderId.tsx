@@ -306,6 +306,21 @@ function ProductSearchPanel({
 /*  Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
+type WebStatus =
+  | "processing" | "incomplete" | "good_but_no_response" | "no_response"
+  | "advance_payment" | "on_hold" | "complete" | "cancelled";
+
+const WEB_STATUSES: { key: WebStatus; label: string }[] = [
+  { key: "processing", label: "Processing" },
+  { key: "incomplete", label: "Incomplete" },
+  { key: "good_but_no_response", label: "Good But No Response" },
+  { key: "no_response", label: "No Response" },
+  { key: "advance_payment", label: "Advance Payment" },
+  { key: "on_hold", label: "On Hold" },
+  { key: "complete", label: "Complete" },
+  { key: "cancelled", label: "Cancel" },
+];
+
 function OrderDetailsPage() {
   const { orderId } = Route.useParams();
   const qc = useQueryClient();
