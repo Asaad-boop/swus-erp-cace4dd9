@@ -188,7 +188,6 @@ function WebOrdersPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs uppercase">Created At</TableHead>
-              <TableHead className="text-xs uppercase">Auto Call</TableHead>
               <TableHead className="text-xs uppercase">Customer</TableHead>
               <TableHead className="text-xs uppercase">Note</TableHead>
               <TableHead className="text-xs uppercase">Order Items</TableHead>
@@ -202,14 +201,14 @@ function WebOrdersPage() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                   No web orders in this status
                 </TableCell>
               </TableRow>
@@ -224,17 +223,6 @@ function WebOrdersPage() {
                     <TableCell className="text-xs whitespace-nowrap">
                       <div>{format(new Date(r.created_at), "dd MMM yy")}</div>
                       <div className="text-muted-foreground">{format(new Date(r.created_at), "hh:mm a")}</div>
-                    </TableCell>
-                    <TableCell>
-                      {r.auto_call_enabled ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
-                          <Phone className="h-3.5 w-3.5" /> On
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <PhoneOff className="h-3.5 w-3.5" /> Off
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell className="text-sm min-w-[150px]">
                       <div className="font-medium truncate">{name}</div>
