@@ -64,6 +64,13 @@ type WebOrderRow = {
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number };
 
+type ProviderStat = { total: number; success: number; cancelled: number };
+type CourierBreakdown = {
+  pathao: ProviderStat;
+  steadfast: ProviderStat;
+  found: boolean;
+};
+
 const STATUS_ACCENT: Record<string, string> = {
   processing: "bg-blue-500",
   incomplete: "bg-orange-500",
@@ -197,10 +204,46 @@ function WebOrdersPage() {
     },
   });
 
+  // Courier history (Pathao + Steadfast) by phone — from cache
+  const { data: courierHistory } = useQuery({
+    queryKey: ["courier-history-cache", phones.sort().join(",")],
+    enabled: phones.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courier_history_cache")
+        .select("phone,data")
+        .in("phone", phones);
+      if (error) throw error;
+      const map = new Map<string, CourierBreakdown>();
+      (data ?? []).forEach((r) => {
+        const d = (r as { phone: string; data: { providers?: { name: string; total?: number; success?: number; cancelled?: number }[]; found?: boolean } }).data ?? {};
+        const result: CourierBreakdown = {
+          pathao: { total: 0, success: 0, cancelled: 0 },
+          steadfast: { total: 0, success: 0, cancelled: 0 },
+          found: !!d.found,
+        };
+        (d.providers ?? []).forEach((p) => {
+          const stat = { total: p.total ?? 0, success: p.success ?? 0, cancelled: p.cancelled ?? 0 };
+          if (p.name === "pathao") result.pathao = stat;
+          else if (p.name === "steadfast") result.steadfast = stat;
+        });
+        map.set((r as { phone: string }).phone, result);
+      });
+      return map;
+    },
+  });
+
   const getBreakdown = (r: WebOrderRow): Breakdown => {
     const phone = r.shipping_phone ?? r.guest_phone;
     if (!phone) return { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
     return breakdowns?.get(phone) ?? { total: 1, confirmed: 0, cancelled: 0, returned: 0 };
+  };
+
+  const emptyProvider: ProviderStat = { total: 0, success: 0, cancelled: 0 };
+  const getCourier = (r: WebOrderRow): CourierBreakdown => {
+    const phone = r.shipping_phone ?? r.guest_phone;
+    if (!phone) return { pathao: emptyProvider, steadfast: emptyProvider, found: false };
+    return courierHistory?.get(phone) ?? { pathao: emptyProvider, steadfast: emptyProvider, found: false };
   };
 
   return (
