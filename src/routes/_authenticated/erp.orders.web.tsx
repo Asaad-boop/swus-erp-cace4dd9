@@ -231,11 +231,11 @@ function WebOrdersPage() {
   // Courier history (Pathao + Steadfast) by phone — from cache
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const { data: courierHistory } = useQuery({
-    queryKey: ["courier-history", phones.sort().join(",")],
-    enabled: phones.length > 0,
+    queryKey: ["courier-history", activeBrand?.id, phones.sort().join(",")],
+    enabled: phones.length > 0 && !!activeBrand?.id,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { results } = await fetchCourierHistory({ data: { phones } });
+      const { results } = await fetchCourierHistory({ data: { phones, brandId: activeBrand!.id } });
       const map = new Map<string, CourierBreakdown>();
       Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
