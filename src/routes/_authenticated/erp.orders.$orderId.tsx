@@ -1,3 +1,29 @@
+function Donut({ successPct, denom, ringClass }: { successPct: number; denom: number; ringClass: string }) {
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const offset = denom === 0 ? C : C * (1 - successPct / 100);
+  return (
+    <div className="relative h-[68px] w-[68px] shrink-0">
+      <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+        <circle cx="32" cy="32" r={R} className="fill-none stroke-muted" strokeWidth="6" />
+        <circle
+          cx="32" cy="32" r={R}
+          className={cn("fill-none transition-all duration-500", ringClass)}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-semibold tabular-nums leading-none">
+          {denom === 0 ? "—" : `${successPct}%`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
@@ -87,44 +113,39 @@ function StatsStrip({ stats }: { stats: Record<string, { total: number; success:
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
+          const v = getVerdict(successPct, denom);
           const isEmpty = s.total === 0;
-          const pctClass = denom === 0
-            ? "text-muted-foreground"
-            : successPct >= 80
-              ? "text-emerald-600 dark:text-emerald-400"
-              : successPct >= 50
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-rose-600 dark:text-rose-400";
           return (
             <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
               <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
 
-              <div className="relative flex flex-col gap-2.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
-                </div>
+              <div className="relative flex items-start gap-3">
+                <Donut successPct={successPct} denom={denom} ringClass={v.ring} />
 
-                <dl className="space-y-1 text-[12px] tabular-nums">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Success:</dt>
-                    <dd className={cn("font-semibold", pctClass, isEmpty && "text-muted-foreground/50")}>
-                      {denom === 0 ? "—" : `${successPct}%`}
-                    </dd>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
                   </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Order:</dt>
-                    <dd className={cn("font-semibold text-foreground", isEmpty && "text-muted-foreground/50")}>
-                      {s.success}/{denom || s.total}
-                    </dd>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Rating:</dt>
-                    <dd className={cn("font-semibold text-foreground", isEmpty && "text-muted-foreground/50")}>
+
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={cn("text-2xl font-semibold tabular-nums leading-none tracking-tight", isEmpty && "text-muted-foreground/40")}>
                       {s.total}
-                    </dd>
+                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">orders</span>
                   </div>
-                </dl>
+
+                  <div className="flex items-center gap-2.5 text-[11px] tabular-nums mt-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{s.success}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           );
