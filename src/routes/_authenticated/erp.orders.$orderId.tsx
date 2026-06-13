@@ -365,6 +365,7 @@ function OrderDetailsPage() {
       setBaseline(next);
       return next;
     });
+    setDraftWebStatus((order.web_status as WebStatus) ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
