@@ -7,8 +7,10 @@ import {
   Globe, CreditCard, FileText, XCircle, Hash,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,14 +33,13 @@ const STAT_COLUMNS = [
   { key: "ourRecord", label: "Our Record", dot: "bg-foreground" },
   { key: "overall", label: "Overall", dot: "bg-sky-500" },
   { key: "pathao", label: "Pathao", dot: "bg-rose-500" },
-  { key: "redx", label: "RedX", dot: "bg-red-600" },
   { key: "steadfast", label: "Steadfast", dot: "bg-amber-500" },
 ] as const;
 
 function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y sm:divide-y-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0">
         {STAT_COLUMNS.map((c) => {
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           return (
@@ -90,40 +91,61 @@ function OrderDetailsPage() {
   const items = data?.items ?? [];
   const history = data?.history ?? [];
   const notes = data?.notes ?? [];
+  const phone = order ? customerPhone(order) : "";
 
-  // Brand-level courier stats
-  const { data: courierStats } = useQuery({
-    queryKey: ["courier-stats", order?.brand_id],
-    enabled: !!order?.brand_id,
+  // Our Record — past orders for this customer phone (brand-scoped, excluding current order)
+  const { data: ourRecord } = useQuery({
+    queryKey: ["customer-our-record", order?.brand_id, phone, orderId],
+    enabled: !!order?.brand_id && !!phone,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("courier_shipments")
-        .select("provider,status")
-        .eq("brand_id", order!.brand_id!);
+        .from("orders")
+        .select("id,status,web_status,shipping_phone,guest_phone")
+        .eq("brand_id", order!.brand_id!)
+        .or(`shipping_phone.eq.${phone},guest_phone.eq.${phone}`)
+        .neq("id", orderId)
+        .limit(2000);
       if (error) throw error;
-      return data ?? [];
+      let total = 0, success = 0, cancel = 0;
+      (data ?? []).forEach((o) => {
+        total++;
+        const s = (o.status ?? "") + " " + (o.web_status ?? "");
+        if (/deliver|complete/i.test(s)) success++;
+        else if (/cancel|fake|return/i.test(s)) cancel++;
+      });
+      return { total, success, cancel };
+    },
+  });
+
+  // Live Pathao + Steadfast history by customer phone
+  const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
+  const { data: courierHistory } = useQuery({
+    queryKey: ["courier-history", order?.brand_id, phone],
+    enabled: !!order?.brand_id && !!phone && phone.length >= 11,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { results } = await fetchCourierHistory({ data: { phones: [phone], brandId: order!.brand_id! } });
+      const r = results[phone];
+      const pathao = r?.providers.find((p) => p.name === "pathao");
+      const steadfast = r?.providers.find((p) => p.name === "steadfast");
+      return {
+        pathao: { total: pathao?.total ?? 0, success: pathao?.success ?? 0, cancel: pathao?.cancelled ?? 0 },
+        steadfast: { total: steadfast?.total ?? 0, success: steadfast?.success ?? 0, cancel: steadfast?.cancelled ?? 0 },
+      };
     },
   });
 
   const stats = useMemo(() => {
-    const acc: Record<string, { total: number; success: number; cancel: number }> = {
-      ourRecord: { total: 0, success: 0, cancel: 0 },
-      overall: { total: 0, success: 0, cancel: 0 },
-      pathao: { total: 0, success: 0, cancel: 0 },
-      redx: { total: 0, success: 0, cancel: 0 },
-      steadfast: { total: 0, success: 0, cancel: 0 },
+    const our = ourRecord ?? { total: 0, success: 0, cancel: 0 };
+    const pathao = courierHistory?.pathao ?? { total: 0, success: 0, cancel: 0 };
+    const steadfast = courierHistory?.steadfast ?? { total: 0, success: 0, cancel: 0 };
+    const overall = {
+      total: pathao.total + steadfast.total,
+      success: pathao.success + steadfast.success,
+      cancel: pathao.cancel + steadfast.cancel,
     };
-    for (const s of courierStats ?? []) {
-      const p = (s.provider ?? "").toLowerCase();
-      const st = (s.status ?? "").toLowerCase();
-      const ok = /deliver|success/.test(st);
-      const bad = /cancel|fail|return/.test(st);
-      acc.ourRecord.total++; if (ok) acc.ourRecord.success++; if (bad) acc.ourRecord.cancel++;
-      acc.overall.total++; if (ok) acc.overall.success++; if (bad) acc.overall.cancel++;
-      if (acc[p]) { acc[p].total++; if (ok) acc[p].success++; if (bad) acc[p].cancel++; }
-    }
-    return acc;
-  }, [courierStats]);
+    return { ourRecord: our, overall, pathao, steadfast };
+  }, [ourRecord, courierHistory]);
 
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
@@ -182,7 +204,6 @@ function OrderDetailsPage() {
     );
   }
 
-  const phone = customerPhone(order);
   const tags: string[] = order.order_tags ?? [];
   const fullAddress = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
     .filter(Boolean).join(", ");
