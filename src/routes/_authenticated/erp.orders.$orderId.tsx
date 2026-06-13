@@ -63,12 +63,14 @@ function StatsStrip({
   fraudNote,
   onRefresh,
   refreshing,
+  loading,
 }: {
   stats: Record<string, StatCell>;
   customerName: string;
   fraudNote: string;
   onRefresh: () => void;
   refreshing: boolean;
+  loading?: boolean;
 }) {
   // Hide cards without data: Our Record/RedX/Steadfast/Pathao hide if total===0.
   // Overall always shown when any provider has data.
@@ -83,6 +85,29 @@ function StatsStrip({
   });
   const showFraud = !!fraudNote.trim();
   const cardCount = visibleColumns.length + (showFraud ? 1 : 0);
+  // While courier history is loading on first paint, show skeleton placeholders
+  // so the strip does not flicker in/out on page reload.
+  if (loading && cardCount === 0) {
+    return (
+      <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
+        <div className="grid grid-cols-2 sm:grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60">
+          {[0, 1].map((i) => (
+            <div key={i} className="px-4 py-4 space-y-3">
+              <div className="h-3 w-20 rounded bg-muted/60 animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-muted/60 animate-pulse" />
+                <div className="space-y-1.5">
+                  <div className="h-3 w-16 rounded bg-muted/60 animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-muted/60 animate-pulse" />
+                  <div className="h-3 w-14 rounded bg-muted/60 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (cardCount === 0) return null;
   const gridCols = cardCount >= 4 ? "sm:grid-cols-4"
     : cardCount === 3 ? "sm:grid-cols-3"
@@ -378,7 +403,7 @@ function OrderDetailsPage() {
 
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const [refreshing, setRefreshing] = useState(false);
-  const { data: courierHistory, refetch: refetchHistory } = useQuery({
+  const { data: courierHistory, refetch: refetchHistory, isLoading: courierLoading, isFetching: courierFetching } = useQuery({
     queryKey: ["courier-history", order?.brand_id, phone],
     enabled: !!order?.brand_id && !!phone && phone.length >= 11,
     staleTime: 5 * 60_000,
@@ -579,6 +604,7 @@ function OrderDetailsPage() {
             customerName={form.name}
             fraudNote={fraudNote}
             refreshing={refreshing}
+            loading={courierLoading || (courierFetching && !courierHistory)}
             onRefresh={async () => { setRefreshing(true); await refetchHistory(); setRefreshing(false); }}
           />
 
