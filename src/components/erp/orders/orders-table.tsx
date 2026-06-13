@@ -1,13 +1,14 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { Eye } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, User as UserIcon, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { customerName, customerPhone, STATUS_GROUPS, STATUS_BADGE, shortId, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { customerName, customerPhone, shortId, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 type Props = {
   rows: OrderRow[];
@@ -21,6 +22,10 @@ type Props = {
 };
 
 export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusId }: Props) {
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`));
+  };
+
   const columns: ColumnDef<OrderRow>[] = [
     {
       id: "select",
@@ -42,108 +47,168 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       size: 36,
     },
     {
-      header: "Order",
-      cell: ({ row }) => (
-        <div className="font-mono text-xs font-semibold">#{shortId(row.original.id)}</div>
-      ),
-    },
-    {
       header: "Date",
       cell: ({ row }) => (
-        <div className="text-xs">
-          <div>{format(new Date(row.original.created_at), "dd MMM yy")}</div>
-          <div className="text-muted-foreground">{format(new Date(row.original.created_at), "hh:mm a")}</div>
+        <div className="text-xs leading-tight whitespace-nowrap">
+          <div className="font-medium">{format(new Date(row.original.created_at), "dd/MM/yyyy,")}</div>
+          <div>{format(new Date(row.original.created_at), "h:mm a")}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{relTime(row.original.created_at)}</div>
         </div>
       ),
     },
     {
-      header: "Customer",
-      cell: ({ row }) => (
-        <div className="text-sm min-w-[140px]">
-          <div className="font-medium truncate">{customerName(row.original)}</div>
-          <div className="text-xs text-muted-foreground">{customerPhone(row.original)}</div>
-        </div>
-      ),
-    },
-    {
-      header: "Location",
-      cell: ({ row }) => (
-        <div className="text-xs text-muted-foreground max-w-[160px] truncate">
-          {[row.original.shipping_city, row.original.shipping_district].filter(Boolean).join(", ") || "—"}
-        </div>
-      ),
-    },
-    {
-      header: "Total",
-      cell: ({ row }) => <div className="font-semibold text-sm">৳ {Number(row.original.total).toLocaleString()}</div>,
-    },
-    {
-      header: "Status",
+      header: "Invoice",
       cell: ({ row }) => {
-        const o = row.original;
-        const b = statusBadge(o.status);
+        const id = shortId(row.original.id);
         return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <Select
-              value={o.status}
-              disabled={pendingStatusId === o.id}
-              onValueChange={(v) => onStatusChange(o.id, v as OrderStatus)}
+          <div className="flex items-center gap-1 whitespace-nowrap">
+            <span className="font-mono text-xs font-semibold">{id}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); copyText(row.original.id, "Order ID"); }}
+              className="p-0.5 rounded hover:bg-muted text-muted-foreground"
+              title="Copy ID"
             >
-              <SelectTrigger className={cn("h-8 text-xs font-medium border-0 min-w-[120px]", b.className)}>
-                <SelectValue>{b.label}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_GROUPS.map((g) => (
-                  <div key={g.key}>
-                    <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {g.label}
-                    </div>
-                    {g.statuses.map((s) => (
-                      <SelectItem key={s} value={s} className="text-xs">
-                        {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+              <Copy className="h-3 w-3" />
+            </button>
           </div>
         );
       },
     },
     {
+      header: "Customer",
+      cell: ({ row }) => {
+        const o = row.original;
+        const phone = customerPhone(o);
+        const addr = [o.shipping_address, o.shipping_city, o.shipping_district].filter(Boolean).join(", ");
+        return (
+          <div className="text-xs space-y-0.5 min-w-[200px] max-w-[260px]">
+            <div className="flex items-center gap-1.5 font-medium text-sm">
+              <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="truncate">{customerName(o)}</span>
+            </div>
+            {phone && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Phone className="h-3 w-3 shrink-0" />
+                <span className="font-mono">{phone}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
+                  className="p-0.5 rounded hover:bg-muted"
+                  title="Copy phone"
+                >
+                  <Copy className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            )}
+            {addr && (
+              <div className="flex items-start gap-1.5 text-muted-foreground">
+                <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+                <span className="line-clamp-2 leading-tight">{addr}</span>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: "Note",
+      cell: ({ row }) => (
+        <div className="text-xs text-muted-foreground max-w-[180px] line-clamp-2 leading-snug">
+          {row.original.customer_note || row.original.admin_notes || <span className="text-muted-foreground/50">—</span>}
+        </div>
+      ),
+    },
+    {
+      header: "Status",
+      cell: ({ row }) => {
+        const b = statusBadge(row.original.status);
+        return (
+          <span className={cn("inline-flex items-center px-2 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+            {b.label}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Total",
+      cell: ({ row }) => (
+        <div className="text-right font-semibold text-sm tabular-nums whitespace-nowrap">
+          ৳ {Number(row.original.total).toLocaleString()}
+        </div>
+      ),
+    },
+    {
       header: "Courier",
       cell: ({ row }) => (
-        <div className="text-xs">
-          <div className="font-medium">{row.original.courier_name ?? "—"}</div>
+        <div className="text-xs whitespace-nowrap">
+          <div className="font-medium">{row.original.courier_name ?? <span className="text-muted-foreground/50">—</span>}</div>
           {row.original.tracking_number && (
-            <div className="text-muted-foreground font-mono">{row.original.tracking_number}</div>
+            <div className="text-muted-foreground font-mono text-[10px]">{row.original.tracking_number}</div>
           )}
         </div>
       ),
     },
     {
+      header: "Source",
+      cell: ({ row }) => (
+        <div className="text-xs capitalize whitespace-nowrap">{row.original.source ?? "—"}</div>
+      ),
+    },
+    {
       header: "",
       id: "actions",
-      cell: ({ row }) => (
-        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onRowClick(row.original.id); }}>
-          <Eye className="h-4 w-4" />
-        </Button>
-      ),
-      size: 40,
+      cell: ({ row }) => {
+        const o = row.original;
+        const busy = pendingStatusId === o.id;
+        return (
+          <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy}>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => onRowClick(o.id)}>
+                  <FileText className="h-4 w-4" /> Order Details
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled><Printer className="h-4 w-4" /> Print</DropdownMenuItem>
+                <DropdownMenuItem disabled><ImageDown className="h-4 w-4" /> JPG Export</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onRowClick(o.id)}>
+                  <Pencil className="h-4 w-4" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onStatusChange(o.id, "ready_to_ship")} disabled={o.status === "ready_to_ship"}>
+                  <Send className="h-4 w-4" /> Send to RTS
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onStatusChange(o.id, "cancelled")}
+                  disabled={o.status === "cancelled"}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <XIcon className="h-4 w-4" /> Cancel
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled><ListPlus className="h-4 w-4" /> Create Task</DropdownMenuItem>
+                <DropdownMenuItem disabled><StickyNote className="h-4 w-4" /> Add Note</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+      size: 48,
     },
   ];
 
   const table = useReactTable({ data: rows, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
-    <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
+    <div className="bg-card overflow-x-auto">
       <Table>
-        <TableHeader className="bg-muted/40">
+        <TableHeader className="bg-muted/30">
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className="hover:bg-transparent border-b">
               {hg.headers.map((h) => (
-                <TableHead key={h.id} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground h-10">
+                <TableHead key={h.id} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground h-10 px-3">
                   {flexRender(h.column.columnDef.header, h.getContext())}
                 </TableHead>
               ))}
@@ -173,7 +238,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                 onClick={() => onRowClick(row.original.id)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-3">
+                  <TableCell key={cell.id} className="py-3 px-3 align-top">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -184,4 +249,16 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       </Table>
     </div>
   );
+}
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(diff / 86_400_000);
+  if (d <= 0) {
+    const h = Math.floor(diff / 3_600_000);
+    return h <= 0 ? "just now" : `${h}h ago`;
+  }
+  if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
+  const m = Math.floor(d / 30);
+  return `${m} mo ago`;
 }
