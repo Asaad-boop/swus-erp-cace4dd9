@@ -92,6 +92,18 @@ export function statusBadge(s: string) {
   return STATUS_BADGE[s] ?? { label: s, className: "bg-zinc-100 text-zinc-700" };
 }
 
+/** Accent color (Tailwind hex-ish) for status, used as row left border. */
+export const STATUS_ACCENT: Record<string, string> = {
+  confirmed: "#3b82f6", ready_to_pack: "#6366f1", packed: "#a855f7",
+  ready_to_ship: "#06b6d4", shipped: "#f59e0b", in_transit: "#f59e0b",
+  delivered: "#10b981", partial_delivered: "#10b981",
+  pending_return: "#f97316", returned: "#ef4444", partial_return: "#ef4444",
+  exchange: "#8b5cf6", exchanged: "#8b5cf6",
+  paid_return: "#14b8a6", unpaid_return: "#14b8a6",
+  on_hold: "#eab308", cancelled: "#71717a",
+};
+export function statusAccent(s: string) { return STATUS_ACCENT[s] ?? "#a1a1aa"; }
+
 export type OrderRow = {
   id: string;
   invoice_no: string | null;

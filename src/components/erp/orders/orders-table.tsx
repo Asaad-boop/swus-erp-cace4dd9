@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -126,8 +126,10 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       header: "Status",
       cell: ({ row }) => {
         const b = statusBadge(row.original.status);
+        const accent = statusAccent(row.original.status);
         return (
-          <span className={cn("inline-flex items-center px-2 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+          <span className={cn("inline-flex items-center gap-1.5 pl-1.5 pr-2.5 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
             {b.label}
           </span>
         );
@@ -209,7 +211,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
   return (
     <div className="bg-card overflow-x-auto">
       <Table>
-        <TableHeader className="bg-muted/30">
+        <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur">
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className="hover:bg-transparent border-b">
               {hg.headers.map((h) => (
@@ -239,8 +241,9 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer hover:bg-muted/50 transition-colors border-b last:border-0"
+                className="cursor-pointer transition-colors border-b last:border-0 hover:bg-muted/40 group/row"
                 onClick={() => onRowClick(row.original.id)}
+                style={{ boxShadow: `inset 3px 0 0 0 ${statusAccent(row.original.status)}` }}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-3 px-3 align-top">
