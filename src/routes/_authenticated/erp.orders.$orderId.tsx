@@ -1039,9 +1039,9 @@ function OrderDetailsPage() {
             <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Actions</h3></header>
             <div className="p-4 space-y-3">
               <Select
-                value={(order.web_status as WebStatus) ?? ""}
+                value={draftWebStatus}
                 disabled={updateWebStatus.isPending}
-                onValueChange={(v) => onPickWebStatus(v as WebStatus)}
+                onValueChange={(v) => setDraftWebStatus(v as WebStatus)}
               >
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Change status" /></SelectTrigger>
                 <SelectContent>
@@ -1050,6 +1050,21 @@ function OrderDetailsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {(() => {
+                const changed = !!draftWebStatus && draftWebStatus !== (order.web_status ?? "");
+                return (
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={!changed || updateWebStatus.isPending}
+                    onClick={() => draftWebStatus && onPickWebStatus(draftWebStatus as WebStatus)}
+                  >
+                    {updateWebStatus.isPending
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : "Update Status"}
+                  </Button>
+                );
+              })()}
               <Button asChild size="sm" variant="ghost" className="w-full justify-start h-7 text-xs">
                 <Link to="/erp/orders/web"><ArrowLeft className="h-3 w-3 mr-1" />Back to List</Link>
               </Button>
