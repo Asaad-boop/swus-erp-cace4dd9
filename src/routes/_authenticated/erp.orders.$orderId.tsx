@@ -782,16 +782,16 @@ function OrderDetailsPage() {
           <section className="rounded-xl border bg-card p-4">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <FieldShell label="Discount">
-                <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} />
               </FieldShell>
               <FieldShell label="Advance">
-                <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} />
               </FieldShell>
               <FieldShell label="Sub Total">
                 <Input value={bdtCompact(itemsSubtotal)} readOnly className="h-9 bg-muted/40 tabular-nums" />
               </FieldShell>
               <FieldShell label="Delivery Charge">
-                <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} />
               </FieldShell>
               <FieldShell label="Grand Total">
                 <Input value={bdtCompact(grandTotal)} readOnly className="h-9 bg-rose-500/5 border-rose-500/30 text-rose-600 font-bold tabular-nums" />
