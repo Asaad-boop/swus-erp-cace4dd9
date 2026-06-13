@@ -43,64 +43,107 @@ function normalizePhone(raw: string) {
   return digits;
 }
 
+function getVerdict(successPct: number, denom: number) {
+  if (denom === 0) return { label: "No Data", tone: "muted", ring: "stroke-muted-foreground/30", text: "text-muted-foreground", bg: "bg-muted text-muted-foreground border-border" };
+  if (successPct >= 80) return { label: "Good", tone: "good", ring: "stroke-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" };
+  if (successPct >= 50) return { label: "Not Bad", tone: "warn", ring: "stroke-amber-500", text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" };
+  return { label: "Bad", tone: "bad", ring: "stroke-rose-500", text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30" };
+}
+
+function Donut({ successPct, denom, ringClass }: { successPct: number; denom: number; ringClass: string }) {
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const offset = denom === 0 ? C : C * (1 - successPct / 100);
+  return (
+    <div className="relative h-[68px] w-[68px] shrink-0">
+      <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+        <circle cx="32" cy="32" r={R} className="fill-none stroke-muted" strokeWidth="6" />
+        <circle
+          cx="32" cy="32" r={R}
+          className={cn("fill-none transition-all duration-500", ringClass)}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-semibold tabular-nums leading-none">
+          {denom === 0 ? "—" : `${successPct}%`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
   const columns = STAT_COLUMNS.filter((c) => c.key !== "ourRecord" || (stats.ourRecord?.total ?? 0) > 0);
   const gridCols = columns.length === 4 ? "sm:grid-cols-4" : columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+
+  // Overall verdict for the customer — prefer "overall" (courier history), fallback to "ourRecord"
+  const overall = stats.overall ?? { total: 0, success: 0, cancel: 0 };
+  const our = stats.ourRecord ?? { total: 0, success: 0, cancel: 0 };
+  const base = (overall.success + overall.cancel) > 0 ? overall : our;
+  const baseDenom = base.success + base.cancel;
+  const basePct = baseDenom > 0 ? Math.round((base.success / baseDenom) * 100) : 0;
+  const verdict = getVerdict(basePct, baseDenom);
+
   return (
     <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
+      {/* Verdict header */}
+      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b bg-muted/20">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Customer Status</span>
+        </div>
+        <div className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold", verdict.bg)}>
+          <span className={cn("h-1.5 w-1.5 rounded-full",
+            verdict.tone === "good" && "bg-emerald-500",
+            verdict.tone === "warn" && "bg-amber-500",
+            verdict.tone === "bad" && "bg-rose-500",
+            verdict.tone === "muted" && "bg-muted-foreground/40",
+          )} />
+          {verdict.label}
+          {baseDenom > 0 && <span className="tabular-nums opacity-80">· {basePct}%</span>}
+        </div>
+      </div>
+
       <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
         {columns.map((c) => {
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
-          const cancelPct = denom > 0 ? 100 - successPct : 0;
+          const v = getVerdict(successPct, denom);
           const isEmpty = s.total === 0;
           return (
-            <div key={c.key} className="group relative px-5 py-4 flex flex-col gap-3 transition-colors hover:bg-muted/30">
-              {/* accent gradient wash */}
+            <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
               <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
-              {/* top accent line on hover */}
-              <div className={cn("pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100", c.bar)} />
 
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={cn("h-2 w-2 rounded-full ring-4", c.dot, c.ring)} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</span>
-                </div>
-                {!isEmpty && (
-                  <span className="text-[10px] font-semibold tabular-nums text-muted-foreground/80">
-                    {successPct}%
-                  </span>
-                )}
-              </div>
+              <div className="relative flex items-start gap-3">
+                <Donut successPct={successPct} denom={denom} ringClass={v.ring} />
 
-              <div className="relative flex items-baseline gap-1.5">
-                <span className={cn("text-3xl font-semibold tabular-nums leading-none tracking-tight", isEmpty && "text-muted-foreground/40")}>
-                  {s.total}
-                </span>
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">orders</span>
-              </div>
-
-              {/* segmented meter */}
-              <div className="relative h-1 w-full overflow-hidden rounded-full bg-muted">
-                {denom > 0 ? (
-                  <div className="flex h-full w-full">
-                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${successPct}%` }} />
-                    <div className="h-full bg-rose-500 transition-all" style={{ width: `${cancelPct}%` }} />
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
                   </div>
-                ) : null}
-              </div>
 
-              <div className="relative flex items-center justify-between text-[11px] tabular-nums">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{s.success}</span>
-                  <span className="text-muted-foreground">success</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
-                  <span className="text-muted-foreground">cancel</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={cn("text-2xl font-semibold tabular-nums leading-none tracking-tight", isEmpty && "text-muted-foreground/40")}>
+                      {s.total}
+                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">orders</span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 text-[11px] tabular-nums mt-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{s.success}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
