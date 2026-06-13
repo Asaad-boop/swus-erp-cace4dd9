@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Settings2, ShoppingBag, TrendingUp, Package, Wallet } from "lucide-react";
+import { Plus, Download, RefreshCw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,33 +85,28 @@ function OrdersPage() {
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
   const activeTab = tabForStatuses(effective.statuses);
 
-  const stats = useMemo(() => {
-    const revenue = rows.reduce((s, r) => s + Number(r.total ?? 0), 0);
-    const itemsCount = rows.reduce(
-      (s, r) => s + (r.items?.reduce((q, it) => q + (it.quantity ?? 0), 0) ?? 0),
-      0,
-    );
-    const aov = rows.length ? revenue / rows.length : 0;
-    return { revenue, itemsCount, aov };
-  }, [rows]);
-
   return (
-    <div className="p-4 md:p-6 space-y-5 bg-gradient-to-br from-background via-muted/10 to-muted/30 min-h-screen">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            {activeBrand?.name ?? "All brands"} · Orders
+    <div className="p-4 md:p-6 space-y-4 min-h-screen bg-muted/20">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {activeBrand?.name ?? "All brands"}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Order List</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            <span className="tabular-nums font-semibold text-foreground">{total.toLocaleString()}</span> total orders
-            {isFetching && <span className="ml-1.5 italic text-xs text-primary">syncing…</span>}
-          </p>
+          <div className="flex items-baseline gap-3 mt-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+            <span className="text-sm text-muted-foreground">
+              <span className="tabular-nums font-medium text-foreground">{total.toLocaleString()}</span> total
+              {isFetching && <span className="ml-2 text-xs text-primary">syncing…</span>}
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" className="h-9 w-9" disabled title="View settings">
-            <Settings2 className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-9" onClick={() => qc.invalidateQueries({ queryKey: ["orders"] })} title="Refresh">
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5" /> Export
           </Button>
           <Link to="/erp/orders/new">
             <Button size="sm" className="h-9 shadow-sm">
@@ -120,13 +115,6 @@ function OrdersPage() {
           </Link>
         </div>
       </header>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<ShoppingBag className="h-4 w-4" />} label="Orders on page" value={rows.length.toLocaleString()} tint="from-blue-500/10 to-blue-500/0" iconTint="text-blue-600" />
-        <StatCard icon={<Wallet className="h-4 w-4" />} label="Revenue (page)" value={`৳${Math.round(stats.revenue).toLocaleString()}`} tint="from-emerald-500/10 to-emerald-500/0" iconTint="text-emerald-600" />
-        <StatCard icon={<TrendingUp className="h-4 w-4" />} label="Avg Order Value" value={`৳${Math.round(stats.aov).toLocaleString()}`} tint="from-violet-500/10 to-violet-500/0" iconTint="text-violet-600" />
-        <StatCard icon={<Package className="h-4 w-4" />} label="Items shipped" value={stats.itemsCount.toLocaleString()} tint="from-amber-500/10 to-amber-500/0" iconTint="text-amber-600" />
-      </div>
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <OrdersStatusTabs
@@ -173,25 +161,6 @@ function OrdersPage() {
       </div>
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} />
-    </div>
-  );
-}
-
-function StatCard({
-  icon, label, value, tint, iconTint,
-}: { icon: React.ReactNode; label: string; value: string; tint: string; iconTint: string }) {
-  return (
-    <div className={`relative rounded-xl border bg-card shadow-sm overflow-hidden p-3.5 group hover:shadow-md transition-shadow`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${tint} pointer-events-none`} />
-      <div className="relative flex items-center gap-3">
-        <div className={`h-9 w-9 rounded-lg bg-background border flex items-center justify-center ${iconTint} shadow-sm`}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground truncate">{label}</div>
-          <div className="text-lg font-bold tabular-nums leading-tight truncate">{value}</div>
-        </div>
-      </div>
     </div>
   );
 }
