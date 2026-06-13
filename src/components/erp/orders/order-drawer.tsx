@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { format } from "date-fns";
-import { Printer, Truck, User, Phone, MapPin, Package, MessageSquare, Clock, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { User, Phone, MapPin, Package, MessageSquare, Clock, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,9 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
-import { PrintableInvoice } from "./order-invoice";
-import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
-import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 
 type Props = { orderId: string | null; onClose: () => void };
 
@@ -23,8 +20,6 @@ export function OrderDrawer({ orderId, onClose }: Props) {
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
-  const [bookOpen, setBookOpen] = useState(false);
-  const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -70,40 +65,26 @@ export function OrderDrawer({ orderId, onClose }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handlePrint = () => window.print();
-
   return (
     <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 print:hidden">
-        <div className="p-6">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0">
         {isLoading || !order ? (
-          <div className="flex items-center justify-center h-40"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          <div className="flex items-center justify-center h-60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className="px-6 pt-6 pb-5 bg-gradient-to-br from-muted/60 to-background border-b">
               <div className="flex items-start justify-between gap-3">
-                <div className="text-left">
-                  <DialogTitle className="font-mono text-xl">#{shortId(order.id)}</DialogTitle>
+                <div className="text-left space-y-1">
+                  <DialogTitle className="font-mono text-2xl tracking-tight">#{shortId(order.id)}</DialogTitle>
                   <DialogDescription className="text-xs">
                     {format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} · Source: {order.source ?? "—"}
                   </DialogDescription>
                 </div>
-                <Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>
+                <Badge className={statusBadge(order.status).className + " text-xs px-2.5 py-1"}>{statusBadge(order.status).label}</Badge>
               </div>
             </DialogHeader>
 
-            <div className="mt-4 space-y-5">
-              {/* Action bar */}
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={handlePrint}><Printer className="h-3.5 w-3.5 mr-1" />Print Invoice</Button>
-                <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}>
-                  <Truck className="h-3.5 w-3.5 mr-1" />Book Pathao
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}>
-                  <Truck className="h-3.5 w-3.5 mr-1" />Book Steadfast
-                </Button>
-              </div>
-
+            <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[calc(90vh-110px)]">
               {/* Status + Assignment */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -237,28 +218,8 @@ export function OrderDrawer({ orderId, onClose }: Props) {
                 )}
               </section>
             </div>
-
-            {/* Hidden printable invoice (shown only in print) */}
-            <PrintableInvoice order={order} items={items as never} />
-            {orderId && (
-              <BookPathaoDialog
-                open={bookOpen}
-                onOpenChange={setBookOpen}
-                orderId={orderId}
-                defaultAmount={Number(order.total ?? 0)}
-              />
-            )}
-            {orderId && (
-              <BookSteadfastDialog
-                open={bookSteadfastOpen}
-                onOpenChange={setBookSteadfastOpen}
-                orderId={orderId}
-                defaultAmount={Number(order.total ?? 0)}
-              />
-            )}
           </>
         )}
-        </div>
       </DialogContent>
     </Dialog>
   );
