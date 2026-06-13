@@ -113,36 +113,56 @@ function StatsStrip({ stats }: { stats: Record<string, { total: number; success:
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
-          const v = getVerdict(successPct, denom);
           const isEmpty = s.total === 0;
+          const tone = isEmpty
+            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
+            : successPct >= 80
+              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]" }
+              : successPct >= 50
+                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]" }
+                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]" };
+          const R = 15;
+          const C = 2 * Math.PI * R;
+          const offset = denom === 0 ? C : C * (1 - successPct / 100);
           return (
             <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
               <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
 
-              <div className="relative flex items-start gap-3">
-                <Donut successPct={successPct} denom={denom} ringClass={v.ring} />
-
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
-                  </div>
-
-                  <div className="flex items-baseline gap-1.5">
-                    <span className={cn("text-2xl font-semibold tabular-nums leading-none tracking-tight", isEmpty && "text-muted-foreground/40")}>
-                      {s.total}
-                    </span>
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">orders</span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 text-[11px] tabular-nums mt-0.5">
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{s.success}</span>
+              <div className="relative space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
+                    <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
+                      <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
+                      <circle
+                        cx="18" cy="18" r={R}
+                        className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={C}
+                        strokeDashoffset={offset}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>
+                        {denom === 0 ? "—" : `${successPct}%`}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                      <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                  </div>
+                  <div className="text-xs tabular-nums leading-tight space-y-1">
+                    <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
+                      {denom === 0 ? "no data" : `${successPct}% success`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
+                      <span className="font-semibold text-foreground">{s.success}<span className="text-muted-foreground/50">/{denom || s.total}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Rating</span>
+                      <span className="font-semibold text-foreground">{s.success}</span>
                     </div>
                   </div>
                 </div>
