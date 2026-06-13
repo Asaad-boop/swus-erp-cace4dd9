@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone,
+  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -323,26 +323,31 @@ function OrderDetailsPage() {
     discount: 0, advance: 0, shipping_fee: 0,
     note_input: "", tag_input: "",
   });
+  const [baseline, setBaseline] = useState<typeof form | null>(null);
 
   useEffect(() => {
     if (!order) return;
-    setForm((f) => ({
-      ...f,
-      mobile: phone,
-      name: customerName(order),
-      delivery_method: order.delivery_method ?? "",
-      address: order.shipping_address ?? "",
-      shipping_note: order.shipping_note ?? "",
-      city_id: order.delivery_city_id ?? "",
-      zone_id: order.delivery_zone_id ?? "",
-      area_id: order.delivery_area_id ?? "",
-      source_platform: order.source_platform ?? order.source_website ?? "Website",
-      is_preorder: !!order.is_preorder,
-      is_cross_sale: !!order.is_cross_sale,
-      discount: Number(order.discount_amount ?? 0),
-      advance: Number(order.advance_amount ?? 0),
-      shipping_fee: Number(order.shipping_fee ?? 0),
-    }));
+    setForm((f) => {
+      const next = {
+        ...f,
+        mobile: phone,
+        name: customerName(order),
+        delivery_method: order.delivery_method ?? "",
+        address: order.shipping_address ?? "",
+        shipping_note: order.shipping_note ?? "",
+        city_id: order.delivery_city_id ?? "",
+        zone_id: order.delivery_zone_id ?? "",
+        area_id: order.delivery_area_id ?? "",
+        source_platform: order.source_platform ?? order.source_website ?? "Website",
+        is_preorder: !!order.is_preorder,
+        is_cross_sale: !!order.is_cross_sale,
+        discount: Number(order.discount_amount ?? 0),
+        advance: Number(order.advance_amount ?? 0),
+        shipping_fee: Number(order.shipping_fee ?? 0),
+      };
+      setBaseline(next);
+      return next;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
