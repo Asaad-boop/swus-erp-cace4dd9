@@ -72,6 +72,7 @@ function StatsStrip({
 }) {
   // Hide cards without data: Our Record/RedX/Steadfast/Pathao hide if total===0.
   // Overall always shown when any provider has data.
+  void cname; void onRefresh; void refreshing;
   const visibleColumns = STAT_COLUMNS.filter((c) => {
     const s = stats[c.key];
     if (!s) return false;
@@ -83,91 +84,79 @@ function StatsStrip({
   const showFraud = !!fraudNote.trim();
   const cardCount = visibleColumns.length + (showFraud ? 1 : 0);
   if (cardCount === 0) return null;
-  const gridCols = cardCount >= 5 ? "lg:grid-cols-6"
-    : cardCount === 4 ? "lg:grid-cols-4"
-    : cardCount === 3 ? "lg:grid-cols-3"
-    : cardCount === 2 ? "lg:grid-cols-2"
-    : "lg:grid-cols-1";
+  const gridCols = cardCount >= 4 ? "sm:grid-cols-4"
+    : cardCount === 3 ? "sm:grid-cols-3"
+    : cardCount === 2 ? "sm:grid-cols-2"
+    : "sm:grid-cols-1";
   return (
     <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
-      <div className={cn("grid grid-cols-2 sm:grid-cols-3 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
+      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
         {visibleColumns.map((c) => {
           const s = stats[c.key]!;
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
           const isEmpty = s.total === 0;
           const tone = isEmpty
-            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border" }
+            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
             : successPct >= 80
-              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30" }
+              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]" }
               : successPct >= 50
-                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30" }
-                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30" };
+                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]" }
+                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]" };
           const R = 15;
           const C = 2 * Math.PI * R;
           const offset = denom === 0 ? C : C * (1 - successPct / 100);
           return (
-            <div key={c.key} className="group relative px-3 py-3 transition-colors hover:bg-muted/30">
+            <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
               <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
-              <div className="relative space-y-2.5">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", c.dot)} />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
-                  </div>
-                  {c.key === "ourRecord" && cname && (
-                    <span className="text-[10px] text-muted-foreground/80 truncate">{cname}</span>
-                  )}
+              <div className="relative space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="relative shrink-0">
-                    <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
+                <div className="flex items-center gap-3">
+                  <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
+                    <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
                       <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
                       <circle cx="18" cy="18" r={R}
                         className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
                         strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className={cn("text-[10px] font-bold tabular-nums tracking-tight", tone.text)}>
+                      <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>
                         {denom === 0 ? "—" : `${successPct}%`}
                       </span>
                     </div>
                   </div>
-                  <div className="text-[11px] tabular-nums leading-tight space-y-0.5">
-                    <div className="text-foreground">Total: <span className="font-semibold">{s.total}</span></div>
-                    <div className="text-emerald-600 dark:text-emerald-400">Success: <span className="font-semibold">{s.success}</span></div>
-                    <div className="text-rose-600 dark:text-rose-400">Cancelled: <span className="font-semibold">{s.cancel}</span></div>
+                  <div className="text-xs tabular-nums leading-tight space-y-1">
+                    <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
+                      {denom === 0 ? "no data" : `${successPct}% success`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
+                      <span className="font-semibold text-foreground">{s.success}<span className="text-muted-foreground/50">/{denom || s.total}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Cancel</span>
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* Bottom progress bar */}
-              <div className="relative mt-2 h-1 rounded-full bg-muted/40 overflow-hidden">
-                <div className={cn("h-full transition-all duration-700 ease-out", isEmpty ? "bg-muted-foreground/30" : c.bar)}
-                     style={{ width: `${isEmpty ? 0 : successPct}%` }} />
               </div>
             </div>
           );
         })}
-        {/* Fraud Note card — only when data exists */}
         {showFraud && (
-        <div className="group relative px-3 py-3">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-500/[0.06] to-transparent opacity-60" />
-          <div className="relative space-y-2">
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-fuchsia-500" />
+          <div className="group relative px-4 py-4">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-500/[0.07] to-transparent opacity-60" />
+            <div className="relative space-y-2">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">Fraud Note</span>
               </div>
-              <button onClick={onRefresh} disabled={refreshing} className="text-muted-foreground hover:text-foreground disabled:opacity-50">
-                <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
-              </button>
+              <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">{fraudNote}</p>
             </div>
-            <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">{fraudNote}</p>
           </div>
-          <div className="relative mt-2 h-1 rounded-full bg-muted/40 overflow-hidden">
-            <div className="h-full bg-fuchsia-500/70" style={{ width: "100%" }} />
-          </div>
-        </div>
         )}
       </div>
     </div>
