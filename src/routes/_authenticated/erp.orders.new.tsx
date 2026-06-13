@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/erp/orders/new")({
 });
 
 type LineItem = {
-  product_id: string | null;
+  product_id: string;
   name: string;
   unit_price: number;
   quantity: number;
@@ -47,23 +47,23 @@ function NewOrderPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,price,image_url,stock")
+        .select("id,title,price,image,stock")
         .eq("brand_id", activeBrand!.id)
-        .ilike("name", `%${productSearch}%`)
+        .ilike("title", `%${productSearch}%`)
         .limit(15);
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  const addItem = (p: { id: string; name: string; price: number; image_url: string | null }) => {
+  const addItem = (p: { id: string; title: string; price: number; image: string | null }) => {
     const existing = items.findIndex((i) => i.product_id === p.id);
     if (existing >= 0) {
       const next = [...items];
       next[existing] = { ...next[existing], quantity: next[existing].quantity + 1 };
       setItems(next);
     } else {
-      setItems([...items, { product_id: p.id, name: p.name, unit_price: Number(p.price), quantity: 1, image: p.image_url }]);
+      setItems([...items, { product_id: p.id, name: p.title, unit_price: Number(p.price), quantity: 1, image: p.image }]);
     }
     setProductSearch("");
   };
@@ -178,9 +178,9 @@ function NewOrderPage() {
                     {searching && <div className="p-2 text-sm text-muted-foreground">Searching…</div>}
                     {products.map((p) => (
                       <button key={p.id} onClick={() => addItem(p)} className="flex w-full items-center gap-2 p-2 hover:bg-accent text-left">
-                        {p.image_url && <img src={p.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
+                        {p.image && <img src={p.image} alt="" className="h-10 w-10 rounded object-cover" />}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{p.name}</div>
+                          <div className="text-sm font-medium truncate">{p.title}</div>
                           <div className="text-xs text-muted-foreground">Stock: {p.stock} · ৳ {Number(p.price).toLocaleString()}</div>
                         </div>
                         <Plus className="h-4 w-4" />
