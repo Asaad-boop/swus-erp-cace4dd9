@@ -43,6 +43,143 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
     return { items: await client.areas(data.zoneId) };
   });
 
+/* ---------------------------------------------------------------------- */
+/*  AI-powered address → Pathao city/zone/area detection                  */
+/* ---------------------------------------------------------------------- */
+
+type PickItem = { id: number; name: string };
+
+async function aiPickFromList(opts: {
+  address: string;
+  stage: "city" | "zone" | "area";
+  parentLabel?: string;
+  items: PickItem[];
+}): Promise<{ id: number | null; name: string | null; confidence: number }> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const stageLabel = opts.stage === "city"
+    ? "Pathao city/district"
+    : opts.stage === "zone"
+      ? `Pathao zone (delivery sub-area inside ${opts.parentLabel ?? "the selected city"})`
+      : `Pathao area (specific neighbourhood inside ${opts.parentLabel ?? "the selected zone"})`;
+
+  const list = opts.items.map((i) => `${i.id}\t${i.name}`).join("\n");
+
+  const system =
+    "You are an expert Bangladeshi address parser for Pathao courier. " +
+    "Given a customer-written shipping address (often mixed Bangla/English, with informal spellings), " +
+    "select the SINGLE best matching entry from a provided list. " +
+    "Always prefer an exact or near-exact name match. If the address mentions a well-known landmark, " +
+    "infer the correct administrative location. Never invent an id that is not in the list. " +
+    'Respond ONLY as JSON: {"id": <number or null>, "name": <string or null>, "confidence": <0..1>}. ' +
+    "If nothing in the list reasonably matches, return id=null.";
+
+  const user =
+    `Customer address:\n"""${opts.address}"""\n\n` +
+    `Pick the best ${stageLabel} from this list (format: <id>\\t<name>):\n${list}`;
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0,
+    }),
+  });
+
+  if (res.status === 429) throw new Error("AI rate limit exceeded. Try again shortly.");
+  if (res.status === 402) throw new Error("AI credits exhausted. Add credits to continue.");
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`AI gateway error (${res.status}): ${txt.slice(0, 200)}`);
+  }
+
+  const json = await res.json();
+  const content: string = json?.choices?.[0]?.message?.content ?? "{}";
+  let parsed: { id?: number | null; name?: string | null; confidence?: number } = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+
+  const id = typeof parsed.id === "number" ? parsed.id : null;
+  // Verify the id actually exists in our list (no hallucinations)
+  const match = id != null ? opts.items.find((i) => i.id === id) ?? null : null;
+  return {
+    id: match?.id ?? null,
+    name: match?.name ?? null,
+    confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
+  };
+}
+
+export const pathaoDetectAddressFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        address: z.string().min(3).max(2000),
+        brandId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCourierRole(context.supabase, context.userId);
+    const client = await clientForBrand(context.supabase, data.brandId);
+
+    // 1) City
+    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityPick = await aiPickFromList({
+      address: data.address,
+      stage: "city",
+      items: citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })),
+    });
+    if (!cityPick.id) {
+      return { city: null, zone: null, area: null, confidence: cityPick.confidence };
+    }
+
+    // 2) Zone
+    const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
+    const zonePick = await aiPickFromList({
+      address: data.address,
+      stage: "zone",
+      parentLabel: cityPick.name ?? undefined,
+      items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
+    });
+    if (!zonePick.id) {
+      return {
+        city: { id: cityPick.id, name: cityPick.name },
+        zone: null,
+        area: null,
+        confidence: cityPick.confidence,
+      };
+    }
+
+    // 3) Area (optional — many zones have a large list; still try)
+    const areasRaw = (await client.areas(zonePick.id)) as Array<{ area_id: number; area_name: string }>;
+    let areaPick: { id: number | null; name: string | null; confidence: number } = { id: null, name: null, confidence: 0 };
+    if (areasRaw.length > 0) {
+      areaPick = await aiPickFromList({
+        address: data.address,
+        stage: "area",
+        parentLabel: zonePick.name ?? undefined,
+        items: areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
+      });
+    }
+
+    return {
+      city: { id: cityPick.id, name: cityPick.name },
+      zone: { id: zonePick.id, name: zonePick.name },
+      area: areaPick.id ? { id: areaPick.id, name: areaPick.name } : null,
+      confidence: Math.min(cityPick.confidence, zonePick.confidence, areaPick.confidence || 1),
+    };
+  });
+
 export const pathaoPriceFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>

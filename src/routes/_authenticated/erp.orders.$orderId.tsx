@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2, CheckCircle2,
+  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
+import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -352,9 +353,9 @@ function OrderDetailsPage() {
         delivery_method: order.delivery_method ?? "",
         address: order.shipping_address ?? "",
         shipping_note: order.shipping_note ?? "",
-        city_id: order.delivery_city_id ?? "",
-        zone_id: order.delivery_zone_id ?? "",
-        area_id: order.delivery_area_id ?? "",
+        city_id: order.pathao_city_id != null ? String(order.pathao_city_id) : "",
+        zone_id: order.pathao_zone_id != null ? String(order.pathao_zone_id) : "",
+        area_id: order.pathao_area_id != null ? String(order.pathao_area_id) : "",
         source_platform: order.source_platform ?? order.source_website ?? "Website",
         is_preorder: !!order.is_preorder,
         is_cross_sale: !!order.is_cross_sale,
@@ -369,35 +370,88 @@ function OrderDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
-  /* ------------------------------ BD geo cascades -------------------------- */
+  /* ------------------------------ Pathao geo cascades ---------------------- */
+
+  const fetchCities = useServerFn(pathaoCitiesFn);
+  const fetchZones = useServerFn(pathaoZonesFn);
+  const fetchAreas = useServerFn(pathaoAreasFn);
+  const detectAddress = useServerFn(pathaoDetectAddressFn);
 
   const { data: cities } = useQuery({
-    queryKey: ["bd_cities"],
+    queryKey: ["pathao-cities", order?.brand_id],
+    enabled: !!order,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_cities").select("id,name_en").eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchCities({ data: order?.brand_id ? { brandId: order.brand_id } : {} });
+      return ((r as { items: { city_id: number; city_name: string }[] }).items ?? []).map((c) => ({
+        id: String(c.city_id),
+        name_en: c.city_name,
+      }));
     },
-    staleTime: 30 * 60_000,
   });
   const { data: zones } = useQuery({
-    queryKey: ["bd_zones", form.city_id],
+    queryKey: ["pathao-zones", form.city_id, order?.brand_id],
     enabled: !!form.city_id,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_zones").select("id,name_en").eq("city_id", form.city_id).eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchZones({ data: { cityId: Number(form.city_id), brandId: order?.brand_id ?? undefined } });
+      return ((r as { items: { zone_id: number; zone_name: string }[] }).items ?? []).map((z) => ({
+        id: String(z.zone_id),
+        name_en: z.zone_name,
+      }));
     },
   });
   const { data: areas } = useQuery({
-    queryKey: ["bd_areas", form.zone_id],
+    queryKey: ["pathao-areas", form.zone_id, order?.brand_id],
     enabled: !!form.zone_id,
+    staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("bd_areas").select("id,name_en").eq("zone_id", form.zone_id).eq("is_active", true).order("name_en");
-      if (error) throw error;
-      return data ?? [];
+      const r = await fetchAreas({ data: { zoneId: Number(form.zone_id), brandId: order?.brand_id ?? undefined } });
+      return ((r as { items: { area_id: number; area_name: string }[] }).items ?? []).map((a) => ({
+        id: String(a.area_id),
+        name_en: a.area_name,
+      }));
     },
   });
+
+  const detectLocation = useMutation({
+    mutationFn: async () => {
+      if (!form.address || form.address.trim().length < 3) {
+        throw new Error("Address is too short to detect");
+      }
+      const r = (await detectAddress({
+        data: { address: form.address.trim(), brandId: order?.brand_id ?? undefined },
+      })) as {
+        city: { id: number; name: string } | null;
+        zone: { id: number; name: string } | null;
+        area: { id: number; name: string } | null;
+      };
+      return r;
+    },
+    onSuccess: (r) => {
+      setForm((f) => ({
+        ...f,
+        city_id: r.city ? String(r.city.id) : "",
+        zone_id: r.zone ? String(r.zone.id) : "",
+        area_id: r.area ? String(r.area.id) : "",
+      }));
+      if (!r.city) toast.error("Could not detect city from address");
+      else if (!r.zone) toast.warning(`Found city ${r.city.name} — please pick zone manually`);
+      else if (!r.area) toast.success(`Detected ${r.city.name} → ${r.zone.name}. Pick area if needed.`);
+      else toast.success(`Detected ${r.city.name} → ${r.zone.name} → ${r.area.name}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Auto-detect once when an order loads without a saved Pathao location
+  useEffect(() => {
+    if (!order) return;
+    if (order.pathao_city_id) return;
+    if (!order.shipping_address || order.shipping_address.trim().length < 3) return;
+    if (detectLocation.isPending) return;
+    detectLocation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id]);
 
   /* ------------------------------ Courier history -------------------------- */
 
@@ -516,9 +570,12 @@ function OrderDetailsPage() {
         delivery_method: form.delivery_method || null,
         shipping_address: form.address,
         shipping_note: form.shipping_note,
-        delivery_city_id: form.city_id || null,
-        delivery_zone_id: form.zone_id || null,
-        delivery_area_id: form.area_id || null,
+        pathao_city_id: form.city_id ? Number(form.city_id) : null,
+        pathao_city_name: cities?.find((c) => c.id === form.city_id)?.name_en ?? null,
+        pathao_zone_id: form.zone_id ? Number(form.zone_id) : null,
+        pathao_zone_name: zones?.find((z) => z.id === form.zone_id)?.name_en ?? null,
+        pathao_area_id: form.area_id ? Number(form.area_id) : null,
+        pathao_area_name: areas?.find((a) => a.id === form.area_id)?.name_en ?? null,
         shipping_city: cities?.find((c) => c.id === form.city_id)?.name_en ?? order?.shipping_city ?? null,
         shipping_thana: zones?.find((z) => z.id === form.zone_id)?.name_en ?? order?.shipping_thana ?? null,
         source_platform: form.source_platform,
@@ -610,9 +667,12 @@ function OrderDetailsPage() {
         delivery_method: form.delivery_method || null,
         shipping_address: form.address,
         shipping_note: form.shipping_note,
-        delivery_city_id: form.city_id || null,
-        delivery_zone_id: form.zone_id || null,
-        delivery_area_id: form.area_id || null,
+        pathao_city_id: form.city_id ? Number(form.city_id) : null,
+        pathao_city_name: cities?.find((c) => c.id === form.city_id)?.name_en ?? null,
+        pathao_zone_id: form.zone_id ? Number(form.zone_id) : null,
+        pathao_zone_name: zones?.find((z) => z.id === form.zone_id)?.name_en ?? null,
+        pathao_area_id: form.area_id ? Number(form.area_id) : null,
+        pathao_area_name: areas?.find((a) => a.id === form.area_id)?.name_en ?? null,
         shipping_city: cities?.find((c) => c.id === form.city_id)?.name_en ?? order?.shipping_city ?? null,
         shipping_thana: zones?.find((z) => z.id === form.zone_id)?.name_en ?? order?.shipping_thana ?? null,
         source_platform: form.source_platform,
@@ -793,7 +853,29 @@ function OrderDetailsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="Address">
-                <Textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="resize-none" />
+                <Textarea
+                  rows={3}
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="resize-none"
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-muted-foreground">
+                    AI will pick the matching Pathao city / zone / area.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1"
+                    disabled={detectLocation.isPending || form.address.trim().length < 3}
+                    onClick={() => detectLocation.mutate()}
+                  >
+                    {detectLocation.isPending
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Sparkles className="h-3 w-3" />}
+                    Detect with AI
+                  </Button>
+                </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
                 <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} className="resize-none" />

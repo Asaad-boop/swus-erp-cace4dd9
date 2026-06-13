@@ -1420,6 +1420,12 @@ export type Database = {
           packaged_at: string | null
           packaged_by: string | null
           partial_amount: number | null
+          pathao_area_id: number | null
+          pathao_area_name: string | null
+          pathao_city_id: number | null
+          pathao_city_name: string | null
+          pathao_zone_id: number | null
+          pathao_zone_name: string | null
           payment_method: string | null
           payment_source: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
@@ -1505,6 +1511,12 @@ export type Database = {
           packaged_at?: string | null
           packaged_by?: string | null
           partial_amount?: number | null
+          pathao_area_id?: number | null
+          pathao_area_name?: string | null
+          pathao_city_id?: number | null
+          pathao_city_name?: string | null
+          pathao_zone_id?: number | null
+          pathao_zone_name?: string | null
           payment_method?: string | null
           payment_source?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -1590,6 +1602,12 @@ export type Database = {
           packaged_at?: string | null
           packaged_by?: string | null
           partial_amount?: number | null
+          pathao_area_id?: number | null
+          pathao_area_name?: string | null
+          pathao_city_id?: number | null
+          pathao_city_name?: string | null
+          pathao_zone_id?: number | null
+          pathao_zone_name?: string | null
           payment_method?: string | null
           payment_source?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
