@@ -791,6 +791,59 @@ export type Database = {
           },
         ]
       }
+      erp_courier_settings: {
+        Row: {
+          base_url: string | null
+          brand_id: string
+          client_id: string | null
+          client_secret: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          password: string | null
+          provider: string
+          store_id: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          base_url?: string | null
+          brand_id: string
+          client_id?: string | null
+          client_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          provider?: string
+          store_id?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          base_url?: string | null
+          brand_id?: string
+          client_id?: string | null
+          client_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          provider?: string
+          store_id?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_courier_settings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_expense_categories: {
         Row: {
           brand_id: string | null

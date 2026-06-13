@@ -4,6 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn } from "@/lib/erp/pathao.functions";
 
+export type PathaoCity = { city_id: number; city_name: string };
+export type PathaoZone = { zone_id: number; zone_name: string };
+export type PathaoArea = { area_id: number; area_name: string };
+
 export type Shipment = {
   id: string;
   order_id: string;
@@ -40,7 +44,7 @@ export function usePathaoCities() {
   const fn = useServerFn(pathaoCitiesFn);
   return useQuery({
     queryKey: ["pathao-cities"],
-    queryFn: async () => (await fn()).items,
+    queryFn: async () => ((await fn({ data: {} })).items as PathaoCity[]),
     staleTime: 1000 * 60 * 60,
   });
 }
@@ -50,7 +54,7 @@ export function usePathaoZones(cityId: number | null) {
   return useQuery({
     queryKey: ["pathao-zones", cityId],
     enabled: !!cityId,
-    queryFn: async () => (await fn({ data: { cityId: cityId! } })).items,
+    queryFn: async () => ((await fn({ data: { cityId: cityId! } })).items as PathaoZone[]),
     staleTime: 1000 * 60 * 60,
   });
 }
@@ -60,7 +64,7 @@ export function usePathaoAreas(zoneId: number | null) {
   return useQuery({
     queryKey: ["pathao-areas", zoneId],
     enabled: !!zoneId,
-    queryFn: async () => (await fn({ data: { zoneId: zoneId! } })).items,
+    queryFn: async () => ((await fn({ data: { zoneId: zoneId! } })).items as PathaoArea[]),
     staleTime: 1000 * 60 * 60,
   });
 }
