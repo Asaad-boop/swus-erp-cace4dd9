@@ -101,18 +101,35 @@ export function BusinessSettings() {
         .eq("id", brandId);
       if (brandErr) throw brandErr;
 
+      const prevPrefix = data?.erp?.invoice_prefix ?? "INV-";
+      const newPrefix = form.invoice_prefix || "INV-";
+
       const { error: erpErr } = await supabase
         .from("erp_settings")
         .upsert({
           brand_id: brandId,
-          invoice_prefix: form.invoice_prefix || "INV-",
+          invoice_prefix: newPrefix,
         }, { onConflict: "brand_id" });
       if (erpErr) throw erpErr;
+
+      let updated = 0;
+      if (newPrefix !== prevPrefix) {
+        const { data: cnt, error: rpcErr } = await supabase.rpc("reapply_invoice_prefix", { _brand_id: brandId });
+        if (rpcErr) throw rpcErr;
+        updated = Number(cnt ?? 0);
+      }
+      return { updated, changed: newPrefix !== prevPrefix };
     },
-    onSuccess: () => {
-      toast.success("Business settings updated");
+    onSuccess: (res) => {
+      if (res?.changed) {
+        toast.success(`Settings saved. ${res.updated} invoice${res.updated === 1 ? "" : "s"} re-prefixed.`);
+      } else {
+        toast.success("Business settings updated");
+      }
       qc.invalidateQueries({ queryKey: ["brand-settings", brandId] });
       qc.invalidateQueries({ queryKey: ["brands"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
