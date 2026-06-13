@@ -1,11 +1,13 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, ShoppingCart, Boxes, Wallet, Truck, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
   { to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/erp/orders", label: "Orders", icon: ShoppingCart },
+  { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
+  { to: "/erp/orders/new", label: "Create New Order", icon: PlusCircle },
+  { to: "/erp/orders/list", label: "Order List", icon: ListOrdered },
   { to: "/erp/inventory", label: "Inventory", icon: Boxes },
   { to: "/erp/finance", label: "Finance", icon: Wallet },
   { to: "/erp/courier", label: "Courier", icon: Truck },
