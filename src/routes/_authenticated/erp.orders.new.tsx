@@ -89,8 +89,8 @@ function NewOrderPage() {
         .from("orders")
         .insert({
           brand_id: activeBrand.id,
-          status: "new",
-          confirmation_status: "pending",
+          status: "confirmed",
+          confirmation_status: "confirmed",
           source: "manual",
           is_guest_order: true,
           guest_name: customer.name,
