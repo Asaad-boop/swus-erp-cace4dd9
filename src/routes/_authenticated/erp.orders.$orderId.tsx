@@ -14,6 +14,7 @@ import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
+import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
   head: () => ({ meta: [{ title: "Order Details — ERP" }] }),
@@ -27,6 +28,7 @@ function OrderDetailsPage() {
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
   const [bookOpen, setBookOpen] = useState(false);
+  const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -99,6 +101,7 @@ function OrderDetailsPage() {
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Print Invoice</Button>
         <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Book Pathao</Button>
+        <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Book Steadfast</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -211,6 +214,7 @@ function OrderDetailsPage() {
 
       <PrintableInvoice order={order} items={items as never} />
       <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
     </div>
   );
 }
