@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const CACHE_TTL_HOURS = 24;
 
 type ProviderResult = {
-  name: string;
+  name: "pathao" | "steadfast";
   label: string;
   total: number;
   success: number;
@@ -29,67 +29,83 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
-async function fetchFromBDCourier(phone: string): Promise<HistoryData> {
-  const apiKey = process.env.BD_COURIER_API_KEY;
-  if (!apiKey) throw new Error("BD_COURIER_API_KEY is not configured");
+async function fetchPathao(supabase: any, brandId: string | null, phone: string): Promise<ProviderResult> {
+  try {
+    const { loadPathaoCreds } = await import("./pathao.server");
+    const creds = await loadPathaoCreds(supabase, brandId);
 
-  const res = await fetch("https://bdcourier.com/api/courier-check", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ phone }),
-  });
+    // Get token via Pathao's standard issue-token flow
+    const tokenRes = await fetch(`${creds.base_url}/aladdin/api/v1/issue-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        client_id: creds.client_id,
+        client_secret: creds.client_secret,
+        username: creds.username,
+        password: creds.password,
+        grant_type: "password",
+      }),
+    });
+    if (!tokenRes.ok) throw new Error(`auth ${tokenRes.status}`);
+    const tokenJson = (await tokenRes.json()) as { access_token?: string; data?: { access_token?: string } };
+    const token = tokenJson.access_token || tokenJson.data?.access_token;
+    if (!token) throw new Error("auth: no access_token");
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`BD Courier ${res.status}: ${text.slice(0, 200)}`);
+    // Customer success-rate lookup by phone (Pathao merchant portal endpoint)
+    const res = await fetch("https://merchant.pathao.com/api/v1/user/success", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ phone }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${res.status}: ${text.slice(0, 120)}`);
+    const j = JSON.parse(text);
+    const c = j?.data?.customer ?? j?.customer ?? j?.data ?? {};
+    const total = Number(c.total_delivery ?? c.total ?? 0);
+    const success = Number(c.successful_delivery ?? c.success ?? 0);
+    const cancelled = Math.max(0, total - success);
+    return { name: "pathao", label: "Pathao", ok: true, total, success, cancelled };
+  } catch (e) {
+    return { name: "pathao", label: "Pathao", ok: false, total: 0, success: 0, cancelled: 0, error: (e as Error).message };
   }
+}
 
-  const json = (await res.json()) as Record<string, unknown>;
-  // BD Courier returns { courierData: { pathao: {...}, steadfast: {...}, redx: {...}, summary: {...} } }
-  const courierData = (json.courierData ?? json) as Record<string, { total_parcel?: number; success_parcel?: number; cancelled_parcel?: number } | undefined>;
-
-  const providerKeys = ["pathao", "steadfast", "redx", "paperfly"] as const;
-  const labels: Record<string, string> = {
-    pathao: "Pathao",
-    steadfast: "Steadfast",
-    redx: "RedX",
-    paperfly: "Paperfly",
-  };
-
-  const providers: ProviderResult[] = providerKeys.map((k) => {
-    const p = courierData[k] ?? {};
-    const total = Number(p.total_parcel ?? 0);
-    const success = Number(p.success_parcel ?? 0);
-    const cancelled = Number(p.cancelled_parcel ?? 0);
-    return { name: k, label: labels[k] ?? k, total, success, cancelled, ok: true };
-  });
-
-  const summary = {
-    total: providers.reduce((s, p) => s + p.total, 0),
-    success: providers.reduce((s, p) => s + p.success, 0),
-    cancelled: providers.reduce((s, p) => s + p.cancelled, 0),
-  };
-
-  return {
-    phone,
-    found: summary.total > 0,
-    fetched_at: new Date().toISOString(),
-    providers,
-    summary,
-  };
+async function fetchSteadfast(supabase: any, brandId: string | null, phone: string): Promise<ProviderResult> {
+  try {
+    const { loadSteadfastCreds } = await import("./steadfast.server");
+    const creds = await loadSteadfastCreds(supabase, brandId);
+    const res = await fetch(`${creds.base_url}/fraud_check/${encodeURIComponent(phone)}`, {
+      method: "GET",
+      headers: {
+        "Api-Key": creds.api_key,
+        "Secret-Key": creds.secret_key,
+        Accept: "application/json",
+      },
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${res.status}: ${text.slice(0, 120)}`);
+    const j = JSON.parse(text);
+    const total = Number(j.total_parcels ?? j.total_consignments ?? j.total ?? 0);
+    const success = Number(j.total_delivered ?? j.successful_consignments ?? j.success ?? 0);
+    const cancelled = Number(j.total_cancelled ?? j.cancelled_consignments ?? j.cancelled ?? Math.max(0, total - success));
+    return { name: "steadfast", label: "Steadfast", ok: true, total, success, cancelled };
+  } catch (e) {
+    return { name: "steadfast", label: "Steadfast", ok: false, total: 0, success: 0, cancelled: 0, error: (e as Error).message };
+  }
 }
 
 async function getOneWithCache(
   supabase: any,
+  brandId: string | null,
   phone: string,
   force: boolean,
 ): Promise<HistoryData> {
   const normalized = normalizePhone(phone);
-  if (!normalized) {
+  if (!normalized || normalized.length < 11) {
     return {
       phone,
       found: false,
@@ -111,31 +127,30 @@ async function getOneWithCache(
     }
   }
 
-  try {
-    const fresh = await fetchFromBDCourier(normalized);
+  const [pathao, steadfast] = await Promise.all([
+    fetchPathao(supabase, brandId, normalized),
+    fetchSteadfast(supabase, brandId, normalized),
+  ]);
+  const providers: ProviderResult[] = [pathao, steadfast];
+  const summary = {
+    total: providers.filter((p) => p.ok).reduce((s, p) => s + p.total, 0),
+    success: providers.filter((p) => p.ok).reduce((s, p) => s + p.success, 0),
+    cancelled: providers.filter((p) => p.ok).reduce((s, p) => s + p.cancelled, 0),
+  };
+  const fresh: HistoryData = {
+    phone: normalized,
+    found: summary.total > 0,
+    fetched_at: new Date().toISOString(),
+    providers,
+    summary,
+  };
+  // Only cache if at least one provider succeeded
+  if (providers.some((p) => p.ok)) {
     await supabase
       .from("courier_history_cache")
       .upsert({ phone: normalized, data: fresh, fetched_at: fresh.fetched_at }, { onConflict: "phone" });
-    return fresh;
-  } catch (err) {
-    // Fall back to whatever cache we have, even if stale
-    const { data: cached } = await supabase
-      .from("courier_history_cache")
-      .select("data")
-      .eq("phone", normalized)
-      .maybeSingle();
-    if (cached?.data) return cached.data as HistoryData;
-    return {
-      phone: normalized,
-      found: false,
-      fetched_at: new Date().toISOString(),
-      providers: [
-        { name: "pathao", label: "Pathao", total: 0, success: 0, cancelled: 0, ok: false, error: (err as Error).message },
-        { name: "steadfast", label: "Steadfast", total: 0, success: 0, cancelled: 0, ok: false, error: (err as Error).message },
-      ],
-      summary: { total: 0, success: 0, cancelled: 0 },
-    };
   }
+  return fresh;
 }
 
 export const fetchCourierHistoryFn = createServerFn({ method: "POST" })
@@ -144,18 +159,25 @@ export const fetchCourierHistoryFn = createServerFn({ method: "POST" })
     z
       .object({
         phones: z.array(z.string().min(3).max(20)).min(1).max(100),
+        brandId: z.string().uuid().optional(),
         force: z.boolean().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const results: Record<string, HistoryData> = {};
-    // sequential to avoid rate limits
-    for (const phone of data.phones) {
-      const normalized = normalizePhone(phone);
-      if (!normalized) continue;
-      results[phone] = await getOneWithCache(context.supabase, phone, !!data.force);
-      results[normalized] = results[phone];
+    const brandId = data.brandId ?? null;
+    // Run in small parallel batches to keep latency low without hammering APIs
+    const batchSize = 4;
+    for (let i = 0; i < data.phones.length; i += batchSize) {
+      const batch = data.phones.slice(i, i + batchSize);
+      const settled = await Promise.all(
+        batch.map(async (phone) => ({ phone, hist: await getOneWithCache(context.supabase, brandId, phone, !!data.force) })),
+      );
+      settled.forEach(({ phone, hist }) => {
+        results[phone] = hist;
+        results[normalizePhone(phone)] = hist;
+      });
     }
     return { results };
   });
