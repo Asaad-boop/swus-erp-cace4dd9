@@ -30,10 +30,10 @@ export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
 });
 
 const STAT_COLUMNS = [
-  { key: "ourRecord", label: "Our Record", dot: "bg-foreground" },
-  { key: "overall", label: "Overall", dot: "bg-sky-500" },
-  { key: "pathao", label: "Pathao", dot: "bg-rose-500" },
-  { key: "steadfast", label: "Steadfast", dot: "bg-amber-500" },
+  { key: "ourRecord", label: "Our Record", accent: "indigo", dot: "bg-indigo-500", bar: "bg-indigo-500", tint: "from-indigo-500/[0.06]", ring: "ring-indigo-500/15" },
+  { key: "overall", label: "Overall", accent: "sky", dot: "bg-sky-500", bar: "bg-sky-500", tint: "from-sky-500/[0.06]", ring: "ring-sky-500/15" },
+  { key: "pathao", label: "Pathao", accent: "rose", dot: "bg-rose-500", bar: "bg-rose-500", tint: "from-rose-500/[0.06]", ring: "ring-rose-500/15" },
+  { key: "steadfast", label: "Steadfast", accent: "amber", dot: "bg-amber-500", bar: "bg-amber-500", tint: "from-amber-500/[0.06]", ring: "ring-amber-500/15" },
 ] as const;
 
 function normalizePhone(raw: string) {
@@ -47,20 +47,61 @@ function StatsStrip({ stats }: { stats: Record<string, { total: number; success:
   const columns = STAT_COLUMNS.filter((c) => c.key !== "ourRecord" || (stats.ourRecord?.total ?? 0) > 0);
   const gridCols = columns.length === 4 ? "sm:grid-cols-4" : columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0", gridCols)}>
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
+      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
         {columns.map((c) => {
           const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
+          const denom = s.success + s.cancel;
+          const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
+          const cancelPct = denom > 0 ? 100 - successPct : 0;
+          const isEmpty = s.total === 0;
           return (
-            <div key={c.key} className="px-4 py-3 flex flex-col gap-1">
-              <div className="flex items-center gap-1.5">
-                <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{c.label}</span>
+            <div key={c.key} className="group relative px-5 py-4 flex flex-col gap-3 transition-colors hover:bg-muted/30">
+              {/* accent gradient wash */}
+              <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
+              {/* top accent line on hover */}
+              <div className={cn("pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100", c.bar)} />
+
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={cn("h-2 w-2 rounded-full ring-4", c.dot, c.ring)} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</span>
+                </div>
+                {!isEmpty && (
+                  <span className="text-[10px] font-semibold tabular-nums text-muted-foreground/80">
+                    {successPct}%
+                  </span>
+                )}
               </div>
-              <div className="text-2xl font-semibold tabular-nums leading-none">{s.total}</div>
-              <div className="flex items-center gap-3 text-[11px] tabular-nums">
-                <span className="text-emerald-600 dark:text-emerald-400">{s.success} success</span>
-                <span className="text-rose-600 dark:text-rose-400">{s.cancel} cancel</span>
+
+              <div className="relative flex items-baseline gap-1.5">
+                <span className={cn("text-3xl font-semibold tabular-nums leading-none tracking-tight", isEmpty && "text-muted-foreground/40")}>
+                  {s.total}
+                </span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">orders</span>
+              </div>
+
+              {/* segmented meter */}
+              <div className="relative h-1 w-full overflow-hidden rounded-full bg-muted">
+                {denom > 0 ? (
+                  <div className="flex h-full w-full">
+                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${successPct}%` }} />
+                    <div className="h-full bg-rose-500 transition-all" style={{ width: `${cancelPct}%` }} />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="relative flex items-center justify-between text-[11px] tabular-nums">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{s.success}</span>
+                  <span className="text-muted-foreground">success</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                  <span className="text-muted-foreground">cancel</span>
+                </div>
               </div>
             </div>
           );
