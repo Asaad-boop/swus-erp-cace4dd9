@@ -319,7 +319,6 @@ function OrderDetailsPage() {
             <div className="space-y-2 text-sm">
               <Row label="Date" value={format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} />
               <Row label="Status" value={<Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>} />
-              <Row label="Confirmation" value={<span className="capitalize">{order.confirmation_status}</span>} />
               <Row label="Courier" value={order.courier_name ?? "—"} />
               <Row label="Tracking" value={order.tracking_number ?? "—"} mono />
               <Row label="Total" value={<span className="font-bold">৳ {Number(order.total).toLocaleString()}</span>} />
