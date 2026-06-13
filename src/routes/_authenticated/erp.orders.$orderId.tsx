@@ -1074,6 +1074,55 @@ function OrderDetailsPage() {
       <PrintableInvoice order={order} items={items as never} />
       <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
       <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <Dialog open={pendingWebStatus !== null} onOpenChange={(o) => !o && setPendingWebStatus(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingWebStatus === "on_hold" && "Put Order On Hold"}
+              {pendingWebStatus === "cancelled" && "Cancel Order"}
+              {pendingWebStatus === "advance_payment" && "Advance Payment"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingWebStatus === "on_hold" && "Why are you putting this order on hold?"}
+              {pendingWebStatus === "cancelled" && "Please tell us why this order is being cancelled."}
+              {pendingWebStatus === "advance_payment" && "How much advance does the customer need to pay?"}
+            </DialogDescription>
+          </DialogHeader>
+          {pendingWebStatus === "advance_payment" ? (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Advance Amount (৳)</label>
+              <Input
+                type="number" min={1} autoFocus
+                value={pendingAdvance}
+                onChange={(e) => setPendingAdvance(e.target.value)}
+                placeholder="e.g. 100"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Reason</label>
+              <Textarea
+                rows={3} autoFocus maxLength={500}
+                value={pendingReason}
+                onChange={(e) => setPendingReason(e.target.value)}
+                placeholder="Type the reason…"
+                className="resize-none"
+              />
+              <div className="text-[10px] text-right text-muted-foreground">{pendingReason.length}/500</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingWebStatus(null)}>Cancel</Button>
+            <Button
+              disabled={updateWebStatus.isPending}
+              onClick={submitPendingWebStatus}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {updateWebStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
