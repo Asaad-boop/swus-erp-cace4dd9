@@ -111,21 +111,36 @@ function initials(name: string) {
 
 function SuccessRow({ label, dot, total, success, cancelled }: { label: string; dot: string; total: number; success: number; cancelled: number }) {
   const pct = total > 0 ? Math.round((success / total) * 100) : 0;
+  const pctClass = total === 0
+    ? "text-muted-foreground/50"
+    : pct >= 80
+      ? "text-emerald-600 dark:text-emerald-400"
+      : pct >= 50
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-rose-600 dark:text-rose-400";
   return (
-    <div className="flex items-center gap-2">
-      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dot)} />
-      <span className="text-foreground/80 font-medium w-14 shrink-0">{label}</span>
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-1.5">
+        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dot)} />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      </div>
       {total > 0 ? (
-        <>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{success}</span>
-          <span className="text-muted-foreground/60">/</span>
-          <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums">{cancelled}</span>
-          <span className="text-muted-foreground/60">·</span>
-          <span className="text-muted-foreground tabular-nums">{total}</span>
-          <span className="ml-auto text-foreground/70 font-semibold tabular-nums">{pct}%</span>
-        </>
+        <dl className="pl-3 space-y-0.5 tabular-nums">
+          <div className="flex items-baseline justify-between gap-2">
+            <dt className="text-muted-foreground">Success:</dt>
+            <dd className={cn("font-semibold", pctClass)}>{pct}%</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <dt className="text-muted-foreground">Order:</dt>
+            <dd className="font-semibold text-foreground">{success}/{total}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <dt className="text-muted-foreground">Cancel:</dt>
+            <dd className="font-semibold text-rose-600 dark:text-rose-400">{cancelled}</dd>
+          </div>
+        </dl>
       ) : (
-        <span className="text-muted-foreground/50">—</span>
+        <div className="pl-3 text-muted-foreground/50">—</div>
       )}
     </div>
   );
