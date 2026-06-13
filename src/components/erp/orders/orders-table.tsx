@@ -239,7 +239,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer transition-all border-b last:border-0 hover:bg-muted/40 hover:shadow-[inset_0_0_0_9999px_rgba(0,0,0,0.01)] group/row"
+                className="cursor-pointer transition-colors border-b last:border-0 hover:bg-muted/40 group/row"
                 onClick={() => onRowClick(row.original.id)}
                 style={{ boxShadow: `inset 3px 0 0 0 ${statusAccent(row.original.status)}` }}
               >
