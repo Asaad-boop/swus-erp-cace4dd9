@@ -309,7 +309,7 @@ function OrderDetailsPage() {
       </div>
 
       {/* Courier stats strip */}
-      <StatsStrip stats={stats} />
+      <StatsStrip stats={stats} customerName={customerName(order)} fraudNote={order.admin_notes ?? null} />
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -318,23 +318,6 @@ function OrderDetailsPage() {
           <SectionCard
             icon={<User className="h-4 w-4" />}
             title="Customer Information"
-            action={
-              <div className="flex items-center gap-1">
-                {phone && (
-                  <>
-                    <Button asChild size="icon" variant="ghost" className="h-7 w-7">
-                      <a href={`tel:${phone}`} aria-label="Call"><Phone className="h-3.5 w-3.5" /></a>
-                    </Button>
-                    <Button asChild size="icon" variant="ghost" className="h-7 w-7">
-                      <a href={`sms:${phone}`} aria-label="SMS"><MessageSquare className="h-3.5 w-3.5" /></a>
-                    </Button>
-                    <Button asChild size="icon" variant="ghost" className="h-7 w-7">
-                      <a href={`https://wa.me/${phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" aria-label="WhatsApp"><MessageCircle className="h-3.5 w-3.5" /></a>
-                    </Button>
-                  </>
-                )}
-              </div>
-            }
           >
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <Field label="Name" value={customerName(order)} />
