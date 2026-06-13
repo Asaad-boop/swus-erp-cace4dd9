@@ -414,24 +414,10 @@ function WebOrdersPage() {
 
                     {/* Success Rate */}
                     <TableCell className="py-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <div className="text-base font-bold tabular-nums text-foreground">{pct}%</div>
-                          <div className="text-[10px] text-muted-foreground">{b.confirmed}/{b.total}</div>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex">
-                          {b.total > 0 && (
-                            <>
-                              <div className="bg-emerald-500" style={{ width: `${(b.confirmed / b.total) * 100}%` }} />
-                              <div className="bg-rose-500" style={{ width: `${(b.cancelled / b.total) * 100}%` }} />
-                            </>
-                          )}
-                        </div>
-                        <div className="flex gap-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{b.confirmed}</span>
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" />{b.cancelled}</span>
-                          <span className="ml-auto">T:{b.total}</span>
-                        </div>
+                      <div className="space-y-1 text-[10px]">
+                        <SuccessRow label="Our" dot="bg-slate-500" total={b.total} success={b.confirmed} cancelled={b.cancelled} />
+                        <SuccessRow label="Pathao" dot="bg-rose-500" total={courier.pathao.total} success={courier.pathao.success} cancelled={courier.pathao.cancelled} />
+                        <SuccessRow label="Steadfast" dot="bg-amber-500" total={courier.steadfast.total} success={courier.steadfast.success} cancelled={courier.steadfast.cancelled} />
                       </div>
                     </TableCell>
 
