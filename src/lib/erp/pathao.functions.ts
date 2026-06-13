@@ -49,12 +49,47 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
 
 type PickItem = { id: number; name: string };
 
+function normalizeText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Fast local fuzzy match. Returns a high-confidence pick when the address
+ * clearly contains an item name (substring / word match). Avoids a network
+ * round-trip to the AI gateway in the common case.
+ */
+function localPick(address: string, items: PickItem[]): { id: number; name: string } | null {
+  const addr = " " + normalizeText(address) + " ";
+  let best: { id: number; name: string; score: number } | null = null;
+  for (const it of items) {
+    const name = normalizeText(it.name);
+    if (!name || name.length < 2) continue;
+    const padded = " " + name + " ";
+    let score = 0;
+    if (addr.includes(padded)) score = name.length * 3; // whole-word match
+    else if (addr.includes(name)) score = name.length * 2; // substring
+    if (score > 0 && (!best || score > best.score)) {
+      best = { id: it.id, name: it.name, score };
+    }
+  }
+  // Require a reasonably specific match (avoid 2-char accidental hits)
+  return best && best.score >= 6 ? { id: best.id, name: best.name } : null;
+}
+
 async function aiPickFromList(opts: {
   address: string;
   stage: "city" | "zone" | "area";
   parentLabel?: string;
   items: PickItem[];
 }): Promise<{ id: number | null; name: string | null; confidence: number }> {
+  // 1) Try ultra-fast local match first
+  const local = localPick(opts.address, opts.items);
+  if (local) return { id: local.id, name: local.name, confidence: 0.95 };
+
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -86,7 +121,7 @@ async function aiPickFromList(opts: {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-3.1-flash-lite-preview",
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
