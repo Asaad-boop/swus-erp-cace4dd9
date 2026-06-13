@@ -64,6 +64,13 @@ type WebOrderRow = {
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number };
 
+type ProviderStat = { total: number; success: number; cancelled: number };
+type CourierBreakdown = {
+  pathao: ProviderStat;
+  steadfast: ProviderStat;
+  found: boolean;
+};
+
 const STATUS_ACCENT: Record<string, string> = {
   processing: "bg-blue-500",
   incomplete: "bg-orange-500",
@@ -91,6 +98,28 @@ function tagColor(tag: string) {
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+}
+
+function SuccessRow({ label, dot, total, success, cancelled }: { label: string; dot: string; total: number; success: number; cancelled: number }) {
+  const pct = total > 0 ? Math.round((success / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dot)} />
+      <span className="text-foreground/80 font-medium w-14 shrink-0">{label}</span>
+      {total > 0 ? (
+        <>
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{success}</span>
+          <span className="text-muted-foreground/60">/</span>
+          <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums">{cancelled}</span>
+          <span className="text-muted-foreground/60">·</span>
+          <span className="text-muted-foreground tabular-nums">{total}</span>
+          <span className="ml-auto text-foreground/70 font-semibold tabular-nums">{pct}%</span>
+        </>
+      ) : (
+        <span className="text-muted-foreground/50">—</span>
+      )}
+    </div>
+  );
 }
 
 function WebOrdersPage() {
@@ -197,10 +226,46 @@ function WebOrdersPage() {
     },
   });
 
+  // Courier history (Pathao + Steadfast) by phone — from cache
+  const { data: courierHistory } = useQuery({
+    queryKey: ["courier-history-cache", phones.sort().join(",")],
+    enabled: phones.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courier_history_cache")
+        .select("phone,data")
+        .in("phone", phones);
+      if (error) throw error;
+      const map = new Map<string, CourierBreakdown>();
+      (data ?? []).forEach((r) => {
+        const d = (r as { phone: string; data: { providers?: { name: string; total?: number; success?: number; cancelled?: number }[]; found?: boolean } }).data ?? {};
+        const result: CourierBreakdown = {
+          pathao: { total: 0, success: 0, cancelled: 0 },
+          steadfast: { total: 0, success: 0, cancelled: 0 },
+          found: !!d.found,
+        };
+        (d.providers ?? []).forEach((p) => {
+          const stat = { total: p.total ?? 0, success: p.success ?? 0, cancelled: p.cancelled ?? 0 };
+          if (p.name === "pathao") result.pathao = stat;
+          else if (p.name === "steadfast") result.steadfast = stat;
+        });
+        map.set((r as { phone: string }).phone, result);
+      });
+      return map;
+    },
+  });
+
   const getBreakdown = (r: WebOrderRow): Breakdown => {
     const phone = r.shipping_phone ?? r.guest_phone;
     if (!phone) return { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
     return breakdowns?.get(phone) ?? { total: 1, confirmed: 0, cancelled: 0, returned: 0 };
+  };
+
+  const emptyProvider: ProviderStat = { total: 0, success: 0, cancelled: 0 };
+  const getCourier = (r: WebOrderRow): CourierBreakdown => {
+    const phone = r.shipping_phone ?? r.guest_phone;
+    if (!phone) return { pathao: emptyProvider, steadfast: emptyProvider, found: false };
+    return courierHistory?.get(phone) ?? { pathao: emptyProvider, steadfast: emptyProvider, found: false };
   };
 
   return (
@@ -282,7 +347,7 @@ function WebOrdersPage() {
                 const items = r.items_summary ?? [];
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
                 const b = getBreakdown(r);
-                const pct = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
+                const courier = getCourier(r);
                 const accent = STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
                 return (
@@ -371,24 +436,10 @@ function WebOrdersPage() {
 
                     {/* Success Rate */}
                     <TableCell className="py-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <div className="text-base font-bold tabular-nums text-foreground">{pct}%</div>
-                          <div className="text-[10px] text-muted-foreground">{b.confirmed}/{b.total}</div>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex">
-                          {b.total > 0 && (
-                            <>
-                              <div className="bg-emerald-500" style={{ width: `${(b.confirmed / b.total) * 100}%` }} />
-                              <div className="bg-rose-500" style={{ width: `${(b.cancelled / b.total) * 100}%` }} />
-                            </>
-                          )}
-                        </div>
-                        <div className="flex gap-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{b.confirmed}</span>
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" />{b.cancelled}</span>
-                          <span className="ml-auto">T:{b.total}</span>
-                        </div>
+                      <div className="space-y-1 text-[10px]">
+                        <SuccessRow label="Our" dot="bg-slate-500" total={b.total} success={b.confirmed} cancelled={b.cancelled} />
+                        <SuccessRow label="Pathao" dot="bg-rose-500" total={courier.pathao.total} success={courier.pathao.success} cancelled={courier.pathao.cancelled} />
+                        <SuccessRow label="Steadfast" dot="bg-amber-500" total={courier.steadfast.total} success={courier.steadfast.success} cancelled={courier.steadfast.cancelled} />
                       </div>
                     </TableCell>
 
