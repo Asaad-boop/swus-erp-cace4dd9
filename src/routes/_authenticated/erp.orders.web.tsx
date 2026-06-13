@@ -63,6 +63,7 @@ type WebOrderRow = {
   call_status: string | null;
   brand_id: string | null;
   items_summary?: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
+  latest_order_note?: string | null;
 };
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number };
@@ -193,17 +194,31 @@ function WebOrdersPage() {
       // fetch items summary
       const ids = rows.map((r) => r.id);
       if (ids.length) {
-        const { data: items } = await supabase
-          .from("order_items")
-          .select("order_id,name,quantity,image,unit_price")
-          .in("order_id", ids);
+        const [{ data: items }, { data: orderNotes }] = await Promise.all([
+          supabase
+            .from("order_items")
+            .select("order_id,name,quantity,image,unit_price")
+            .in("order_id", ids),
+          supabase
+            .from("order_notes")
+            .select("order_id,body,created_at")
+            .in("order_id", ids)
+            .order("created_at", { ascending: false }),
+        ]);
         const byOrder = new Map<string, { name: string; quantity: number; image: string | null; unit_price: number | null }[]>();
         (items ?? []).forEach((it) => {
           const arr = byOrder.get(it.order_id) ?? [];
           arr.push({ name: it.name ?? "—", quantity: it.quantity ?? 0, image: it.image ?? null, unit_price: it.unit_price ?? null });
           byOrder.set(it.order_id, arr);
         });
-        rows.forEach((r) => (r.items_summary = byOrder.get(r.id) ?? []));
+        const latestNoteByOrder = new Map<string, string>();
+        (orderNotes ?? []).forEach((n) => {
+          if (!latestNoteByOrder.has(n.order_id) && n.body) latestNoteByOrder.set(n.order_id, n.body);
+        });
+        rows.forEach((r) => {
+          r.items_summary = byOrder.get(r.id) ?? [];
+          r.latest_order_note = latestNoteByOrder.get(r.id) ?? null;
+        });
       }
       return rows;
     },
@@ -410,7 +425,7 @@ function WebOrdersPage() {
               rows.map((r) => {
                 const name = r.shipping_name ?? r.guest_name ?? "—";
                 const phone = r.shipping_phone ?? r.guest_phone ?? "";
-                const note = r.latest_note ?? r.customer_note ?? r.notes ?? "";
+                const note = r.latest_order_note ?? r.latest_note ?? r.customer_note ?? r.notes ?? "";
                 const address = [r.shipping_address, r.shipping_city, r.shipping_district].filter(Boolean).join(", ");
                 const items = r.items_summary ?? [];
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
