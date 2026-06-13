@@ -443,6 +443,16 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Auto-detect once when an order loads without a saved Pathao location
+  useEffect(() => {
+    if (!order) return;
+    if (order.pathao_city_id) return;
+    if (!order.shipping_address || order.shipping_address.trim().length < 3) return;
+    if (detectLocation.isPending) return;
+    detectLocation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id]);
+
   /* ------------------------------ Courier history -------------------------- */
 
   const { data: ourRecord } = useQuery({
