@@ -12,7 +12,7 @@ import { OrdersTable } from "@/components/erp/orders/orders-table";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { downloadCsv, exportOrdersCsv, type OrderStatus } from "@/lib/erp/orders";
 
-export const Route = createFileRoute("/_authenticated/erp/orders")({
+export const Route = createFileRoute("/_authenticated/erp/orders/list")({
   head: () => ({ meta: [{ title: "Orders — ERP" }] }),
   component: OrdersPage,
 });
