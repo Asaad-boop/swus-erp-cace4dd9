@@ -325,7 +325,7 @@ function WebOrdersPage() {
                 const items = r.items_summary ?? [];
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
                 const b = getBreakdown(r);
-                const pct = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
+                const courier = getCourier(r);
                 const accent = STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
                 return (
