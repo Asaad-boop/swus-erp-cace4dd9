@@ -125,6 +125,16 @@ export type OrderRow = {
   delivered_at: string | null;
   shipped_at: string | null;
   confirmed_at: string | null;
+  items?: OrderItemMini[];
+};
+
+export type OrderItemMini = {
+  id: string;
+  name: string | null;
+  image: string | null;
+  quantity: number;
+  variant_label: string | null;
+  line_total: number | null;
 };
 
 export function customerName(o: Pick<OrderRow, "shipping_name" | "guest_name">) {
