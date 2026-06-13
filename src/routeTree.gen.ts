@@ -20,6 +20,7 @@ import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authentica
 import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
+import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -78,6 +79,12 @@ const AuthenticatedErpCourierRoute = AuthenticatedErpCourierRouteImport.update({
   path: '/courier',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedErpOrdersNewRoute =
+  AuthenticatedErpOrdersNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -86,10 +93,11 @@ export interface FileRoutesByFullPath {
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
-  '/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
+  '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -97,10 +105,11 @@ export interface FileRoutesByTo {
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
-  '/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -111,10 +120,11 @@ export interface FileRoutesById {
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
-  '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRoute
+  '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/'
+    | '/erp/orders/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp'
+    | '/erp/orders/new'
   id:
     | '__root__'
     | '/'
@@ -153,6 +165,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
+    | '/_authenticated/erp/orders/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -240,14 +253,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpCourierRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
+    '/_authenticated/erp/orders/new': {
+      id: '/_authenticated/erp/orders/new'
+      path: '/new'
+      fullPath: '/erp/orders/new'
+      preLoaderRoute: typeof AuthenticatedErpOrdersNewRouteImport
+      parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
   }
 }
+
+interface AuthenticatedErpOrdersRouteChildren {
+  AuthenticatedErpOrdersNewRoute: typeof AuthenticatedErpOrdersNewRoute
+}
+
+const AuthenticatedErpOrdersRouteChildren: AuthenticatedErpOrdersRouteChildren =
+  {
+    AuthenticatedErpOrdersNewRoute: AuthenticatedErpOrdersNewRoute,
+  }
+
+const AuthenticatedErpOrdersRouteWithChildren =
+  AuthenticatedErpOrdersRoute._addFileChildren(
+    AuthenticatedErpOrdersRouteChildren,
+  )
 
 interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
   AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRoute
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
-  AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRoute
+  AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
@@ -257,7 +291,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
   AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRoute,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
-  AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRoute,
+  AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,

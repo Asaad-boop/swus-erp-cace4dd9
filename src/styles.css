@@ -142,3 +142,9 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  body * { visibility: hidden !important; }
+  #print-invoice, #print-invoice * { visibility: visible !important; }
+  #print-invoice { position: absolute !important; left: 0; top: 0; width: 100%; }
+}
