@@ -308,6 +308,7 @@ function ProductSearchPanel({
 function OrderDetailsPage() {
   const { orderId } = Route.useParams();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data, isLoading } = useOrderDetail(orderId);
 
   const order = data?.order;
