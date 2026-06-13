@@ -441,8 +441,42 @@ export type Database = {
           },
         ]
       }
+      brands: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          settings: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          settings?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          settings?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
+          brand_id: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -454,6 +488,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
           description?: string | null
           display_order?: number
@@ -465,6 +500,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
           description?: string | null
           display_order?: number
@@ -475,7 +511,15 @@ export type Database = {
           slug?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coupon_usage: {
         Row: {
@@ -523,6 +567,7 @@ export type Database = {
         Row: {
           applicable_categories: Json | null
           applicable_products: Json | null
+          brand_id: string | null
           code: string
           created_at: string
           description: string | null
@@ -541,6 +586,7 @@ export type Database = {
         Insert: {
           applicable_categories?: Json | null
           applicable_products?: Json | null
+          brand_id?: string | null
           code: string
           created_at?: string
           description?: string | null
@@ -559,6 +605,7 @@ export type Database = {
         Update: {
           applicable_categories?: Json | null
           applicable_products?: Json | null
+          brand_id?: string | null
           code?: string
           created_at?: string
           description?: string | null
@@ -574,7 +621,15 @@ export type Database = {
           valid_until?: string | null
           value?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coupons_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       courier_credentials: {
         Row: {
@@ -629,6 +684,7 @@ export type Database = {
       }
       courier_shipments: {
         Row: {
+          brand_id: string | null
           consignment_id: string | null
           created_at: string
           created_by: string | null
@@ -644,6 +700,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           consignment_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -659,6 +716,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           consignment_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -673,7 +731,361 @@ export type Database = {
           tracking_code?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "courier_shipments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_accounts: {
+        Row: {
+          account_number: string | null
+          account_type: string
+          brand_id: string
+          created_at: string
+          current_balance: number
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          opening_balance: number
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          account_type: string
+          brand_id: string
+          created_at?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          opening_balance?: number
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          account_type?: string
+          brand_id?: string
+          created_at?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          opening_balance?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_accounts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_expense_categories: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_expense_categories_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_settings: {
+        Row: {
+          brand_id: string
+          config: Json
+          created_at: string
+          default_courier: string | null
+          id: string
+          invoice_footer: string | null
+          invoice_prefix: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          config?: Json
+          created_at?: string
+          default_courier?: string | null
+          id?: string
+          invoice_footer?: string | null
+          invoice_prefix?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          config?: Json
+          created_at?: string
+          default_courier?: string | null
+          id?: string
+          invoice_footer?: string | null
+          invoice_prefix?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_settings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_supplier_payments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_date: string
+          reference_no: string | null
+          supplier_id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          reference_no?: string | null
+          supplier_id: string
+          transaction_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          reference_no?: string | null
+          supplier_id?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_supplier_payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_supplier_payments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_supplier_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_suppliers: {
+        Row: {
+          address: string | null
+          brand_id: string
+          contact_person: string | null
+          created_at: string
+          current_due: number
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          opening_balance: number
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          brand_id: string
+          contact_person?: string | null
+          created_at?: string
+          current_due?: number
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          opening_balance?: number
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          brand_id?: string
+          contact_person?: string | null
+          created_at?: string
+          current_due?: number
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          opening_balance?: number
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_suppliers_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          attachment_url: string | null
+          brand_id: string
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          supplier_id: string | null
+          to_account_id: string | null
+          transaction_date: string
+          txn_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          attachment_url?: string | null
+          brand_id: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          supplier_id?: string | null
+          to_account_id?: string | null
+          transaction_date?: string
+          txn_type: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          attachment_url?: string | null
+          brand_id?: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          supplier_id?: string | null
+          to_account_id?: string | null
+          transaction_date?: string
+          txn_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_transactions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "erp_expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_transactions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_transactions_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       homepage_versions: {
         Row: {
@@ -701,6 +1113,7 @@ export type Database = {
       }
       low_stock_alerts: {
         Row: {
+          brand_id: string | null
           created_at: string
           current_stock: number
           id: string
@@ -711,6 +1124,7 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
           current_stock: number
           id?: string
@@ -721,6 +1135,7 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
           current_stock?: number
           id?: string
@@ -730,7 +1145,15 @@ export type Database = {
           threshold?: number
           variant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "low_stock_alerts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -901,6 +1324,7 @@ export type Database = {
           alternate_phone: string | null
           assigned_to: string | null
           auto_call_enabled: boolean | null
+          brand_id: string | null
           call_attempt_count: number
           call_status: Database["public"]["Enums"]["call_status"]
           cancel_reason: string | null
@@ -985,6 +1409,7 @@ export type Database = {
           alternate_phone?: string | null
           assigned_to?: string | null
           auto_call_enabled?: boolean | null
+          brand_id?: string | null
           call_attempt_count?: number
           call_status?: Database["public"]["Enums"]["call_status"]
           cancel_reason?: string | null
@@ -1069,6 +1494,7 @@ export type Database = {
           alternate_phone?: string | null
           assigned_to?: string | null
           auto_call_enabled?: boolean | null
+          brand_id?: string | null
           call_attempt_count?: number
           call_status?: Database["public"]["Enums"]["call_status"]
           cancel_reason?: string | null
@@ -1148,6 +1574,13 @@ export type Database = {
           web_status?: Database["public"]["Enums"]["web_order_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_delivery_area_id_fkey"
             columns: ["delivery_area_id"]
@@ -1360,6 +1793,7 @@ export type Database = {
       products: {
         Row: {
           benefits: Json
+          brand_id: string | null
           category_id: string | null
           created_at: string
           description: string
@@ -1385,6 +1819,7 @@ export type Database = {
         }
         Insert: {
           benefits?: Json
+          brand_id?: string | null
           category_id?: string | null
           created_at?: string
           description?: string
@@ -1410,6 +1845,7 @@ export type Database = {
         }
         Update: {
           benefits?: Json
+          brand_id?: string | null
           category_id?: string | null
           created_at?: string
           description?: string
@@ -1434,6 +1870,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_category_id_fkey"
             columns: ["category_id"]
@@ -1604,6 +2047,7 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          brand_id: string | null
           created_at: string
           delta: number
           id: string
@@ -1615,6 +2059,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
           delta: number
           id?: string
@@ -1626,6 +2071,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
           delta?: number
           id?: string
@@ -1637,6 +2083,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_movements_product_id_fkey"
             columns: ["product_id"]
