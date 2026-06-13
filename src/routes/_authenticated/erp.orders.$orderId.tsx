@@ -639,6 +639,9 @@ function OrderDetailsPage() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
+  const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
+  const [pendingReason, setPendingReason] = useState("");
+  const [pendingAdvance, setPendingAdvance] = useState("");
 
   if (isLoading || !order) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin" /></div>;
