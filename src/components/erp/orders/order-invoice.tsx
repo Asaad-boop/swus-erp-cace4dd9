@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { customerName, customerPhone, shortId } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay } from "@/lib/erp/orders";
 import { useBrand } from "@/contexts/brand-context";
 
 type Item = { name: string; quantity: number; unit_price: number | null; price: number; variant_label: string | null; line_total: number | null };
@@ -14,7 +14,7 @@ export function PrintableInvoice({ order, items }: { order: Record<string, any>;
           <p className="text-xs">Order Invoice</p>
         </div>
         <div className="text-right text-xs">
-          <div><strong>Invoice #:</strong> {shortId(order.id)}</div>
+          <div><strong>Invoice #:</strong> {invoiceDisplay(order as { invoice_no: string | null; id: string })}</div>
           <div><strong>Date:</strong> {format(new Date(order.created_at), "dd MMM yyyy")}</div>
           <div><strong>Status:</strong> {order.status}</div>
         </div>

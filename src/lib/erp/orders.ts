@@ -94,6 +94,7 @@ export function statusBadge(s: string) {
 
 export type OrderRow = {
   id: string;
+  invoice_no: string | null;
   created_at: string;
   status: OrderStatus;
   confirmation_status: ConfirmationStatus;
@@ -134,6 +135,11 @@ export function customerPhone(o: Pick<OrderRow, "shipping_phone" | "guest_phone"
 }
 export function shortId(id: string) {
   return id.slice(0, 8).toUpperCase();
+}
+
+/** Display invoice number, falling back to a short order id. */
+export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
+  return o.invoice_no ?? shortId(o.id);
 }
 
 export function exportOrdersCsv(orders: OrderRow[]): string {

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
-import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -103,7 +103,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <Hash className="h-5 w-5" />
                   </div>
                   <div className="space-y-0.5">
-                    <DialogTitle className="font-mono text-xl tracking-tight">#{shortId(order.id)}</DialogTitle>
+                    <DialogTitle className="font-mono text-xl tracking-tight">#{invoiceDisplay(order)}</DialogTitle>
                     <DialogDescription className="text-[11px] flex items-center gap-2 flex-wrap">
                       <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")}</span>
                       <span className="text-muted-foreground/50">·</span>

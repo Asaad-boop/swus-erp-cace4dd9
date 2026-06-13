@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useOrderDetail } from "@/hooks/erp/use-orders-query";
-import { customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
@@ -1057,7 +1057,7 @@ function OrderDetailsPage() {
           <section className="rounded-xl border bg-card overflow-hidden">
             <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Order Summary</h3>
-              <span className="text-[10px] font-mono text-muted-foreground">#{shortId(order.id)}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">#{invoiceDisplay(order)}</span>
             </header>
             <div className="p-4 space-y-2 text-xs">
               <Row label="Date" value={format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} />

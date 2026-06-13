@@ -887,7 +887,9 @@ export type Database = {
           default_courier: string | null
           id: string
           invoice_footer: string | null
+          invoice_pad: number
           invoice_prefix: string | null
+          invoice_seq: number
           updated_at: string
         }
         Insert: {
@@ -897,7 +899,9 @@ export type Database = {
           default_courier?: string | null
           id?: string
           invoice_footer?: string | null
+          invoice_pad?: number
           invoice_prefix?: string | null
+          invoice_seq?: number
           updated_at?: string
         }
         Update: {
@@ -907,7 +911,9 @@ export type Database = {
           default_courier?: string | null
           id?: string
           invoice_footer?: string | null
+          invoice_pad?: number
           invoice_prefix?: string | null
+          invoice_seq?: number
           updated_at?: string
         }
         Relationships: [
@@ -1409,6 +1415,7 @@ export type Database = {
           id: string
           in_transit_at: string | null
           internal_note: string | null
+          invoice_no: string | null
           is_cross_sale: boolean
           is_guest_order: boolean
           is_preorder: boolean
@@ -1500,6 +1507,7 @@ export type Database = {
           id?: string
           in_transit_at?: string | null
           internal_note?: string | null
+          invoice_no?: string | null
           is_cross_sale?: boolean
           is_guest_order?: boolean
           is_preorder?: boolean
@@ -1591,6 +1599,7 @@ export type Database = {
           id?: string
           in_transit_at?: string | null
           internal_note?: string | null
+          invoice_no?: string | null
           is_cross_sale?: boolean
           is_guest_order?: boolean
           is_preorder?: boolean
@@ -2347,6 +2356,7 @@ export type Database = {
         Args: { _id: string; _order_id: string }
         Returns: undefined
       }
+      next_invoice_no: { Args: { _brand_id: string }; Returns: string }
       recalc_product_rating: {
         Args: { _product_id: string }
         Returns: undefined
