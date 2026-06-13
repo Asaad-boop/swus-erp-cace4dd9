@@ -285,9 +285,6 @@ function WebOrdersPage() {
                 const pct = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
                 const accent = STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
-                const favicon = r.source_website
-                  ? `https://www.google.com/s2/favicons?domain=${siteLabel}&sz=32`
-                  : null;
                 return (
                   <TableRow
                     key={r.id}
