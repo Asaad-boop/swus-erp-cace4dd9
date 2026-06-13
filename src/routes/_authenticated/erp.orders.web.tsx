@@ -118,20 +118,43 @@ function SuccessBlock({ total, success }: { total: number; success: number }) {
       : pct >= 50
         ? "text-amber-600 dark:text-amber-400"
         : "text-rose-600 dark:text-rose-400";
+  const ringStroke = total === 0
+    ? "stroke-muted-foreground/30"
+    : pct >= 80
+      ? "stroke-emerald-500"
+      : pct >= 50
+        ? "stroke-amber-500"
+        : "stroke-rose-500";
   if (total === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
+  const R = 14;
+  const C = 2 * Math.PI * R;
+  const offset = C * (1 - pct / 100);
   return (
-    <div className="text-xs tabular-nums leading-tight space-y-0.5">
-      <div>
-        <span className="text-muted-foreground">Success: </span>
-        <span className={cn("font-bold", pctClass)}>{pct}%</span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Order: </span>
-        <span className="font-semibold text-foreground">{success}/{total}</span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Rating: </span>
-        <span className="font-semibold text-foreground">{success}</span>
+    <div className="flex items-center gap-2.5">
+      <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90 shrink-0">
+        <circle cx="18" cy="18" r={R} className="fill-none stroke-muted" strokeWidth="4" />
+        <circle
+          cx="18" cy="18" r={R}
+          className={cn("fill-none transition-all", ringStroke)}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <div className="text-xs tabular-nums leading-tight space-y-0.5">
+        <div>
+          <span className="text-muted-foreground">Success: </span>
+          <span className={cn("font-bold", pctClass)}>{pct}%</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Order: </span>
+          <span className="font-semibold text-foreground">{success}/{total}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Rating: </span>
+          <span className="font-semibold text-foreground">{success}</span>
+        </div>
       </div>
     </div>
   );
