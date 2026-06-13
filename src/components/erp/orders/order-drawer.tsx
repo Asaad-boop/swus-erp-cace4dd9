@@ -114,23 +114,38 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-                  <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STATUS_GROUPS.map((g) => (
-                        <div key={g.key}>
-                          <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {g.label}
+                  {mode === "web" ? (
+                    <Select
+                      value={(order as { web_status?: string | null }).web_status ?? "processing"}
+                      disabled={updateWebStatus.isPending}
+                      onValueChange={(v) => updateWebStatus.mutate(v)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {WEB_STATUS_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {STATUS_GROUPS.map((g) => (
+                          <div key={g.key}>
+                            <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {g.label}
+                            </div>
+                            {g.statuses.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
                           </div>
-                          {g.statuses.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned to</label>
