@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useShipments } from "@/hooks/erp/use-courier-query";
 import { pathaoTrackFn } from "@/lib/erp/pathao.functions";
+import { PathaoSettings } from "@/components/erp/courier/pathao-settings";
 
 export const Route = createFileRoute("/_authenticated/erp/courier")({
   head: () => ({ meta: [{ title: "Courier — ERP" }] }),
@@ -85,7 +87,13 @@ function CourierPage() {
         <h1 className="text-2xl font-bold tracking-tight">Courier</h1>
         <p className="text-sm text-muted-foreground">Pathao consignments. Book from any order's detail drawer.</p>
       </div>
+      <Tabs defaultValue="shipments">
+        <TabsList>
+          <TabsTrigger value="shipments">Shipments</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
 
+        <TabsContent value="shipments" className="space-y-4 pt-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total shipments" value={totals.total} />
         <Stat label="In transit" value={totals.transit} />
@@ -181,6 +189,12 @@ function CourierPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="pt-3">
+          <PathaoSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
