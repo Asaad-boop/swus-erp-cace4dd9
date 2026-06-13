@@ -89,9 +89,11 @@ async function fetchSteadfast(supabase: any, brandId: string | null, phone: stri
     const text = await res.text();
     if (!res.ok) throw new Error(`${res.status}: ${text.slice(0, 120)}`);
     const j = JSON.parse(text);
-    const total = Number(j.total_parcels ?? j.total_consignments ?? j.total ?? 0);
-    const success = Number(j.total_delivered ?? j.successful_consignments ?? j.success ?? 0);
-    const cancelled = Number(j.total_cancelled ?? j.cancelled_consignments ?? j.cancelled ?? Math.max(0, total - success));
+    // Steadfast /fraud_check/{phone} returns:
+    // { status, total_consignments, delivered_consignments, cancelled_consignments, success_ratio }
+    const total = Number(j.total_consignments ?? j.total_parcels ?? j.total ?? 0);
+    const success = Number(j.delivered_consignments ?? j.total_delivered ?? j.successful_consignments ?? j.success ?? 0);
+    const cancelled = Number(j.cancelled_consignments ?? j.total_cancelled ?? j.cancelled ?? Math.max(0, total - success));
     return { name: "steadfast", label: "Steadfast", ok: true, total, success, cancelled };
   } catch (e) {
     return { name: "steadfast", label: "Steadfast", ok: false, total: 0, success: 0, cancelled: 0, error: (e as Error).message };
