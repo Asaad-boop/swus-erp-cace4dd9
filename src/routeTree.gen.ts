@@ -21,6 +21,7 @@ import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
+import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 
@@ -87,6 +88,12 @@ const AuthenticatedErpOrdersIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpOrdersWebRoute =
+  AuthenticatedErpOrdersWebRouteImport.update({
+    id: '/web',
+    path: '/web',
+    getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
 const AuthenticatedErpOrdersNewRoute =
   AuthenticatedErpOrdersNewRouteImport.update({
     id: '/new',
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
 }
 export interface FileRoutesById {
@@ -143,6 +152,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/erp/'
     | '/erp/orders/list'
     | '/erp/orders/new'
+    | '/erp/orders/web'
     | '/erp/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/erp/orders/list'
     | '/erp/orders/new'
+    | '/erp/orders/web'
     | '/erp/orders'
   id:
     | '__root__'
@@ -189,6 +201,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
+    | '/_authenticated/erp/orders/web'
     | '/_authenticated/erp/orders/'
   fileRoutesById: FileRoutesById
 }
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
+    '/_authenticated/erp/orders/web': {
+      id: '/_authenticated/erp/orders/web'
+      path: '/web'
+      fullPath: '/erp/orders/web'
+      preLoaderRoute: typeof AuthenticatedErpOrdersWebRouteImport
+      parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
     '/_authenticated/erp/orders/new': {
       id: '/_authenticated/erp/orders/new'
       path: '/new'
@@ -304,6 +324,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedErpOrdersRouteChildren {
   AuthenticatedErpOrdersListRoute: typeof AuthenticatedErpOrdersListRoute
   AuthenticatedErpOrdersNewRoute: typeof AuthenticatedErpOrdersNewRoute
+  AuthenticatedErpOrdersWebRoute: typeof AuthenticatedErpOrdersWebRoute
   AuthenticatedErpOrdersIndexRoute: typeof AuthenticatedErpOrdersIndexRoute
 }
 
@@ -311,6 +332,7 @@ const AuthenticatedErpOrdersRouteChildren: AuthenticatedErpOrdersRouteChildren =
   {
     AuthenticatedErpOrdersListRoute: AuthenticatedErpOrdersListRoute,
     AuthenticatedErpOrdersNewRoute: AuthenticatedErpOrdersNewRoute,
+    AuthenticatedErpOrdersWebRoute: AuthenticatedErpOrdersWebRoute,
     AuthenticatedErpOrdersIndexRoute: AuthenticatedErpOrdersIndexRoute,
   }
 
@@ -361,3 +383,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
