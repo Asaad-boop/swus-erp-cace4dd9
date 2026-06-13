@@ -4,7 +4,7 @@ import { Printer, Truck, User, Phone, MapPin, Package, MessageSquare, Clock, Loa
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,23 +73,24 @@ export function OrderDrawer({ orderId, onClose }: Props) {
   const handlePrint = () => window.print();
 
   return (
-    <Sheet open={!!orderId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto print:hidden">
+    <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 print:hidden">
+        <div className="p-6">
         {isLoading || !order ? (
           <div className="flex items-center justify-center h-40"><Loader2 className="h-6 w-6 animate-spin" /></div>
         ) : (
           <>
-            <SheetHeader>
+            <DialogHeader>
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <SheetTitle className="font-mono">#{shortId(order.id)}</SheetTitle>
-                  <SheetDescription className="text-xs">
+                <div className="text-left">
+                  <DialogTitle className="font-mono text-xl">#{shortId(order.id)}</DialogTitle>
+                  <DialogDescription className="text-xs">
                     {format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} · Source: {order.source ?? "—"}
-                  </SheetDescription>
+                  </DialogDescription>
                 </div>
                 <Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>
               </div>
-            </SheetHeader>
+            </DialogHeader>
 
             <div className="mt-4 space-y-5">
               {/* Action bar */}
@@ -257,7 +258,8 @@ export function OrderDrawer({ orderId, onClose }: Props) {
             )}
           </>
         )}
-      </SheetContent>
-    </Sheet>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
