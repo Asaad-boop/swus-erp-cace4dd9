@@ -267,3 +267,84 @@ function relTime(iso: string): string {
   const m = Math.floor(d / 30);
   return `${m} mo ago`;
 }
+
+function ProductsCell({ items }: { items: NonNullable<OrderRow["items"]> }) {
+  if (!items || items.length === 0) {
+    return <span className="text-muted-foreground/50 text-xs">—</span>;
+  }
+  const totalQty = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+  const visible = items.slice(0, 3);
+  const extra = items.length - visible.length;
+  return (
+    <HoverCard openDelay={120} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-2 group"
+        >
+          <div className="flex -space-x-2">
+            {visible.map((it) => (
+              <Thumb key={it.id} src={it.image} name={it.name} />
+            ))}
+            {extra > 0 && (
+              <div className="h-9 w-9 rounded-lg border-2 border-card bg-muted text-[10px] font-bold flex items-center justify-center text-muted-foreground shadow-sm">
+                +{extra}
+              </div>
+            )}
+          </div>
+          <div className="text-[10px] text-muted-foreground leading-tight">
+            <div className="font-semibold text-foreground tabular-nums">{items.length} item{items.length === 1 ? "" : "s"}</div>
+            <div className="tabular-nums">Qty {totalQty}</div>
+          </div>
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" className="w-80 p-2">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold px-1 pb-1.5">Items</div>
+        <div className="space-y-1.5 max-h-72 overflow-y-auto">
+          {items.map((it) => (
+            <div key={it.id} className="flex items-center gap-2.5 p-1.5 rounded-md hover:bg-muted/60">
+              <Thumb src={it.image} name={it.name} size={40} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">{it.name ?? "Unnamed"}</div>
+                {it.variant_label && (
+                  <div className="text-[10px] text-muted-foreground truncate">{it.variant_label}</div>
+                )}
+              </div>
+              <div className="text-right text-[11px] shrink-0">
+                <div className="font-semibold tabular-nums">×{it.quantity}</div>
+                {it.line_total != null && (
+                  <div className="text-muted-foreground tabular-nums">৳{Number(it.line_total).toLocaleString()}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+function Thumb({ src, name, size = 36 }: { src: string | null; name: string | null; size?: number }) {
+  const style = { width: size, height: size };
+  if (!src) {
+    return (
+      <div
+        style={style}
+        className="rounded-lg border-2 border-card bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center shadow-sm shrink-0"
+        title={name ?? ""}
+      >
+        <ImageIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={name ?? ""}
+      loading="lazy"
+      style={style}
+      className="rounded-lg border-2 border-card object-cover shadow-sm shrink-0 bg-muted"
+      onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+    />
+  );
+}
