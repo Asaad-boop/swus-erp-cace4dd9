@@ -16,14 +16,14 @@ export function OrdersToolbar({
   const hasFilters = !!(filter.search || filter.source || filter.dateFrom || filter.dateTo);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b bg-card">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50">
       <div className="relative flex-1 min-w-[220px] max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search orders…"
+          placeholder="Search invoice, customer, phone, tracking…"
           value={filter.search}
           onChange={(e) => update({ search: e.target.value })}
-          className="pl-9 h-9 bg-background"
+          className="pl-9 h-9 bg-background/80 border-border/80 focus-visible:ring-primary/40"
         />
       </div>
 
