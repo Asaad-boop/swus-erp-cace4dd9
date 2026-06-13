@@ -24,6 +24,7 @@ import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
+import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -106,6 +107,12 @@ const AuthenticatedErpOrdersListRoute =
     path: '/list',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpOrdersOrderIdRoute =
+  AuthenticatedErpOrdersOrderIdRouteImport.update({
+    id: '/$orderId',
+    path: '/$orderId',
+    getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
+  '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
@@ -132,6 +140,7 @@ export interface FileRoutesByTo {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
@@ -150,6 +159,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/'
+    | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp'
+    | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
@@ -199,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
+    | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
@@ -318,10 +331,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersListRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
+    '/_authenticated/erp/orders/$orderId': {
+      id: '/_authenticated/erp/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/erp/orders/$orderId'
+      preLoaderRoute: typeof AuthenticatedErpOrdersOrderIdRouteImport
+      parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
   }
 }
 
 interface AuthenticatedErpOrdersRouteChildren {
+  AuthenticatedErpOrdersOrderIdRoute: typeof AuthenticatedErpOrdersOrderIdRoute
   AuthenticatedErpOrdersListRoute: typeof AuthenticatedErpOrdersListRoute
   AuthenticatedErpOrdersNewRoute: typeof AuthenticatedErpOrdersNewRoute
   AuthenticatedErpOrdersWebRoute: typeof AuthenticatedErpOrdersWebRoute
@@ -330,6 +351,7 @@ interface AuthenticatedErpOrdersRouteChildren {
 
 const AuthenticatedErpOrdersRouteChildren: AuthenticatedErpOrdersRouteChildren =
   {
+    AuthenticatedErpOrdersOrderIdRoute: AuthenticatedErpOrdersOrderIdRoute,
     AuthenticatedErpOrdersListRoute: AuthenticatedErpOrdersListRoute,
     AuthenticatedErpOrdersNewRoute: AuthenticatedErpOrdersNewRoute,
     AuthenticatedErpOrdersWebRoute: AuthenticatedErpOrdersWebRoute,
