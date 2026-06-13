@@ -843,7 +843,29 @@ function OrderDetailsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="Address">
-                <Textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="resize-none" />
+                <Textarea
+                  rows={3}
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="resize-none"
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-muted-foreground">
+                    AI will pick the matching Pathao city / zone / area.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1"
+                    disabled={detectLocation.isPending || form.address.trim().length < 3}
+                    onClick={() => detectLocation.mutate()}
+                  >
+                    {detectLocation.isPending
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Sparkles className="h-3 w-3" />}
+                    Detect with AI
+                  </Button>
+                </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
                 <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} className="resize-none" />
