@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
 
@@ -55,6 +55,8 @@ export function useOrderDetail(orderId: string | null) {
   return useQuery({
     queryKey: ["order-detail", orderId],
     enabled: !!orderId,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
     queryFn: async () => {
       const [orderRes, itemsRes, historyRes, notesRes] = await Promise.all([
         supabase.from("orders").select("*").eq("id", orderId!).single(),
