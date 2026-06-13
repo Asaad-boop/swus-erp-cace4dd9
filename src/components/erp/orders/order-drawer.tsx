@@ -224,9 +224,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                 {notes.length > 0 ? (
                   <div className="space-y-2">
                     {notes.map((n) => (
-                      <div key={n.id} className="text-xs p-2 rounded border bg-muted/30">
-                        <div className="text-muted-foreground mb-0.5">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
-                        <div>{n.body}</div>
+                      <div key={n.id} className="p-3 rounded-md border-l-4 border-l-primary bg-amber-50 dark:bg-amber-950/30 shadow-sm">
+                        <div className="text-[11px] font-medium text-muted-foreground mb-1">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
+                        <div className="text-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">{n.body}</div>
                       </div>
                     ))}
                   </div>
