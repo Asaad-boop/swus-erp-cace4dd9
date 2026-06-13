@@ -140,7 +140,7 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     await supabase
       .from("orders")
-      .update({ courier_name: "pathao", courier_assigned_at: new Date().toISOString(), tracking_number: consignment })
+      .update({ courier_name: "pathao", courier_assigned_at: new Date().toISOString(), tracking_number: consignment ?? undefined })
       .eq("id", order.id);
 
     return { shipmentId: shipment.id, consignment, tracking, fee, status };
