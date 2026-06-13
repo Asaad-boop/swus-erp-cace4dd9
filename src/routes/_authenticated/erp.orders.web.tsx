@@ -97,12 +97,12 @@ function WebOrdersPage() {
       if (ids.length) {
         const { data: items } = await supabase
           .from("order_items")
-          .select("order_id,product_name,quantity")
+          .select("order_id,name,quantity")
           .in("order_id", ids);
         const byOrder = new Map<string, { name: string; quantity: number }[]>();
         (items ?? []).forEach((it) => {
           const arr = byOrder.get(it.order_id) ?? [];
-          arr.push({ name: it.product_name ?? "—", quantity: it.quantity ?? 0 });
+          arr.push({ name: it.name ?? "—", quantity: it.quantity ?? 0 });
           byOrder.set(it.order_id, arr);
         });
         rows.forEach((r) => (r.items_summary = byOrder.get(r.id) ?? []));
