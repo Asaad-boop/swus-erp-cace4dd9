@@ -2,8 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -227,18 +229,15 @@ function WebOrdersPage() {
   });
 
   // Courier history (Pathao + Steadfast) by phone — from cache
+  const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   const { data: courierHistory } = useQuery({
-    queryKey: ["courier-history-cache", phones.sort().join(",")],
+    queryKey: ["courier-history", phones.sort().join(",")],
     enabled: phones.length > 0,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("courier_history_cache")
-        .select("phone,data")
-        .in("phone", phones);
-      if (error) throw error;
+      const { results } = await fetchCourierHistory({ data: { phones } });
       const map = new Map<string, CourierBreakdown>();
-      (data ?? []).forEach((r) => {
-        const d = (r as { phone: string; data: { providers?: { name: string; total?: number; success?: number; cancelled?: number }[]; found?: boolean } }).data ?? {};
+      Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
           pathao: { total: 0, success: 0, cancelled: 0 },
           steadfast: { total: 0, success: 0, cancelled: 0 },
@@ -249,7 +248,7 @@ function WebOrdersPage() {
           if (p.name === "pathao") result.pathao = stat;
           else if (p.name === "steadfast") result.steadfast = stat;
         });
-        map.set((r as { phone: string }).phone, result);
+        map.set(phone, result);
       });
       return map;
     },
