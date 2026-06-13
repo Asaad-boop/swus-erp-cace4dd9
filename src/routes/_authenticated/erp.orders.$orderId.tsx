@@ -555,6 +555,50 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateWebStatus = useMutation({
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Record<string, unknown> }) => {
+      const payload: Record<string, unknown> = { web_status: status, ...(extra ?? {}) };
+      const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(`Marked as ${vars.status.replace(/_/g, " ")}`);
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onPickWebStatus = (v: WebStatus) => {
+    if (v === "on_hold" || v === "cancelled" || v === "advance_payment") {
+      setPendingReason("");
+      setPendingAdvance("");
+      setPendingWebStatus(v);
+      return;
+    }
+    updateWebStatus.mutate({ status: v });
+  };
+
+  const submitPendingWebStatus = () => {
+    if (!pendingWebStatus) return;
+    if (pendingWebStatus === "on_hold") {
+      if (!pendingReason.trim()) { toast.error("Please provide a hold reason"); return; }
+      updateWebStatus.mutate({ status: "on_hold", extra: { hold_reason: pendingReason.trim() } });
+    } else if (pendingWebStatus === "cancelled") {
+      if (!pendingReason.trim()) { toast.error("Please provide a cancellation reason"); return; }
+      updateWebStatus.mutate({
+        status: "cancelled",
+        extra: { cancellation_reason: pendingReason.trim(), cancel_reason: pendingReason.trim() },
+      });
+    } else if (pendingWebStatus === "advance_payment") {
+      const amt = Number(pendingAdvance);
+      if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
+      updateWebStatus.mutate({ status: "advance_payment", extra: { advance_amount: amt } });
+      setForm((f) => ({ ...f, advance: amt }));
+    }
+    setPendingWebStatus(null);
+  };
+
   const saveCustomer = useMutation({
     mutationFn: async () => {
       const payload = {
