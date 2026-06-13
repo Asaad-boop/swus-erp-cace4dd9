@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, User, Phone, MapPin, Package, MessageSquare,
   Clock, Loader2, MessageCircle, Send, Tag as TagIcon, Activity,
-  Globe, CreditCard, FileText, CheckCircle2, XCircle, Hash,
+  Globe, CreditCard, FileText, XCircle, Hash,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
+import { useOrderDetail } from "@/hooks/erp/use-orders-query";
 import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
@@ -27,25 +27,34 @@ export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
   component: OrderDetailsPage,
 });
 
-const COURIER_PROVIDERS = [
-  { key: "pathao", label: "Pathao", color: "from-rose-500 to-pink-500" },
-  { key: "redx", label: "RedX", color: "from-red-500 to-orange-500" },
-  { key: "steadfast", label: "Steadfast", color: "from-amber-500 to-yellow-500" },
+const STAT_COLUMNS = [
+  { key: "ourRecord", label: "Our Record", dot: "bg-foreground" },
+  { key: "overall", label: "Overall", dot: "bg-sky-500" },
+  { key: "pathao", label: "Pathao", dot: "bg-rose-500" },
+  { key: "redx", label: "RedX", dot: "bg-red-600" },
+  { key: "steadfast", label: "Steadfast", dot: "bg-amber-500" },
 ] as const;
 
-function StatCard({
-  label, total, success, cancel, accent,
-}: { label: string; total: number; success: number; cancel: number; accent?: string }) {
+function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
   return (
-    <div className={cn(
-      "rounded-xl border bg-card p-3 flex flex-col gap-1.5 min-w-[140px]",
-      accent && `bg-gradient-to-br ${accent} text-white border-transparent`,
-    )}>
-      <div className="text-[11px] uppercase tracking-wide font-semibold opacity-90">{label}</div>
-      <div className="text-xl font-bold leading-tight">{total}</div>
-      <div className="flex items-center gap-2 text-[11px]">
-        <span className="inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" />{success}</span>
-        <span className="inline-flex items-center gap-0.5 opacity-80"><XCircle className="h-3 w-3" />{cancel}</span>
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y sm:divide-y-0">
+        {STAT_COLUMNS.map((c) => {
+          const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
+          return (
+            <div key={c.key} className="px-4 py-3 flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{c.label}</span>
+              </div>
+              <div className="text-2xl font-semibold tabular-nums leading-none">{s.total}</div>
+              <div className="flex items-center gap-3 text-[11px] tabular-nums">
+                <span className="text-emerald-600 dark:text-emerald-400">{s.success} success</span>
+                <span className="text-rose-600 dark:text-rose-400">{s.cancel} cancel</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -71,7 +80,6 @@ function OrderDetailsPage() {
   const { orderId } = Route.useParams();
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
-  const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
@@ -99,6 +107,7 @@ function OrderDetailsPage() {
 
   const stats = useMemo(() => {
     const acc: Record<string, { total: number; success: number; cancel: number }> = {
+      ourRecord: { total: 0, success: 0, cancel: 0 },
       overall: { total: 0, success: 0, cancel: 0 },
       pathao: { total: 0, success: 0, cancel: 0 },
       redx: { total: 0, success: 0, cancel: 0 },
@@ -109,6 +118,7 @@ function OrderDetailsPage() {
       const st = (s.status ?? "").toLowerCase();
       const ok = /deliver|success/.test(st);
       const bad = /cancel|fail|return/.test(st);
+      acc.ourRecord.total++; if (ok) acc.ourRecord.success++; if (bad) acc.ourRecord.cancel++;
       acc.overall.total++; if (ok) acc.overall.success++; if (bad) acc.overall.cancel++;
       if (acc[p]) { acc[p].total++; if (ok) acc[p].success++; if (bad) acc[p].cancel++; }
     }
@@ -123,18 +133,6 @@ function OrderDetailsPage() {
     onSuccess: () => {
       toast.success("Status updated");
       qc.invalidateQueries({ queryKey: ["orders"] });
-      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const assignStaff = useMutation({
-    mutationFn: async (userId: string | null) => {
-      const { error } = await supabase.from("orders").update({ assigned_to: userId }).eq("id", orderId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Assigned");
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
     },
     onError: (e: Error) => toast.error(e.message),
