@@ -18,7 +18,8 @@ export type Shipment = {
 };
 
 export function useShipments() {
-  const { activeBrandId } = useBrand();
+  const { activeBrand } = useBrand();
+  const activeBrandId = activeBrand?.id ?? null;
   return useQuery({
     queryKey: ["courier-shipments", activeBrandId],
     queryFn: async () => {
