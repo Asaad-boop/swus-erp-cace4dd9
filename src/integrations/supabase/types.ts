@@ -2280,6 +2280,10 @@ export type Database = {
         Args: { _product_id: string }
         Returns: undefined
       }
+      record_courier_expense: {
+        Args: { _account_id?: string; _amount: number; _shipment_id: string }
+        Returns: string
+      }
       record_supplier_payment: {
         Args: {
           _account_id: string

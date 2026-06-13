@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "./order-invoice";
+import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 
 type Props = { orderId: string | null; onClose: () => void };
 
@@ -21,6 +22,7 @@ export function OrderDrawer({ orderId, onClose }: Props) {
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
+  const [bookOpen, setBookOpen] = useState(false);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -91,8 +93,8 @@ export function OrderDrawer({ orderId, onClose }: Props) {
               {/* Action bar */}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={handlePrint}><Printer className="h-3.5 w-3.5 mr-1" />Print Invoice</Button>
-                <Button size="sm" variant="outline" disabled title="Phase 4">
-                  <Truck className="h-3.5 w-3.5 mr-1" />Book Courier
+                <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}>
+                  <Truck className="h-3.5 w-3.5 mr-1" />Book Pathao
                 </Button>
               </div>
 
@@ -223,6 +225,14 @@ export function OrderDrawer({ orderId, onClose }: Props) {
 
             {/* Hidden printable invoice (shown only in print) */}
             <PrintableInvoice order={order} items={items as never} />
+            {orderId && (
+              <BookPathaoDialog
+                open={bookOpen}
+                onOpenChange={setBookOpen}
+                orderId={orderId}
+                defaultAmount={Number(order.total ?? 0)}
+              />
+            )}
           </>
         )}
       </SheetContent>
