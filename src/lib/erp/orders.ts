@@ -137,6 +137,11 @@ export function shortId(id: string) {
   return id.slice(0, 8).toUpperCase();
 }
 
+/** Display invoice number, falling back to a short order id. */
+export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
+  return o.invoice_no ?? shortId(o.id);
+}
+
 export function exportOrdersCsv(orders: OrderRow[]): string {
   const headers = [
     "Order ID", "Date", "Customer", "Phone", "Address", "City", "District",
