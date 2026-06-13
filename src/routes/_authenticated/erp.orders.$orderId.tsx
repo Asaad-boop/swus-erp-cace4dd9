@@ -204,7 +204,6 @@ function OrderDetailsPage() {
     );
   }
 
-  const phone = customerPhone(order);
   const tags: string[] = order.order_tags ?? [];
   const fullAddress = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
     .filter(Boolean).join(", ");
