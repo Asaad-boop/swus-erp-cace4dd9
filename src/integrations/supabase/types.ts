@@ -2357,6 +2357,7 @@ export type Database = {
         Returns: undefined
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
+      reapply_invoice_prefix: { Args: { _brand_id: string }; Returns: number }
       recalc_product_rating: {
         Args: { _product_id: string }
         Returns: undefined
