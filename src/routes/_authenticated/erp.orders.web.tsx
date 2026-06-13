@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Phone, MapPin, MessageSquare, Globe, MoreHorizontal } from "lucide-react";
+import { Phone, MapPin, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -425,14 +425,9 @@ function WebOrdersPage() {
                     {/* Site */}
                     <TableCell className="py-4">
                       {siteLabel ? (
-                        <div className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs">
-                          {favicon ? (
-                            <img src={favicon} alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
-                          ) : (
-                            <Globe className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          <span className="truncate max-w-[90px] font-medium text-foreground">{siteLabel}</span>
-                        </div>
+                        <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs font-medium text-foreground truncate max-w-[140px]">
+                          {siteLabel}
+                        </span>
                       ) : (
                         <span className="text-xs text-muted-foreground/60">—</span>
                       )}
@@ -440,17 +435,11 @@ function WebOrdersPage() {
 
                     {/* Actions */}
                     <TableCell className="py-4 text-right">
-                      <div className="inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-background p-0.5" onClick={(e) => e.stopPropagation()}>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOpenId(r.id)} title="View">
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        {phone && (
-                          <a href={`tel:${phone}`} className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-muted" title="Call">
-                            <Phone className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                        <Button size="icon" variant="ghost" className="h-7 w-7" title="More">
-                          <MoreHorizontal className="h-3.5 w-3.5" />
+                      <div onClick={(e) => e.stopPropagation()} className="inline-block">
+                        <Button asChild size="sm" variant="default" className="h-8">
+                          <Link to="/erp/orders/$orderId" params={{ orderId: r.id }}>
+                            Open
+                          </Link>
                         </Button>
                       </div>
                     </TableCell>
