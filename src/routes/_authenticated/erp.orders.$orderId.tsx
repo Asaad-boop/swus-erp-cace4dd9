@@ -508,7 +508,7 @@ function OrderDetailsPage() {
       const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { invalidate(); },
+    onSuccess: () => { toast.success("Customer details saved"); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
