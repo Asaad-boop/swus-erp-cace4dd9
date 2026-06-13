@@ -508,7 +508,7 @@ function OrderDetailsPage() {
       const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Customer details saved"); invalidate(); },
+    onSuccess: () => { toast.success("Customer details saved"); setBaseline((b) => b ? { ...b, ...form } : b); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -522,7 +522,7 @@ function OrderDetailsPage() {
       }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Pricing saved"); invalidate(); },
+    onSuccess: () => { toast.success("Pricing saved"); setBaseline((b) => b ? { ...b, discount: form.discount, advance: form.advance, shipping_fee: form.shipping_fee } : b); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
