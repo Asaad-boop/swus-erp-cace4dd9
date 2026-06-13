@@ -10,30 +10,37 @@ async function assertCourierRole(supabase: any, userId: string) {
   if (!admin && !ops) throw new Error("Not authorized");
 }
 
+async function clientForBrand(supabase: any, brandId?: string | null) {
+  const { createPathaoClient, loadPathaoCreds } = await import("./pathao.server");
+  const creds = await loadPathaoCreds(supabase, brandId ?? null);
+  return createPathaoClient(creds);
+}
+
 export const pathaoCitiesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
+  .handler(async ({ data, context }) => {
     await assertCourierRole(context.supabase, context.userId);
-    const { pathaoCities } = await import("./pathao.server");
-    return { items: await pathaoCities() };
+    const client = await clientForBrand(context.supabase, data?.brandId);
+    return { items: await client.cities() };
   });
 
 export const pathaoZonesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ cityId: z.number().int().positive() }).parse(d))
+  .inputValidator((d) => z.object({ cityId: z.number().int().positive(), brandId: z.string().uuid().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertCourierRole(context.supabase, context.userId);
-    const { pathaoZones } = await import("./pathao.server");
-    return { items: await pathaoZones(data.cityId) };
+    const client = await clientForBrand(context.supabase, data.brandId);
+    return { items: await client.zones(data.cityId) };
   });
 
 export const pathaoAreasFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ zoneId: z.number().int().positive() }).parse(d))
+  .inputValidator((d) => z.object({ zoneId: z.number().int().positive(), brandId: z.string().uuid().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertCourierRole(context.supabase, context.userId);
-    const { pathaoAreas } = await import("./pathao.server");
-    return { items: await pathaoAreas(data.zoneId) };
+    const client = await clientForBrand(context.supabase, data.brandId);
+    return { items: await client.areas(data.zoneId) };
   });
 
 export const pathaoPriceFn = createServerFn({ method: "POST" })
@@ -46,13 +53,15 @@ export const pathaoPriceFn = createServerFn({ method: "POST" })
         recipient_zone: z.number().int().positive(),
         delivery_type: z.union([z.literal(48), z.literal(12)]).default(48),
         item_type: z.union([z.literal(1), z.literal(2)]).default(2),
+        brandId: z.string().uuid().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertCourierRole(context.supabase, context.userId);
-    const { pathaoPrice, defaultStoreId } = await import("./pathao.server");
-    return { price: await pathaoPrice({ store_id: defaultStoreId(), ...data }) };
+    const client = await clientForBrand(context.supabase, data.brandId);
+    const { brandId: _b, ...rest } = data;
+    return { price: await client.price({ store_id: client.storeId, ...rest }) };
   });
 
 export const pathaoBookOrderFn = createServerFn({ method: "POST" })
@@ -90,10 +99,10 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
     const phone = order.shipping_phone || order.guest_phone || "";
     const address = [order.shipping_address, order.shipping_thana, order.shipping_city].filter(Boolean).join(", ");
 
-    const { pathaoCreateOrder, defaultStoreId } = await import("./pathao.server");
+    const client = await clientForBrand(supabase, order.brand_id);
     const merchantId = order.id.slice(0, 8).toUpperCase();
-    const result: any = await pathaoCreateOrder({
-      store_id: defaultStoreId(),
+    const result: any = await client.createOrder({
+      store_id: client.storeId,
       merchant_order_id: merchantId,
       recipient_name: name,
       recipient_phone: phone,
@@ -154,14 +163,14 @@ export const pathaoTrackFn = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: ship, error } = await supabase
       .from("courier_shipments")
-      .select("id, consignment_id, provider")
+      .select("id, consignment_id, provider, brand_id")
       .eq("id", data.shipmentId)
       .maybeSingle();
     if (error) throw error;
     if (!ship?.consignment_id) throw new Error("Shipment has no consignment id");
 
-    const { pathaoTrack } = await import("./pathao.server");
-    const info: any = await pathaoTrack(ship.consignment_id);
+    const client = await clientForBrand(supabase, ship.brand_id);
+    const info: any = await client.track(ship.consignment_id);
     const status = info?.order_status || info?.data?.order_status || info?.status || null;
 
     if (status) {
@@ -171,4 +180,71 @@ export const pathaoTrackFn = createServerFn({ method: "POST" })
         .eq("id", ship.id);
     }
     return { status, info };
+  });
+
+// ---- Settings management ----
+
+const SettingsSchema = z.object({
+  brand_id: z.string().uuid(),
+  base_url: z.string().url().optional().or(z.literal("")),
+  client_id: z.string().min(1).max(200),
+  client_secret: z.string().min(1).max(500),
+  username: z.string().min(1).max(200),
+  password: z.string().min(1).max(200),
+  store_id: z.string().min(1).max(50),
+  is_active: z.boolean().default(true),
+});
+
+export const pathaoGetSettingsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ brandId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: admin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!admin) throw new Error("Admin only");
+    const { data: row, error } = await supabase
+      .from("erp_courier_settings")
+      .select("brand_id, base_url, client_id, client_secret, username, password, store_id, is_active")
+      .eq("provider", "pathao")
+      .eq("brand_id", data.brandId)
+      .maybeSingle();
+    if (error) throw error;
+    return { settings: row };
+  });
+
+export const pathaoSaveSettingsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => SettingsSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: admin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!admin) throw new Error("Admin only");
+    const payload = {
+      brand_id: data.brand_id,
+      provider: "pathao",
+      base_url: data.base_url && data.base_url.length > 0 ? data.base_url : "https://api-hermes.pathao.com",
+      client_id: data.client_id,
+      client_secret: data.client_secret,
+      username: data.username,
+      password: data.password,
+      store_id: data.store_id,
+      is_active: data.is_active,
+    };
+    const { error } = await supabase
+      .from("erp_courier_settings")
+      .upsert(payload, { onConflict: "brand_id,provider" });
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const pathaoTestConnectionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ brandId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: admin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!admin) throw new Error("Admin only");
+    const client = await clientForBrand(supabase, data.brandId);
+    const cities = await client.cities();
+    return { ok: true, cityCount: Array.isArray(cities) ? cities.length : 0 };
   });
