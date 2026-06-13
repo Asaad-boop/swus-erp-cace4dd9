@@ -579,7 +579,7 @@ function WebOrdersPage() {
         </Table>
       </div>
 
-      <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} />
+      <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
     </div>
   );
 }

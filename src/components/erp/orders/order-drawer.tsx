@@ -13,9 +13,20 @@ import { Separator } from "@/components/ui/separator";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 
-type Props = { orderId: string | null; onClose: () => void };
+type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
-export function OrderDrawer({ orderId, onClose }: Props) {
+const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "processing", label: "Processing" },
+  { value: "incomplete", label: "Incomplete" },
+  { value: "good_but_no_response", label: "Good But No Response" },
+  { value: "no_response", label: "No Response" },
+  { value: "advance_payment", label: "Advance Payment" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "complete", label: "Complete" },
+  { value: "cancelled", label: "Cancel" },
+];
+
+export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
@@ -33,6 +44,20 @@ export function OrderDrawer({ orderId, onClose }: Props) {
     },
     onSuccess: () => {
       toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateWebStatus = useMutation({
+    mutationFn: async (web_status: string) => {
+      const { error } = await supabase.from("orders").update({ web_status: web_status as never }).eq("id", orderId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
     },
@@ -89,23 +114,38 @@ export function OrderDrawer({ orderId, onClose }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-                  <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STATUS_GROUPS.map((g) => (
-                        <div key={g.key}>
-                          <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {g.label}
+                  {mode === "web" ? (
+                    <Select
+                      value={(order as { web_status?: string | null }).web_status ?? "processing"}
+                      disabled={updateWebStatus.isPending}
+                      onValueChange={(v) => updateWebStatus.mutate(v)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {WEB_STATUS_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {STATUS_GROUPS.map((g) => (
+                          <div key={g.key}>
+                            <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {g.label}
+                            </div>
+                            {g.statuses.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
                           </div>
-                          {g.statuses.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned to</label>
