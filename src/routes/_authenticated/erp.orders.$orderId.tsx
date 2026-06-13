@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useOrderDetail } from "@/hooks/erp/use-orders-query";
-import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
@@ -305,6 +306,21 @@ function ProductSearchPanel({
 /*  Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
+type WebStatus =
+  | "processing" | "incomplete" | "good_but_no_response" | "no_response"
+  | "advance_payment" | "on_hold" | "complete" | "cancelled";
+
+const WEB_STATUSES: { key: WebStatus; label: string }[] = [
+  { key: "processing", label: "Processing" },
+  { key: "incomplete", label: "Incomplete" },
+  { key: "good_but_no_response", label: "Good But No Response" },
+  { key: "no_response", label: "No Response" },
+  { key: "advance_payment", label: "Advance Payment" },
+  { key: "on_hold", label: "On Hold" },
+  { key: "complete", label: "Complete" },
+  { key: "cancelled", label: "Cancel" },
+];
+
 function OrderDetailsPage() {
   const { orderId } = Route.useParams();
   const qc = useQueryClient();
@@ -539,6 +555,52 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateWebStatus = useMutation({
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number }> }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status, ...(extra ?? {}) })
+        .eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(`Marked as ${vars.status.replace(/_/g, " ")}`);
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onPickWebStatus = (v: WebStatus) => {
+    if (v === "on_hold" || v === "cancelled" || v === "advance_payment") {
+      setPendingReason("");
+      setPendingAdvance("");
+      setPendingWebStatus(v);
+      return;
+    }
+    updateWebStatus.mutate({ status: v });
+  };
+
+  const submitPendingWebStatus = () => {
+    if (!pendingWebStatus) return;
+    if (pendingWebStatus === "on_hold") {
+      if (!pendingReason.trim()) { toast.error("Please provide a hold reason"); return; }
+      updateWebStatus.mutate({ status: "on_hold", extra: { hold_reason: pendingReason.trim() } });
+    } else if (pendingWebStatus === "cancelled") {
+      if (!pendingReason.trim()) { toast.error("Please provide a cancellation reason"); return; }
+      updateWebStatus.mutate({
+        status: "cancelled",
+        extra: { cancellation_reason: pendingReason.trim(), cancel_reason: pendingReason.trim() },
+      });
+    } else if (pendingWebStatus === "advance_payment") {
+      const amt = Number(pendingAdvance);
+      if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
+      updateWebStatus.mutate({ status: "advance_payment", extra: { advance_amount: amt } });
+      setForm((f) => ({ ...f, advance: amt }));
+    }
+    setPendingWebStatus(null);
+  };
+
   const saveCustomer = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -638,6 +700,9 @@ function OrderDetailsPage() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
+  const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
+  const [pendingReason, setPendingReason] = useState("");
+  const [pendingAdvance, setPendingAdvance] = useState("");
 
   if (isLoading || !order) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -965,10 +1030,16 @@ function OrderDetailsPage() {
           <section className="rounded-xl border bg-card overflow-hidden">
             <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Actions</h3></header>
             <div className="p-4 space-y-3">
-              <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+              <Select
+                value={(order.web_status as WebStatus) ?? ""}
+                disabled={updateWebStatus.isPending}
+                onValueChange={(v) => onPickWebStatus(v as WebStatus)}
+              >
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Change status" /></SelectTrigger>
                 <SelectContent>
-                  {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize text-xs">{s.replace(/_/g, " ")}</SelectItem>)}
+                  {WEB_STATUSES.map((s) => (
+                    <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button asChild size="sm" variant="ghost" className="w-full justify-start h-7 text-xs">
@@ -1003,6 +1074,55 @@ function OrderDetailsPage() {
       <PrintableInvoice order={order} items={items as never} />
       <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
       <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <Dialog open={pendingWebStatus !== null} onOpenChange={(o) => !o && setPendingWebStatus(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingWebStatus === "on_hold" && "Put Order On Hold"}
+              {pendingWebStatus === "cancelled" && "Cancel Order"}
+              {pendingWebStatus === "advance_payment" && "Advance Payment"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingWebStatus === "on_hold" && "Why are you putting this order on hold?"}
+              {pendingWebStatus === "cancelled" && "Please tell us why this order is being cancelled."}
+              {pendingWebStatus === "advance_payment" && "How much advance does the customer need to pay?"}
+            </DialogDescription>
+          </DialogHeader>
+          {pendingWebStatus === "advance_payment" ? (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Advance Amount (৳)</label>
+              <Input
+                type="number" min={1} autoFocus
+                value={pendingAdvance}
+                onChange={(e) => setPendingAdvance(e.target.value)}
+                placeholder="e.g. 100"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Reason</label>
+              <Textarea
+                rows={3} autoFocus maxLength={500}
+                value={pendingReason}
+                onChange={(e) => setPendingReason(e.target.value)}
+                placeholder="Type the reason…"
+                className="resize-none"
+              />
+              <div className="text-[10px] text-right text-muted-foreground">{pendingReason.length}/500</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingWebStatus(null)}>Cancel</Button>
+            <Button
+              disabled={updateWebStatus.isPending}
+              onClick={submitPendingWebStatus}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {updateWebStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
