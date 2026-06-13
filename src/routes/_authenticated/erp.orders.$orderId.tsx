@@ -545,7 +545,10 @@ function OrderDetailsPage() {
   }
 
   const tags: string[] = order.order_tags ?? [];
-  const fraudNote = courierHistory?.steadfastError || "";
+  // Only treat as fraud note when we actually have fraud data — not generic API errors
+  const rawFraud = courierHistory?.steadfastError || "";
+  const isRealFraud = /fraud|cancel|return/i.test(rawFraud) && rawFraud.length > 0 && !/unauthor|forbidden|not\s*found|invalid|error|failed|timeout/i.test(rawFraud);
+  const fraudNote = isRealFraud ? rawFraud : "";
 
   /* ------------------------------ Render ----------------------------------- */
 
