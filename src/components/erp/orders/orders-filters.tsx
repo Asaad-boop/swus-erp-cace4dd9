@@ -2,7 +2,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ORDER_STATUSES, type OrderStatus } from "@/lib/erp/orders";
+import { STATUS_GROUPS, STATUS_BADGE, type OrderStatus } from "@/lib/erp/orders";
 import { Badge } from "@/components/ui/badge";
 import type { OrdersFilter } from "@/hooks/erp/use-orders-query";
 
@@ -62,20 +62,28 @@ export function OrdersFilters({
           <Button variant="ghost" size="sm" onClick={reset}><X className="h-4 w-4 mr-1" />Clear</Button>
         )}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {ORDER_STATUSES.map((s) => {
-          const active = filter.statuses.includes(s);
-          return (
-            <Badge
-              key={s}
-              variant={active ? "default" : "outline"}
-              className="cursor-pointer capitalize hover:opacity-80"
-              onClick={() => toggleStatus(s)}
-            >
-              {s.replace(/_/g, " ")}
-            </Badge>
-          );
-        })}
+      <div className="space-y-2">
+        {STATUS_GROUPS.map((group) => (
+          <div key={group.key} className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-20 shrink-0">
+              {group.label}
+            </span>
+            {group.statuses.map((s) => {
+              const active = filter.statuses.includes(s);
+              const meta = STATUS_BADGE[s];
+              return (
+                <Badge
+                  key={s}
+                  variant={active ? "default" : "outline"}
+                  className="cursor-pointer hover:opacity-80"
+                  onClick={() => toggleStatus(s)}
+                >
+                  {meta?.label ?? s.replace(/_/g, " ")}
+                </Badge>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

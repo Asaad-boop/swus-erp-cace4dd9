@@ -3,27 +3,61 @@ import type { Database } from "@/integrations/supabase/types";
 export type OrderStatus = Database["public"]["Enums"]["order_status"];
 export type ConfirmationStatus = Database["public"]["Enums"]["confirmation_status"];
 
+// Pipeline order: Fulfillment → Return → Exchange → Finance → Closing
 export const ORDER_STATUSES: OrderStatus[] = [
-  "new", "confirmed", "packaging", "packed", "ready_to_ship",
+  // Fulfillment
+  "confirmed", "ready_to_pack", "packed", "ready_to_ship",
   "shipped", "in_transit", "delivered", "partial_delivered",
-  "returned", "exchanged", "cancelled", "fake", "on_hold",
+  // Return
+  "pending_return", "returned", "partial_return",
+  // Exchange
+  "exchange", "exchanged",
+  // Finance
+  "paid_return", "unpaid_return",
+  // Closing
+  "on_hold", "cancelled",
+];
+
+export type StatusGroup = "fulfillment" | "return" | "exchange" | "finance" | "closing";
+
+export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderStatus[] }[] = [
+  {
+    key: "fulfillment", label: "Fulfillment",
+    statuses: ["confirmed", "ready_to_pack", "packed", "ready_to_ship", "shipped", "in_transit", "delivered", "partial_delivered"],
+  },
+  { key: "return", label: "Return", statuses: ["pending_return", "returned", "partial_return"] },
+  { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
+  { key: "finance", label: "Finance", statuses: ["paid_return", "unpaid_return"] },
+  { key: "closing", label: "Closing", statuses: ["on_hold", "cancelled"] },
 ];
 
 export const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  new: { label: "New", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
-  confirmed: { label: "Confirmed", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300" },
-  packaging: { label: "Packaging", className: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300" },
+  // Fulfillment
+  confirmed: { label: "Pending", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
+  ready_to_pack: { label: "Ready to Pack", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300" },
   packed: { label: "Packed", className: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300" },
-  ready_to_ship: { label: "Ready", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300" },
+  ready_to_ship: { label: "RTS", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300" },
   shipped: { label: "Shipped", className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" },
-  in_transit: { label: "In transit", className: "bg-amber-100 text-amber-800" },
+  in_transit: { label: "In Transit", className: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300" },
   delivered: { label: "Delivered", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
-  partial_delivered: { label: "Partial", className: "bg-emerald-100 text-emerald-800" },
+  partial_delivered: { label: "Partial Delivery", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  // Return
+  pending_return: { label: "Return In Transit", className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300" },
   returned: { label: "Returned", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
+  partial_return: { label: "Partial Return", className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" },
+  // Exchange
+  exchange: { label: "Exchange", className: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300" },
+  exchanged: { label: "Exchange Delivery", className: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" },
+  // Finance
+  paid_return: { label: "Paid Return", className: "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300" },
+  unpaid_return: { label: "Refund", className: "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300" },
+  // Closing
+  on_hold: { label: "On Hold", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" },
   cancelled: { label: "Cancelled", className: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
+  // Legacy / fallbacks (still in DB enum)
+  new: { label: "New", className: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300" },
+  packaging: { label: "Packaging", className: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300" },
   fake: { label: "Fake", className: "bg-red-200 text-red-900 dark:bg-red-950 dark:text-red-300" },
-  on_hold: { label: "On hold", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" },
-  exchanged: { label: "Exchanged", className: "bg-orange-100 text-orange-800" },
 };
 
 export function statusBadge(s: string) {

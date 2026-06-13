@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { customerName, customerPhone, ORDER_STATUSES, shortId, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, STATUS_GROUPS, STATUS_BADGE, shortId, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -93,10 +93,17 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                 <SelectValue>{b.label}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {ORDER_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize text-xs">
-                    {s.replace(/_/g, " ")}
-                  </SelectItem>
+                {STATUS_GROUPS.map((g) => (
+                  <div key={g.key}>
+                    <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {g.label}
+                    </div>
+                    {g.statuses.map((s) => (
+                      <SelectItem key={s} value={s} className="text-xs">
+                        {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
+                      </SelectItem>
+                    ))}
+                  </div>
                 ))}
               </SelectContent>
             </Select>

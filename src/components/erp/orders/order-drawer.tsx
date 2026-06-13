@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
-import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "./order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
@@ -110,8 +110,17 @@ export function OrderDrawer({ orderId, onClose }: Props) {
                   <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ORDER_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
+                      {STATUS_GROUPS.map((g) => (
+                        <div key={g.key}>
+                          <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {g.label}
+                          </div>
+                          {g.statuses.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {STATUS_BADGE[s]?.label ?? s.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </div>
                       ))}
                     </SelectContent>
                   </Select>
