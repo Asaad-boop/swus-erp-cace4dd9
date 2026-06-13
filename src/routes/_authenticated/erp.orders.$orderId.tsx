@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone,
+  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -323,26 +323,31 @@ function OrderDetailsPage() {
     discount: 0, advance: 0, shipping_fee: 0,
     note_input: "", tag_input: "",
   });
+  const [baseline, setBaseline] = useState<typeof form | null>(null);
 
   useEffect(() => {
     if (!order) return;
-    setForm((f) => ({
-      ...f,
-      mobile: phone,
-      name: customerName(order),
-      delivery_method: order.delivery_method ?? "",
-      address: order.shipping_address ?? "",
-      shipping_note: order.shipping_note ?? "",
-      city_id: order.delivery_city_id ?? "",
-      zone_id: order.delivery_zone_id ?? "",
-      area_id: order.delivery_area_id ?? "",
-      source_platform: order.source_platform ?? order.source_website ?? "Website",
-      is_preorder: !!order.is_preorder,
-      is_cross_sale: !!order.is_cross_sale,
-      discount: Number(order.discount_amount ?? 0),
-      advance: Number(order.advance_amount ?? 0),
-      shipping_fee: Number(order.shipping_fee ?? 0),
-    }));
+    setForm((f) => {
+      const next = {
+        ...f,
+        mobile: phone,
+        name: customerName(order),
+        delivery_method: order.delivery_method ?? "",
+        address: order.shipping_address ?? "",
+        shipping_note: order.shipping_note ?? "",
+        city_id: order.delivery_city_id ?? "",
+        zone_id: order.delivery_zone_id ?? "",
+        area_id: order.delivery_area_id ?? "",
+        source_platform: order.source_platform ?? order.source_website ?? "Website",
+        is_preorder: !!order.is_preorder,
+        is_cross_sale: !!order.is_cross_sale,
+        discount: Number(order.discount_amount ?? 0),
+        advance: Number(order.advance_amount ?? 0),
+        shipping_fee: Number(order.shipping_fee ?? 0),
+      };
+      setBaseline(next);
+      return next;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
@@ -503,7 +508,7 @@ function OrderDetailsPage() {
       const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { invalidate(); },
+    onSuccess: () => { toast.success("Customer details saved"); setBaseline((b) => b ? { ...b, ...form } : b); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -517,7 +522,7 @@ function OrderDetailsPage() {
       }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Pricing saved"); invalidate(); },
+    onSuccess: () => { toast.success("Pricing saved"); setBaseline((b) => b ? { ...b, discount: form.discount, advance: form.advance, shipping_fee: form.shipping_fee } : b); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -641,7 +646,7 @@ function OrderDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="Mobile Number">
                 <div className="relative">
-                  <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} onBlur={() => saveCustomer.mutate()} className="h-9 pr-16 font-mono" />
+                  <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} className="h-9 pr-16 font-mono" />
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
                     <a href={`tel:${form.mobile}`} className="p-1 rounded hover:bg-muted text-emerald-600"><Phone className="h-3.5 w-3.5" /></a>
                     <a href={`https://wa.me/${form.mobile.replace(/^0/, "880")}`} target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-muted text-emerald-600"><MessageCircle className="h-3.5 w-3.5" /></a>
@@ -650,10 +655,10 @@ function OrderDetailsPage() {
                 <p className="text-[10px] text-sky-600">Check Our Record above for customer history</p>
               </FieldShell>
               <FieldShell label="Name">
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} onBlur={() => saveCustomer.mutate()} className="h-9" />
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9" />
               </FieldShell>
               <FieldShell label="Delivery Method">
-                <Select value={form.delivery_method || ""} onValueChange={(v) => { setForm({ ...form, delivery_method: v }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                <Select value={form.delivery_method || ""} onValueChange={(v) => setForm({ ...form, delivery_method: v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Choose courier" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pathao">Pathao</SelectItem>
@@ -667,15 +672,15 @@ function OrderDetailsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="Address">
-                <Textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} onBlur={() => saveCustomer.mutate()} className="resize-none" />
+                <Textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="resize-none" />
               </FieldShell>
               <FieldShell label="Shipping Note">
-                <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} onBlur={() => saveCustomer.mutate()} className="resize-none" />
+                <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} className="resize-none" />
                 <div className="text-[10px] text-right text-muted-foreground">{form.shipping_note.length}/150</div>
               </FieldShell>
               <div className="space-y-3">
                 <FieldShell label="Source Platform">
-                  <Select value={form.source_platform} onValueChange={(v) => { setForm({ ...form, source_platform: v }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                  <Select value={form.source_platform} onValueChange={(v) => setForm({ ...form, source_platform: v })}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Website">Website</SelectItem>
@@ -689,35 +694,53 @@ function OrderDetailsPage() {
                 </FieldShell>
                 <div className="flex items-center justify-between rounded-md border px-3 py-2">
                   <span className="text-xs">Preorder</span>
-                  <Switch checked={form.is_preorder} onCheckedChange={(v) => { setForm({ ...form, is_preorder: v }); setTimeout(() => saveCustomer.mutate(), 0); }} />
+                  <Switch checked={form.is_preorder} onCheckedChange={(v) => setForm({ ...form, is_preorder: v })} />
                 </div>
                 <div className="flex items-center justify-between rounded-md border px-3 py-2">
                   <span className="text-xs">Cross Sale</span>
-                  <Switch checked={form.is_cross_sale} onCheckedChange={(v) => { setForm({ ...form, is_cross_sale: v }); setTimeout(() => saveCustomer.mutate(), 0); }} />
+                  <Switch checked={form.is_cross_sale} onCheckedChange={(v) => setForm({ ...form, is_cross_sale: v })} />
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="City">
-                <Select value={form.city_id} onValueChange={(v) => { setForm({ ...form, city_id: v, zone_id: "", area_id: "" }); setTimeout(() => saveCustomer.mutate(), 0); }}>
+                <Select value={form.city_id} onValueChange={(v) => setForm({ ...form, city_id: v, zone_id: "", area_id: "" })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select city" /></SelectTrigger>
                   <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
               <FieldShell label="Zone">
-                <Select value={form.zone_id} onValueChange={(v) => { setForm({ ...form, zone_id: v, area_id: "" }); setTimeout(() => saveCustomer.mutate(), 0); }} disabled={!form.city_id}>
+                <Select value={form.zone_id} onValueChange={(v) => setForm({ ...form, zone_id: v, area_id: "" })} disabled={!form.city_id}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select zone" /></SelectTrigger>
                   <SelectContent>{(zones ?? []).map((z) => <SelectItem key={z.id} value={z.id}>{z.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
               <FieldShell label="Area">
-                <Select value={form.area_id} onValueChange={(v) => { setForm({ ...form, area_id: v }); setTimeout(() => saveCustomer.mutate(), 0); }} disabled={!form.zone_id}>
+                <Select value={form.area_id} onValueChange={(v) => setForm({ ...form, area_id: v })} disabled={!form.zone_id}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select an area" /></SelectTrigger>
                   <SelectContent>{(areas ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
             </div>
+            {(() => {
+              const customerKeys = ["mobile","name","delivery_method","address","shipping_note","city_id","zone_id","area_id","source_platform","is_preorder","is_cross_sale"] as const;
+              const dirty = !!baseline && customerKeys.some((k) => (form as any)[k] !== (baseline as any)[k]);
+              return (
+                <div className="flex items-center justify-end gap-2 pt-1 border-t">
+                  {dirty && <span className="text-[11px] text-amber-600 mr-auto">Unsaved changes</span>}
+                  <Button size="sm" variant="ghost" disabled={!dirty || saveCustomer.isPending}
+                    onClick={() => baseline && setForm({ ...form, ...baseline })}>
+                    <Undo2 className="h-3.5 w-3.5 mr-1" />Discard
+                  </Button>
+                  <Button size="sm" disabled={!dirty || saveCustomer.isPending}
+                    onClick={() => saveCustomer.mutate()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    {saveCustomer.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save Customer
+                  </Button>
+                </div>
+              );
+            })()}
           </section>
 
           {/* Ordered Products + Add Products */}
@@ -777,16 +800,16 @@ function OrderDetailsPage() {
           <section className="rounded-xl border bg-card p-4">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <FieldShell label="Discount">
-                <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} />
               </FieldShell>
               <FieldShell label="Advance">
-                <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} />
               </FieldShell>
               <FieldShell label="Sub Total">
                 <Input value={bdtCompact(itemsSubtotal)} readOnly className="h-9 bg-muted/40 tabular-nums" />
               </FieldShell>
               <FieldShell label="Delivery Charge">
-                <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} onCommit={() => savePricing.mutate()} />
+                <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} />
               </FieldShell>
               <FieldShell label="Grand Total">
                 <Input value={bdtCompact(grandTotal)} readOnly className="h-9 bg-rose-500/5 border-rose-500/30 text-rose-600 font-bold tabular-nums" />
@@ -935,7 +958,7 @@ function QtyInput({ value, onChange, step = 1 }: { value: number; onChange: (v: 
   );
 }
 
-function NumInput({ value, onChange, onCommit }: { value: number; onChange: (v: number) => void; onCommit: () => void }) {
+function NumInput({ value, onChange, onCommit }: { value: number; onChange: (v: number) => void; onCommit?: () => void }) {
   return (
     <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} onBlur={onCommit} className="h-9 tabular-nums" />
   );
