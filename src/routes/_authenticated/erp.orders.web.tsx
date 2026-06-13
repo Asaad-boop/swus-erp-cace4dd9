@@ -54,6 +54,7 @@ type WebOrderRow = {
   guest_phone: string | null;
   latest_note: string | null;
   customer_note: string | null;
+  notes: string | null;
   tags: string[] | null;
   source_website: string | null;
   web_status: WebStatus | null;
