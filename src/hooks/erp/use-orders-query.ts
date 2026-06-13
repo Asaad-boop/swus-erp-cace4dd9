@@ -30,9 +30,14 @@ export function useOrdersQuery(filter: OrdersFilter) {
 
       if (filter.statuses.length > 0) {
         q = q.in("status", filter.statuses);
+        if (filter.statuses.includes("confirmed")) {
+          q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+        }
       } else {
-        // Web orders that are not yet confirmed live in the wave queue, not here
+        // Web orders stay in Web Orders until staff confirms them there.
+        // In Order List, "Pending" means confirmed operational queue.
         q = q.neq("status", "new");
+        q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
       }
       if (filter.source) q = q.eq("source", filter.source as never);
       if (filter.courier) q = q.eq("courier_name", filter.courier);
