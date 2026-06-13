@@ -13,9 +13,20 @@ import { Separator } from "@/components/ui/separator";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 
-type Props = { orderId: string | null; onClose: () => void };
+type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
-export function OrderDrawer({ orderId, onClose }: Props) {
+const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "processing", label: "Processing" },
+  { value: "incomplete", label: "Incomplete" },
+  { value: "good_but_no_response", label: "Good But No Response" },
+  { value: "no_response", label: "No Response" },
+  { value: "advance_payment", label: "Advance Payment" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "complete", label: "Complete" },
+  { value: "cancelled", label: "Cancel" },
+];
+
+export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
@@ -33,6 +44,20 @@ export function OrderDrawer({ orderId, onClose }: Props) {
     },
     onSuccess: () => {
       toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateWebStatus = useMutation({
+    mutationFn: async (web_status: string) => {
+      const { error } = await supabase.from("orders").update({ web_status }).eq("id", orderId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
     },
