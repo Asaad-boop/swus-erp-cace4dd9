@@ -14,6 +14,7 @@ import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { ORDER_STATUSES, customerName, customerPhone, shortId, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "./order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
+import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 
 type Props = { orderId: string | null; onClose: () => void };
 
@@ -23,6 +24,7 @@ export function OrderDrawer({ orderId, onClose }: Props) {
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
   const [bookOpen, setBookOpen] = useState(false);
+  const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -95,6 +97,9 @@ export function OrderDrawer({ orderId, onClose }: Props) {
                 <Button size="sm" variant="outline" onClick={handlePrint}><Printer className="h-3.5 w-3.5 mr-1" />Print Invoice</Button>
                 <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}>
                   <Truck className="h-3.5 w-3.5 mr-1" />Book Pathao
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}>
+                  <Truck className="h-3.5 w-3.5 mr-1" />Book Steadfast
                 </Button>
               </div>
 
@@ -229,6 +234,14 @@ export function OrderDrawer({ orderId, onClose }: Props) {
               <BookPathaoDialog
                 open={bookOpen}
                 onOpenChange={setBookOpen}
+                orderId={orderId}
+                defaultAmount={Number(order.total ?? 0)}
+              />
+            )}
+            {orderId && (
+              <BookSteadfastDialog
+                open={bookSteadfastOpen}
+                onOpenChange={setBookSteadfastOpen}
                 orderId={orderId}
                 defaultAmount={Number(order.total ?? 0)}
               />
