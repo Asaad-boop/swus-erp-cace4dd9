@@ -14,7 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useShipments } from "@/hooks/erp/use-courier-query";
 import { pathaoTrackFn } from "@/lib/erp/pathao.functions";
+import { steadfastTrackFn } from "@/lib/erp/steadfast.functions";
 import { PathaoSettings } from "@/components/erp/courier/pathao-settings";
+import { SteadfastSettings } from "@/components/erp/courier/steadfast-settings";
 
 export const Route = createFileRoute("/_authenticated/erp/courier")({
   head: () => ({ meta: [{ title: "Courier — ERP" }] }),
@@ -34,7 +36,8 @@ function statusTone(s: string | null) {
 function CourierPage() {
   const qc = useQueryClient();
   const { data: shipments = [], isLoading } = useShipments();
-  const trackFn = useServerFn(pathaoTrackFn);
+  const trackPathao = useServerFn(pathaoTrackFn);
+  const trackSteadfast = useServerFn(steadfastTrackFn);
 
   const [q, setQ] = useState("");
   const [provider, setProvider] = useState<string>("all");
@@ -60,7 +63,10 @@ function CourierPage() {
   }, [shipments, q, provider, status]);
 
   const refresh = useMutation({
-    mutationFn: async (id: string) => trackFn({ data: { shipmentId: id } }),
+    mutationFn: async ({ id, provider }: { id: string; provider: string }) =>
+      provider === "steadfast"
+        ? trackSteadfast({ data: { shipmentId: id } })
+        : trackPathao({ data: { shipmentId: id } }),
     onSuccess: (r) => {
       toast.success(`Status: ${r.status ?? "updated"}`);
       qc.invalidateQueries({ queryKey: ["courier-shipments"] });
@@ -85,12 +91,13 @@ function CourierPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Courier</h1>
-        <p className="text-sm text-muted-foreground">Pathao consignments. Book from any order's detail drawer.</p>
+        <p className="text-sm text-muted-foreground">Pathao &amp; Steadfast consignments. Book from any order's detail page.</p>
       </div>
       <Tabs defaultValue="shipments">
         <TabsList>
           <TabsTrigger value="shipments">Shipments</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="pathao">Pathao</TabsTrigger>
+          <TabsTrigger value="steadfast">Steadfast</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shipments" className="space-y-4 pt-3">
@@ -167,13 +174,23 @@ function CourierPage() {
                         size="sm"
                         variant="ghost"
                         disabled={!s.consignment_id || (busyId === s.id && refresh.isPending)}
-                        onClick={() => { setBusyId(s.id); refresh.mutate(s.id); }}
+                        onClick={() => { setBusyId(s.id); refresh.mutate({ id: s.id, provider: s.provider }); }}
                       >
                         {busyId === s.id && refresh.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                       </Button>
-                      {s.consignment_id && (
+                      {s.consignment_id && s.provider === "pathao" && (
                         <a
                           href={`https://merchant.pathao.com/courier/orders?search=${encodeURIComponent(s.consignment_id)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-1 inline-flex"
+                        >
+                          <Button size="sm" variant="ghost"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                        </a>
+                      )}
+                      {s.consignment_id && s.provider === "steadfast" && (
+                        <a
+                          href={`https://portal.packzy.com/admin/parcels?search=${encodeURIComponent(s.consignment_id)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="ml-1 inline-flex"
@@ -191,8 +208,11 @@ function CourierPage() {
       </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="pt-3">
+        <TabsContent value="pathao" className="pt-3">
           <PathaoSettings />
+        </TabsContent>
+        <TabsContent value="steadfast" className="pt-3">
+          <SteadfastSettings />
         </TabsContent>
       </Tabs>
     </div>
