@@ -28,7 +28,12 @@ export function useOrdersQuery(filter: OrdersFilter) {
         .eq("brand_id", filter.brandId!)
         .order("created_at", { ascending: false });
 
-      if (filter.statuses.length > 0) q = q.in("status", filter.statuses);
+      if (filter.statuses.length > 0) {
+        q = q.in("status", filter.statuses);
+      } else {
+        // Web orders that are not yet confirmed live in the wave queue, not here
+        q = q.neq("status", "new");
+      }
       if (filter.source) q = q.eq("source", filter.source as never);
       if (filter.courier) q = q.eq("courier_name", filter.courier);
       if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);
