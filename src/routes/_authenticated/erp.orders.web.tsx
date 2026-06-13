@@ -171,7 +171,7 @@ function WebOrdersPage() {
       let q = supabase
         .from("orders")
         .select(
-          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
+          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
         .eq("brand_id", activeBrand!.id)
