@@ -99,3 +99,43 @@ export function useStaffList() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// Counts per status for the status-tabs strip. Scoped to brand + global filters
+// (search/date/source/courier) but NOT to the active status filter so all tabs stay accurate.
+export function useOrderStatusCounts(filter: OrdersFilter) {
+  return useQuery({
+    queryKey: ["orders-status-counts", filter.brandId, filter.search, filter.source, filter.courier, filter.dateFrom, filter.dateTo],
+    enabled: !!filter.brandId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      let q = supabase
+        .from("orders")
+        .select("status", { count: "exact" })
+        .eq("brand_id", filter.brandId!)
+        .neq("status", "new")
+        .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
+        .limit(10000);
+
+      if (filter.source) q = q.eq("source", filter.source as never);
+      if (filter.courier) q = q.eq("courier_name", filter.courier);
+      if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);
+      if (filter.dateTo) q = q.lte("created_at", filter.dateTo);
+      if (filter.search.trim()) {
+        const s = filter.search.trim();
+        q = q.or(
+          `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,tracking_number.ilike.%${s}%`,
+        );
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      let total = 0;
+      for (const row of (data ?? []) as { status: OrderStatus }[]) {
+        counts[row.status] = (counts[row.status] ?? 0) + 1;
+        total++;
+      }
+      return { counts, total };
+    },
+  });
+}
