@@ -36,105 +36,80 @@ function normalizePhone(raw: string) {
   return digits;
 }
 
-function toneFor(pct: number, denom: number) {
-  if (denom === 0) return { text: "text-muted-foreground/60", bar: "bg-muted-foreground/30" };
-  if (pct >= 80) return { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" };
-  if (pct >= 50) return { text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500" };
-  return { text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500" };
-}
+const STAT_COLUMNS = [
+  { key: "ourRecord", label: "Our Record", dot: "bg-indigo-500", tint: "from-indigo-500/[0.06]" },
+  { key: "overall", label: "Overall", dot: "bg-sky-500", tint: "from-sky-500/[0.06]" },
+  { key: "pathao", label: "Pathao", dot: "bg-rose-500", tint: "from-rose-500/[0.06]" },
+  { key: "steadfast", label: "Steadfast", dot: "bg-amber-500", tint: "from-amber-500/[0.06]" },
+] as const;
 
-function StatCard({ title, titleColor, children, bottomPct, bottomTone, footer }: {
-  title: string; titleColor: string; children: React.ReactNode; bottomPct?: number; bottomTone?: string; footer?: React.ReactNode;
-}) {
+function StatsStrip({ stats }: { stats: Record<string, { total: number; success: number; cancel: number }> }) {
+  const columns = STAT_COLUMNS.filter((c) => c.key !== "ourRecord" || (stats.ourRecord?.total ?? 0) > 0);
+  const gridCols = columns.length === 4 ? "sm:grid-cols-4" : columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+
   return (
-    <div className="relative rounded-lg border bg-card overflow-hidden flex flex-col min-h-[148px]">
-      <div className="px-3 pt-2.5 pb-2 flex-1">
-        <div className={cn("text-xs font-bold mb-1.5", titleColor)}>{title}</div>
-        <div className="space-y-0.5 text-[11px] tabular-nums">{children}</div>
-      </div>
-      {footer}
-      <div className="h-1 w-full bg-muted/50 mt-auto">
-        {bottomPct !== undefined && (
-          <div className={cn("h-full transition-all", bottomTone ?? "bg-emerald-500")} style={{ width: `${bottomPct}%` }} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CourierCard({ label, titleColor, stat, fraudNote }: {
-  label: string; titleColor: string; stat: { total: number; success: number; cancel: number }; fraudNote?: boolean;
-}) {
-  const denom = stat.success + stat.cancel;
-  const pct = denom > 0 ? Math.round((stat.success / denom) * 100) : 0;
-  const tone = toneFor(pct, denom);
-  const isEmpty = stat.total === 0;
-  return (
-    <StatCard
-      title={label}
-      titleColor={titleColor}
-      bottomPct={isEmpty ? 0 : pct}
-      bottomTone={tone.bar}
-    >
-      {isEmpty ? (
-        <div className="text-muted-foreground/50 italic text-[11px]">No data</div>
-      ) : (
-        <>
-          <div>
-            <span className="text-muted-foreground">Success Rate: </span>
-            <span className={cn("font-bold", tone.text)}>{pct}%</span>
-          </div>
-          <div><span className="text-muted-foreground">Total: </span><span className="font-semibold text-foreground">{stat.total}</span></div>
-          <div><span className="text-muted-foreground">Success: </span><span className="font-semibold text-foreground">{stat.success}</span></div>
-          <div><span className="text-muted-foreground">Cancelled: </span><span className="font-semibold text-foreground">{stat.cancel}</span></div>
-          {fraudNote && <div className="pt-0.5"><span className="text-muted-foreground">Fraud Note: </span><span className="font-bold text-rose-600 dark:text-rose-400">Yes</span></div>}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function StatsStrip({ stats, customerName: cname, fraudNote }: {
-  stats: Record<string, { total: number; success: number; cancel: number }>;
-  customerName: string;
-  fraudNote?: string | null;
-}) {
-  const our = stats.ourRecord ?? { total: 0, success: 0, cancel: 0 };
-  const pending = Math.max(0, our.total - our.success - our.cancel);
-  const ourPct = our.total > 0 ? Math.round((our.success / our.total) * 100) : 0;
-  return (
-    <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-      <StatCard
-        title="Our Record"
-        titleColor="text-indigo-600 dark:text-indigo-400"
-        bottomPct={ourPct}
-        bottomTone={toneFor(ourPct, our.total).bar}
-        footer={
-          <div className="px-3 pb-2">
-            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] w-full">FIR</Button>
-          </div>
-        }
-      >
-        <div className="text-foreground font-semibold truncate text-xs">{cname}</div>
-        <div className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /><span className="text-muted-foreground">Total:</span> <span className="font-semibold text-foreground">{our.total}</span></div>
-        <div className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /><span className="text-muted-foreground">Pending:</span> <span className="font-semibold text-foreground">{pending}</span></div>
-        <div className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Delivered:</span> <span className="font-semibold text-foreground">{our.success}</span></div>
-      </StatCard>
-
-      <CourierCard label="Overall" titleColor="text-sky-600 dark:text-sky-400" stat={stats.overall ?? { total: 0, success: 0, cancel: 0 }} fraudNote={!!fraudNote} />
-      <CourierCard label="Pathao" titleColor="text-rose-600 dark:text-rose-400" stat={stats.pathao ?? { total: 0, success: 0, cancel: 0 }} />
-      <CourierCard label="RedX" titleColor="text-orange-600 dark:text-orange-400" stat={stats.redx ?? { total: 0, success: 0, cancel: 0 }} />
-      <CourierCard label="Steadfast" titleColor="text-amber-600 dark:text-amber-400" stat={stats.steadfast ?? { total: 0, success: 0, cancel: 0 }} />
-
-      <div className="relative rounded-lg border bg-card overflow-hidden min-h-[148px] flex flex-col">
-        <div className="px-3 pt-2.5 pb-2 flex-1">
-          <div className="text-xs font-bold mb-1.5 text-rose-600 dark:text-rose-400">SteadFast Fraud Note</div>
-          {fraudNote ? (
-            <p className="text-[11px] leading-snug text-foreground/80 line-clamp-6 whitespace-pre-wrap">{fraudNote}</p>
-          ) : (
-            <p className="text-[11px] italic text-muted-foreground/50">No fraud notes</p>
-          )}
-        </div>
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
+      <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
+        {columns.map((c) => {
+          const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
+          const denom = s.success + s.cancel;
+          const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
+          const isEmpty = s.total === 0;
+          const tone = isEmpty
+            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
+            : successPct >= 80
+              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]" }
+              : successPct >= 50
+                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]" }
+                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]" };
+          const R = 15;
+          const C = 2 * Math.PI * R;
+          const offset = denom === 0 ? C : C * (1 - successPct / 100);
+          return (
+            <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
+              <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
+              <div className="relative space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
+                    <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
+                      <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
+                      <circle
+                        cx="18" cy="18" r={R}
+                        className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={C}
+                        strokeDashoffset={offset}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>
+                        {denom === 0 ? "—" : `${successPct}%`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-xs tabular-nums leading-tight space-y-1">
+                    <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
+                      {denom === 0 ? "no data" : `${successPct}% success`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
+                      <span className="font-semibold text-foreground">{s.success}<span className="text-muted-foreground/50">/{denom || s.total}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Rating</span>
+                      <span className="font-semibold text-foreground">{s.success}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -309,7 +284,7 @@ function OrderDetailsPage() {
       </div>
 
       {/* Courier stats strip */}
-      <StatsStrip stats={stats} customerName={customerName(order)} fraudNote={order.admin_notes ?? null} />
+      <StatsStrip stats={stats} />
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
