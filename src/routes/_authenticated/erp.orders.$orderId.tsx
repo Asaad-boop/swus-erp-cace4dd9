@@ -330,6 +330,7 @@ function OrderDetailsPage() {
 
   const order = data?.order;
   const items = data?.items ?? [];
+  const notes = data?.notes ?? [];
   const phone = order ? normalizePhone(customerPhone(order)) : "";
 
   /* ------------------------------ Local form state ------------------------- */
@@ -753,7 +754,12 @@ function OrderDetailsPage() {
       const { error } = await supabase.rpc("add_order_note", { _order_id: orderId, _body: form.note_input, _is_internal: true });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Note added"); setForm((f) => ({ ...f, note_input: "" })); invalidate(); },
+    onSuccess: () => {
+      toast.success("Note added");
+      setForm((f) => ({ ...f, note_input: "" }));
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -1154,6 +1160,16 @@ function OrderDetailsPage() {
                 <label className="text-[11px] text-muted-foreground">Note</label>
                 <Textarea rows={2} value={form.note_input} onChange={(e) => setForm({ ...form, note_input: e.target.value })} placeholder="Internal note…" className="text-xs resize-none" />
                 <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!form.note_input.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add Note</Button>
+                {notes.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {notes.slice(0, 4).map((n) => (
+                      <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs">
+                        <div className="text-[10px] text-muted-foreground">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
+                        <div className="whitespace-pre-wrap leading-snug">{n.body}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Reminder SMS queued")}>Send Reminder SMS</Button>
