@@ -73,6 +73,13 @@ type CourierBreakdown = {
   found: boolean;
 };
 
+function normalizePhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880")) return "0" + digits.slice(3);
+  if (digits.length === 10 && digits.startsWith("1")) return "0" + digits;
+  return digits;
+}
+
 const STATUS_ACCENT: Record<string, string> = {
   processing: "bg-blue-500",
   incomplete: "bg-orange-500",
@@ -200,7 +207,7 @@ function WebOrdersPage() {
   const rows = data ?? [];
 
   // customer breakdown by phone — historical totals across all orders in this brand
-  const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
+  const phones = Array.from(new Set(rows.map((r) => normalizePhone(r.shipping_phone ?? r.guest_phone ?? "")).filter(Boolean)));
   const { data: breakdowns } = useQuery({
     queryKey: ["customer-breakdown", activeBrand?.id, phones.sort().join(",")],
     enabled: !!activeBrand?.id && phones.length > 0,
@@ -249,6 +256,7 @@ function WebOrdersPage() {
           else if (p.name === "steadfast") result.steadfast = stat;
         });
         map.set(phone, result);
+        map.set(normalizePhone(phone), result);
       });
       return map;
     },
@@ -262,7 +270,7 @@ function WebOrdersPage() {
 
   const emptyProvider: ProviderStat = { total: 0, success: 0, cancelled: 0 };
   const getCourier = (r: WebOrderRow): CourierBreakdown => {
-    const phone = r.shipping_phone ?? r.guest_phone;
+    const phone = normalizePhone(r.shipping_phone ?? r.guest_phone ?? "");
     if (!phone) return { pathao: emptyProvider, steadfast: emptyProvider, found: false };
     return courierHistory?.get(phone) ?? { pathao: emptyProvider, steadfast: emptyProvider, found: false };
   };
