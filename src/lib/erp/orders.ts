@@ -94,6 +94,7 @@ export function statusBadge(s: string) {
 
 export type OrderRow = {
   id: string;
+  invoice_no: string | null;
   created_at: string;
   status: OrderStatus;
   confirmation_status: ConfirmationStatus;
