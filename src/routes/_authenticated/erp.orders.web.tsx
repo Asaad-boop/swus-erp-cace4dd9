@@ -111,32 +111,25 @@ function initials(name: string) {
 
 function SuccessBlock({ total, success }: { total: number; success: number }) {
   const pct = total > 0 ? Math.round((success / total) * 100) : 0;
-  const pctClass = total === 0
-    ? "text-muted-foreground/50"
+  const tone = total === 0
+    ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
     : pct >= 80
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_12px_-2px_rgba(16,185,129,0.35)]" }
       : pct >= 50
-        ? "text-amber-600 dark:text-amber-400"
-        : "text-rose-600 dark:text-rose-400";
-  const ringStroke = total === 0
-    ? "stroke-muted-foreground/30"
-    : pct >= 80
-      ? "stroke-emerald-500"
-      : pct >= 50
-        ? "stroke-amber-500"
-        : "stroke-rose-500";
+        ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_12px_-2px_rgba(245,158,11,0.35)]" }
+        : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_12px_-2px_rgba(244,63,94,0.35)]" };
   if (total === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
   const R = 15;
   const C = 2 * Math.PI * R;
   const offset = C * (1 - pct / 100);
   return (
     <div className="flex items-center gap-3">
-      <div className="relative shrink-0">
-        <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
-          <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/60" strokeWidth="3" />
+      <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
+        <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
+          <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
           <circle
             cx="18" cy="18" r={R}
-            className={cn("fill-none transition-all duration-500", ringStroke)}
+            className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
             strokeWidth="3"
             strokeLinecap="round"
             strokeDasharray={C}
@@ -144,20 +137,19 @@ function SuccessBlock({ total, success }: { total: number; success: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn("text-[10px] font-bold tabular-nums", pctClass)}>{pct}%</span>
+          <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>{pct}%</span>
         </div>
       </div>
-      <div className="text-xs tabular-nums leading-[1.35] space-y-px">
-        <div className="flex items-baseline gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Success</span>
-          <span className={cn("font-bold", pctClass)}>{pct}%</span>
+      <div className="text-xs tabular-nums leading-tight space-y-1">
+        <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
+          {pct}% success
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
+          <span className="font-semibold text-foreground">{success}<span className="text-muted-foreground/50">/{total}</span></span>
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Order</span>
-          <span className="font-semibold text-foreground">{success}<span className="text-muted-foreground/60">/{total}</span></span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Rating</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Rating</span>
           <span className="font-semibold text-foreground">{success}</span>
         </div>
       </div>
