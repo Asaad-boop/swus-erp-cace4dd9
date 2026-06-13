@@ -2,7 +2,8 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { LayoutDashboard, ShoppingCart, Boxes, Wallet, Truck, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const nav = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const nav: NavItem[] = [
   { to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/erp/orders", label: "Orders", icon: ShoppingCart },
   { to: "/erp/inventory", label: "Inventory", icon: Boxes },
@@ -10,7 +11,7 @@ const nav = [
   { to: "/erp/courier", label: "Courier", icon: Truck },
   { to: "/erp/suppliers", label: "Suppliers", icon: Users },
   { to: "/erp/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 export function ErpSidebar() {
   const location = useLocation();
@@ -26,7 +27,7 @@ export function ErpSidebar() {
           return (
             <Link
               key={to}
-              to={to}
+              to={to as never}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 active
