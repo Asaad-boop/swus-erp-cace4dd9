@@ -1,7 +1,7 @@
-import { CheckCheck, Phone, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import type { OrderStatus } from "@/lib/erp/orders";
 
 type Props = {
@@ -16,8 +16,16 @@ type Props = {
 
 export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, isPending }: Props) {
   const disabled = selectedCount === 0;
+  const [open, setOpen] = useState(false);
+
+  // Auto-open when user selects rows; auto-close when selection cleared.
+  useEffect(() => {
+    if (selectedCount > 0) setOpen(true);
+    else setOpen(false);
+  }, [selectedCount]);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 gap-1.5">
           <span className="font-semibold">Actions</span>
@@ -49,11 +57,6 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
             <Loader2 className="h-3 w-3 animate-spin" /> Updating…
           </div>
         )}
-
-        <div className="p-2">
-          <ActionRow icon={Phone} label="Open Approved Auto Call" disabled />
-        </div>
-        <Separator />
 
         <Section label="Print Options">
           <div className="grid grid-cols-2 gap-1.5">
