@@ -211,7 +211,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
   return (
     <div className="bg-card overflow-x-auto">
       <Table>
-        <TableHeader className="bg-muted/30">
+        <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur">
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className="hover:bg-transparent border-b">
               {hg.headers.map((h) => (
