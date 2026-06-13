@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { useState } from "react";
-import { User, Phone, MapPin, Package, MessageSquare, Clock, Loader2 } from "lucide-react";
+import { User, Phone, MapPin, Package, MessageSquare, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,35 +92,116 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
 
   return (
     <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0">
+      <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] overflow-hidden p-0 gap-0 border-border/60">
         {isLoading || !order ? (
           <div className="flex items-center justify-center h-60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
-            <DialogHeader className="px-6 pt-6 pb-5 bg-gradient-to-br from-muted/60 to-background border-b">
-              <div className="flex items-start justify-between gap-3">
-                <div className="text-left space-y-1">
-                  <DialogTitle className="font-mono text-2xl tracking-tight">#{shortId(order.id)}</DialogTitle>
-                  <DialogDescription className="text-xs">
-                    {format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} · Source: {order.source ?? "—"}
-                  </DialogDescription>
+            <DialogHeader className="px-6 pt-5 pb-4 bg-gradient-to-r from-primary/10 via-background to-background border-b">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="h-11 w-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                    <Hash className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <DialogTitle className="font-mono text-xl tracking-tight">#{shortId(order.id)}</DialogTitle>
+                    <DialogDescription className="text-[11px] flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")}</span>
+                      <span className="text-muted-foreground/50">·</span>
+                      <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" />{order.source ?? "—"}</span>
+                    </DialogDescription>
+                  </div>
                 </div>
-                <Badge className={statusBadge(order.status).className + " text-xs px-2.5 py-1"}>{statusBadge(order.status).label}</Badge>
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                    <div className="text-xl font-bold tabular-nums">৳ {Number(order.total).toLocaleString()}</div>
+                  </div>
+                  <Badge className={statusBadge(order.status).className + " text-xs px-3 py-1 rounded-full"}>{statusBadge(order.status).label}</Badge>
+                </div>
               </div>
             </DialogHeader>
 
-            <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[calc(90vh-110px)]">
-              {/* Status + Assignment */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-                  {mode === "web" ? (
+            <div className="overflow-y-auto max-h-[calc(92vh-90px)] bg-muted/20">
+              <div className="grid lg:grid-cols-3 gap-4 p-5">
+                {/* LEFT — Customer + Items (2 cols) */}
+                <div className="lg:col-span-2 space-y-4">
+                  {/* Customer */}
+                  <section className="rounded-xl border bg-card p-4 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5"><User className="h-3.5 w-3.5" />Customer</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="text-base font-semibold">{customerName(order)}</div>
+                      <a href={`tel:${customerPhone(order)}`} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium tabular-nums">{customerPhone(order)}</span>
+                      </a>
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span className="leading-relaxed">{order.shipping_address}, {[order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ")}</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Items */}
+                  <section className="rounded-xl border bg-card p-4 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5"><Package className="h-3.5 w-3.5" />Items ({items.length})</h3>
+                    <div className="space-y-2">
+                      {items.map((it) => (
+                        <div key={it.id} className="flex justify-between gap-3 text-sm p-2.5 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{it.name}</div>
+                            {it.variant_label && <div className="text-xs text-muted-foreground mt-0.5">{it.variant_label}</div>}
+                            <div className="text-xs text-muted-foreground mt-0.5 tabular-nums">Qty: <span className="font-semibold text-foreground">{it.quantity}</span> × ৳ {Number(it.unit_price ?? it.price).toLocaleString()}</div>
+                          </div>
+                          <div className="font-bold whitespace-nowrap tabular-nums">৳ {Number(it.line_total ?? Number(it.price) * it.quantity).toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-3 border-t space-y-1.5 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">৳ {Number(order.subtotal).toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">৳ {Number(order.shipping_fee).toLocaleString()}</span></div>
+                      {Number(order.discount_amount) > 0 && (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− ৳ {Number(order.discount_amount).toLocaleString()}</span></div>
+                      )}
+                      <div className="flex justify-between font-bold text-base pt-2 mt-1 border-t"><span>Total</span><span className="tabular-nums text-primary">৳ {Number(order.total).toLocaleString()}</span></div>
+                    </div>
+                  </section>
+
+                  {/* Timeline */}
+                  <section className="rounded-xl border bg-card p-4 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Status Timeline</h3>
+                    {history.length > 0 ? (
+                      <div className="space-y-3 relative before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-px before:bg-border">
+                        {history.map((h) => (
+                          <div key={h.id} className="text-xs flex items-start gap-3 relative">
+                            <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-background mt-0.5 shrink-0 z-10" />
+                            <div className="flex-1 pb-0.5">
+                              <div className="text-sm"><span className="capitalize text-muted-foreground">{(h.from_status ?? "—").replace(/_/g, " ")}</span> <span className="text-muted-foreground/50">→</span> <span className="font-semibold capitalize">{(h.to_status ?? "").replace(/_/g, " ")}</span></div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">{format(new Date(h.created_at), "dd MMM, hh:mm a")}</div>
+                              {h.note && <div className="text-xs text-muted-foreground italic mt-0.5">"{h.note}"</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No status changes recorded yet</p>
+                    )}
+                  </section>
+                </div>
+
+                {/* RIGHT — Actions + Notes */}
+                <div className="space-y-4">
+                  {/* Status + Assign */}
+                  <section className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><ListChecks className="h-3.5 w-3.5" />Manage</h3>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground mb-1.5 block">Status</label>
+                      {mode === "web" ? (
                     <Select
                       value={(order as { web_status?: string | null }).web_status ?? "processing"}
                       disabled={updateWebStatus.isPending}
                       onValueChange={(v) => updateWebStatus.mutate(v)}
                     >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {WEB_STATUS_OPTIONS.map((o) => (
                           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -129,7 +210,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     </Select>
                   ) : (
                     <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {STATUS_GROUPS.map((g) => (
                           <div key={g.key}>
@@ -146,117 +227,55 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                       </SelectContent>
                     </Select>
                   )}
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned to</label>
-                  <Select
-                    value={order.assigned_to ?? "none"}
-                    disabled={assignStaff.isPending}
-                    onValueChange={(v) => assignStaff.mutate(v === "none" ? null : v)}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Unassigned —</SelectItem>
-                      {staff.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.display_name ?? s.id.slice(0, 8)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground mb-1.5 flex items-center gap-1"><UserCog className="h-3 w-3" />Assigned to</label>
+                      <Select
+                        value={order.assigned_to ?? "none"}
+                        disabled={assignStaff.isPending}
+                        onValueChange={(v) => assignStaff.mutate(v === "none" ? null : v)}
+                      >
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— Unassigned —</SelectItem>
+                          {staff.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.display_name ?? s.id.slice(0, 8)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </section>
+
+                  {/* Notes */}
+                  <section className="rounded-xl border bg-card p-4 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" />Notes</h3>
+                    <div className="space-y-2 mb-3">
+                      <Textarea
+                        placeholder="Add internal note…"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        rows={2}
+                        className="resize-none text-sm"
+                      />
+                      <Button size="sm" className="w-full gap-1.5" disabled={!note.trim() || addNote.isPending} onClick={() => addNote.mutate()}>
+                        <Send className="h-3.5 w-3.5" />Add Note
+                      </Button>
+                    </div>
+                    {notes.length > 0 ? (
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {notes.map((n) => (
+                          <div key={n.id} className="p-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30 shadow-sm">
+                            <div className="text-[10px] font-medium text-muted-foreground mb-1 uppercase tracking-wide">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
+                            <div className="text-sm font-semibold text-foreground dark:text-amber-50 whitespace-pre-wrap leading-relaxed">{n.body}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic text-center py-3">No notes yet</p>
+                    )}
+                  </section>
                 </div>
               </div>
-
-              <Separator />
-
-              {/* Customer */}
-              <section>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1"><User className="h-4 w-4" />Customer</h3>
-                <div className="space-y-1 text-sm">
-                  <div>{customerName(order)}</div>
-                  <div className="flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3" />{customerPhone(order)}</div>
-                  <div className="flex items-start gap-1 text-muted-foreground">
-                    <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                    <span>{order.shipping_address}, {[order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ")}</span>
-                  </div>
-                </div>
-              </section>
-
-              <Separator />
-
-              {/* Items */}
-              <section>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1"><Package className="h-4 w-4" />Items ({items.length})</h3>
-                <div className="space-y-2">
-                  {items.map((it) => (
-                    <div key={it.id} className="flex justify-between gap-3 text-sm border rounded-md p-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{it.name}</div>
-                        {it.variant_label && <div className="text-xs text-muted-foreground">{it.variant_label}</div>}
-                        <div className="text-xs text-muted-foreground">Qty: {it.quantity} × ৳ {Number(it.unit_price ?? it.price).toLocaleString()}</div>
-                      </div>
-                      <div className="font-semibold whitespace-nowrap">৳ {Number(it.line_total ?? Number(it.price) * it.quantity).toLocaleString()}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>৳ {Number(order.subtotal).toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>৳ {Number(order.shipping_fee).toLocaleString()}</span></div>
-                  {Number(order.discount_amount) > 0 && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>− ৳ {Number(order.discount_amount).toLocaleString()}</span></div>
-                  )}
-                  <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>৳ {Number(order.total).toLocaleString()}</span></div>
-                </div>
-              </section>
-
-              <Separator />
-
-              {/* Notes */}
-              <section>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1"><MessageSquare className="h-4 w-4" />Notes</h3>
-                <div className="flex gap-2 mb-3">
-                  <Textarea
-                    placeholder="Add internal note…"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={2}
-                  />
-                  <Button size="sm" disabled={!note.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add</Button>
-                </div>
-                {notes.length > 0 ? (
-                  <div className="space-y-2">
-                    {notes.map((n) => (
-                      <div key={n.id} className="p-3 rounded-md border-l-4 border-l-primary bg-amber-50 dark:bg-amber-950/30 shadow-sm">
-                        <div className="text-[11px] font-medium text-muted-foreground mb-1">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
-                        <div className="text-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">{n.body}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No notes yet</p>
-                )}
-              </section>
-
-              <Separator />
-
-              {/* Timeline */}
-              <section>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1"><Clock className="h-4 w-4" />Status Timeline</h3>
-                {history.length > 0 ? (
-                  <div className="space-y-2">
-                    {history.map((h) => (
-                      <div key={h.id} className="text-xs flex items-start gap-2">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                        <div className="flex-1">
-                          <div><span className="capitalize">{(h.from_status ?? "—").replace(/_/g, " ")}</span> → <span className="font-medium capitalize">{(h.to_status ?? "").replace(/_/g, " ")}</span></div>
-                          <div className="text-muted-foreground">{format(new Date(h.created_at), "dd MMM, hh:mm a")}</div>
-                          {h.note && <div className="text-muted-foreground italic">{h.note}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No status changes recorded yet</p>
-                )}
-              </section>
             </div>
           </>
         )}
