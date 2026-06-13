@@ -209,12 +209,7 @@ function OrderDetailsPage() {
       </div>
 
       {/* Courier stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Our Record" total={stats.overall.total} success={stats.overall.success} cancel={stats.overall.cancel} accent="from-slate-900 to-slate-700" />
-        {COURIER_PROVIDERS.map((p) => (
-          <StatCard key={p.key} label={p.label} total={stats[p.key].total} success={stats[p.key].success} cancel={stats[p.key].cancel} accent={p.color} />
-        ))}
-      </div>
+      <StatsStrip stats={stats} />
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -340,20 +335,6 @@ function OrderDetailsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Assigned to</Label>
-              <Select
-                value={order.assigned_to ?? "none"}
-                disabled={assignStaff.isPending}
-                onValueChange={(v) => assignStaff.mutate(v === "none" ? null : v)}
-              >
-                <SelectTrigger className="h-8"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Unassigned —</SelectItem>
-                  {staff.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.display_name ?? s.id.slice(0, 8)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </SectionCard>
 
@@ -433,9 +414,10 @@ function OrderDetailsPage() {
             <div className="grid grid-cols-1 gap-1.5 text-xs">
               <Field label="Source" value={order.source ?? "—"} />
               <Field label="Site / Platform" value={order.source_platform ?? order.source_website ?? "—"} />
-              <Field label="Payment source" value={order.payment_source ?? "—"} />
-              <Field label="Coupon" value={order.coupon_code ?? "—"} mono />
-              <Field label="Customer IP" value={order.customer_ip ?? "—"} mono />
+              <Field label="Facebook Source" value="—" />
+              <Field label="Meta Ad Account" value="—" />
+              <Field label="Facebook Pixel" value="—" mono />
+              <Field label="Entry URL" value="—" mono />
             </div>
           </SectionCard>
 
