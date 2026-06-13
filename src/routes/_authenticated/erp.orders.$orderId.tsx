@@ -70,11 +70,29 @@ function StatsStrip({
   onRefresh: () => void;
   refreshing: boolean;
 }) {
+  // Hide cards without data: Our Record/RedX/Steadfast/Pathao hide if total===0.
+  // Overall always shown when any provider has data.
+  const visibleColumns = STAT_COLUMNS.filter((c) => {
+    const s = stats[c.key];
+    if (!s) return false;
+    if (c.key === "overall") {
+      return (stats.pathao?.total ?? 0) + (stats.redx?.total ?? 0) + (stats.steadfast?.total ?? 0) > 0;
+    }
+    return s.total > 0;
+  });
+  const showFraud = !!fraudNote.trim();
+  const cardCount = visibleColumns.length + (showFraud ? 1 : 0);
+  if (cardCount === 0) return null;
+  const gridCols = cardCount >= 5 ? "lg:grid-cols-6"
+    : cardCount === 4 ? "lg:grid-cols-4"
+    : cardCount === 3 ? "lg:grid-cols-3"
+    : cardCount === 2 ? "lg:grid-cols-2"
+    : "lg:grid-cols-1";
   return (
     <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y sm:divide-y-0 divide-border/60">
-        {STAT_COLUMNS.map((c) => {
-          const s = stats[c.key] ?? { total: 0, success: 0, cancel: 0 };
+      <div className={cn("grid grid-cols-2 sm:grid-cols-3 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
+        {visibleColumns.map((c) => {
+          const s = stats[c.key]!;
           const denom = s.success + s.cancel;
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
           const isEmpty = s.total === 0;
@@ -130,7 +148,8 @@ function StatsStrip({
             </div>
           );
         })}
-        {/* Fraud Note card */}
+        {/* Fraud Note card — only when data exists */}
+        {showFraud && (
         <div className="group relative px-3 py-3">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-500/[0.06] to-transparent opacity-60" />
           <div className="relative space-y-2">
@@ -143,14 +162,13 @@ function StatsStrip({
                 <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
               </button>
             </div>
-            <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">
-              {fraudNote || <span className="text-muted-foreground italic">No fraud notes for this customer.</span>}
-            </p>
+            <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">{fraudNote}</p>
           </div>
           <div className="relative mt-2 h-1 rounded-full bg-muted/40 overflow-hidden">
-            <div className={cn("h-full bg-fuchsia-500/70", !fraudNote && "opacity-30")} style={{ width: fraudNote ? "100%" : "0%" }} />
+            <div className="h-full bg-fuchsia-500/70" style={{ width: "100%" }} />
           </div>
         </div>
+        )}
       </div>
     </div>
   );
