@@ -488,6 +488,58 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const confirmOrder = useMutation({
+    mutationFn: async () => {
+      // 1) Persist any pending customer + pricing edits first
+      const subtotal = itemsSubtotal;
+      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
+      const updatePayload: Record<string, unknown> = {
+        shipping_phone: form.mobile,
+        shipping_name: form.name,
+        delivery_method: form.delivery_method || null,
+        shipping_address: form.address,
+        shipping_note: form.shipping_note,
+        delivery_city_id: form.city_id || null,
+        delivery_zone_id: form.zone_id || null,
+        delivery_area_id: form.area_id || null,
+        shipping_city: cities?.find((c) => c.id === form.city_id)?.name_en ?? order?.shipping_city ?? null,
+        shipping_thana: zones?.find((z) => z.id === form.zone_id)?.name_en ?? order?.shipping_thana ?? null,
+        source_platform: form.source_platform,
+        is_preorder: form.is_preorder,
+        is_cross_sale: form.is_cross_sale,
+        subtotal,
+        shipping_fee: Number(form.shipping_fee),
+        discount_amount: Number(form.discount),
+        advance_amount: Number(form.advance),
+        total,
+        web_status: "complete",
+      };
+      if (order?.is_guest_order) {
+        updatePayload.guest_name = form.name;
+        updatePayload.guest_phone = form.mobile;
+      }
+      const { error: upErr } = await supabase.from("orders").update(updatePayload).eq("id", orderId);
+      if (upErr) throw upErr;
+
+      // 2) Transition status -> confirmed (reserves stock + sets confirmed_at)
+      if (order?.status === "new") {
+        const { error: rpcErr } = await supabase.rpc("transition_order_status", {
+          _order_id: orderId,
+          _new_status: "confirmed" as OrderStatus,
+        });
+        if (rpcErr) throw rpcErr;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Order confirmed");
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+      navigate({ to: "/erp/orders/web" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const saveCustomer = useMutation({
     mutationFn: async () => {
       const payload = {
