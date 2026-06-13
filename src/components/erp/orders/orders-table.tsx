@@ -137,13 +137,13 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
   const table = useReactTable({ data: rows, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
-    <div className="rounded-lg border bg-card overflow-x-auto">
+    <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
+            <TableRow key={hg.id} className="hover:bg-transparent border-b">
               {hg.headers.map((h) => (
-                <TableHead key={h.id} className="text-xs font-semibold uppercase tracking-wide">
+                <TableHead key={h.id} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground h-10">
                   {flexRender(h.column.columnDef.header, h.getContext())}
                 </TableHead>
               ))}
@@ -169,11 +169,11 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer hover:bg-muted/40"
+                className="cursor-pointer hover:bg-muted/50 transition-colors border-b last:border-0"
                 onClick={() => onRowClick(row.original.id)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-2">
+                  <TableCell key={cell.id} className="py-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
