@@ -100,6 +100,28 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
+function SuccessRow({ label, dot, total, success, cancelled }: { label: string; dot: string; total: number; success: number; cancelled: number }) {
+  const pct = total > 0 ? Math.round((success / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dot)} />
+      <span className="text-foreground/80 font-medium w-14 shrink-0">{label}</span>
+      {total > 0 ? (
+        <>
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">{success}</span>
+          <span className="text-muted-foreground/60">/</span>
+          <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums">{cancelled}</span>
+          <span className="text-muted-foreground/60">·</span>
+          <span className="text-muted-foreground tabular-nums">{total}</span>
+          <span className="ml-auto text-foreground/70 font-semibold tabular-nums">{pct}%</span>
+        </>
+      ) : (
+        <span className="text-muted-foreground/50">—</span>
+      )}
+    </div>
+  );
+}
+
 function WebOrdersPage() {
   const { activeBrand } = useBrand();
   const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
