@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Phone, MapPin, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -314,16 +314,10 @@ function WebOrdersPage() {
                         <div className="min-w-0 text-xs space-y-0.5">
                           <div className="font-semibold text-foreground truncate">{name}</div>
                           {phone && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Phone className="h-3 w-3 shrink-0" />
-                              <span className="truncate font-mono">{phone}</span>
-                            </div>
+                            <div className="text-muted-foreground truncate font-mono">{phone}</div>
                           )}
                           {address && (
-                            <div className="flex items-start gap-1 text-muted-foreground">
-                              <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
-                              <span className="line-clamp-2 leading-tight">{address}</span>
-                            </div>
+                            <div className="text-muted-foreground line-clamp-2 leading-tight">{address}</div>
                           )}
                         </div>
                       </div>
@@ -421,13 +415,20 @@ function WebOrdersPage() {
 
                     {/* Site */}
                     <TableCell className="py-4">
-                      {siteLabel ? (
-                        <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs font-medium text-foreground truncate max-w-[140px]">
-                          {siteLabel}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/60">—</span>
-                      )}
+                      <div className="flex flex-col gap-1 items-start">
+                        {activeBrand?.name && (
+                          <span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold ring-1 ring-primary/30">
+                            {activeBrand.name}
+                          </span>
+                        )}
+                        {siteLabel ? (
+                          <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                            {siteLabel}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/60">—</span>
+                        )}
+                      </div>
                     </TableCell>
 
                     {/* Actions */}
