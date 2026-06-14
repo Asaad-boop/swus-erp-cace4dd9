@@ -1,5 +1,5 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check, CheckCircle2, Hash } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check, CheckCircle2, Hash, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,13 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   pending_return: "returned",
   exchange: "exchanged",
 };
+
+function courierTrackingUrl(provider: string, tracking: string): string {
+  const t = encodeURIComponent(tracking);
+  if (provider.includes("pathao")) return `https://merchant.pathao.com/tracking?consignment_id=${t}`;
+  if (provider.includes("steadfast")) return `https://steadfast.com.bd/t/${t}`;
+  return `https://www.google.com/search?q=${t}+courier+tracking`;
+}
 
 type Props = {
   rows: OrderRow[];
@@ -218,15 +225,27 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
               <span className="text-xs font-medium">{o.courier_name}</span>
             )}
             {o.tracking_number && (
-              <button
-                onClick={(e) => { e.stopPropagation(); copyText(o.tracking_number!, "Consignment ID"); }}
-                className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-foreground w-fit"
-                title="Copy consignment ID"
-              >
-                <Hash className="h-2.5 w-2.5" />
-                {o.tracking_number}
-                <Copy className="h-2.5 w-2.5 opacity-60" />
-              </button>
+              <div className="inline-flex items-center gap-1 w-fit">
+                <a
+                  href={courierTrackingUrl(provider, o.tracking_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[10px] font-mono text-primary hover:underline"
+                  title="Open courier tracking"
+                >
+                  <Hash className="h-2.5 w-2.5" />
+                  {o.tracking_number}
+                  <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                </a>
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyText(o.tracking_number!, "Consignment ID"); }}
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground"
+                  title="Copy consignment ID"
+                >
+                  <Copy className="h-2.5 w-2.5" />
+                </button>
+              </div>
             )}
           </div>
         );
