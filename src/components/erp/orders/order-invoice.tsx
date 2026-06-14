@@ -26,11 +26,13 @@ export function PrintableInvoice({
   items,
   configOverride,
   visible,
+  bulk,
 }: {
   order: Record<string, any>;
   items: Item[];
   configOverride?: InvoiceConfig;
   visible?: boolean; // when true, render visibly (for live preview)
+  bulk?: boolean; // when true, omit #print-invoice id so multiple copies don't stack via the single-print CSS
 }) {
   const { activeBrand } = useBrand();
   const { data: cfgData } = useInvoiceConfig(activeBrand?.id);
@@ -85,7 +87,7 @@ export function PrintableInvoice({
     : TemplateInvoice;
 
   return (
-    <div id="print-invoice" className={wrapperBase}>
+    <div {...(bulk ? {} : { id: "print-invoice" })} className={wrapperBase}>
       <style>{`@media print { ${pageCss(cfg)} body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
       <div style={containerStyle} className="relative">
         {cfg.header.showWatermark && !isPos && (
