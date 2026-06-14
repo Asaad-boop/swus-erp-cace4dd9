@@ -340,6 +340,7 @@ function OrderDetailsPage() {
     city_id: "", zone_id: "", area_id: "",
     source_platform: "", is_preorder: false, is_cross_sale: false,
     discount: 0, advance: 0, shipping_fee: 0,
+    advance_source: "", advance_payment_number: "", advance_txn_id: "",
     note_input: "", tag_input: "",
   });
   const [baseline, setBaseline] = useState<typeof form | null>(null);
@@ -363,6 +364,9 @@ function OrderDetailsPage() {
         discount: Number(order.discount_amount ?? 0),
         advance: Number(order.advance_amount ?? 0),
         shipping_fee: Number(order.shipping_fee ?? 0),
+        advance_source: order.advance_source ?? "",
+        advance_payment_number: order.advance_payment_number ?? "",
+        advance_txn_id: order.advance_txn_id ?? "",
       };
       setBaseline(next);
       return next;
