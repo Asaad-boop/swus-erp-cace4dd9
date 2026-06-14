@@ -87,9 +87,15 @@ export function PrintableInvoice({
     : TemplateInvoice;
 
   return (
-    <div {...(bulk ? {} : { id: "print-invoice" })} className={wrapperBase}>
-      <style>{`@media print { ${pageCss(cfg)} body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
-      <div style={containerStyle} className="relative">
+    <div {...(bulk ? {} : { id: "print-invoice" })} className={`${wrapperBase} invoice-page`}>
+      <style>{`@media print {
+        ${pageCss(cfg)}
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-page { width: 100% !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box; }
+        .invoice-page .invoice-inner { padding: 0 !important; width: 100% !important; }
+        .invoice-page + .invoice-page { page-break-before: always; break-before: page; }
+      }`}</style>
+      <div style={containerStyle} className="relative invoice-inner">
         {cfg.header.showWatermark && !isPos && (
           <div
             aria-hidden
