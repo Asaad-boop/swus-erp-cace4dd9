@@ -321,7 +321,16 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     await supabase
       .from("orders")
-      .update({ courier_name: "pathao", courier_assigned_at: new Date().toISOString(), tracking_number: consignment ?? undefined })
+      .update({
+        courier_name: "pathao",
+        courier_assigned_at: new Date().toISOString(),
+        tracking_number: consignment ?? undefined,
+        ...(fee > 0 ? {
+          actual_shipping_cost: fee,
+          actual_shipping_source: "auto",
+          actual_shipping_recorded_at: new Date().toISOString(),
+        } : {}),
+      })
       .eq("id", order.id);
 
     return { shipmentId: shipment.id, consignment, tracking, fee, status };
@@ -510,6 +519,11 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
+        ...(fee > 0 ? {
+          actual_shipping_cost: fee,
+          actual_shipping_source: "auto",
+          actual_shipping_recorded_at: new Date().toISOString(),
+        } : {}),
       })
       .eq("id", order.id);
 

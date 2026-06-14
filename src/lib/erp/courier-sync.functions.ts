@@ -75,7 +75,7 @@ async function syncOne(
     tracking_number: string | null;
     brand_id: string | null;
   },
-  shipment: { provider: string; consignment_id: string | null; tracking_code: string | null } | null,
+  shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
   mappingOverrides?: CourierStatusMappingOverrides | null,
 ): Promise<CourierSyncResult> {
@@ -199,12 +199,12 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
 
     const { data: shipments } = await supabase
       .from("courier_shipments")
-      .select("order_id, provider, consignment_id, tracking_code, created_at")
+      .select("order_id, provider, consignment_id, tracking_code, delivery_fee, created_at")
       .in("order_id", data.orderIds)
       .order("created_at", { ascending: false });
 
-    const latestShipment = new Map<string, { provider: string; consignment_id: string | null; tracking_code: string | null }>();
-    for (const s of (shipments ?? []) as Array<{ order_id: string; provider: string; consignment_id: string | null; tracking_code: string | null }>) {
+    const latestShipment = new Map<string, { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>();
+    for (const s of (shipments ?? []) as Array<{ order_id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>) {
       if (!latestShipment.has(s.order_id)) latestShipment.set(s.order_id, s);
     }
 
@@ -240,6 +240,15 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
         batch.map((o) => syncOne(supabase, data.brandId ?? null, o, latestShipment.get(o.id) ?? null, overrideMap.get(o.id), mappingOverrides)),
       );
       results.push(...settled);
+    }
+
+    // Fallback: if track API didn't return a fee, use the fee captured at booking time.
+    for (const r of results) {
+      if (r.ok && (!r.actual_fee || r.actual_fee <= 0)) {
+        const ship = latestShipment.get(r.order_id);
+        const f = Number(ship?.delivery_fee ?? 0);
+        if (f > 0) r.actual_fee = f;
+      }
     }
 
     // Persist actual courier fees + write expense (skip orders manually overridden)
