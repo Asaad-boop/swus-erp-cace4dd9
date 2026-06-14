@@ -174,6 +174,35 @@ function NewOrderPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ── autofill from latest past order for this phone ───────────────────
+  const autofilledPhoneRef = useRef<string>("");
+  useEffect(() => {
+    if (!debouncedPhone || !pastOrders?.last) return;
+    if (autofilledPhoneRef.current === debouncedPhone) return;
+    const last = pastOrders.last as any;
+    let filled = 0;
+    if (!name.trim() && last.shipping_name) { setName(last.shipping_name); filled++; }
+    if (!address.trim() && last.shipping_address) { setAddress(last.shipping_address); filled++; }
+    if (!cityId && last.pathao_city_id) {
+      setCityId(Number(last.pathao_city_id));
+      setCityName(last.pathao_city_name ?? last.shipping_city ?? "");
+      filled++;
+    }
+    if (!zoneId && last.pathao_zone_id) {
+      setZoneId(Number(last.pathao_zone_id));
+      setZoneName(last.pathao_zone_name ?? "");
+      filled++;
+    }
+    if (!areaId && last.pathao_area_id) {
+      setAreaId(Number(last.pathao_area_id));
+      setAreaName(last.pathao_area_name ?? "");
+      filled++;
+    }
+    autofilledPhoneRef.current = debouncedPhone;
+    if (filled > 0) toast.success(`Previous info theke ${filled} field auto-fill holo`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedPhone, pastOrders]);
+
   // ── items ─────────────────────────────────────────────────────────────
   const [items, setItems] = useState<LineItem[]>([]);
   const [skuQuery, setSkuQuery] = useState("");
