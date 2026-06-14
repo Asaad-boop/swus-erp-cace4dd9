@@ -427,7 +427,7 @@ function Row({
           </Select>
         </div>
         {!r.ok && ph?.suggested && (
-          <div className="mt-1 text-[10px] text-muted-foreground">Phone history theke estimate</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">Phone history hint — manually select korun</div>
         )}
       </td>
     </tr>
