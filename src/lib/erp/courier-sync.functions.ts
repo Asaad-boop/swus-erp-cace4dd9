@@ -87,6 +87,8 @@ async function syncOne(
     tracking_number: string | null;
     brand_id: string | null;
     total: number | null;
+    pathao_city_id?: number | null;
+    shipping_city?: string | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
@@ -162,16 +164,23 @@ async function syncOne(
         : (collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0);
       const discount = extractFee(res, ["discount", "discount_amount"]) ?? 0;
       const promoDiscount = extractFee(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
+      // Pathao standard merchant discount: 15 tk inside Dhaka (city_id=1), 10 tk outside.
+      // /orders/info doesn't return this — apply it locally so the total matches portal.
+      const isInsideDhaka =
+        order.pathao_city_id === 1 ||
+        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
+      const standingDiscount = discount > 0 ? 0 : (isInsideDhaka ? 15 : 10);
+      const effectiveDiscount = discount + standingDiscount;
       const additional = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
       const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
       const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost"]);
-      const computed = deliveryFee + codFee + additional + compensation - discount - promoDiscount;
+      const computed = deliveryFee + codFee + additional + compensation - effectiveDiscount - promoDiscount;
       base.actual_fee = totalCost && totalCost > 0 ? totalCost : (computed > 0 ? computed : null);
       if (base.actual_fee && base.actual_fee > 0) {
         base.fee_breakdown = {
           delivery: deliveryFee,
           cod: codFee,
-          discount,
+          discount: effectiveDiscount,
           promo_discount: promoDiscount,
           additional,
           compensation,
@@ -234,7 +243,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,shipping_city",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;
