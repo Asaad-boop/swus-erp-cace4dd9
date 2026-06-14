@@ -950,40 +950,14 @@ function CustomerHistoryStrip({
 
         {/* Courier providers */}
         <div className="flex items-stretch gap-2">
-          <div className="flex items-center gap-1.5 self-center text-muted-foreground">
-            <Truck className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Courier</span>
+          <div className="flex flex-col items-center justify-center gap-1 self-stretch rounded-lg bg-gradient-to-b from-indigo-500/10 to-sky-500/5 px-2 py-1.5 text-indigo-600 dark:text-indigo-300">
+            <Truck className="h-4 w-4" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Courier</span>
             {loading && !courier && <Loader2 className="h-3 w-3 animate-spin" />}
           </div>
-          {(courier?.providers ?? []).map((p) => {
-            const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
-            const ptone = ppct == null ? { text: "text-muted-foreground", bar: "bg-slate-300", ring: "ring-slate-200" }
-              : ppct >= 80 ? { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", ring: "ring-emerald-200" }
-              : ppct >= 50 ? { text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500", ring: "ring-amber-200" }
-              : { text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500", ring: "ring-rose-200" };
-            return (
-              <div key={p.name} className={cn("flex w-[88px] flex-col gap-1 rounded-lg border bg-white/80 px-2 py-1.5 shadow-sm ring-1 ring-inset dark:bg-background/60", ptone.ring)}>
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{p.label}</span>
-                </div>
-                {p.ok ? (
-                  <>
-                    <div className="flex items-baseline justify-between gap-1">
-                      <span className={cn("text-sm font-extrabold tabular-nums", ptone.text)}>
-                        {ppct == null ? "—" : `${ppct}%`}
-                      </span>
-                      <span className="text-[10px] tabular-nums text-muted-foreground">{p.success}/{p.total}</span>
-                    </div>
-                    <div className="h-1 overflow-hidden rounded-full bg-muted">
-                      <div className={cn("h-full rounded-full transition-all", ptone.bar)} style={{ width: `${ppct ?? 0}%` }} />
-                    </div>
-                  </>
-                ) : (
-                  <span className="text-[11px] italic text-muted-foreground">N/A</span>
-                )}
-              </div>
-            );
-          })}
+          {(courier?.providers ?? []).map((p) => (
+            <CourierProviderCard key={p.name} provider={p} />
+          ))}
         </div>
 
         {/* Overall score badge */}
