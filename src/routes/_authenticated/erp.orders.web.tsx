@@ -208,6 +208,7 @@ function WebOrdersPage() {
   const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ["web-orders", activeBrand?.id, activeTab, search],
@@ -395,6 +396,42 @@ function WebOrdersPage() {
     return courierHistory?.get(phone) ?? { pathao: emptyProvider, steadfast: emptyProvider, found: false };
   };
 
+  // Compute auto-tags for every loaded row (cheap, sync)
+  const taggedRows = rows.map((r) => {
+    const items = r.items_summary ?? [];
+    const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
+    const tags = computeAutoTags(
+      {
+        total: r.total,
+        customer_note: r.customer_note,
+        notes: r.notes,
+        shipping_city: r.shipping_city,
+        call_attempt_count: r.call_attempt_count,
+        created_at: r.created_at,
+        status: r.web_status,
+        itemCount: items.length,
+        totalQty,
+      },
+      getBreakdown(r),
+      getCourier(r),
+    );
+    return { row: r, tags };
+  });
+
+  const filterOptions = buildFilterOptions(taggedRows.map((t) => t.tags));
+  const filteredRows = tagFilter.size === 0
+    ? taggedRows
+    : taggedRows.filter(({ tags }) => tags.some((t) => tagFilter.has(t.key)));
+
+  const toggleTagFilter = (k: AutoTagKey) => {
+    setTagFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -436,6 +473,13 @@ function WebOrdersPage() {
         })}
       </div>
 
+      <TagFilterBar
+        options={filterOptions}
+        selected={tagFilter}
+        onToggle={toggleTagFilter}
+        onClear={() => setTagFilter(new Set())}
+      />
+
       <div className="rounded-xl border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
@@ -445,7 +489,7 @@ function WebOrdersPage() {
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Note</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[240px]">Order Items</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[160px]">Success Rate</TableHead>
-              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[140px]">Tags</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Tags</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Site</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[110px]">Actions</TableHead>
             </TableRow>
@@ -459,14 +503,14 @@ function WebOrdersPage() {
                   ))}
                 </TableRow>
               ))
-            ) : rows.length === 0 ? (
+            ) : filteredRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  No web orders in this status
+                  {tagFilter.size > 0 ? "No orders match the selected tags" : "No web orders in this status"}
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((r) => {
+              filteredRows.map(({ row: r, tags: autoTags }) => {
                 const name = r.shipping_name ?? r.guest_name ?? "—";
                 const phone = r.shipping_phone ?? r.guest_phone ?? "";
                 const note = r.latest_order_note ?? r.latest_note ?? r.customer_note ?? r.notes ?? "";
@@ -475,7 +519,8 @@ function WebOrdersPage() {
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
                 const b = getBreakdown(r);
                 const courier = getCourier(r);
-                const accent = STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
+                const top = topTag(autoTags);
+                const accent = top?.accent ?? STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
                 return (
                   <TableRow
@@ -626,23 +671,7 @@ function WebOrdersPage() {
 
                     {/* Tags */}
                     <TableCell className="py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(r.tags ?? []).slice(0, 3).map((t) => (
-                          <span
-                            key={t}
-                            className={cn(
-                              "inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md",
-                              tagColor(t),
-                            )}
-                          >
-                            {t}
-                          </span>
-                        ))}
-                        {(r.tags?.length ?? 0) > 3 && (
-                          <span className="text-[10px] text-muted-foreground self-center">+{r.tags!.length - 3}</span>
-                        )}
-                        {(r.tags?.length ?? 0) === 0 && <span className="text-xs text-muted-foreground/60">—</span>}
-                      </div>
+                      <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={4} />
                     </TableCell>
 
                     {/* Site */}
