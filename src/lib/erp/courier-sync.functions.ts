@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { mapCourierStatus, normalizeCourierStatus, type CourierProvider } from "./courier-status-mapping";
+import {
+  mapCourierStatus,
+  normalizeCourierStatus,
+  type CourierProvider,
+  type CourierStatusMappingOverrides,
+} from "./courier-status-mapping";
 import type { OrderStatus } from "./orders";
 
 export type CourierSyncResult = {
