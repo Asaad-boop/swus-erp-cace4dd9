@@ -1,5 +1,5 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check, CheckCircle2, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -194,14 +194,43 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     },
     {
       header: "Courier",
-      cell: ({ row }) => (
-        <div className="text-xs whitespace-nowrap">
-          <div className="font-medium">{row.original.courier_name ?? <span className="text-muted-foreground/50">—</span>}</div>
-          {row.original.tracking_number && (
-            <div className="text-muted-foreground font-mono text-[10px]">{row.original.tracking_number}</div>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const o = row.original;
+        const uploaded = !!o.tracking_number;
+        const provider = (o.courier_name ?? "").toLowerCase();
+        const tone =
+          provider.includes("pathao")
+            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60"
+            : provider.includes("steadfast")
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60"
+            : "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60";
+        if (!o.courier_name && !uploaded) {
+          return <span className="text-muted-foreground/50 text-xs">—</span>;
+        }
+        return (
+          <div className="flex flex-col gap-1 whitespace-nowrap">
+            {uploaded ? (
+              <span className={cn("inline-flex items-center gap-1 pl-1.5 pr-2 h-5 rounded-full border text-[10px] font-bold uppercase tracking-wider w-fit shadow-sm", tone)}>
+                <CheckCircle2 className="h-3 w-3" strokeWidth={2.5} />
+                {o.courier_name ?? "Booked"}
+              </span>
+            ) : (
+              <span className="text-xs font-medium">{o.courier_name}</span>
+            )}
+            {o.tracking_number && (
+              <button
+                onClick={(e) => { e.stopPropagation(); copyText(o.tracking_number!, "Consignment ID"); }}
+                className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-foreground w-fit"
+                title="Copy consignment ID"
+              >
+                <Hash className="h-2.5 w-2.5" />
+                {o.tracking_number}
+                <Copy className="h-2.5 w-2.5 opacity-60" />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Source",
