@@ -54,7 +54,7 @@ function normalizePhone(raw: string | null): string | null {
 
 function suggestFromHistory(total: number, success: number, cancelled: number): OrderStatus | null {
   if (total === 0) return null;
-  if (success > 0) return "delivered";
+  if (success > 0) return "in_transit";
   if (cancelled > 0) return "cancelled";
   return null;
 }
