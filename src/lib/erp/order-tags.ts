@@ -3,14 +3,10 @@ import type { OrderRow } from "@/lib/erp/orders";
 export type AutoTagKey =
   | "fraud"
   | "risky"
-  | "vip"
+  | "priority"
+  | "old_customer"
   | "repeat"
-  | "new"
-  | "high_value"
-  | "bulk"
   | "no_response"
-  | "stale"
-  | "outside_dhaka"
   | "has_note";
 
 export type AutoTag = {
@@ -32,6 +28,7 @@ export type CustomerBreakdown = {
   confirmed: number;
   cancelled: number;
   returned?: number;
+  delivered?: number;
 };
 
 export type CourierStat = { total: number; success: number; cancelled: number };
@@ -55,15 +52,9 @@ export type TagInputRow = {
 };
 
 const HIGH_VALUE_THRESHOLD = 5000;
-const STALE_HOURS = 24;
-const STALE_STATUSES = new Set([
-  "processing",
-  "incomplete",
-  "good_but_no_response",
-  "no_response",
-  "pending",
-  "confirmed",
-]);
+const PRIORITY_AMOUNT = 3000;
+const PRIORITY_ITEM_COUNT = 3;
+const PRIORITY_TOTAL_QTY = 4;
 
 export function computeAutoTags(
   row: TagInputRow,
@@ -101,65 +92,52 @@ export function computeAutoTags(
     });
   }
 
-  // VIP / Repeat / New — prefer courier history, fall back to in-brand history.
-  const histSuccess = cSuccess || breakdown?.confirmed || 0;
-  const histTotal = cTotal || breakdown?.total || 0;
-
-  if (histSuccess >= 5) {
+  // Priority Customer — based on the CURRENT order's value or size.
+  const itemCount = row.itemCount ?? 0;
+  const totalQty = row.totalQty ?? 0;
+  const amount = typeof row.total === "number" ? row.total : 0;
+  const priorityReasons: string[] = [];
+  if (amount > PRIORITY_AMOUNT) priorityReasons.push(`৳${amount.toLocaleString()}`);
+  if (itemCount >= PRIORITY_ITEM_COUNT) priorityReasons.push(`${itemCount} items`);
+  if (totalQty >= PRIORITY_TOTAL_QTY) priorityReasons.push(`${totalQty} qty`);
+  if (priorityReasons.length > 0) {
     tags.push({
-      key: "vip",
-      label: "VIP",
+      key: "priority",
+      label: "Priority Customer",
       icon: "⭐",
       chip: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 ring-amber-500/30",
       accent: "bg-amber-500",
       priority: 3,
-      reason: `${histSuccess} successful deliveries · ${Math.round(successRate * 100) || ""}${successRate ? "% success" : ""}`.trim(),
+      reason: `High-value order · ${priorityReasons.join(" · ")}`,
     });
-  } else if (histTotal >= 2) {
+  }
+
+  // Old Customer — has at least one previously delivered order.
+  // Repeat   — has ordered before but nothing delivered yet.
+  // Counts subtract the current order so "prior" history is what matters.
+  const histDelivered = (breakdown?.delivered ?? 0) + (cSuccess ?? 0);
+  const histTotal = breakdown?.total ?? 0;
+  const priorOrders = Math.max(0, histTotal - 1); // current order is in histTotal
+
+  if (histDelivered >= 1) {
+    tags.push({
+      key: "old_customer",
+      label: "Old Customer",
+      icon: "🏅",
+      chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ring-emerald-500/30",
+      accent: "bg-emerald-500",
+      priority: 4,
+      reason: `${histDelivered} previously delivered order${histDelivered === 1 ? "" : "s"}`,
+    });
+  } else if (priorOrders >= 1) {
     tags.push({
       key: "repeat",
       label: "Repeat",
       icon: "🔁",
       chip: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 ring-violet-500/30",
       accent: "bg-violet-500",
-      priority: 4,
-      reason: `${histTotal} total orders from this customer`,
-    });
-  } else if (histTotal <= 1 && breakdown) {
-    tags.push({
-      key: "new",
-      label: "New",
-      icon: "🆕",
-      chip: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 ring-sky-500/30",
-      accent: "bg-sky-500",
-      priority: 7,
-      reason: "First-time customer",
-    });
-  }
-
-  if (typeof row.total === "number" && row.total >= HIGH_VALUE_THRESHOLD) {
-    tags.push({
-      key: "high_value",
-      label: "High Value",
-      icon: "💰",
-      chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ring-emerald-500/30",
-      accent: "bg-emerald-500",
       priority: 5,
-      reason: `Order total ৳${Number(row.total).toLocaleString()}`,
-    });
-  }
-
-  const itemCount = row.itemCount ?? 0;
-  const totalQty = row.totalQty ?? 0;
-  if (itemCount >= 3 || totalQty >= 5) {
-    tags.push({
-      key: "bulk",
-      label: "Bulk",
-      icon: "📦",
-      chip: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 ring-indigo-500/30",
-      accent: "bg-indigo-500",
-      priority: 6,
-      reason: `${itemCount} item${itemCount === 1 ? "" : "s"} · ${totalQty} qty`,
+      reason: `${priorOrders} prior order${priorOrders === 1 ? "" : "s"} from this customer`,
     });
   }
 
@@ -170,36 +148,8 @@ export function computeAutoTags(
       icon: "📞",
       chip: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 ring-orange-500/30",
       accent: "bg-orange-500",
-      priority: 8,
+      priority: 6,
       reason: `${row.call_attempt_count} failed call attempts`,
-    });
-  }
-
-  if (row.created_at && row.status && STALE_STATUSES.has(row.status)) {
-    const hours = (Date.now() - new Date(row.created_at).getTime()) / 3_600_000;
-    if (hours >= STALE_HOURS) {
-      tags.push({
-        key: "stale",
-        label: "Stale",
-        icon: "🕐",
-        chip: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300 ring-yellow-500/30",
-        accent: "bg-yellow-500",
-        priority: 9,
-        reason: `${Math.round(hours)}h in ${row.status?.replace(/_/g, " ")}`,
-      });
-    }
-  }
-
-  const city = (row.shipping_city ?? "").toLowerCase().trim();
-  if (city && !city.includes("dhaka")) {
-    tags.push({
-      key: "outside_dhaka",
-      label: "Outside Dhaka",
-      icon: "🏙️",
-      chip: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 ring-slate-500/30",
-      accent: "bg-slate-500",
-      priority: 10,
-      reason: `Shipping to ${row.shipping_city}`,
     });
   }
 
@@ -210,7 +160,7 @@ export function computeAutoTags(
       icon: "🎁",
       chip: "bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300 ring-pink-500/30",
       accent: "bg-pink-500",
-      priority: 11,
+      priority: 7,
       reason: "Customer left a note",
     });
   }
