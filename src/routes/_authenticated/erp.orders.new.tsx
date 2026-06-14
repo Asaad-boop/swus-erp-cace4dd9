@@ -921,7 +921,16 @@ function CustomerHistoryStrip({
     : pct >= 50 ? "from-amber-500/15 to-amber-500/0 text-amber-700 ring-amber-300/70 dark:text-amber-300"
     : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
 
-  const initials = (phone || "").slice(-2);
+  const navigate = useNavigate();
+  const lastOrderId = past?.last?.id ?? null;
+
+  const goToHistory = () => {
+    if (lastOrderId) {
+      navigate({ to: "/erp/orders/$orderId", params: { orderId: lastOrderId } });
+    } else if (phone) {
+      navigate({ to: "/erp/orders/list", search: { search: phone } as never });
+    }
+  };
 
   return (
     <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -929,8 +938,8 @@ function CustomerHistoryStrip({
         {/* Row 1: customer + inline stats + overall score */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xs font-bold text-white shadow ring-2 ring-white dark:ring-background">
-              {initials || <History className="h-4 w-4" />}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow ring-2 ring-white dark:ring-background">
+              <User2 className="h-5 w-5" strokeWidth={2.25} />
             </div>
             <div className="min-w-0 leading-tight">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
@@ -938,13 +947,26 @@ function CustomerHistoryStrip({
             </div>
           </div>
 
-          {/* Inline stats — no individual cards, just clean numbers with dividers */}
+          {/* Inline stats — hide zero values */}
           <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
-            <InlineStat label="Orders" value={past?.total ?? 0} />
-            <InlineStat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600 dark:text-emerald-400" />
-            <InlineStat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600 dark:text-rose-400" />
-            <InlineStat label="Returned" value={past?.returned ?? 0} tone="text-amber-600 dark:text-amber-400" />
-            <InlineStat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
+            {(past?.total ?? 0) > 0 && (
+              <InlineStat label="Orders" value={past!.total} onClick={goToHistory} hint={lastOrderId ? "View order" : "View history"} />
+            )}
+            {(past?.delivered ?? 0) > 0 && (
+              <InlineStat label="Delivered" value={past!.delivered} tone="text-emerald-600 dark:text-emerald-400" />
+            )}
+            {(past?.cancelled ?? 0) > 0 && (
+              <InlineStat label="Cancelled" value={past!.cancelled} tone="text-rose-600 dark:text-rose-400" />
+            )}
+            {(past?.returned ?? 0) > 0 && (
+              <InlineStat label="Returned" value={past!.returned} tone="text-amber-600 dark:text-amber-400" />
+            )}
+            {(past?.spent ?? 0) > 0 && (
+              <InlineStat label="Spent" value={`৳${past!.spent.toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
+            )}
+            {(past?.total ?? 0) === 0 && !loading && (
+              <span className="text-xs italic text-muted-foreground">New customer · প্রথম অর্ডার</span>
+            )}
           </div>
 
           {pct != null && (
@@ -987,11 +1009,31 @@ function CustomerHistoryStrip({
   );
 }
 
-function InlineStat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
-  return (
-    <div className="flex shrink-0 flex-col leading-tight">
+function InlineStat({ label, value, tone, onClick, hint }: { label: string; value: React.ReactNode; tone?: string; onClick?: () => void; hint?: string }) {
+  const content = (
+    <>
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className={cn("text-base font-extrabold tabular-nums", tone ?? "text-foreground")}>{value}</span>
+      <span className={cn("text-base font-extrabold tabular-nums leading-none", tone ?? "text-foreground")}>{value}</span>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={hint}
+        className="group flex shrink-0 flex-col items-start gap-0.5 rounded-md px-1.5 py-1 leading-tight transition-colors hover:bg-sky-100/60 dark:hover:bg-sky-900/30"
+      >
+        {content}
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-sky-400">
+          {hint ?? "Open"} <ArrowRight className="h-2.5 w-2.5" />
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div className="flex shrink-0 flex-col gap-0.5 leading-tight">
+      {content}
     </div>
   );
 }
