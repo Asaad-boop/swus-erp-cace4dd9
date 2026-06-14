@@ -1,6 +1,8 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 
 export type OrdersFilter = {
   brandId: string | null;
@@ -176,6 +178,41 @@ export function useCustomerHistory(phone: string | null, brandId: string | null,
         { total: 0, spent: 0, delivered: 0, cancelled: 0, returned: 0 },
       );
       return { rows, summary };
+    },
+  });
+}
+
+export type CourierProviderStat = {
+  name: "pathao" | "steadfast";
+  label: string;
+  total: number;
+  success: number;
+  cancelled: number;
+  ok: boolean;
+  error?: string;
+};
+
+export type CourierHistoryData = {
+  phone: string;
+  found: boolean;
+  fetched_at: string;
+  providers: CourierProviderStat[];
+  summary: { total: number; success: number; cancelled: number };
+};
+
+export function useCourierHistory(phone: string | null, brandId: string | null, enabled: boolean, force = false) {
+  const fn = useServerFn(fetchCourierHistoryFn);
+  const norm = (phone ?? "").replace(/\D/g, "");
+  return useQuery({
+    queryKey: ["courier-history", brandId, norm, force],
+    enabled: enabled && !!phone && norm.length >= 10,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+    queryFn: async () => {
+      const res = await fn({ data: { phones: [phone!], brandId: brandId ?? undefined, force } });
+      const r = res.results as Record<string, CourierHistoryData>;
+      return r[phone!] ?? r[norm] ?? null;
     },
   });
 }

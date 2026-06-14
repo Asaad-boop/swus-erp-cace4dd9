@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
-import { useCustomerHistory } from "@/hooks/erp/use-orders-query";
+import { useCustomerHistory, useCourierHistory, type CourierProviderStat } from "@/hooks/erp/use-orders-query";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -109,6 +112,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                     brandId={o.brand_id}
                     currentOrderId={o.id}
                   />
+                  <CourierRateBadge phone={phone} brandId={o.brand_id} />
                   <button
                     onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
                     className="p-0.5 rounded hover:bg-muted opacity-0 group-hover/row:opacity-100 transition-opacity"
@@ -452,6 +456,162 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "def
     default: "text-foreground",
     success: "text-emerald-600 dark:text-emerald-400",
     warn: "text-amber-600 dark:text-amber-400",
+    danger: "text-red-600 dark:text-red-400",
+  }[tone];
+  return (
+    <div>
+      <div className={cn("text-sm font-bold tabular-nums leading-none", toneCls)}>{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
+    </div>
+  );
+}
+
+function rateTone(rate: number | null): { text: string; bg: string; stroke: string; ring: string } {
+  if (rate === null) return { text: "text-muted-foreground", bg: "bg-muted", stroke: "stroke-muted-foreground/60", ring: "ring-border" };
+  if (rate >= 90) return { text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-500/15", stroke: "stroke-emerald-500", ring: "ring-emerald-500/30" };
+  if (rate >= 70) return { text: "text-amber-700 dark:text-amber-300", bg: "bg-amber-500/15", stroke: "stroke-amber-500", ring: "ring-amber-500/30" };
+  return { text: "text-red-700 dark:text-red-300", bg: "bg-red-500/15", stroke: "stroke-red-500", ring: "ring-red-500/30" };
+}
+
+function CourierRateBadge({ phone, brandId }: { phone: string; brandId: string | null }) {
+  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+  // Fetch eagerly so the % is visible at a glance. Server caches results for 24h.
+  const { data, isLoading, isFetching, error } = useCourierHistory(phone, brandId, true);
+  const summary = data?.summary;
+  const rate = summary && summary.total > 0 ? Math.round((summary.success / summary.total) * 100) : null;
+  const tone = rateTone(rate);
+
+  // Hide badge entirely if there's no data and nothing's loading (per design rule).
+  if (!isLoading && !isFetching && !error && rate === null) return null;
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["courier-history", brandId, phone.replace(/\D/g, "")] });
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          onClick={(e) => { e.stopPropagation(); }}
+          className={cn(
+            "inline-flex items-center h-[18px] px-1.5 rounded-md text-[10px] font-bold tabular-nums transition-colors ring-1",
+            tone.bg, tone.text, tone.ring,
+            (isLoading || isFetching) && "animate-pulse",
+          )}
+          title="Courier success rate"
+        >
+          {rate !== null ? `${rate}%` : isLoading || isFetching ? "…" : error ? "!" : "—"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        className="w-[300px] p-0 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Courier Success Rate</div>
+            <div className="font-mono text-xs mt-0.5">{phone}</div>
+          </div>
+          <button
+            onClick={refresh}
+            className="p-1 rounded hover:bg-muted text-muted-foreground"
+            title="Refresh"
+            disabled={isFetching}
+          >
+            <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
+          </button>
+        </div>
+
+        {isLoading && !data ? (
+          <div className="p-4 space-y-2">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : error ? (
+          <div className="p-4 text-xs text-destructive text-center">Failed to load history</div>
+        ) : !data || (data.providers ?? []).length === 0 ? (
+          <div className="p-4 text-xs text-muted-foreground text-center">No courier history</div>
+        ) : (
+          <>
+            <div className="px-3 py-3 flex items-center gap-3 border-b">
+              <Donut rate={rate} stroke={tone.stroke} size={64} />
+              <div className="flex-1 grid grid-cols-3 gap-1 text-center">
+                <MiniStat label="Total" value={summary!.total} tone="default" />
+                <MiniStat label="Success" value={summary!.success} tone="success" />
+                <MiniStat label="Cancel" value={summary!.cancelled} tone="danger" />
+              </div>
+            </div>
+            <div className="divide-y">
+              {data.providers.map((p) => (
+                <ProviderRow key={p.name} p={p} />
+              ))}
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ProviderRow({ p }: { p: CourierProviderStat }) {
+  const rate = p.ok && p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
+  const tone = rateTone(rate);
+  return (
+    <div className="flex items-center gap-3 px-3 py-2">
+      <Donut rate={rate} stroke={tone.stroke} size={36} compact />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-semibold">{p.label}</div>
+        {p.ok ? (
+          <div className="text-[10px] text-muted-foreground tabular-nums">
+            {p.success}/{p.total} delivered · {p.cancelled} cancelled
+          </div>
+        ) : (
+          <div className="text-[10px] text-destructive truncate">{p.error ?? "unavailable"}</div>
+        )}
+      </div>
+      <div className={cn("text-xs font-bold tabular-nums w-10 text-right", tone.text)}>
+        {rate !== null ? `${rate}%` : "—"}
+      </div>
+    </div>
+  );
+}
+
+function Donut({ rate, stroke, size = 64, compact = false }: { rate: number | null; stroke: string; size?: number; compact?: boolean }) {
+  const r = (size - 8) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = rate ?? 0;
+  const dash = (pct / 100) * c;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={compact ? 4 : 6} className="stroke-muted" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={compact ? 4 : 6}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c - dash}`}
+          className={cn("transition-all", stroke)}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className={cn("font-bold tabular-nums", compact ? "text-[9px]" : "text-xs")}>
+          {rate !== null ? `${rate}%` : "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: number; tone: "default" | "success" | "danger" }) {
+  const toneCls = {
+    default: "text-foreground",
+    success: "text-emerald-600 dark:text-emerald-400",
     danger: "text-red-600 dark:text-red-400",
   }[tone];
   return (
