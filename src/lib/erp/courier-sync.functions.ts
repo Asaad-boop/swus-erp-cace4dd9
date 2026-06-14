@@ -21,6 +21,7 @@ export type CourierSyncResult = {
   mapped_status: OrderStatus | null;
   actual_fee: number | null;
   fee_recorded: boolean;
+  fee_breakdown: { delivery: number; cod: number; extra: number; total: number } | null;
   ok: boolean;
   error?: string;
 };
