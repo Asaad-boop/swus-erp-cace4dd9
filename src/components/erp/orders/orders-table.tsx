@@ -308,7 +308,7 @@ function ProductsCell({ items }: { items: NonNullable<OrderRow["items"]> }) {
         >
           <div className="flex -space-x-2">
             {visible.map((it) => (
-              <Thumb key={it.id} src={it.image} name={it.name} />
+              <ItemThumbPopover key={it.id} item={it} />
             ))}
             {extra > 0 && (
               <div className="h-9 w-9 rounded-lg border-2 border-card bg-muted text-[10px] font-bold flex items-center justify-center text-muted-foreground shadow-sm">
