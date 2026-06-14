@@ -320,5 +320,58 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
         )}
       </DialogContent>
     </Dialog>
+
+    <Dialog open={advOpen} onOpenChange={setAdvOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Advance Payment</DialogTitle>
+          <DialogDescription>Customer kotota advance pay korlo, ki diye?</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Advance Amount (৳) <span className="text-rose-600">*</span></Label>
+            <Input type="number" min={1} autoFocus value={advAmount} onChange={(e) => setAdvAmount(e.target.value)} placeholder="e.g. 100" />
+          </div>
+          <div>
+            <Label>Payment Source <span className="text-rose-600">*</span></Label>
+            <Select value={advSource} onValueChange={setAdvSource}>
+              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bKash">bKash</SelectItem>
+                <SelectItem value="Nagad">Nagad</SelectItem>
+                <SelectItem value="Rocket">Rocket</SelectItem>
+                <SelectItem value="Upay">Upay</SelectItem>
+                <SelectItem value="Bank">Bank Transfer</SelectItem>
+                <SelectItem value="Card">Card</SelectItem>
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Payment Number / Last 4 Digits <span className="text-rose-600">*</span></Label>
+            <Input
+              inputMode="numeric"
+              maxLength={20}
+              value={advNumber}
+              onChange={(e) => setAdvNumber(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="e.g. 01712345678 or 5678"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">Full number ba last 4 digit — jeta accept koreche.</p>
+          </div>
+          <div>
+            <Label className="text-muted-foreground">Transaction ID <span className="text-muted-foreground/70">(optional)</span></Label>
+            <Input maxLength={50} value={advTxnId} onChange={(e) => setAdvTxnId(e.target.value)} placeholder="e.g. 9F7A2BX1Q" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setAdvOpen(false)}>Cancel</Button>
+          <Button disabled={updateWebStatus.isPending} onClick={submitAdvance} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {updateWebStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
