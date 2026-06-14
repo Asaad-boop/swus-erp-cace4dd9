@@ -16,6 +16,19 @@ async function clientForBrand(supabase: any, brandId?: string | null) {
   return createSteadfastClient(creds);
 }
 
+async function purgeCancelledShipments(supabase: any, orderId: string) {
+  const { data: rows } = await supabase
+    .from("courier_shipments")
+    .select("id, status")
+    .eq("order_id", orderId);
+  const ids = ((rows ?? []) as Array<{ id: string; status: string | null }>)
+    .filter((r) => /cancel/i.test(r.status ?? ""))
+    .map((r) => r.id);
+  if (ids.length > 0) {
+    await supabase.from("courier_shipments").delete().in("id", ids);
+  }
+}
+
 export const steadfastBalanceFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
@@ -55,6 +68,8 @@ export const steadfastBookOrderFn = createServerFn({ method: "POST" })
 
     if (!phone || phone.length < 11) throw new Error("Recipient phone must be 11 digits");
     if (!address) throw new Error("Recipient address is missing");
+
+    await purgeCancelledShipments(supabase, order.id);
 
     const invoice = order.id.slice(0, 8).toUpperCase() + "-" + Date.now().toString(36).slice(-4);
     const client = await clientForBrand(supabase, order.brand_id);
