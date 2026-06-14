@@ -921,7 +921,16 @@ function CustomerHistoryStrip({
     : pct >= 50 ? "from-amber-500/15 to-amber-500/0 text-amber-700 ring-amber-300/70 dark:text-amber-300"
     : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
 
-  const initials = (phone || "").slice(-2);
+  const navigate = useNavigate();
+  const lastOrderId = past?.last?.id ?? null;
+
+  const goToHistory = () => {
+    if (lastOrderId) {
+      navigate({ to: "/erp/orders/$orderId", params: { orderId: lastOrderId } });
+    } else if (phone) {
+      navigate({ to: "/erp/orders/list", search: { search: phone } as never });
+    }
+  };
 
   return (
     <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -929,8 +938,8 @@ function CustomerHistoryStrip({
         {/* Row 1: customer + inline stats + overall score */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xs font-bold text-white shadow ring-2 ring-white dark:ring-background">
-              {initials || <History className="h-4 w-4" />}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow ring-2 ring-white dark:ring-background">
+              <User2 className="h-5 w-5" strokeWidth={2.25} />
             </div>
             <div className="min-w-0 leading-tight">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
@@ -938,13 +947,26 @@ function CustomerHistoryStrip({
             </div>
           </div>
 
-          {/* Inline stats — no individual cards, just clean numbers with dividers */}
+          {/* Inline stats — hide zero values */}
           <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
-            <InlineStat label="Orders" value={past?.total ?? 0} />
-            <InlineStat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600 dark:text-emerald-400" />
-            <InlineStat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600 dark:text-rose-400" />
-            <InlineStat label="Returned" value={past?.returned ?? 0} tone="text-amber-600 dark:text-amber-400" />
-            <InlineStat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
+            {(past?.total ?? 0) > 0 && (
+              <InlineStat label="Orders" value={past!.total} onClick={goToHistory} hint={lastOrderId ? "View order" : "View history"} />
+            )}
+            {(past?.delivered ?? 0) > 0 && (
+              <InlineStat label="Delivered" value={past!.delivered} tone="text-emerald-600 dark:text-emerald-400" />
+            )}
+            {(past?.cancelled ?? 0) > 0 && (
+              <InlineStat label="Cancelled" value={past!.cancelled} tone="text-rose-600 dark:text-rose-400" />
+            )}
+            {(past?.returned ?? 0) > 0 && (
+              <InlineStat label="Returned" value={past!.returned} tone="text-amber-600 dark:text-amber-400" />
+            )}
+            {(past?.spent ?? 0) > 0 && (
+              <InlineStat label="Spent" value={`৳${past!.spent.toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
+            )}
+            {(past?.total ?? 0) === 0 && !loading && (
+              <span className="text-xs italic text-muted-foreground">New customer · প্রথম অর্ডার</span>
+            )}
           </div>
 
           {pct != null && (
@@ -987,28 +1009,48 @@ function CustomerHistoryStrip({
   );
 }
 
-function InlineStat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
-  return (
-    <div className="flex shrink-0 flex-col leading-tight">
+function InlineStat({ label, value, tone, onClick, hint }: { label: string; value: React.ReactNode; tone?: string; onClick?: () => void; hint?: string }) {
+  const content = (
+    <>
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className={cn("text-base font-extrabold tabular-nums", tone ?? "text-foreground")}>{value}</span>
+      <span className={cn("text-base font-extrabold tabular-nums leading-none", tone ?? "text-foreground")}>{value}</span>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={hint}
+        className="group flex shrink-0 flex-col items-start gap-0.5 rounded-md px-1.5 py-1 leading-tight transition-colors hover:bg-sky-100/60 dark:hover:bg-sky-900/30"
+      >
+        {content}
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-sky-400">
+          {hint ?? "Open"} <ArrowRight className="h-2.5 w-2.5" />
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div className="flex shrink-0 flex-col gap-0.5 leading-tight">
+      {content}
     </div>
   );
 }
 
 type ProviderRow = { name: string; label: string; ok: boolean; total: number; success: number; cancelled: number };
 
-const PROVIDER_THEME: Record<string, { from: string; to: string; ring: string; chip: string; dot: string }> = {
-  pathao:    { from: "from-emerald-500/15", to: "to-emerald-500/0",  ring: "ring-emerald-300/60",  chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
-  steadfast: { from: "from-violet-500/15",  to: "to-violet-500/0",   ring: "ring-violet-300/60",   chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300",     dot: "bg-violet-500" },
-  redx:      { from: "from-rose-500/15",    to: "to-rose-500/0",     ring: "ring-rose-300/60",     chip: "bg-rose-500/15 text-rose-700 dark:text-rose-300",           dot: "bg-rose-500" },
-  paperfly:  { from: "from-sky-500/15",     to: "to-sky-500/0",      ring: "ring-sky-300/60",      chip: "bg-sky-500/15 text-sky-700 dark:text-sky-300",              dot: "bg-sky-500" },
-  ecourier:  { from: "from-amber-500/15",   to: "to-amber-500/0",    ring: "ring-amber-300/60",    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300",        dot: "bg-amber-500" },
+const PROVIDER_THEME: Record<string, { badge: string; ring: string; text: string; dot: string }> = {
+  pathao:    { badge: "bg-gradient-to-br from-emerald-500 to-teal-600",  ring: "ring-emerald-300/70 dark:ring-emerald-700/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  steadfast: { badge: "bg-gradient-to-br from-violet-500 to-purple-600", ring: "ring-violet-300/70 dark:ring-violet-700/40",   text: "text-violet-700 dark:text-violet-300",   dot: "bg-violet-500" },
+  redx:      { badge: "bg-gradient-to-br from-rose-500 to-red-600",      ring: "ring-rose-300/70 dark:ring-rose-700/40",       text: "text-rose-700 dark:text-rose-300",       dot: "bg-rose-500" },
+  paperfly:  { badge: "bg-gradient-to-br from-sky-500 to-blue-600",      ring: "ring-sky-300/70 dark:ring-sky-700/40",         text: "text-sky-700 dark:text-sky-300",         dot: "bg-sky-500" },
+  ecourier:  { badge: "bg-gradient-to-br from-amber-500 to-orange-600",  ring: "ring-amber-300/70 dark:ring-amber-700/40",     text: "text-amber-700 dark:text-amber-300",     dot: "bg-amber-500" },
 };
 
 function CourierProviderChip({ provider }: { provider: ProviderRow }) {
   const key = provider.name.toLowerCase();
-  const theme = PROVIDER_THEME[key] ?? { from: "", to: "", ring: "ring-border", chip: "bg-muted text-muted-foreground", dot: "bg-slate-400" };
+  const theme = PROVIDER_THEME[key] ?? { badge: "bg-slate-500", ring: "ring-border", text: "text-foreground", dot: "bg-slate-400" };
   const pct = provider.total > 0 ? Math.round((provider.success / provider.total) * 100) : null;
 
   const scoreTone =
@@ -1025,23 +1067,36 @@ function CourierProviderChip({ provider }: { provider: ProviderRow }) {
 
   if (!provider.ok) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed bg-muted/30 px-2.5 py-1">
-        <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{provider.label}</span>
-        <span className="text-[10px] italic text-muted-foreground/70">N/A</span>
+      <div className="inline-flex items-center gap-2 rounded-full border border-dashed bg-muted/30 py-1 pl-1 pr-3">
+        <span className={cn("flex h-5 items-center rounded-full px-2 text-[9px] font-extrabold uppercase tracking-wider text-white opacity-60", theme.badge)}>
+          {provider.label}
+        </span>
+        <span className="text-[10px] italic text-muted-foreground/70">No data</span>
       </div>
     );
   }
 
   return (
-    <div className={cn("inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1 ring-1 ring-inset", theme.ring)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/80">{provider.label}</span>
-      <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full transition-all", barTone)} style={{ width: `${pct ?? 0}%` }} />
+    <div className={cn(
+      "inline-flex items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 shadow-sm ring-1 ring-inset transition-all hover:shadow-md",
+      theme.ring,
+    )}>
+      <span className={cn(
+        "flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm",
+        theme.badge,
+      )}>
+        <Truck className="h-3 w-3" />
+        {provider.label}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
+          <div className={cn("h-full rounded-full transition-all", barTone)} style={{ width: `${pct ?? 0}%` }} />
+        </div>
+        <span className={cn("text-sm font-extrabold tabular-nums leading-none", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
       </div>
-      <span className={cn("text-xs font-extrabold tabular-nums", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
-      <span className="text-[10px] tabular-nums text-muted-foreground">{provider.success}/{provider.total}</span>
+      <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+        {provider.success}/{provider.total}
+      </span>
     </div>
   );
 }
