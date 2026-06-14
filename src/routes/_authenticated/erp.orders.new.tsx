@@ -79,7 +79,7 @@ function NewOrderPage() {
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
 
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
-  const total = Math.max(0, subtotal + Number(shipping) - Number(discount));
+  const total = Math.max(0, subtotal + Number(shipping) - Number(discount) - Number(advance));
 
   const create = useMutation({
     mutationFn: async () => {
@@ -300,8 +300,8 @@ function NewOrderPage() {
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>৳ {subtotal.toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>৳ {Number(shipping).toLocaleString()}</span></div>
               {Number(discount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>− ৳ {Number(discount).toLocaleString()}</span></div>}
+              {Number(advance) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Advance</span><span>− ৳ {Number(advance).toLocaleString()}</span></div>}
               <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span>৳ {total.toLocaleString()}</span></div>
-              {Number(advance) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>Due after advance</span><span>৳ {Math.max(0, total - Number(advance)).toLocaleString()}</span></div>}
             </CardContent>
           </Card>
 
