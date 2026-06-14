@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, RefreshCw, AlertCircle, ArrowRight, Check } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, ArrowRight, Check, Phone, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -21,6 +21,17 @@ import { useBrand } from "@/contexts/brand-context";
 import { ORDER_STATUSES, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { syncCourierStatusFn, type CourierSyncResult } from "@/lib/erp/courier-sync.functions";
 import type { CourierProvider } from "@/lib/erp/courier-status-mapping";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
+
+type PhoneHistory = {
+  loading: boolean;
+  found: boolean;
+  total: number;
+  success: number;
+  cancelled: number;
+  suggested: OrderStatus | null;
+  error?: string;
+};
 
 type RowState = {
   result: CourierSyncResult;
@@ -29,7 +40,24 @@ type RowState = {
   manualProvider: CourierProvider;
   manualId: string;
   fetching: boolean;
+  phoneHistory?: PhoneHistory;
+  showManual?: boolean;
 };
+
+function normalizePhone(raw: string | null): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, "");
+  if (d.startsWith("880")) return "0" + d.slice(3);
+  if (d.length === 10 && d.startsWith("1")) return "0" + d;
+  return d.length >= 10 ? d : null;
+}
+
+function suggestFromHistory(total: number, success: number, cancelled: number): OrderStatus | null {
+  if (total === 0) return null;
+  if (success > 0) return "delivered";
+  if (cancelled > 0) return "cancelled";
+  return null;
+}
 
 export function CourierStatusSyncDialog({
   open,
@@ -43,6 +71,7 @@ export function CourierStatusSyncDialog({
   const qc = useQueryClient();
   const { activeBrand } = useBrand();
   const syncFn = useServerFn(syncCourierStatusFn);
+  const historyFn = useServerFn(fetchCourierHistoryFn);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [fetching, setFetching] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -69,6 +98,66 @@ export function CourierStatusSyncDialog({
           };
         }
         setRows(next);
+
+        // Auto-fallback: for rows without courier linked but with a phone,
+        // fetch courier history by phone and suggest delivered/cancelled.
+        const phoneByOrder = new Map<string, string>();
+        const phones = new Set<string>();
+        for (const r of res.results as CourierSyncResult[]) {
+          if (r.ok) continue;
+          const p = normalizePhone(r.phone);
+          if (!p) continue;
+          phoneByOrder.set(r.order_id, p);
+          phones.add(p);
+        }
+        if (phones.size === 0) return;
+
+        setRows((prev) => {
+          const n = { ...prev };
+          for (const [oid] of phoneByOrder) {
+            n[oid] = {
+              ...n[oid],
+              phoneHistory: { loading: true, found: false, total: 0, success: 0, cancelled: 0, suggested: null },
+            };
+          }
+          return n;
+        });
+
+        try {
+          const hist = await historyFn({
+            data: { phones: Array.from(phones), brandId: activeBrand?.id ?? undefined },
+          });
+          if (cancel) return;
+          const map = hist.results as Record<string, { found: boolean; summary: { total: number; success: number; cancelled: number } }>;
+          setRows((prev) => {
+            const n = { ...prev };
+            for (const [oid, phone] of phoneByOrder) {
+              const h = map[phone];
+              if (!h) {
+                n[oid] = { ...n[oid], phoneHistory: { loading: false, found: false, total: 0, success: 0, cancelled: 0, suggested: null, error: "Phone history nai" } };
+                continue;
+              }
+              const s = h.summary;
+              const sug = suggestFromHistory(s.total, s.success, s.cancelled);
+              n[oid] = {
+                ...n[oid],
+                phoneHistory: { loading: false, found: !!h.found, total: s.total, success: s.success, cancelled: s.cancelled, suggested: sug },
+                overrideStatus: sug ?? n[oid].overrideStatus,
+                selected: !!sug && sug !== n[oid].result.current_status,
+              };
+            }
+            return n;
+          });
+        } catch (e) {
+          if (cancel) return;
+          setRows((prev) => {
+            const n = { ...prev };
+            for (const [oid] of phoneByOrder) {
+              n[oid] = { ...n[oid], phoneHistory: { loading: false, found: false, total: 0, success: 0, cancelled: 0, suggested: null, error: (e as Error).message } };
+            }
+            return n;
+          });
+        }
       } catch (e) {
         toast.error((e as Error).message);
       } finally {
@@ -184,6 +273,7 @@ export function CourierStatusSyncDialog({
                     onChangeProvider={(p2) => setRows((p) => ({ ...p, [row.result.order_id]: { ...p[row.result.order_id], manualProvider: p2 } }))}
                     onChangeManualId={(v) => setRows((p) => ({ ...p, [row.result.order_id]: { ...p[row.result.order_id], manualId: v } }))}
                     onFetch={() => refetchOne(row.result.order_id)}
+                    onShowManual={() => setRows((p) => ({ ...p, [row.result.order_id]: { ...p[row.result.order_id], showManual: true } }))}
                   />
                 ))}
               </tbody>
