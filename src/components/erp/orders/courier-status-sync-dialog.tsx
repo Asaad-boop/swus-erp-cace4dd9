@@ -142,8 +142,8 @@ export function CourierStatusSyncDialog({
               n[oid] = {
                 ...n[oid],
                 phoneHistory: { loading: false, found: !!h.found, total: s.total, success: s.success, cancelled: s.cancelled, suggested: sug },
-                overrideStatus: sug ?? n[oid].overrideStatus,
-                selected: !!sug && sug !== n[oid].result.current_status,
+                // Do NOT auto-apply phone-history estimate as the new status.
+                // Phone history is only a hint; user must pick from dropdown.
               };
             }
             return n;
@@ -427,7 +427,7 @@ function Row({
           </Select>
         </div>
         {!r.ok && ph?.suggested && (
-          <div className="mt-1 text-[10px] text-muted-foreground">Phone history theke estimate</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">Phone history hint — manually select korun</div>
         )}
       </td>
     </tr>
