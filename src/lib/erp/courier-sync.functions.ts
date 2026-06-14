@@ -144,7 +144,9 @@ function buildFeeBreakdown(input: {
   const computed = input.deliveryFee > 0
     ? input.deliveryFee + codFee + input.additional + input.compensation - effectiveDiscount - input.promoDiscount
     : 0;
-  const total = input.totalCost && input.totalCost > 0 ? input.totalCost : computed;
+  const maxReasonableTotal = Math.max(500, input.collected * 0.5);
+  const trustedTotalCost = input.totalCost && input.totalCost > 0 && input.totalCost <= maxReasonableTotal ? input.totalCost : null;
+  const total = trustedTotalCost ?? computed;
   const roundedTotal = total > 0 ? Math.round(total * 100) / 100 : 0;
   return {
     actualFee: roundedTotal > 0 ? roundedTotal : null,
@@ -255,7 +257,7 @@ async function syncOne(
       const isInsideDhaka =
         order.pathao_city_id === 1 ||
         /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
-      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
       let priceCityId = order.pathao_city_id ?? null;
       let priceZoneId = order.pathao_zone_id ?? null;
       if (deliveryFee <= 0 && (!priceCityId || !priceZoneId)) {
@@ -283,7 +285,7 @@ async function syncOne(
       const promoDiscount = extractNumber(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
       const additional = extractFee(res, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
       const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
-      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge", "charge"]);
+      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge"]);
       const computed = buildFeeBreakdown({ deliveryFee, collected, codFeeRaw, discount, promoDiscount, additional, compensation, totalCost, isInsideDhaka });
       base.actual_fee = computed.actualFee;
       if (base.actual_fee && base.actual_fee > 0) {
