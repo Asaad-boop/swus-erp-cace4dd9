@@ -1429,6 +1429,7 @@ export type Database = {
           order_tags: string[]
           packaged_at: string | null
           packaged_by: string | null
+          paid_at: string | null
           partial_amount: number | null
           pathao_area_id: number | null
           pathao_area_name: string | null
@@ -1524,6 +1525,7 @@ export type Database = {
           order_tags?: string[]
           packaged_at?: string | null
           packaged_by?: string | null
+          paid_at?: string | null
           partial_amount?: number | null
           pathao_area_id?: number | null
           pathao_area_name?: string | null
@@ -1619,6 +1621,7 @@ export type Database = {
           order_tags?: string[]
           packaged_at?: string | null
           packaged_by?: string | null
+          paid_at?: string | null
           partial_amount?: number | null
           pathao_area_id?: number | null
           pathao_area_name?: string | null
@@ -2519,6 +2522,7 @@ export type Database = {
         | "unpaid_return"
         | "partial_return"
         | "pending_return"
+        | "paid"
       payment_status: "unpaid" | "partial" | "paid" | "refunded"
       web_order_status:
         | "processing"
@@ -2714,6 +2718,7 @@ export const Constants = {
         "unpaid_return",
         "partial_return",
         "pending_return",
+        "paid",
       ],
       payment_status: ["unpaid", "partial", "paid", "refunded"],
       web_order_status: [
