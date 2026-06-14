@@ -769,3 +769,104 @@ function ToggleRow({
     </div>
   );
 }
+
+type PastSummary = {
+  total: number; delivered: number; cancelled: number; returned: number; spent: number;
+  last: { id: string; created_at: string; total: number; status: string } | null;
+} | undefined;
+
+type CourierData = {
+  found: boolean;
+  summary: { total: number; success: number; cancelled: number };
+  providers: { name: string; label: string; ok: boolean; total: number; success: number; cancelled: number }[];
+} | null | undefined;
+
+function CustomerHistoryStrip({
+  phone, past, courier, loading,
+}: { phone: string; past: PastSummary; courier: CourierData; loading: boolean }) {
+  const totalCourier = courier?.summary.total ?? 0;
+  const successCourier = courier?.summary.success ?? 0;
+  const pct = totalCourier > 0 ? Math.round((successCourier / totalCourier) * 100) : null;
+  const tone =
+    pct == null ? "text-muted-foreground"
+    : pct >= 80 ? "text-emerald-600"
+    : pct >= 50 ? "text-amber-600"
+    : "text-rose-600";
+
+  return (
+    <Card className="border-sky-200/70 bg-sky-50/50 dark:bg-sky-950/10">
+      <CardContent className="flex flex-wrap items-stretch gap-3 p-3 md:gap-4">
+        <div className="flex items-center gap-2">
+          <div className="rounded-md bg-sky-600/10 p-1.5 text-sky-700 dark:text-sky-300">
+            <History className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Customer</div>
+            <div className="text-sm font-semibold tabular-nums">{phone}</div>
+          </div>
+        </div>
+
+        <div className="mx-1 hidden h-10 self-center border-l md:block" />
+
+        {/* Past orders in this brand */}
+        <Stat label="Total Orders" value={past?.total ?? 0} />
+        <Stat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600" icon={<CheckCircle2 className="h-3 w-3" />} />
+        <Stat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600" icon={<XCircle className="h-3 w-3" />} />
+        <Stat label="Returned" value={past?.returned ?? 0} tone="text-amber-600" icon={<AlertCircle className="h-3 w-3" />} />
+        <Stat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} />
+
+        <div className="mx-1 hidden h-10 self-center border-l md:block" />
+
+        {/* Courier history */}
+        <div className="flex items-center gap-2">
+          <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Courier</span>
+          {loading && !courier && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
+        {(courier?.providers ?? []).map((p) => {
+          const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
+          const ptone = ppct == null ? "text-muted-foreground"
+            : ppct >= 80 ? "text-emerald-600"
+            : ppct >= 50 ? "text-amber-600" : "text-rose-600";
+          return (
+            <div key={p.name} className="flex flex-col rounded-md border bg-background px-2 py-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{p.label}</div>
+              {p.ok ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className={cn("text-sm font-bold tabular-nums", ptone)}>
+                    {ppct == null ? "—" : `${ppct}%`}
+                  </span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                    {p.success}/{p.total}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">N/A</span>
+              )}
+            </div>
+          );
+        })}
+        {pct != null && (
+          <div className={cn("ml-auto self-center rounded-md px-2.5 py-1 text-sm font-bold ring-1 ring-inset",
+            pct >= 80 ? "bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950/30"
+            : pct >= 50 ? "bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950/30"
+            : "bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950/30",
+            tone)}>
+            Overall {pct}%
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ label, value, tone, icon }: { label: string; value: React.ReactNode; tone?: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col rounded-md border bg-background px-2 py-1">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {icon}{label}
+      </div>
+      <div className={cn("text-sm font-bold tabular-nums", tone ?? "text-foreground")}>{value}</div>
+    </div>
+  );
+}
