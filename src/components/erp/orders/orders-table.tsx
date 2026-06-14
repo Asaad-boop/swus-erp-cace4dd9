@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { useCustomerHistory } from "@/hooks/erp/use-orders-query";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -102,7 +104,11 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
               {phone && (
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Phone className="h-3 w-3 shrink-0" />
-                  <span className="font-mono">{phone}</span>
+                  <CustomerPhoneHistory
+                    phone={phone}
+                    brandId={o.brand_id}
+                    currentOrderId={o.id}
+                  />
                   <button
                     onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
                     className="p-0.5 rounded hover:bg-muted opacity-0 group-hover/row:opacity-100 transition-opacity"
