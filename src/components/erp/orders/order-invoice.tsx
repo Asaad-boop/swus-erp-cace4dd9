@@ -205,8 +205,8 @@ function ItemsTable({ items, cfg, accentBand }: { items: Item[]; cfg: InvoiceCon
       </thead>
       <tbody>
         {items.map((it, i) => {
-          const lt = Number(it.line_total ?? (it.price * it.quantity));
-          const up = Number(it.unit_price ?? it.price);
+          const up = Number(it.unit_price ?? it.price ?? 0);
+          const lt = Number(it.line_total ?? up * Number(it.quantity || 0));
           return (
             <tr key={i} style={{ background: cfg.items.zebra && i % 2 ? "rgba(0,0,0,0.025)" : "transparent", borderBottom: "1px solid #e5e7eb" }}>
               <td className="py-1.5 px-2 text-[11px] align-top">{i + 1}</td>
