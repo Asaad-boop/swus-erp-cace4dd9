@@ -75,7 +75,7 @@ async function syncOne(
     tracking_number: string | null;
     brand_id: string | null;
   },
-  shipment: { provider: string; consignment_id: string | null; tracking_code: string | null } | null,
+  shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
   mappingOverrides?: CourierStatusMappingOverrides | null,
 ): Promise<CourierSyncResult> {
