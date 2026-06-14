@@ -371,11 +371,11 @@ async function updateInventoryField(
 ) {
   const { error } = await supabase.rpc("update_product_inventory_fields", {
     _product_id: productId,
-    _low_stock_threshold: fields.low_stock_threshold ?? null,
-    _reorder_point: fields.reorder_point ?? null,
-    _cost_price: fields.cost_price ?? null,
-    _sku: fields.sku ?? null,
-    _barcode: fields.barcode ?? null,
+    _low_stock_threshold: fields.low_stock_threshold ?? undefined,
+    _reorder_point: fields.reorder_point ?? undefined,
+    _cost_price: fields.cost_price ?? undefined,
+    _sku: fields.sku ?? undefined,
+    _barcode: fields.barcode ?? undefined,
   });
   if (error) throw error;
 }
@@ -453,8 +453,7 @@ function OpeningStockTab({ brandId }: { brandId: string | null }) {
         if (error) throw error;
         if (e.cost != null && Number.isFinite(e.cost)) {
           await supabase.rpc("update_product_inventory_fields", {
-            _product_id: e.id, _low_stock_threshold: null, _reorder_point: null,
-            _cost_price: e.cost, _sku: null, _barcode: null,
+            _product_id: e.id, _cost_price: e.cost,
           });
         }
       }
