@@ -269,7 +269,6 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
         const { error: rpcErr } = await supabase.rpc("record_order_courier_expense", {
           _order_id: r.order_id,
           _amount: r.actual_fee,
-          _account_id: null,
         });
         if (!rpcErr) r.fee_recorded = true;
       }
@@ -306,7 +305,7 @@ export const setOrderActualShippingCostFn = createServerFn({ method: "POST" })
       const { error: rpcErr } = await supabase.rpc("record_order_courier_expense", {
         _order_id: data.orderId,
         _amount: data.amount,
-        _account_id: data.accountId ?? null,
+        _account_id: data.accountId ?? undefined,
       });
       if (rpcErr) throw new Error(rpcErr.message);
     }
