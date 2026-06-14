@@ -1,61 +1,105 @@
-## Goal
-Order list (Web Orders + main Order List) er protita order e useful tag automatically boshbe, color coded thakbe, ar tag onujayi filter kora jabe.
+# Advanced Invoice System (Per-Brand)
 
-## Auto-tags (computed on-the-fly, no DB change needed)
+Dui brand er jonno **alada alada invoice config** — settings → invoice tab e shob kichu control kora jabe, live preview shoho. Schema change lagbe na — `erp_settings.config` (jsonb) te shob store korbo.
 
-| Tag | Condition | Color |
-|---|---|---|
-| 🆕 New | Customer er ager kono order nai | sky |
-| 🔁 Repeat | 2-4 ager order achhe | violet |
-| ⭐ VIP | 5+ successful delivery | amber/gold |
-| ⚠️ Risky | Courier cancel/return rate > 30% (min 3 order) | rose |
-| 🚫 Fraud Risk | 5+ cancelled, 0 success | red |
-| 💰 High Value | Order total ≥ ৳5000 | emerald |
-| 📦 Bulk | 3+ items OR total qty ≥ 5 | indigo |
-| 📞 No Response | call_attempt_count ≥ 3 | orange |
-| 🕐 Stale | processing/incomplete tab e 24h+ | yellow |
-| 🏙️ Outside Dhaka | shipping_city ≠ Dhaka | slate |
-| 🎁 Has Note | customer_note thakle | pink |
+## Settings Page — Invoice Tab (per active brand)
 
-Existing manual tags (database `tags` column) o pashapashi dekhabe.
+Ekta notun tab "Invoice" Settings page e. Section gulo:
 
-## UI changes
+### 1. Branding & Header
+- Logo URL + height slider (40–120px)
+- Brand name, tagline / sub-title
+- Header layout: `logo-left` / `logo-center` / `logo-right`
+- Accent color picker (header band, totals row, badges)
+- Show watermark (PAID / DUE / CANCELLED stamp based on payment_status)
 
-**Web Orders page (`erp.orders.web.tsx`)**:
-1. Per-row `computeAutoTags(row, breakdown, courier)` function — already-loaded data theke derive korbe, kono notun query nai.
-2. Tags column e auto-tags + manual tags ekshathe render — chip e icon + label, hover e tooltip with reason.
-3. Row left-border color most-critical tag (Fraud > Risky > VIP > Repeat > New) theke.
-4. Status tab row er nichey ekta tag filter bar — multi-select chips. Selected hole rows filter hobe client-side.
-5. "Repeat", "VIP", "Risky" 3ta quick-filter button shob shomoy visible — count badge soho.
+### 2. Business Info Block
+- Address (multi-line), Hotline, Email, Website
+- Social handles (FB / IG / WhatsApp)
+- Trade license / BIN / VAT reg no (optional fields)
 
-**Main Order List (`orders-table.tsx`)**:
-- Same `computeAutoTags` helper share — ekta common file e (`src/lib/erp/order-tags.ts`).
-- Existing tags cell e auto-tags add hobe (manual tags er age).
-- Same row left-border accent.
+### 3. Invoice Meta
+- Invoice slug/prefix (already ache)
+- Show: order date, delivery date, courier, tracking, payment method (toggle each)
+- QR code: order tracking link / phone / website (choose target, optional)
+- Barcode of invoice no (toggle)
 
-## Technical layout
+### 4. Items Table
+- Column toggles: SKU, Variant, Qty, Unit price, Discount, Total
+- Show product image thumbnail (toggle)
+- Row zebra striping (toggle)
+- Currency symbol + position (৳ before / after)
+- Number format: BD comma (1,23,456) vs intl (123,456)
 
+### 5. Totals & Payment
+- Show: subtotal, discount, shipping, advance/paid, due (toggle each)
+- Tax/VAT: percentage input, inclusive/exclusive toggle
+- Round-off toggle
+- Amount in words (Bangla / English / off)
+
+### 6. Footer
+- Terms & conditions (textarea, multi-line)
+- Return policy (textarea)
+- Thank-you message
+- Signature line: "Authorized signature" + optional signature image URL
+- Show page numbers (for multi-page)
+
+### 7. Print / Page Settings
+- Paper size: A4 / A5 / 80mm POS / 58mm POS
+- Orientation: portrait / landscape
+- Margin: compact / normal / wide
+- Font family: Inter / Hind Siliguri (Bangla) / Roboto
+- Font size: small / medium / large
+- Theme: Classic / Modern / Minimal / Colored band
+
+### 8. Live Preview Panel
+Right-side e real-time invoice preview — settings change korle shathe shathe update hobe. "Print test invoice" button.
+
+## Invoice Renderer Rebuild
+
+`src/components/erp/orders/order-invoice.tsx` ke rewrite — settings driven:
+- Brand er `erp_settings.config.invoice` theke shob value pull
+- 4 ta theme component: `ClassicInvoice`, `ModernInvoice`, `MinimalInvoice`, `PosInvoice` (80mm)
+- Paper size dynamic `@page` CSS
+- QR via `qrcode` lib (already candidate), barcode via `jsbarcode` (optional install)
+- Amount-in-words helper (BDT, Bangla + English)
+
+## Data Shape (erp_settings.config.invoice)
+
+```ts
+{
+  theme: 'classic' | 'modern' | 'minimal' | 'pos',
+  paper: 'A4' | 'A5' | '80mm' | '58mm',
+  orientation: 'portrait' | 'landscape',
+  margin: 'compact' | 'normal' | 'wide',
+  font: { family, size },
+  accentColor: '#...',
+  header: { layout, logoHeight, tagline, showWatermark },
+  business: { address, hotline, email, website, social, bin, trade_license },
+  meta: { showDate, showDelivery, showCourier, showTracking, showPayment, qr: {enabled,target}, barcode },
+  items: { showSku, showVariant, showImage, showDiscount, zebra, currency, currencyPosition, numberFormat },
+  totals: { showSubtotal, showDiscount, showShipping, showAdvance, showDue, tax: {rate, inclusive}, roundOff, amountInWords },
+  footer: { terms, returnPolicy, thankYou, signatureLabel, signatureUrl, pageNumbers },
+}
 ```
-src/lib/erp/order-tags.ts
-  - type AutoTag = { key, label, icon, color, priority, reason }
-  - computeAutoTags(row, customerBreakdown, courierBreakdown) → AutoTag[]
-  - tagPriority() → highest priority tag for row accent
 
-src/components/erp/orders/auto-tag-chips.tsx
-  - <AutoTagChips tags={...} max={3} />
-  - tooltip with reason on hover
+Default config seed kora hobe load er shomoy (kichu na thakle classic A4 default).
 
-src/components/erp/orders/tag-filter-bar.tsx
-  - chip multi-select with counts
-  - controlled by parent state
-```
+## Files
 
-Then wire both Web Orders + Order List pages to use these.
+- **New**: `src/lib/erp/invoice-config.ts` (types + defaults + helpers: amount-in-words, currency format)
+- **New**: `src/components/erp/settings/invoice-settings.tsx` (the big tabbed form + live preview)
+- **New**: `src/components/erp/orders/invoice-themes/{classic,modern,minimal,pos}.tsx`
+- **Rewrite**: `src/components/erp/orders/order-invoice.tsx` → reads config, picks theme, injects `@page` CSS
+- **Edit**: `src/routes/_authenticated/erp.settings.tsx` → add Tabs (Business | Invoice | Courier maybe later)
+- **Edit**: `src/components/erp/settings/business-settings.tsx` → no functional change, just fits inside tab
+- Install: `bun add qrcode @types/qrcode` (and optionally `jsbarcode` if barcode toggled on)
 
-## Out of scope (next iteration)
-- Persisting computed tags in DB
-- Manual tag editor / blacklist management UI
-- Auto-rule triggers (e.g. auto-cancel fraud)
-- Analytics dashboard by tag
+## Questions
 
-Confirm korle implement kora shuru kori. Kichu tag baad dite chaile ba notun add korte chaile bolun.
+1. Theme/look er reference ache? (classic black & white safe default, naki modern colored?)
+2. POS printer (80mm) lagbe ekhon, naki A4/A5 e enough?
+3. Tax/VAT field দরকার ase tomar business e?
+4. Amount-in-words Bangla te chai naki English?
+
+Confirm korle implement shuru kori.
