@@ -45,6 +45,34 @@ function pickProviderFromName(name: string | null | undefined): CourierProvider 
   return null;
 }
 
+function normalizeText(s: string): string {
+  return s.toLowerCase().replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function localPick(address: string, items: Array<{ id: number; name: string }>): { id: number; name: string } | null {
+  const addr = ` ${normalizeText(address)} `;
+  let best: { id: number; name: string; score: number } | null = null;
+  for (const item of items) {
+    const name = normalizeText(item.name);
+    if (!name || name.length < 2) continue;
+    const score = addr.includes(` ${name} `) ? name.length * 3 : (addr.includes(name) ? name.length * 2 : 0);
+    if (score >= 6 && (!best || score > best.score)) best = { ...item, score };
+  }
+  return best ? { id: best.id, name: best.name } : null;
+}
+
+async function resolvePathaoRoute(client: any, order: { shipping_address?: string | null; shipping_city?: string | null; shipping_thana?: string | null; shipping_district?: string | null }) {
+  const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ");
+  if (!address.trim()) return null;
+  const cities = (await client.cities().catch(() => [])) as Array<{ city_id: number; city_name: string }>;
+  const city = localPick(address, cities.map((c) => ({ id: c.city_id, name: c.city_name })));
+  if (!city) return null;
+  const zones = (await client.zones(city.id).catch(() => [])) as Array<{ zone_id: number; zone_name: string }>;
+  if (zones.length === 0) return null;
+  const zone = localPick(address, zones.map((z) => ({ id: z.zone_id, name: z.zone_name }))) ?? { id: zones[0].zone_id, name: zones[0].zone_name };
+  return { cityId: city.id, zoneId: zone.id };
+}
+
 function extractPathaoStatus(payload: any): string | null {
   const d = payload?.data ?? payload;
   return (
@@ -56,15 +84,83 @@ function extractPathaoStatus(payload: any): string | null {
 }
 
 function extractFee(payload: any, keys: string[]): number | null {
-  const d = payload?.data ?? payload;
-  for (const k of keys) {
-    const v = d?.[k];
-    if (v !== undefined && v !== null && v !== "") {
-      const n = Number(v);
-      if (Number.isFinite(n) && n > 0) return n;
+  const seen = new Set<any>();
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
     }
-  }
-  return null;
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function extractNumber(payload: any, keys: string[]): number | null {
+  const seen = new Set<any>();
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function buildFeeBreakdown(input: {
+  deliveryFee: number;
+  collected: number;
+  codFeeRaw: number | null;
+  discount: number;
+  promoDiscount: number;
+  additional: number;
+  compensation: number;
+  totalCost: number | null;
+  isInsideDhaka: boolean;
+}) {
+  const codFee = input.codFeeRaw && input.codFeeRaw > 0
+    ? input.codFeeRaw
+    : (input.collected > 0 ? Math.round(input.collected * 0.01 * 100) / 100 : 0);
+  const standingDiscount = input.discount > 0 ? 0 : (input.isInsideDhaka ? 15 : 10);
+  const effectiveDiscount = input.discount + standingDiscount;
+  const computed = input.deliveryFee > 0
+    ? input.deliveryFee + codFee + input.additional + input.compensation - effectiveDiscount - input.promoDiscount
+    : 0;
+  const maxReasonableTotal = Math.max(500, input.collected * 0.5);
+  const trustedTotalCost = input.totalCost && input.totalCost > 0 && input.totalCost <= maxReasonableTotal ? input.totalCost : null;
+  const total = trustedTotalCost ?? computed;
+  const roundedTotal = total > 0 ? Math.round(total * 100) / 100 : 0;
+  return {
+    actualFee: roundedTotal > 0 ? roundedTotal : null,
+    breakdown: {
+      delivery: input.deliveryFee,
+      cod: codFee,
+      discount: effectiveDiscount,
+      promo_discount: input.promoDiscount,
+      additional: input.additional,
+      compensation: input.compensation,
+      extra: input.additional + input.compensation,
+      total: roundedTotal,
+    },
+  };
 }
 
 function extractSteadfastStatus(payload: any): string | null {
@@ -87,8 +183,13 @@ async function syncOne(
     tracking_number: string | null;
     brand_id: string | null;
     total: number | null;
+    shipping_fee?: number | null;
     pathao_city_id?: number | null;
+    pathao_zone_id?: number | null;
+    shipping_address?: string | null;
     shipping_city?: string | null;
+    shipping_district?: string | null;
+    shipping_thana?: string | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
@@ -151,47 +252,45 @@ async function syncOne(
       const client = createPathaoClient(creds);
       const res: any = await client.track(identifier);
       raw = extractPathaoStatus(res);
-      // Pathao returns delivery_fee, cod_fee, promo_discount, total_price, etc.
-      // We want what Pathao actually charges us (delivery + cod + extras).
-      const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
-      // If Pathao didn't return a delivery_fee (pre-pickup / API quirk), skip
-      // the computed total entirely and let the booking-time fallback fill it.
-      const hasDeliveryFee = deliveryFee > 0;
+      // Pathao can nest the cost fields. If track/info does not expose the
+      // delivery charge yet, call price-plan with the saved city/zone and use
+      // that as the delivery-fee source instead of showing the stale booking fee.
+      const isInsideDhaka =
+        order.pathao_city_id === 1 ||
+        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
+      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
+      let priceCityId = order.pathao_city_id ?? null;
+      let priceZoneId = order.pathao_zone_id ?? null;
+      if (deliveryFee <= 0 && (!priceCityId || !priceZoneId)) {
+        const route = await resolvePathaoRoute(client, order);
+        priceCityId = route?.cityId ?? priceCityId;
+        priceZoneId = route?.zoneId ?? priceZoneId;
+      }
+      if (deliveryFee <= 0 && priceCityId && priceZoneId) {
+        const priceRes: any = await client.price({
+          store_id: client.storeId,
+          item_type: 2,
+          delivery_type: 48,
+          item_weight: 0.5,
+          recipient_city: priceCityId,
+          recipient_zone: priceZoneId,
+        }).catch(() => null);
+        deliveryFee = extractFee(priceRes, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+      }
       // Pathao /orders/{cid}/info usually only returns delivery_fee.
       // Compute COD fee at standard 1% of amount-to-collect when not provided.
       const collectedRaw = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
       const collected = collectedRaw && collectedRaw > 0 ? collectedRaw : Number(order.total ?? 0);
       const codFeeRaw = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]);
-      const codFee = codFeeRaw && codFeeRaw > 0
-        ? codFeeRaw
-        : (collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0);
-      const discount = extractFee(res, ["discount", "discount_amount"]) ?? 0;
-      const promoDiscount = extractFee(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
-      // Pathao standard merchant discount: 15 tk inside Dhaka (city_id=1), 10 tk outside.
-      // /orders/info doesn't return this — apply it locally so the total matches portal.
-      const isInsideDhaka =
-        order.pathao_city_id === 1 ||
-        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
-      const standingDiscount = discount > 0 ? 0 : (isInsideDhaka ? 15 : 10);
-      const effectiveDiscount = discount + standingDiscount;
-      const additional = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
+      const discount = extractNumber(res, ["discount", "discount_amount", "merchant_discount"]) ?? 0;
+      const promoDiscount = extractNumber(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
+      const additional = extractFee(res, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
       const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
-      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost"]);
-      const computed = deliveryFee + codFee + additional + compensation - effectiveDiscount - promoDiscount;
-      base.actual_fee = totalCost && totalCost > 0
-        ? totalCost
-        : (hasDeliveryFee && computed > 0 ? computed : null);
-      if (base.actual_fee && base.actual_fee > 0 && hasDeliveryFee) {
-        base.fee_breakdown = {
-          delivery: deliveryFee,
-          cod: codFee,
-          discount: effectiveDiscount,
-          promo_discount: promoDiscount,
-          additional,
-          compensation,
-          extra: additional + compensation,
-          total: base.actual_fee,
-        };
+      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge"]);
+      const computed = buildFeeBreakdown({ deliveryFee, collected, codFeeRaw, discount, promoDiscount, additional, compensation, totalCost, isInsideDhaka });
+      base.actual_fee = computed.actualFee;
+      if (base.actual_fee && base.actual_fee > 0) {
+        base.fee_breakdown = computed.breakdown;
       }
       if (collected > 0) {
         base.order_total = collected;
@@ -248,7 +347,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,shipping_city",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,shipping_fee,pathao_city_id,pathao_zone_id,shipping_address,shipping_city,shipping_district,shipping_thana",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;
@@ -300,6 +399,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const results: CourierSyncResult[] = [];
     const batchSize = 4;
     const list = (orders ?? []) as Array<Parameters<typeof syncOne>[2]>;
+    const orderById = new Map(list.map((o) => [o.id, o]));
     const tryOne = async (o: Parameters<typeof syncOne>[2]): Promise<CourierSyncResult> => {
       const override = overrideMap.get(o.id);
       if (override) {
@@ -339,8 +439,25 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     for (const r of results) {
       if (r.ok && (!r.actual_fee || r.actual_fee <= 0)) {
         const ship = latestShipment.get(r.order_id);
-        const f = Number(ship?.delivery_fee ?? 0);
-        if (f > 0) r.actual_fee = f;
+        const o = orderById.get(r.order_id);
+        const f = Number(ship?.delivery_fee ?? o?.shipping_fee ?? 0);
+        if (f > 0 && r.provider === "pathao") {
+          const computed = buildFeeBreakdown({
+            deliveryFee: f,
+            collected: Number(o?.total ?? 0),
+            codFeeRaw: null,
+            discount: 0,
+            promoDiscount: 0,
+            additional: 0,
+            compensation: 0,
+            totalCost: null,
+            isInsideDhaka: o?.pathao_city_id === 1 || /dhaka|ঢাকা/i.test(o?.shipping_city ?? ""),
+          });
+          r.actual_fee = computed.actualFee;
+          r.fee_breakdown = computed.breakdown;
+        } else if (f > 0) {
+          r.actual_fee = f;
+        }
       }
     }
 

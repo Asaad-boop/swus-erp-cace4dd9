@@ -34,6 +34,45 @@ async function purgeCancelledShipments(supabase: any, orderId: string) {
   }
 }
 
+function readPositiveNumber(payload: any, keys: string[]): number | null {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function pathaoActualCost(result: any, deliveryFee: number, codAmount: number, cityId?: number | null) {
+  const rawTotalCost = readPositiveNumber(result, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge"]);
+  const cod = readPositiveNumber(result, ["cod_fee", "cod_charge", "collection_fee"]) ?? Math.round(Math.max(codAmount, 0) * 0.01 * 100) / 100;
+  const discount = readPositiveNumber(result, ["discount", "discount_amount", "merchant_discount"]) ?? (cityId === 1 ? 15 : 10);
+  const promo = readPositiveNumber(result, ["promo_discount", "promo_discount_amount"]) ?? 0;
+  const additional = readPositiveNumber(result, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
+  const compensation = readPositiveNumber(result, ["compensation_cost", "compensation"]) ?? 0;
+  const computed = deliveryFee > 0 ? deliveryFee + cod + additional + compensation - discount - promo : 0;
+  const maxReasonableTotal = Math.max(500, Math.max(codAmount, 0) * 0.5);
+  const totalCost = rawTotalCost && rawTotalCost <= maxReasonableTotal ? rawTotalCost : null;
+  const total = totalCost && totalCost > 0 ? totalCost : computed;
+  const rounded = total > 0 ? Math.round(total * 100) / 100 : 0;
+  return {
+    total: rounded,
+    breakdown: { delivery: deliveryFee, cod, discount, promo_discount: promo, additional, compensation, extra: additional + compensation, total: rounded },
+  };
+}
+
 export const pathaoCitiesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
@@ -314,7 +353,8 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = Number(result?.delivery_fee ?? result?.data?.delivery_fee ?? 0);
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const actualCost = pathaoActualCost(result, fee, data.amount_to_collect, data.recipient_city);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -336,8 +376,8 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (fee > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
+    if (actualCost.total > 0) {
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
     }
 
     await supabase
@@ -346,15 +386,19 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        ...(fee > 0 ? {
-          actual_shipping_cost: fee,
+        pathao_city_id: data.recipient_city,
+        pathao_zone_id: data.recipient_zone,
+        pathao_area_id: data.recipient_area ?? null,
+        ...(actualCost.total > 0 ? {
+          actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
           actual_shipping_recorded_at: new Date().toISOString(),
+          actual_shipping_breakdown: actualCost.breakdown as never,
         } : {}),
       })
       .eq("id", order.id);
 
-    return { shipmentId: shipment.id, consignment, tracking, fee, status };
+    return { shipmentId: shipment.id, consignment, tracking, fee: actualCost.total || fee, status };
   });
 
 export const pathaoTrackFn = createServerFn({ method: "POST" })
@@ -513,7 +557,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = Number(result?.delivery_fee ?? result?.data?.delivery_fee ?? 0);
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, cityPick.id);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -535,8 +580,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (fee > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
+    if (actualCost.total > 0) {
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
     }
 
     await supabase
@@ -545,10 +590,16 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        ...(fee > 0 ? {
-          actual_shipping_cost: fee,
+        pathao_city_id: cityPick.id,
+        pathao_city_name: cityPick.name,
+        pathao_zone_id: resolvedZoneId,
+        pathao_zone_name: resolvedZoneName,
+        pathao_area_id: areaId ?? null,
+        ...(actualCost.total > 0 ? {
+          actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
           actual_shipping_recorded_at: new Date().toISOString(),
+          actual_shipping_breakdown: actualCost.breakdown as never,
         } : {}),
       })
       .eq("id", order.id);
@@ -557,7 +608,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       shipmentId: shipment.id,
       consignment,
       tracking,
-      fee,
+      fee: actualCost.total || fee,
       status,
       city: cityPick.name,
       zone: resolvedZoneName,
