@@ -3,6 +3,20 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const CACHE_TTL_HOURS = 24;
+const HISTORY_FETCH_TIMEOUT_MS = 10_000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HISTORY_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: init.signal ?? controller.signal });
+  } catch (e) {
+    if ((e as Error).name === "AbortError") throw new Error("Courier history request timed out");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 type ProviderResult = {
   name: "pathao" | "steadfast";
@@ -51,7 +65,7 @@ async function fetchPathao(supabase: any, brandId: string | null, phone: string)
     const creds = await loadPathaoCreds(supabase, brandId);
 
     // Get token via Pathao's standard issue-token flow
-    const tokenRes = await fetch(`${creds.base_url}/aladdin/api/v1/issue-token`, {
+    const tokenRes = await fetchWithTimeout(`${creds.base_url}/aladdin/api/v1/issue-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
@@ -68,7 +82,7 @@ async function fetchPathao(supabase: any, brandId: string | null, phone: string)
     if (!token) throw new Error("auth: no access_token");
 
     // Customer success-rate lookup by phone (Pathao merchant portal endpoint)
-    const res = await fetch("https://merchant.pathao.com/api/v1/user/success", {
+    const res = await fetchWithTimeout("https://merchant.pathao.com/api/v1/user/success", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
