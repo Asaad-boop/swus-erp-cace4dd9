@@ -50,7 +50,10 @@ function normalizePhone(raw: string | null): string | null {
 
 function suggestStatus(total: number, success: number, cancelled: number): OrderStatus | null {
   if (total === 0) return null;
-  if (success > 0) return "delivered";
+  // Phone history shudhu confirm kore customer legit + courier e parcel jay.
+  // Eta proof noy je EI order delivered hoye geche. Tai shipped order ke
+  // in_transit e ano — actual delivered status courier API theke ashbe.
+  if (success > 0) return "in_transit";
   if (cancelled > 0 && success === 0) return "cancelled";
   return null;
 }
