@@ -615,7 +615,7 @@ function OrderDetailsPage() {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number; advance_note: string }> }) => {
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number }> }) => {
       const { error } = await supabase
         .from("orders")
         .update({ web_status: status, ...(extra ?? {}) })
@@ -654,14 +654,14 @@ function OrderDetailsPage() {
     } else if (pendingWebStatus === "advance_payment") {
       const amt = Number(pendingAdvance);
       if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
-      const note = pendingReason.trim();
       updateWebStatus.mutate({
         status: "advance_payment",
-        extra: {
-          advance_amount: amt,
-          ...(note ? { advance_note: note } : {}),
-        },
+        extra: { advance_amount: amt },
       });
+      const note = pendingReason.trim();
+      if (note) {
+        try { await supabase.rpc("add_order_note", { _order_id: orderId, _body: `Advance note: ${note}`, _is_internal: true }); } catch { /* non-fatal */ }
+      }
       setForm((f) => ({ ...f, advance: amt }));
     }
     setPendingWebStatus(null);
