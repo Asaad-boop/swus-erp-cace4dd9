@@ -13,7 +13,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
   // Exchange
   "exchange", "exchanged",
   // Finance
-  "paid_return", "unpaid_return",
+  "paid", "paid_return", "unpaid_return",
   // Closing
   "on_hold", "cancelled",
 ];
@@ -27,14 +27,14 @@ export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderSt
   },
   { key: "return", label: "Return", statuses: ["pending_return", "returned", "partial_return"] },
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
-  { key: "finance", label: "Finance", statuses: ["paid_return", "unpaid_return"] },
+  { key: "finance", label: "Finance", statuses: ["paid", "paid_return", "unpaid_return"] },
   { key: "closing", label: "Closing", statuses: ["on_hold", "cancelled"] },
 ];
 
 // Top-of-page tabs (reference layout). Each tab maps to one or more of our statuses.
 export type StatusTabKey =
   | "all" | "pending" | "packing" | "rts" | "shipped" | "delivered"
-  | "partial" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled";
+  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled";
 
 export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
   { key: "pending", label: "Pending", statuses: ["confirmed"] },
@@ -43,6 +43,7 @@ export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderSta
   { key: "shipped", label: "Shipped", statuses: ["shipped", "in_transit"] },
   { key: "delivered", label: "Delivered", statuses: ["delivered"] },
   { key: "partial", label: "Partial", statuses: ["partial_delivered", "partial_return"] },
+  { key: "paid", label: "Paid", statuses: ["paid"] },
   { key: "pending_return", label: "Pending Return", statuses: ["pending_return"] },
   { key: "returned", label: "Returned", statuses: ["returned"] },
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
@@ -69,6 +70,8 @@ export const STATUS_BADGE: Record<string, { label: string; className: string }> 
   in_transit: { label: "In Transit", className: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300" },
   delivered: { label: "Delivered", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
   partial_delivered: { label: "Partial Delivery", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  // Finance — courier paid out COD
+  paid: { label: "Paid", className: "bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-200" },
   // Return
   pending_return: { label: "Return In Transit", className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300" },
   returned: { label: "Returned", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
@@ -97,6 +100,7 @@ export const STATUS_ACCENT: Record<string, string> = {
   confirmed: "#3b82f6", ready_to_pack: "#6366f1", packed: "#a855f7",
   ready_to_ship: "#06b6d4", shipped: "#f59e0b", in_transit: "#f59e0b",
   delivered: "#10b981", partial_delivered: "#10b981",
+  paid: "#0d9488",
   pending_return: "#f97316", returned: "#ef4444", partial_return: "#ef4444",
   exchange: "#8b5cf6", exchanged: "#8b5cf6",
   paid_return: "#14b8a6", unpaid_return: "#14b8a6",
@@ -139,6 +143,7 @@ export type OrderRow = {
   delivered_at: string | null;
   shipped_at: string | null;
   confirmed_at: string | null;
+  paid_at?: string | null;
   items?: OrderItemMini[];
 };
 
