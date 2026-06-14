@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
-import { useCustomerHistory } from "@/hooks/erp/use-orders-query";
+import { useCustomerHistory, useCourierHistory, type CourierProviderStat } from "@/hooks/erp/use-orders-query";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -109,6 +112,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                     brandId={o.brand_id}
                     currentOrderId={o.id}
                   />
+                  <CourierRateBadge phone={phone} brandId={o.brand_id} />
                   <button
                     onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
                     className="p-0.5 rounded hover:bg-muted opacity-0 group-hover/row:opacity-100 transition-opacity"
