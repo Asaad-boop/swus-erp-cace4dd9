@@ -640,7 +640,7 @@ function OrderDetailsPage() {
     updateWebStatus.mutate({ status: v });
   };
 
-  const submitPendingWebStatus = () => {
+  const submitPendingWebStatus = async () => {
     if (!pendingWebStatus) return;
     if (pendingWebStatus === "on_hold") {
       if (!pendingReason.trim()) { toast.error("Please provide a hold reason"); return; }
