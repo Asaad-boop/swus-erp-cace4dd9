@@ -209,12 +209,12 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
 
     const { data: shipments } = await supabase
       .from("courier_shipments")
-      .select("order_id, provider, consignment_id, tracking_code, delivery_fee, created_at")
+      .select("id, order_id, provider, consignment_id, tracking_code, delivery_fee, created_at")
       .in("order_id", data.orderIds)
       .order("created_at", { ascending: false });
 
-    const latestShipment = new Map<string, { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>();
-    for (const s of (shipments ?? []) as Array<{ order_id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>) {
+    const latestShipment = new Map<string, { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>();
+    for (const s of (shipments ?? []) as Array<{ id: string; order_id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>) {
       if (!latestShipment.has(s.order_id)) latestShipment.set(s.order_id, s);
     }
 
@@ -261,8 +261,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       await supabase
         .from("courier_shipments")
         .update({ status: r.raw_status, updated_at: new Date().toISOString() })
-        .eq("order_id", r.order_id)
-        .eq("provider", ship.provider);
+        .eq("id", ship.id);
     }
 
     // Fallback: if track API didn't return a fee, use the fee captured at booking time.
