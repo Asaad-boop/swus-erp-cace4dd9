@@ -12,6 +12,8 @@ import { OrdersToolbar } from "@/components/erp/orders/orders-toolbar";
 import { OrdersBulkActions } from "@/components/erp/orders/orders-bulk-actions";
 import { OrdersTable } from "@/components/erp/orders/orders-table";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
+import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders-table";
+import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
@@ -30,6 +32,8 @@ function OrdersPage() {
     brandId: null, search: "", statuses: [], source: null,
     dateFrom: null, dateTo: null, courier: null, page: 0, pageSize: 50,
   });
+  const [view, setView] = useState<"orders" | "incomplete">("orders");
+  const [incompletePage, setIncompletePage] = useState(0);
 
   const effective = useMemo<OrdersFilter>(
     () => ({ ...filter, brandId: activeBrand?.id ?? null }),
@@ -38,6 +42,7 @@ function OrdersPage() {
 
   const { data, isLoading, isFetching } = useOrdersQuery(effective);
   const { data: countsData } = useOrderStatusCounts(effective);
+  const { data: incompleteCount } = useAbandonedCartCount(effective.brandId);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
@@ -91,7 +96,7 @@ function OrdersPage() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
-  const activeTab = tabForStatuses(effective.statuses);
+  const activeTab = view === "incomplete" ? "incomplete" : tabForStatuses(effective.statuses);
 
   return (
     <div className="p-4 md:p-6 space-y-4 min-h-screen bg-gradient-to-b from-muted/30 via-muted/10 to-background">
@@ -141,9 +146,29 @@ function OrdersPage() {
           active={activeTab}
           counts={countsData?.counts ?? {}}
           total={countsData?.total ?? 0}
-          onChange={(statuses) => setFilter({ ...filter, statuses, page: 0 })}
+          incompleteCount={incompleteCount ?? 0}
+          onChange={(statuses, key) => {
+            if (key === "incomplete") {
+              setView("incomplete");
+              setIncompletePage(0);
+            } else {
+              setView("orders");
+              setFilter({ ...filter, statuses, page: 0 });
+            }
+          }}
         />
-        <OrdersToolbar
+        {view === "incomplete" ? (
+          <IncompleteOrdersTable
+            brandId={effective.brandId}
+            search={filter.search}
+            page={incompletePage}
+            pageSize={50}
+            onPageChange={setIncompletePage}
+            onOpenOrder={setOpenId}
+          />
+        ) : (
+          <>
+          <OrdersToolbar
           filter={effective}
           onChange={setFilter}
           rightSlot={
@@ -184,8 +209,11 @@ function OrdersPage() {
           onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
           pendingStatusId={statusMutation.isPending ? statusMutation.variables?.id : null}
         />
+          </>
+        )}
       </div>
 
+      {view === "orders" && (
       <div className="flex items-center justify-between text-sm rounded-xl border bg-card px-4 py-2.5 shadow-sm">
         <div className="text-muted-foreground">
           Page <span className="font-semibold text-foreground tabular-nums">{filter.page + 1}</span> of <span className="font-semibold text-foreground tabular-nums">{totalPages}</span>
@@ -195,6 +223,7 @@ function OrdersPage() {
           <Button variant="outline" size="sm" disabled={filter.page + 1 >= totalPages} onClick={() => setFilter({ ...filter, page: filter.page + 1 })}>Next</Button>
         </div>
       </div>
+      )}
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} />
 
