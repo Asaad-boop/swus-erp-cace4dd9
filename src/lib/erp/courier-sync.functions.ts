@@ -213,9 +213,16 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       .in("order_id", data.orderIds)
       .order("created_at", { ascending: false });
 
-    const latestShipment = new Map<string, { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>();
-    for (const s of (shipments ?? []) as Array<{ id: string; order_id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null }>) {
-      if (!latestShipment.has(s.order_id)) latestShipment.set(s.order_id, s);
+    type ShipRow = { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null };
+    const shipmentsByOrder = new Map<string, ShipRow[]>();
+    for (const s of (shipments ?? []) as Array<ShipRow & { order_id: string }>) {
+      const arr = shipmentsByOrder.get(s.order_id) ?? [];
+      arr.push(s);
+      shipmentsByOrder.set(s.order_id, arr);
+    }
+    const latestShipment = new Map<string, ShipRow>();
+    for (const [oid, arr] of shipmentsByOrder) {
+      if (arr[0]) latestShipment.set(oid, arr[0]);
     }
 
     const overrideMap = new Map<string, { provider: CourierProvider; identifier: string }>();
@@ -241,27 +248,45 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       if (m && typeof m === "object") mappingOverrides = m as CourierStatusMappingOverrides;
     }
 
+    // For each order: try latest shipment. If courier reports a cancelled
+    // status, delete that row and try the next one. The "active" consignment
+    // wins; cancelled rows leave no trace.
     const results: CourierSyncResult[] = [];
     const batchSize = 4;
     const list = (orders ?? []) as Array<Parameters<typeof syncOne>[2]>;
+    const tryOne = async (o: Parameters<typeof syncOne>[2]): Promise<CourierSyncResult> => {
+      const override = overrideMap.get(o.id);
+      if (override) {
+        return syncOne(supabase, data.brandId ?? null, o, null, override, mappingOverrides);
+      }
+      const queue = (shipmentsByOrder.get(o.id) ?? []).slice();
+      // Always include a no-shipment attempt (uses orders.tracking_number) as final fallback
+      let last: CourierSyncResult | null = null;
+      while (queue.length > 0) {
+        const ship = queue.shift()!;
+        const r = await syncOne(supabase, data.brandId ?? null, o, ship, undefined, mappingOverrides);
+        last = r;
+        if (r.ok && r.raw_status && /cancel/i.test(r.raw_status)) {
+          // drop this cancelled shipment row and try next
+          await supabase.from("courier_shipments").delete().eq("id", ship.id);
+          latestShipment.set(o.id, queue[0] ?? ship); // best-effort fee fallback ref
+          continue;
+        }
+        // mirror status back to row so re-book flows can see it
+        if (r.ok && r.raw_status) {
+          await supabase
+            .from("courier_shipments")
+            .update({ status: r.raw_status, updated_at: new Date().toISOString() })
+            .eq("id", ship.id);
+        }
+        return r;
+      }
+      return last ?? (await syncOne(supabase, data.brandId ?? null, o, null, undefined, mappingOverrides));
+    };
     for (let i = 0; i < list.length; i += batchSize) {
       const batch = list.slice(i, i + batchSize);
-      const settled = await Promise.all(
-        batch.map((o) => syncOne(supabase, data.brandId ?? null, o, latestShipment.get(o.id) ?? null, overrideMap.get(o.id), mappingOverrides)),
-      );
+      const settled = await Promise.all(batch.map((o) => tryOne(o)));
       results.push(...settled);
-    }
-
-    // Mirror the raw courier status back to the latest shipment row so that
-    // re-booking flows can detect cancelled consignments and drop them.
-    for (const r of results) {
-      if (!r.ok || !r.raw_status) continue;
-      const ship = latestShipment.get(r.order_id);
-      if (!ship) continue;
-      await supabase
-        .from("courier_shipments")
-        .update({ status: r.raw_status, updated_at: new Date().toISOString() })
-        .eq("id", ship.id);
     }
 
     // Fallback: if track API didn't return a fee, use the fee captured at booking time.
