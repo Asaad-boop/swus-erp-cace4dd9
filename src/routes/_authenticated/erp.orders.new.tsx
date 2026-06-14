@@ -260,6 +260,7 @@ function NewOrderPage() {
           status: "confirmed",
           confirmation_status: "confirmed",
           source: "manual",
+          source_platform: orderSource || null,
           is_guest_order: true,
           guest_name: name,
           guest_phone: phone,
