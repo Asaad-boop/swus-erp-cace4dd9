@@ -108,7 +108,7 @@ async function fetchSteadfast(supabase: any, brandId: string | null, phone: stri
   try {
     const { loadSteadfastCreds } = await import("./steadfast.server");
     const creds = await loadSteadfastCreds(supabase, brandId);
-    const res = await fetch(`${creds.base_url}/fraud_check/${encodeURIComponent(phone)}`, {
+    const res = await fetchWithTimeout(`${creds.base_url}/fraud_check/${encodeURIComponent(phone)}`, {
       method: "GET",
       headers: {
         "Api-Key": creds.api_key,
