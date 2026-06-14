@@ -917,95 +917,239 @@ function CustomerHistoryStrip({
   const totalCourier = courier?.summary.total ?? 0;
   const successCourier = courier?.summary.success ?? 0;
   const pct = totalCourier > 0 ? Math.round((successCourier / totalCourier) * 100) : null;
-  const toneBg =
-    pct == null ? "from-slate-500/10 to-slate-500/0 text-slate-600 ring-slate-300/60"
-    : pct >= 80 ? "from-emerald-500/15 to-emerald-500/0 text-emerald-700 ring-emerald-300/70 dark:text-emerald-300"
-    : pct >= 50 ? "from-amber-500/15 to-amber-500/0 text-amber-700 ring-amber-300/70 dark:text-amber-300"
-    : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
 
   const navigate = useNavigate();
   const recent = past?.recent ?? [];
+  const connectedProviders = (courier?.providers ?? []).filter((p) => p.ok && p.total > 0);
 
   return (
-    <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
-      <CardContent className="space-y-3 p-3 md:p-4">
-        {/* Row 1: customer + inline stats + overall score */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow ring-2 ring-white dark:ring-background">
-              <User2 className="h-5 w-5" strokeWidth={2.25} />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
-              <div className="truncate text-sm font-bold tabular-nums">{phone || "—"}</div>
-            </div>
+    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
+      {/* 1) Our Record — dark customer card */}
+      <OurRecordCard
+        phone={phone}
+        past={past}
+        loading={loading}
+        recent={recent}
+        onOpenOrder={(id) => navigate({ to: "/erp/orders/$orderId", params: { orderId: id } })}
+        onViewAll={() => phone && navigate({ to: "/erp/orders/list", search: { search: phone } as never })}
+      />
+
+      {/* 2) Overall courier card */}
+      {pct != null && (
+        <CourierStatCard
+          label="Overall"
+          successRate={pct}
+          total={totalCourier}
+          success={successCourier}
+          cancelled={totalCourier - successCourier}
+          variant="neutral"
+        />
+      )}
+
+      {/* 3+) Each connected provider as colored card */}
+      {connectedProviders.map((p) => {
+        const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : 0;
+        return (
+          <CourierStatCard
+            key={p.name}
+            label={p.label}
+            providerKey={p.name.toLowerCase()}
+            successRate={ppct}
+            total={p.total}
+            success={p.success}
+            cancelled={p.cancelled}
+          />
+        );
+      })}
+
+      {/* Loading skeleton for couriers */}
+      {loading && !courier && (
+        <div className="col-span-full flex items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading courier history…
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OurRecordCard({
+  phone, past, loading, recent, onOpenOrder, onViewAll,
+}: {
+  phone: string;
+  past: PastSummary;
+  loading: boolean;
+  recent: RecentOrder[];
+  onOpenOrder: (id: string) => void;
+  onViewAll: () => void;
+}) {
+  const total = past?.total ?? 0;
+  const delivered = past?.delivered ?? 0;
+  const cancelled = past?.cancelled ?? 0;
+  const returned = past?.returned ?? 0;
+  const spent = past?.spent ?? 0;
+  const successPct = total > 0 ? Math.round((delivered / total) * 100) : null;
+
+  return (
+    <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-3 text-white shadow-md ring-1 ring-indigo-500/30">
+      {/* glow */}
+      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-indigo-500/20 blur-2xl" />
+
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/10 ring-1 ring-white/20">
+            <User2 className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">Our Record</span>
+        </div>
+        {loading && <Loader2 className="h-3 w-3 animate-spin text-indigo-300" />}
+      </div>
+
+      <div className="relative mt-1 truncate text-[13px] font-bold tabular-nums">{phone || "—"}</div>
+
+      {total === 0 ? (
+        <div className="relative mt-3 rounded-lg bg-white/5 px-2 py-2 text-[11px] italic text-indigo-200 ring-1 ring-white/10">
+          New customer · প্রথম অর্ডার
+        </div>
+      ) : (
+        <>
+          <div className="relative mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <RecordLine dot="bg-sky-400"     label="Total"     value={total} />
+            <RecordLine dot="bg-emerald-400" label="Delivered" value={delivered} />
+            <RecordLine dot="bg-rose-400"    label="Cancelled" value={cancelled} />
+            <RecordLine dot="bg-amber-400"   label="Returned"  value={returned} />
           </div>
 
-          {/* Inline stats — hide zero values */}
-          <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
-            {(past?.total ?? 0) > 0 && (
-              <OrdersPopoverStat
-                total={past!.total}
-                recent={recent}
-                phone={phone}
-                onOpen={(id) => navigate({ to: "/erp/orders/$orderId", params: { orderId: id } })}
-                onViewAll={() => phone && navigate({ to: "/erp/orders/list", search: { search: phone } as never })}
+          <div className="relative mt-2 flex items-center justify-between text-[10px] text-indigo-200">
+            <span>Spent</span>
+            <span className="font-extrabold tabular-nums text-white">৳{spent.toLocaleString()}</span>
+          </div>
+
+          {successPct != null && (
+            <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={cn(
+                  "h-full rounded-full",
+                  successPct >= 80 ? "bg-emerald-400" : successPct >= 50 ? "bg-amber-400" : "bg-rose-400",
+                )}
+                style={{ width: `${successPct}%` }}
               />
-            )}
-            {(past?.delivered ?? 0) > 0 && (
-              <InlineStat label="Delivered" value={past!.delivered} tone="text-emerald-600 dark:text-emerald-400" />
-            )}
-            {(past?.cancelled ?? 0) > 0 && (
-              <InlineStat label="Cancelled" value={past!.cancelled} tone="text-rose-600 dark:text-rose-400" />
-            )}
-            {(past?.returned ?? 0) > 0 && (
-              <InlineStat label="Returned" value={past!.returned} tone="text-amber-600 dark:text-amber-400" />
-            )}
-            {(past?.spent ?? 0) > 0 && (
-              <InlineStat label="Spent" value={`৳${past!.spent.toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
-            )}
-            {(past?.total ?? 0) === 0 && !loading && (
-              <span className="text-xs italic text-muted-foreground">New customer · প্রথম অর্ডার</span>
-            )}
-          </div>
-
-          {pct != null && (
-            <div className={cn(
-              "flex items-center gap-2 rounded-full bg-gradient-to-br px-3 py-1.5 ring-1 ring-inset",
-              toneBg,
-            )}>
-              <div className="relative h-8 w-8">
-                <svg viewBox="0 0 36 36" className="h-8 w-8 -rotate-90">
-                  <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3.5" className="stroke-current opacity-20" />
-                  <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3.5" strokeLinecap="round" className="stroke-current" strokeDasharray={`${(pct / 100) * 94.25} 94.25`} />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold tabular-nums">{pct}</div>
-              </div>
-              <div className="leading-tight">
-                <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">Success rate</div>
-                <div className="text-sm font-extrabold">Overall {pct}%</div>
-              </div>
             </div>
           )}
-        </div>
 
-        {/* Row 2: courier providers — only render if we have data */}
-        {(courier?.providers?.length ?? 0) > 0 && (
-          <div className="flex items-center gap-2 border-t border-dashed border-sky-200/60 pt-3 dark:border-sky-900/40">
-            <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-              <Truck className="h-3.5 w-3.5" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Courier</span>
-              {loading && <Loader2 className="h-3 w-3 animate-spin" />}
+          {/* Recent orders mini-list */}
+          {recent.length > 0 && (
+            <div className="relative mt-2 space-y-1">
+              {recent.slice(0, 2).map((o) => {
+                const date = new Date(o.created_at);
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => onOpenOrder(o.id)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md bg-white/5 px-1.5 py-1 text-left text-[10px] ring-1 ring-white/10 transition hover:bg-white/10"
+                  >
+                    <span className="truncate font-semibold tabular-nums">#{o.id.slice(0, 8)}</span>
+                    <span className="text-indigo-300">{date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
+                    <span className="font-extrabold tabular-nums text-white">৳{Number(o.total ?? 0).toLocaleString()}</span>
+                  </button>
+                );
+              })}
+              {total > 2 && (
+                <button
+                  type="button"
+                  onClick={onViewAll}
+                  className="flex w-full items-center justify-center gap-1 rounded-md bg-white/10 px-1.5 py-1 text-[10px] font-semibold ring-1 ring-white/20 transition hover:bg-white/15"
+                >
+                  View all {total} <ArrowRight className="h-2.5 w-2.5" />
+                </button>
+              )}
             </div>
-            <div className="flex flex-1 flex-wrap gap-1.5">
-              {(courier?.providers ?? []).map((p) => (
-                <CourierProviderChip key={p.name} provider={p} />
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function RecordLine({ dot, label, value }: { dot: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="flex items-center gap-1.5 text-indigo-200">
+        <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+        {label}
+      </span>
+      <span className="font-extrabold tabular-nums text-white">{value}</span>
+    </div>
+  );
+}
+
+type CourierVariant = "emerald" | "violet" | "rose" | "sky" | "amber" | "neutral";
+const COURIER_VARIANTS: Record<CourierVariant, { ring: string; tag: string; accent: string; bar: string; surface: string }> = {
+  emerald: { ring: "ring-emerald-200 dark:ring-emerald-900/50", tag: "bg-gradient-to-br from-emerald-500 to-teal-600", accent: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500", surface: "bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background" },
+  violet:  { ring: "ring-violet-200 dark:ring-violet-900/50",   tag: "bg-gradient-to-br from-violet-500 to-purple-600", accent: "text-violet-700 dark:text-violet-300",   bar: "bg-violet-500",  surface: "bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/30 dark:to-background" },
+  rose:    { ring: "ring-rose-200 dark:ring-rose-900/50",       tag: "bg-gradient-to-br from-rose-500 to-red-600",      accent: "text-rose-700 dark:text-rose-300",       bar: "bg-rose-500",    surface: "bg-gradient-to-br from-rose-50 to-white dark:from-rose-950/30 dark:to-background" },
+  sky:     { ring: "ring-sky-200 dark:ring-sky-900/50",         tag: "bg-gradient-to-br from-sky-500 to-blue-600",      accent: "text-sky-700 dark:text-sky-300",         bar: "bg-sky-500",     surface: "bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/30 dark:to-background" },
+  amber:   { ring: "ring-amber-200 dark:ring-amber-900/50",     tag: "bg-gradient-to-br from-amber-500 to-orange-600",  accent: "text-amber-700 dark:text-amber-300",     bar: "bg-amber-500",   surface: "bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-background" },
+  neutral: { ring: "ring-slate-200 dark:ring-slate-800",        tag: "bg-gradient-to-br from-slate-600 to-slate-800",   accent: "text-slate-700 dark:text-slate-200",     bar: "bg-slate-600",   surface: "bg-gradient-to-br from-slate-50 to-white dark:from-slate-900/40 dark:to-background" },
+};
+const PROVIDER_VARIANT: Record<string, CourierVariant> = {
+  pathao: "emerald", steadfast: "violet", redx: "rose", paperfly: "sky", ecourier: "amber",
+};
+
+function CourierStatCard({
+  label, providerKey, variant, successRate, total, success, cancelled,
+}: {
+  label: string;
+  providerKey?: string;
+  variant?: CourierVariant;
+  successRate: number;
+  total: number;
+  success: number;
+  cancelled: number;
+}) {
+  const v: CourierVariant = variant ?? (providerKey && PROVIDER_VARIANT[providerKey]) ?? "neutral";
+  const t = COURIER_VARIANTS[v];
+  const rateTone =
+    successRate >= 80 ? "text-emerald-600 dark:text-emerald-400"
+    : successRate >= 50 ? "text-amber-600 dark:text-amber-400"
+    : "text-rose-600 dark:text-rose-400";
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-xl border p-3 shadow-sm ring-1 ring-inset", t.ring, t.surface)}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm", t.tag)}>
+          <Truck className="h-3 w-3" /> {label}
+        </span>
+        <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
+          {total}
+        </span>
+      </div>
+
+      {/* Big rate */}
+      <div className="mt-2 flex items-baseline gap-1">
+        <span className={cn("text-2xl font-extrabold tabular-nums leading-none", rateTone)}>{successRate}%</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Success</span>
+      </div>
+
+      {/* Mini stats */}
+      <div className="mt-1.5 flex items-center justify-between text-[10px]">
+        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3 w-3" />
+          <span className="font-bold tabular-nums">{success}</span>
+        </span>
+        <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+          <XCircle className="h-3 w-3" />
+          <span className="font-bold tabular-nums">{cancelled}</span>
+        </span>
+        <span className="text-[10px] text-muted-foreground tabular-nums">{success}/{total}</span>
+      </div>
+
+      {/* Bottom progress */}
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full transition-all", t.bar)} style={{ width: `${successRate}%` }} />
+      </div>
+    </div>
   );
 }
 
