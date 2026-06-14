@@ -5,6 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +33,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
+  const [advOpen, setAdvOpen] = useState(false);
+  const [advAmount, setAdvAmount] = useState("");
+  const [advSource, setAdvSource] = useState("");
+  const [advNumber, setAdvNumber] = useState("");
+  const [advTxnId, setAdvTxnId] = useState("");
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -50,8 +58,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async (web_status: string) => {
-      const { error } = await supabase.from("orders").update({ web_status: web_status as never }).eq("id", orderId!);
+    mutationFn: async ({ web_status, extra }: { web_status: string; extra?: Record<string, unknown> }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: web_status as never, ...(extra ?? {}) })
+        .eq("id", orderId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -62,6 +73,35 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const onPickWebStatus = (v: string) => {
+    if (v === "advance_payment") {
+      setAdvAmount("");
+      setAdvSource("");
+      setAdvNumber("");
+      setAdvTxnId("");
+      setAdvOpen(true);
+      return;
+    }
+    updateWebStatus.mutate({ web_status: v });
+  };
+
+  const submitAdvance = () => {
+    const amt = Number(advAmount);
+    if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
+    if (!advSource) { toast.error("Select advance payment source"); return; }
+    if (!advNumber || advNumber.length < 4) { toast.error("Enter payment number (min 4 digits)"); return; }
+    updateWebStatus.mutate({
+      web_status: "advance_payment",
+      extra: {
+        advance_amount: amt,
+        advance_source: advSource,
+        advance_payment_number: advNumber,
+        advance_txn_id: advTxnId || null,
+      },
+    });
+    setAdvOpen(false);
+  };
 
   const assignStaff = useMutation({
     mutationFn: async (userId: string | null) => {
@@ -198,7 +238,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <Select
                       value={(order as { web_status?: string | null }).web_status ?? "processing"}
                       disabled={updateWebStatus.isPending}
-                      onValueChange={(v) => updateWebStatus.mutate(v)}
+                      onValueChange={onPickWebStatus}
                     >
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
