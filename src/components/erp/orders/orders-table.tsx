@@ -118,6 +118,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                   <span className="line-clamp-2 leading-snug">{addr}</span>
                 </div>
               )}
+            </div>
           </div>
         );
       },
