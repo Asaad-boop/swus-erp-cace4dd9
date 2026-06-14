@@ -615,7 +615,7 @@ function OrderDetailsPage() {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number; advance_source: string; advance_payment_number: string; advance_txn_id: string | null }> }) => {
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number; advance_note: string }> }) => {
       const { error } = await supabase
         .from("orders")
         .update({ web_status: status, ...(extra ?? {}) })
@@ -634,9 +634,6 @@ function OrderDetailsPage() {
     if (v === "on_hold" || v === "cancelled" || v === "advance_payment") {
       setPendingReason("");
       setPendingAdvance("");
-      setPendingAdvSource("");
-      setPendingAdvNumber("");
-      setPendingAdvTxnId("");
       setPendingWebStatus(v);
       return;
     }
@@ -657,19 +654,12 @@ function OrderDetailsPage() {
     } else if (pendingWebStatus === "advance_payment") {
       const amt = Number(pendingAdvance);
       if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
-      const src = pendingAdvSource.trim();
-      const num = pendingAdvNumber.trim();
-      if (!src) { toast.error("Select a payment source"); return; }
-      if (!num) { toast.error("Enter the payment number (or last 4 digits)"); return; }
-      if (num.length < 4) { toast.error("Payment number must be at least 4 digits"); return; }
-      const txn = pendingAdvTxnId.trim();
+      const note = pendingReason.trim();
       updateWebStatus.mutate({
         status: "advance_payment",
         extra: {
           advance_amount: amt,
-          advance_source: src,
-          advance_payment_number: num,
-          advance_txn_id: txn || null,
+          ...(note ? { advance_note: note } : {}),
         },
       });
       setForm((f) => ({ ...f, advance: amt }));
@@ -787,9 +777,6 @@ function OrderDetailsPage() {
   const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
   const [pendingReason, setPendingReason] = useState("");
   const [pendingAdvance, setPendingAdvance] = useState("");
-  const [pendingAdvSource, setPendingAdvSource] = useState("");
-  const [pendingAdvNumber, setPendingAdvNumber] = useState("");
-  const [pendingAdvTxnId, setPendingAdvTxnId] = useState("");
   const [draftWebStatus, setDraftWebStatus] = useState<WebStatus | "">("");
 
   if (isLoading || !order) {
