@@ -146,6 +146,7 @@ export type OrderRow = {
   confirmed_at: string | null;
   paid_at?: string | null;
   items?: OrderItemMini[];
+  actual_shipping_cost?: number | null;
 };
 
 export type OrderItemMini = {

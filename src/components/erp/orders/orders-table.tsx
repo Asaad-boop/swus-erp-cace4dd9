@@ -213,6 +213,11 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
           {row.original.payment_method && (
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{row.original.payment_method}</div>
           )}
+          {row.original.actual_shipping_cost != null && Number(row.original.actual_shipping_cost) > 0 && (
+            <div className="text-[10px] text-muted-foreground font-medium tabular-nums" title="Courier delivery cost">
+              Delivery ৳{Number(row.original.actual_shipping_cost).toLocaleString()}
+            </div>
+          )}
           <AdvanceBadge advance={row.original.advance_amount} total={row.original.total} variant="full" className="mt-1" />
         </div>
       ),
