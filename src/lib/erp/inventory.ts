@@ -14,6 +14,7 @@ export type ProductRow = {
   sku?: string | null;
   barcode?: string | null;
   reorder_point?: number | null;
+  variant_skus?: string[];
 };
 
 export type StockMovementRow = {
