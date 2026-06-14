@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Search, ArrowLeft, Loader2, Sparkles, Truck, Package,
-  Star, MinusCircle, PlusCircle, ImageIcon, Info,
+  Star, MinusCircle, PlusCircle, ImageIcon, Info, Wand2, History,
+  CheckCircle2, XCircle, AlertCircle,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
 import { pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
+import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/new")({
@@ -62,6 +65,66 @@ function NewOrderPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pathao");
   const [isPreorder, setIsPreorder] = useState(false);
   const [isCrossSale, setIsCrossSale] = useState(false);
+
+  // ── AI paste field ────────────────────────────────────────────────────
+  const [pasteText, setPasteText] = useState("");
+  const parseFn = useServerFn(parseCustomerTextFn);
+  const parse = useMutation({
+    mutationFn: async () => parseFn({ data: { text: pasteText.trim() } }),
+    onSuccess: (r) => {
+      let filled = 0;
+      if (r.name) { setName(r.name); filled++; }
+      if (r.phone) { setPhone(r.phone); filled++; }
+      if (r.address) { setAddress(r.address); filled++; }
+      if (filled === 0) toast.error("Kichu extract korte parini");
+      else toast.success(`AI ne ${filled} field fill koreche`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── debounced phone → customer & courier history ──────────────────────
+  const [debouncedPhone, setDebouncedPhone] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const digits = phone.replace(/\D/g, "");
+      setDebouncedPhone(digits.length >= 11 ? digits.slice(-11).replace(/^(?!0)/, "0") : "");
+    }, 500);
+    return () => clearTimeout(t);
+  }, [phone]);
+
+  // Past orders breakdown for this phone in this brand
+  const { data: pastOrders } = useQuery({
+    queryKey: ["new-order-customer-history", activeBrand?.id, debouncedPhone],
+    enabled: !!activeBrand?.id && !!debouncedPhone,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id,total,status,created_at")
+        .eq("brand_id", activeBrand!.id)
+        .or(`shipping_phone.eq.${debouncedPhone},guest_phone.eq.${debouncedPhone}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = data ?? [];
+      const delivered = rows.filter((o) => o.status === "delivered").length;
+      const cancelled = rows.filter((o) => o.status === "cancelled" || o.status === "fake").length;
+      const returned = rows.filter((o) => o.status === "returned").length;
+      const spent = rows.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.total ?? 0), 0);
+      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null };
+    },
+  });
+
+  // Courier history (Pathao + Steadfast)
+  const historyFn = useServerFn(fetchCourierHistoryFn);
+  const { data: courier, isFetching: courierFetching } = useQuery({
+    queryKey: ["new-order-courier-history", activeBrand?.id, debouncedPhone],
+    enabled: !!activeBrand?.id && !!debouncedPhone,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const r = await historyFn({ data: { phones: [debouncedPhone], brandId: activeBrand!.id } });
+      return r.results[debouncedPhone] ?? null;
+    },
+  });
 
   // ── pathao city/zone/area ─────────────────────────────────────────────
   const [cityId, setCityId] = useState<number | null>(null);
@@ -249,6 +312,42 @@ function NewOrderPage() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
+        {/* AI paste field */}
+        <Card className="border-violet-300/60 bg-gradient-to-br from-violet-50/80 to-fuchsia-50/40 dark:from-violet-950/20 dark:to-fuchsia-950/10">
+          <CardContent className="p-3 md:p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="rounded-md bg-violet-600/10 p-1.5 text-violet-700 dark:text-violet-300">
+                  <Wand2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">AI Smart Paste</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Customer er messy text (name + mobile + address) এখানে paste করুন — auto fill হবে।
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="bg-violet-600 text-white hover:bg-violet-700"
+                disabled={parse.isPending || pasteText.trim().length < 5}
+                onClick={() => parse.mutate()}
+              >
+                {parse.isPending
+                  ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Parsing…</>
+                  : <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Parse & Fill</>}
+              </Button>
+            </div>
+            <Textarea
+              rows={2}
+              placeholder={`e.g. "Rahim Uddin, 01712345678, House 12, Road 5, Dhanmondi, Dhaka"`}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              className="resize-none bg-background/70"
+            />
+          </CardContent>
+        </Card>
+
         {/* Row 1: Mobile | Name | Delivery Method */}
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Mobile Number" required>
@@ -273,6 +372,16 @@ function NewOrderPage() {
             </Select>
           </Field>
         </div>
+
+        {/* Customer history (auto-loads when phone has 11 digits) */}
+        {debouncedPhone && (
+          <CustomerHistoryStrip
+            phone={debouncedPhone}
+            past={pastOrders}
+            courier={courier}
+            loading={courierFetching}
+          />
+        )}
 
         {/* Row 2: Address | Shipping Note | Extra Options */}
         <div className="grid gap-3 md:grid-cols-3">
@@ -657,6 +766,107 @@ function ToggleRow({
     <div className="flex items-center justify-between rounded-md border bg-background px-2.5 py-1.5">
       <span className="text-xs font-medium">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+type PastSummary = {
+  total: number; delivered: number; cancelled: number; returned: number; spent: number;
+  last: { id: string; created_at: string; total: number; status: string } | null;
+} | undefined;
+
+type CourierData = {
+  found: boolean;
+  summary: { total: number; success: number; cancelled: number };
+  providers: { name: string; label: string; ok: boolean; total: number; success: number; cancelled: number }[];
+} | null | undefined;
+
+function CustomerHistoryStrip({
+  phone, past, courier, loading,
+}: { phone: string; past: PastSummary; courier: CourierData; loading: boolean }) {
+  const totalCourier = courier?.summary.total ?? 0;
+  const successCourier = courier?.summary.success ?? 0;
+  const pct = totalCourier > 0 ? Math.round((successCourier / totalCourier) * 100) : null;
+  const tone =
+    pct == null ? "text-muted-foreground"
+    : pct >= 80 ? "text-emerald-600"
+    : pct >= 50 ? "text-amber-600"
+    : "text-rose-600";
+
+  return (
+    <Card className="border-sky-200/70 bg-sky-50/50 dark:bg-sky-950/10">
+      <CardContent className="flex flex-wrap items-stretch gap-3 p-3 md:gap-4">
+        <div className="flex items-center gap-2">
+          <div className="rounded-md bg-sky-600/10 p-1.5 text-sky-700 dark:text-sky-300">
+            <History className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Customer</div>
+            <div className="text-sm font-semibold tabular-nums">{phone}</div>
+          </div>
+        </div>
+
+        <div className="mx-1 hidden h-10 self-center border-l md:block" />
+
+        {/* Past orders in this brand */}
+        <Stat label="Total Orders" value={past?.total ?? 0} />
+        <Stat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600" icon={<CheckCircle2 className="h-3 w-3" />} />
+        <Stat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600" icon={<XCircle className="h-3 w-3" />} />
+        <Stat label="Returned" value={past?.returned ?? 0} tone="text-amber-600" icon={<AlertCircle className="h-3 w-3" />} />
+        <Stat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} />
+
+        <div className="mx-1 hidden h-10 self-center border-l md:block" />
+
+        {/* Courier history */}
+        <div className="flex items-center gap-2">
+          <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Courier</span>
+          {loading && !courier && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
+        {(courier?.providers ?? []).map((p) => {
+          const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
+          const ptone = ppct == null ? "text-muted-foreground"
+            : ppct >= 80 ? "text-emerald-600"
+            : ppct >= 50 ? "text-amber-600" : "text-rose-600";
+          return (
+            <div key={p.name} className="flex flex-col rounded-md border bg-background px-2 py-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{p.label}</div>
+              {p.ok ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className={cn("text-sm font-bold tabular-nums", ptone)}>
+                    {ppct == null ? "—" : `${ppct}%`}
+                  </span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                    {p.success}/{p.total}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">N/A</span>
+              )}
+            </div>
+          );
+        })}
+        {pct != null && (
+          <div className={cn("ml-auto self-center rounded-md px-2.5 py-1 text-sm font-bold ring-1 ring-inset",
+            pct >= 80 ? "bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950/30"
+            : pct >= 50 ? "bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950/30"
+            : "bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950/30",
+            tone)}>
+            Overall {pct}%
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ label, value, tone, icon }: { label: string; value: React.ReactNode; tone?: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col rounded-md border bg-background px-2 py-1">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {icon}{label}
+      </div>
+      <div className={cn("text-sm font-bold tabular-nums", tone ?? "text-foreground")}>{value}</div>
     </div>
   );
 }
