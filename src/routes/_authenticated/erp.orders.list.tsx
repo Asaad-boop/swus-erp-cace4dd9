@@ -12,6 +12,7 @@ import { OrdersToolbar } from "@/components/erp/orders/orders-toolbar";
 import { OrdersBulkActions } from "@/components/erp/orders/orders-bulk-actions";
 import { OrdersTable } from "@/components/erp/orders/orders-table";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
+import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderStatus } from "@/lib/erp/orders";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
@@ -39,6 +40,7 @@ function OrdersPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState<string | null>(null);
+  const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -146,6 +148,10 @@ function OrdersPage() {
               onClear={() => setSelectedIds(new Set())}
               onStatus={(s) => bulkStatus.mutate(s)}
               onExport={handleExport}
+              onSendToPathao={() => {
+                if (selectedIds.size === 0) return;
+                setPathaoBulkOpen(true);
+              }}
               isPending={bulkStatus.isPending}
             />
           }
@@ -173,6 +179,15 @@ function OrdersPage() {
       </div>
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} />
+
+      <PathaoBulkUploadDialog
+        open={pathaoBulkOpen}
+        onOpenChange={(o) => {
+          setPathaoBulkOpen(o);
+          if (!o) setSelectedIds(new Set());
+        }}
+        orders={rows.filter((r) => selectedIds.has(r.id)).map((r) => ({ id: r.id, invoice_no: r.invoice_no }))}
+      />
     </div>
   );
 }
