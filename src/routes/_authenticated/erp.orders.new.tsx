@@ -915,72 +915,93 @@ function CustomerHistoryStrip({
   const totalCourier = courier?.summary.total ?? 0;
   const successCourier = courier?.summary.success ?? 0;
   const pct = totalCourier > 0 ? Math.round((successCourier / totalCourier) * 100) : null;
-  const tone =
-    pct == null ? "text-muted-foreground"
-    : pct >= 80 ? "text-emerald-600"
-    : pct >= 50 ? "text-amber-600"
-    : "text-rose-600";
+  const toneBg =
+    pct == null ? "from-slate-500/10 to-slate-500/0 text-slate-600 ring-slate-300/60"
+    : pct >= 80 ? "from-emerald-500/15 to-emerald-500/0 text-emerald-700 ring-emerald-300/70 dark:text-emerald-300"
+    : pct >= 50 ? "from-amber-500/15 to-amber-500/0 text-amber-700 ring-amber-300/70 dark:text-amber-300"
+    : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
+
+  const initials = (phone || "").slice(-2);
 
   return (
-    <Card className="border-sky-200/70 bg-sky-50/50 dark:bg-sky-950/10">
+    <Card className="overflow-hidden border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-indigo-50/40 shadow-sm dark:from-sky-950/20 dark:via-background dark:to-indigo-950/10">
       <CardContent className="flex flex-wrap items-stretch gap-3 p-3 md:gap-4">
-        <div className="flex items-center gap-2">
-          <div className="rounded-md bg-sky-600/10 p-1.5 text-sky-700 dark:text-sky-300">
-            <History className="h-4 w-4" />
+        {/* Customer chip */}
+        <div className="flex items-center gap-2.5 rounded-xl border border-sky-200/60 bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur dark:bg-background/40">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[11px] font-bold text-white shadow-inner ring-2 ring-white dark:ring-background">
+            {initials || <History className="h-4 w-4" />}
           </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Customer</div>
-            <div className="text-sm font-semibold tabular-nums">{phone}</div>
+          <div className="leading-tight">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
+            <div className="text-sm font-bold tabular-nums">{phone || "—"}</div>
           </div>
         </div>
 
-        <div className="mx-1 hidden h-10 self-center border-l md:block" />
-
-        {/* Past orders in this brand */}
-        <Stat label="Total Orders" value={past?.total ?? 0} />
-        <Stat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600" icon={<CheckCircle2 className="h-3 w-3" />} />
-        <Stat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600" icon={<XCircle className="h-3 w-3" />} />
-        <Stat label="Returned" value={past?.returned ?? 0} tone="text-amber-600" icon={<AlertCircle className="h-3 w-3" />} />
-        <Stat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} />
-
-        <div className="mx-1 hidden h-10 self-center border-l md:block" />
-
-        {/* Courier history */}
-        <div className="flex items-center gap-2">
-          <Truck className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Courier</span>
-          {loading && !courier && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        {/* Past order stats */}
+        <div className="flex flex-1 flex-wrap items-stretch gap-2">
+          <Stat label="Orders" value={past?.total ?? 0} icon={<History className="h-3 w-3" />} accent="slate" />
+          <Stat label="Delivered" value={past?.delivered ?? 0} icon={<CheckCircle2 className="h-3 w-3" />} accent="emerald" />
+          <Stat label="Cancelled" value={past?.cancelled ?? 0} icon={<XCircle className="h-3 w-3" />} accent="rose" />
+          <Stat label="Returned" value={past?.returned ?? 0} icon={<AlertCircle className="h-3 w-3" />} accent="amber" />
+          <Stat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} icon={<span className="text-[9px] font-bold">৳</span>} accent="indigo" />
         </div>
-        {(courier?.providers ?? []).map((p) => {
-          const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
-          const ptone = ppct == null ? "text-muted-foreground"
-            : ppct >= 80 ? "text-emerald-600"
-            : ppct >= 50 ? "text-amber-600" : "text-rose-600";
-          return (
-            <div key={p.name} className="flex flex-col rounded-md border bg-background px-2 py-1">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{p.label}</div>
-              {p.ok ? (
-                <div className="flex items-baseline gap-1.5">
-                  <span className={cn("text-sm font-bold tabular-nums", ptone)}>
-                    {ppct == null ? "—" : `${ppct}%`}
-                  </span>
-                  <span className="text-[11px] tabular-nums text-muted-foreground">
-                    {p.success}/{p.total}
-                  </span>
+
+        <div className="mx-1 hidden h-12 self-center border-l border-dashed border-sky-300/50 md:block" />
+
+        {/* Courier providers */}
+        <div className="flex items-stretch gap-2">
+          <div className="flex items-center gap-1.5 self-center text-muted-foreground">
+            <Truck className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Courier</span>
+            {loading && !courier && <Loader2 className="h-3 w-3 animate-spin" />}
+          </div>
+          {(courier?.providers ?? []).map((p) => {
+            const ppct = p.total > 0 ? Math.round((p.success / p.total) * 100) : null;
+            const ptone = ppct == null ? { text: "text-muted-foreground", bar: "bg-slate-300", ring: "ring-slate-200" }
+              : ppct >= 80 ? { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", ring: "ring-emerald-200" }
+              : ppct >= 50 ? { text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500", ring: "ring-amber-200" }
+              : { text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500", ring: "ring-rose-200" };
+            return (
+              <div key={p.name} className={cn("flex w-[88px] flex-col gap-1 rounded-lg border bg-white/80 px-2 py-1.5 shadow-sm ring-1 ring-inset dark:bg-background/60", ptone.ring)}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{p.label}</span>
                 </div>
-              ) : (
-                <span className="text-[11px] text-muted-foreground">N/A</span>
-              )}
-            </div>
-          );
-        })}
+                {p.ok ? (
+                  <>
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className={cn("text-sm font-extrabold tabular-nums", ptone.text)}>
+                        {ppct == null ? "—" : `${ppct}%`}
+                      </span>
+                      <span className="text-[10px] tabular-nums text-muted-foreground">{p.success}/{p.total}</span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-muted">
+                      <div className={cn("h-full rounded-full transition-all", ptone.bar)} style={{ width: `${ppct ?? 0}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-[11px] italic text-muted-foreground">N/A</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Overall score badge */}
         {pct != null && (
-          <div className={cn("ml-auto self-center rounded-md px-2.5 py-1 text-sm font-bold ring-1 ring-inset",
-            pct >= 80 ? "bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950/30"
-            : pct >= 50 ? "bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950/30"
-            : "bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950/30",
-            tone)}>
-            Overall {pct}%
+          <div className={cn(
+            "ml-auto flex items-center gap-2 self-center rounded-xl bg-gradient-to-br px-3.5 py-2 shadow-sm ring-1 ring-inset",
+            toneBg,
+          )}>
+            <div className="relative h-9 w-9">
+              <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90">
+                <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-current opacity-20" />
+                <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" strokeLinecap="round" className="stroke-current" strokeDasharray={`${(pct / 100) * 94.25} 94.25`} />
+              </svg>
+            </div>
+            <div className="leading-tight">
+              <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">Overall</div>
+              <div className="text-lg font-extrabold tabular-nums">{pct}%</div>
+            </div>
           </div>
         )}
       </CardContent>
@@ -988,13 +1009,23 @@ function CustomerHistoryStrip({
   );
 }
 
-function Stat({ label, value, tone, icon }: { label: string; value: React.ReactNode; tone?: string; icon?: React.ReactNode }) {
+const STAT_ACCENTS: Record<string, { chip: string; value: string }> = {
+  slate:   { chip: "bg-slate-500/10 text-slate-600 dark:text-slate-300",       value: "text-foreground" },
+  emerald: { chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", value: "text-emerald-700 dark:text-emerald-400" },
+  rose:    { chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400",          value: "text-rose-700 dark:text-rose-400" },
+  amber:   { chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",       value: "text-amber-700 dark:text-amber-400" },
+  indigo:  { chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",    value: "text-indigo-700 dark:text-indigo-400" },
+};
+
+function Stat({ label, value, icon, accent = "slate" }: { label: string; value: React.ReactNode; icon?: React.ReactNode; accent?: keyof typeof STAT_ACCENTS }) {
+  const a = STAT_ACCENTS[accent] ?? STAT_ACCENTS.slate;
   return (
-    <div className="flex flex-col rounded-md border bg-background px-2 py-1">
-      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-        {icon}{label}
+    <div className="flex min-w-[78px] flex-1 items-center gap-2 rounded-lg border bg-white/80 px-2.5 py-1.5 shadow-sm dark:bg-background/60">
+      <div className={cn("flex h-6 w-6 items-center justify-center rounded-md", a.chip)}>{icon}</div>
+      <div className="leading-tight">
+        <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className={cn("text-sm font-extrabold tabular-nums", a.value)}>{value}</div>
       </div>
-      <div className={cn("text-sm font-bold tabular-nums", tone ?? "text-foreground")}>{value}</div>
     </div>
   );
 }
