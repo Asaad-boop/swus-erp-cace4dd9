@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Save, FileText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Save, FileText, Upload, Trash2, ImageIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,15 @@ type BrandSettings = {
   business_mobile?: string;
   business_address?: string;
   default_delivery_cost?: number;
+  hotline?: string;
+  whatsapp?: string;
+  email?: string;
+  website?: string;
+  facebook?: string;
+  instagram?: string;
+  bin?: string;
+  trade_license?: string;
+  footer_thank_you?: string;
 };
 
 type FormState = {
@@ -23,6 +32,15 @@ type FormState = {
   business_address: string;
   default_delivery_cost: string;
   logo_url: string;
+  hotline: string;
+  whatsapp: string;
+  email: string;
+  website: string;
+  facebook: string;
+  instagram: string;
+  bin: string;
+  trade_license: string;
+  footer_thank_you: string;
 };
 
 const EMPTY: FormState = {
@@ -32,6 +50,15 @@ const EMPTY: FormState = {
   business_address: "",
   default_delivery_cost: "0",
   logo_url: "",
+  hotline: "",
+  whatsapp: "",
+  email: "",
+  website: "",
+  facebook: "",
+  instagram: "",
+  bin: "",
+  trade_license: "",
+  footer_thank_you: "",
 };
 
 const SLUG_RE = /^[A-Za-z0-9_]+-?$/;
@@ -71,6 +98,15 @@ export function BusinessSettings() {
       business_address: data.bsettings.business_address ?? "",
       default_delivery_cost: String(data.bsettings.default_delivery_cost ?? 0),
       logo_url: data.brand?.logo_url ?? "",
+      hotline: data.bsettings.hotline ?? "",
+      whatsapp: data.bsettings.whatsapp ?? "",
+      email: data.bsettings.email ?? "",
+      website: data.bsettings.website ?? "",
+      facebook: data.bsettings.facebook ?? "",
+      instagram: data.bsettings.instagram ?? "",
+      bin: data.bsettings.bin ?? "",
+      trade_license: data.bsettings.trade_license ?? "",
+      footer_thank_you: data.bsettings.footer_thank_you ?? "",
     });
   }, [data]);
 
@@ -89,6 +125,15 @@ export function BusinessSettings() {
         business_mobile: form.business_mobile || undefined,
         business_address: form.business_address || undefined,
         default_delivery_cost: Number(form.default_delivery_cost) || 0,
+        hotline: form.hotline || undefined,
+        whatsapp: form.whatsapp || undefined,
+        email: form.email || undefined,
+        website: form.website || undefined,
+        facebook: form.facebook || undefined,
+        instagram: form.instagram || undefined,
+        bin: form.bin || undefined,
+        trade_license: form.trade_license || undefined,
+        footer_thank_you: form.footer_thank_you || undefined,
       };
 
       const { error: brandErr } = await supabase
@@ -134,6 +179,40 @@ export function BusinessSettings() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ---------------- Logo upload ----------------
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleLogoFile(file: File) {
+    if (!brandId) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Logo must be under 4 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `brands/${brandId}/logo-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
+      set("logo_url", pub.publicUrl);
+      toast.success("Logo uploaded — click Update to save");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (!brandId) {
     return <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Select a brand to edit its settings.</div>;
   }
@@ -149,28 +228,56 @@ export function BusinessSettings() {
   return (
     <form
       onSubmit={(e) => { e.preventDefault(); save.mutate(); }}
-      className="rounded-xl border bg-card shadow-sm max-w-3xl overflow-hidden"
+      className="rounded-xl border bg-card shadow-sm max-w-4xl overflow-hidden"
     >
       <header className="px-5 py-3 border-b bg-muted/30">
-        <h2 className="font-bold text-base">Business Setting</h2>
+        <h2 className="font-bold text-base">Business Setting — {data?.brand?.name}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">These values auto-fill invoices, stickers and order documents.</p>
       </header>
 
-      <div className="p-5 space-y-5">
-        <Field
+      <div className="p-5 space-y-6">
+        {/* ============ LOGO ============ */}
+        <Section title="Brand Logo" desc="Used on invoices, stickers and the storefront header.">
+          <div className="flex gap-4 items-start">
+            <div className="h-24 w-24 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+              {form.logo_url
+                ? <img src={form.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                : <ImageIcon className="h-8 w-8 text-muted-foreground/50" />}
+            </div>
+            <div className="flex-1 space-y-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.currentTarget.value = ""; }}
+              />
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploading ? "Uploading…" : "Upload Logo"}
+                </Button>
+                {form.logo_url && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => set("logo_url", "")}>
+                    <Trash2 className="h-4 w-4" /> Remove
+                  </Button>
+                )}
+              </div>
+              <Input value={form.logo_url} onChange={(e) => set("logo_url", e.target.value)} placeholder="…or paste a URL" className="text-xs" />
+              <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP or SVG. Max 4 MB. Transparent PNG recommended.</p>
+            </div>
+          </div>
+        </Section>
+
+        {/* ============ IDENTITY ============ */}
+        <Section title="Identity">
+          <Field
           label="Business Name"
-          hint="This is the name of the business that will be used in the invoice"
-        >
-          <Input value={form.business_name} onChange={(e) => set("business_name", e.target.value)} required />
-        </Field>
-
-        <Field
-          label="Business Mobile"
-          hint="This is the mobile number of the business that will be used in the invoice"
-        >
-          <Input value={form.business_mobile} onChange={(e) => set("business_mobile", e.target.value)} inputMode="tel" />
-        </Field>
-
-        <Field
+            hint="Shown as the brand name on every printed document."
+          >
+            <Input value={form.business_name} onChange={(e) => set("business_name", e.target.value)} required />
+          </Field>
+          <Field
           label="Invoice Slug"
           hint="This slug is added before the invoice number. Use English letters, digits or underscores, with an optional trailing hyphen."
           error={slugInvalid ? "Only A–Z, a–z, 0–9, _ allowed, optional trailing -" : null}
@@ -187,42 +294,71 @@ export function BusinessSettings() {
             <span className="font-mono font-semibold text-foreground">{nextPreview}</span>
           </div>
         </Field>
+        </Section>
 
-        <Field
-          label="Business Address"
-          hint="This is the address of the business that will be used in the invoice"
-        >
-          <Textarea value={form.business_address} onChange={(e) => set("business_address", e.target.value)} rows={2} />
-        </Field>
+        {/* ============ CONTACT ============ */}
+        <Section title="Contact" desc="Customer-facing contact channels.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Business Mobile" hint="Primary phone — appears as the default sender on invoices.">
+              <Input value={form.business_mobile} onChange={(e) => set("business_mobile", e.target.value)} inputMode="tel" placeholder="01711-223344" />
+            </Field>
+            <Field label="Hotline" hint="Customer support number.">
+              <Input value={form.hotline} onChange={(e) => set("hotline", e.target.value)} inputMode="tel" placeholder="16263" />
+            </Field>
+            <Field label="WhatsApp">
+              <Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} inputMode="tel" placeholder="+8801XXXXXXXXX" />
+            </Field>
+            <Field label="Email">
+              <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="hello@brand.com" />
+            </Field>
+            <Field label="Website">
+              <Input value={form.website} onChange={(e) => set("website", e.target.value)} placeholder="https://brand.com" />
+            </Field>
+            <Field label="Address" className="md:col-span-2">
+              <Textarea value={form.business_address} onChange={(e) => set("business_address", e.target.value)} rows={2} placeholder="Shop 12, Road 5, Block C, Bashundhara R/A, Dhaka" />
+            </Field>
+          </div>
+        </Section>
 
-        <Field
-          label="Default Delivery Cost"
-          hint="This default delivery cost will be automatically added in the new order form and you can change it if needed"
-        >
-          <Input
-            type="number"
-            min="0"
-            step="1"
-            value={form.default_delivery_cost}
-            onChange={(e) => set("default_delivery_cost", e.target.value)}
-          />
-        </Field>
+        {/* ============ SOCIAL ============ */}
+        <Section title="Social" desc="Shown in the invoice footer & order notifications.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Facebook">
+              <Input value={form.facebook} onChange={(e) => set("facebook", e.target.value)} placeholder="fb.com/brand" />
+            </Field>
+            <Field label="Instagram">
+              <Input value={form.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder="@brand" />
+            </Field>
+          </div>
+        </Section>
 
-        <Field
-          label="Business Logo"
-          hint="Logo URL displayed on invoices and documents"
-        >
-          <Input
-            value={form.logo_url}
-            onChange={(e) => set("logo_url", e.target.value)}
-            placeholder="https://..."
-          />
-          {form.logo_url && (
-            <div className="mt-2 rounded-md border p-3 flex items-center justify-center bg-muted/20">
-              <img src={form.logo_url} alt="Business logo" className="max-h-20 object-contain" />
-            </div>
-          )}
-        </Field>
+        {/* ============ LEGAL ============ */}
+        <Section title="Legal & Tax" desc="Government-issued numbers for compliance.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="BIN / VAT Registration">
+              <Input value={form.bin} onChange={(e) => set("bin", e.target.value)} placeholder="0001234-5678" />
+            </Field>
+            <Field label="Trade License">
+              <Input value={form.trade_license} onChange={(e) => set("trade_license", e.target.value)} placeholder="TL-2024-12345" />
+            </Field>
+          </div>
+        </Section>
+
+        {/* ============ DEFAULTS ============ */}
+        <Section title="Defaults & Footer">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Default Delivery Cost" hint="Pre-filled in the new-order form.">
+              <Input
+                type="number" min="0" step="1"
+                value={form.default_delivery_cost}
+                onChange={(e) => set("default_delivery_cost", e.target.value)}
+              />
+            </Field>
+            <Field label="Footer / Thank-you Message" hint="Shown at the bottom of invoices." className="md:col-span-2">
+              <Textarea value={form.footer_thank_you} onChange={(e) => set("footer_thank_you", e.target.value)} rows={2} placeholder="Thank you for shopping with us!" />
+            </Field>
+          </div>
+        </Section>
       </div>
 
       <footer className="px-5 py-3 border-t bg-muted/20 flex justify-end">
@@ -235,9 +371,21 @@ export function BusinessSettings() {
   );
 }
 
-function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string | null; children: React.ReactNode }) {
+function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <section className="space-y-3">
+      <div className="border-b pb-1.5">
+        <h3 className="text-sm font-bold">{title}</h3>
+        {desc && <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={"space-y-1.5 " + (className ?? "")}>
       <Label className="text-sm font-bold">{label}</Label>
       {children}
       {error ? (
