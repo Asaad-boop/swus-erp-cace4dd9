@@ -16,6 +16,24 @@ async function clientForBrand(supabase: any, brandId?: string | null) {
   return createPathaoClient(creds);
 }
 
+/**
+ * Remove any existing courier_shipments rows for this order whose status
+ * looks cancelled (e.g. "Pickup_Cancelled", "Cancelled", "Canceled").
+ * Lets the user re-book a fresh consignment without keeping stale history.
+ */
+async function purgeCancelledShipments(supabase: any, orderId: string) {
+  const { data: rows } = await supabase
+    .from("courier_shipments")
+    .select("id, status")
+    .eq("order_id", orderId);
+  const ids = ((rows ?? []) as Array<{ id: string; status: string | null }>)
+    .filter((r) => /cancel/i.test(r.status ?? ""))
+    .map((r) => r.id);
+  if (ids.length > 0) {
+    await supabase.from("courier_shipments").delete().in("id", ids);
+  }
+}
+
 export const pathaoCitiesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
