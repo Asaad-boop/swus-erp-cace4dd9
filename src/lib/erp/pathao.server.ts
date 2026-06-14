@@ -13,13 +13,18 @@ export type PathaoCreds = {
 const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
 const FETCH_TIMEOUT_MS = 12_000;
 
-async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}) {
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     return await fetch(input, { ...init, signal: init.signal ?? controller.signal });
   } catch (e) {
-    if ((e as Error).name === "AbortError") throw new Error("Pathao request timed out");
+    if ((e as Error).name === "AbortError") {
+      throw new Error("Pathao request timed out");
+    }
     throw e;
   } finally {
     clearTimeout(timer);
