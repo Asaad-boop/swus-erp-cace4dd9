@@ -662,6 +662,18 @@ function NewOrderPage() {
             {/* Delivery method */}
             <Card className="shadow-sm">
               <CardContent className="space-y-4 p-5">
+                <Field label="Order Source" bn="অর্ডার সোর্স">
+                  <Select value={orderSource} onValueChange={setOrderSource}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Where did this order come from?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brandSources.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
                 <Field label="Delivery Method" bn="ডেলিভারি">
                   <Select value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
