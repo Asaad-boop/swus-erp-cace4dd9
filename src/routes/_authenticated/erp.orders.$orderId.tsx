@@ -727,7 +727,19 @@ function OrderDetailsPage() {
       }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Pricing saved"); setBaseline((b) => b ? { ...b, discount: form.discount, advance: form.advance, shipping_fee: form.shipping_fee } : b); invalidate(); },
+    onSuccess: () => {
+      toast.success("Pricing saved");
+      setBaseline((b) => b ? {
+        ...b,
+        discount: form.discount,
+        advance: form.advance,
+        shipping_fee: form.shipping_fee,
+        advance_source: form.advance_source,
+        advance_payment_number: form.advance_payment_number,
+        advance_txn_id: form.advance_txn_id,
+      } : b);
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
