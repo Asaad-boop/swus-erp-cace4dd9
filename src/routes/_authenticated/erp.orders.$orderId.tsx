@@ -657,7 +657,21 @@ function OrderDetailsPage() {
     } else if (pendingWebStatus === "advance_payment") {
       const amt = Number(pendingAdvance);
       if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
-      updateWebStatus.mutate({ status: "advance_payment", extra: { advance_amount: amt } });
+      const src = pendingAdvSource.trim();
+      const num = pendingAdvNumber.trim();
+      if (!src) { toast.error("Select a payment source"); return; }
+      if (!num) { toast.error("Enter the payment number (or last 4 digits)"); return; }
+      if (num.length < 4) { toast.error("Payment number must be at least 4 digits"); return; }
+      const txn = pendingAdvTxnId.trim();
+      updateWebStatus.mutate({
+        status: "advance_payment",
+        extra: {
+          advance_amount: amt,
+          advance_source: src,
+          advance_payment_number: num,
+          advance_txn_id: txn || null,
+        },
+      });
       setForm((f) => ({ ...f, advance: amt }));
     }
     setPendingWebStatus(null);
