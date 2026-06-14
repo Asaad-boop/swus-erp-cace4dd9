@@ -56,8 +56,9 @@ function envCreds(): SteadfastCreds | null {
   };
 }
 
-export async function loadSteadfastCreds(supabase: any, brandId?: string | null): Promise<SteadfastCreds> {
-  let q = supabase
+export async function loadSteadfastCreds(_supabase: unknown, brandId?: string | null): Promise<SteadfastCreds> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let q = supabaseAdmin
     .from("erp_courier_settings")
     .select("brand_id, base_url, client_id, client_secret, is_active")
     .eq("provider", "steadfast")
