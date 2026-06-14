@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Search, ArrowLeft, Loader2, Sparkles, Truck, Package,
-  Star, MinusCircle, PlusCircle, ImageIcon, Info,
+  Star, MinusCircle, PlusCircle, ImageIcon, Info, Wand2, History,
+  CheckCircle2, XCircle, AlertCircle,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
 import { pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
+import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
+import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/new")({
