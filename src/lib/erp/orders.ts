@@ -34,7 +34,7 @@ export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderSt
 // Top-of-page tabs (reference layout). Each tab maps to one or more of our statuses.
 export type StatusTabKey =
   | "all" | "pending" | "packing" | "rts" | "shipped" | "in_transit" | "delivered"
-  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled";
+  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled" | "incomplete";
 
 export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
   { key: "pending", label: "Pending", statuses: ["confirmed"] },
@@ -50,6 +50,7 @@ export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderSta
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
   { key: "on_hold", label: "On Hold", statuses: ["on_hold"] },
   { key: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
+  { key: "incomplete", label: "Incomplete", statuses: [] },
   { key: "all", label: "All", statuses: [] },
 ];
 

@@ -16,6 +16,7 @@ const TAB_DOT: Record<StatusTabKey, string> = {
   exchange:       "bg-violet-500",
   on_hold:        "bg-yellow-500",
   cancelled:      "bg-zinc-400",
+  incomplete:     "bg-pink-500",
 };
 
 type Props = {
