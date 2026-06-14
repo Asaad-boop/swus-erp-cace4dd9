@@ -461,6 +461,51 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
         </DialogFooter>
       </DialogContent>
         </Dialog>
+
+        <Dialog open={feeOpen} onOpenChange={setFeeOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Courier Actual Charge</DialogTitle>
+              <DialogDescription>
+                Courier (Pathao/Steadfast) amader theke koto taka delivery charge niyeche? Eta finance e expense entry hisebe boshe jabe.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Customer Paid (Shipping)</Label>
+                <Input value={`৳ ${shippingFee.toLocaleString()}`} disabled />
+              </div>
+              <div>
+                <Label>Courier Actual Charge (৳) <span className="text-rose-600">*</span></Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  autoFocus
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                  placeholder="e.g. 108.50"
+                />
+                {feeAmount && Number(feeAmount) > 0 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {Number(feeAmount) > shippingFee
+                      ? <>Loss: <span className="text-rose-600 font-semibold">৳ {(Number(feeAmount) - shippingFee).toLocaleString()}</span></>
+                      : <>Margin: <span className="text-emerald-600 font-semibold">৳ {(shippingFee - Number(feeAmount)).toLocaleString()}</span></>}
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setFeeOpen(false)}>Cancel</Button>
+              <Button
+                disabled={saveFee.isPending || !feeAmount || Number(feeAmount) < 0}
+                onClick={() => saveFee.mutate(Number(feeAmount))}
+              >
+                {saveFee.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
