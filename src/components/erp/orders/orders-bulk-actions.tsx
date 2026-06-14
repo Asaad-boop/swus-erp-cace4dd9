@@ -12,11 +12,12 @@ type Props = {
   onStatus: (s: OrderStatus) => void;
   onExport: () => void;
   onSendToPathao: () => void;
+  onSyncCourier: () => void;
   onPrint: (mode: "invoice" | "sticker" | "picking" | "sheet") => void;
   isPending: boolean;
 };
 
-export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onPrint, isPending }: Props) {
+export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onSyncCourier, onPrint, isPending }: Props) {
   const disabled = selectedCount === 0;
   const [open, setOpen] = useState(false);
 
@@ -95,7 +96,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
 
         <Section label="Courier Services">
           <ActionRow icon={Truck} label="Send to Pathao" onClick={onSendToPathao} disabled={disabled} />
-          <ActionRow icon={RefreshCw} label="Refresh Status" disabled />
+          <ActionRow icon={RefreshCw} label="Sync Courier Status" onClick={onSyncCourier} disabled={disabled} />
         </Section>
 
         <Section label="Tools & Export">

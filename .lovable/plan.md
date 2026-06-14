@@ -1,75 +1,82 @@
 
-# Inventory Module Upgrade Plan
+## Goal
+Order List e bulk select kore "Sync Courier Status" button. Pathao + Steadfast direct API theke per-order live status enbe, preview dialog e ERP status mapping dekhabe (per-row editable), confirm korle bulk apply hobe.
 
-## Problem
-Tumi ERP notun setup korcho, kintu `orders` table-e onek purono order ache. Confirm korle stock minus hoy — tai existing data thekei stock e jhamela. Initial/opening stock set korar ekta proper way dorkar, plus inventory module ke advance ecommerce-grade banano dorkar.
+## Identifier strategy (kivabe match korbo)
+Per order following priority te courier identifier resolve hobe:
 
-## Part 1 — Initial / Opening Stock Setup (priority)
+1. **`courier_shipments` table** e existing record thakle → `consignment_id` + `provider` use kore direct track API call.
+2. **`orders.tracking_number` + `courier_name`** thakle → setei track call.
+3. **Steadfast specifically** → `invoice_no` diye `/status_by_invoice` fallback.
+4. **Eta kichu na thakle** → row dekhabe "No tracking — paste consignment ID" inline input. User paste korle live fetch.
 
-### Approach (recommended)
-**Opening Stock entry** as a special stock movement (`reason = 'opening_stock'`).
-- Already existing `adjust_product_stock` RPC ar `stock_movements` table reuse korbo.
-- Notun reason add korbo: `opening_stock`.
-- Ekta dedicated **"Set Opening Stock"** screen thakbe jekhane brand-wise sob product list — physical count input korle direct stock set hoye jabe (delta auto-calculate).
+Phone-only purono order er jonno: Phase 2 e alada "Phone history matcher" dialog (boltobo separately). Eta Phase 1 e nai.
 
-### Two modes
-1. **Per-product quick set** — table inline input "Physical count" → "Set" button. System current stock theke delta ber kore movement insert korbe.
-2. **Bulk import (CSV)** — product slug/SKU + opening qty. Preview → confirm → batch apply.
+## Status mapping (editable)
+Default mapping (constants file):
 
-### Historical orders ki korbo?
-3 options, user choose korbe:
-- **(A) Ignore past orders** — opening stock = current physical count. Future order theke minus hobe. **Recommended**, simplest.
-- **(B) Cutoff date** — ekta date set koro; oi date er age er confirmed orders stock impact korbe na (skip in trigger). Future orders normal.
-- **(C) Backfill** — sob historical confirmed order er items diye stock recalculate. Risky, recommend kori na.
+```text
+Pathao:
+  Delivered / Partial Delivered          → delivered / partial_delivered
+  Pickup_Requested / Pickup / Pickup_Failed → ready_to_ship
+  At_Sorting_HUB / In_Transit / On_Delivery → shipped
+  Hold                                    → on_hold
+  Delivery_Failed / Return / Returned     → returned
+  Cancelled                               → cancelled
 
-Plan: **Option A** default, with optional Option B (cutoff date in brand settings) for jara strict chay.
+Steadfast:
+  delivered                  → delivered
+  partial_delivered          → partial_delivered
+  in_review / pending        → ready_to_ship
+  in_transit / hold          → shipped
+  delivery_failed / cancelled / returned → returned/cancelled
+  unknown / unknown_approval → on_hold
+```
 
-## Part 2 — Advanced Inventory Features
+Settings page (`erp.settings.tsx`) e ekta "Courier Status Mapping" card add hobe — `erp_settings.courier_status_mapping jsonb` column theke load/save, per-brand. Mapping editor table format e: courier status text + dropdown to ERP status. Phase 1 e default ship korbo, settings card next phase e add korbo (default constants prothome built-in thakbe, kaj korbe).
 
-### Core upgrades
-1. **Editable threshold inline** — table row e low_stock_threshold direct edit.
-2. **SKU / Barcode field** — product-e add (migration), search & scan support.
-3. **Cost price (purchase price)** — product per unit cost, profit calc + stock valuation.
-4. **Stock valuation widget** — total stock × cost = inventory worth (per brand).
-5. **Reorder point + reorder qty** — low stock alert auto-suggest "order N units".
-6. **Variant-level stock** — `product_variants` table already ache; variant-wise stock movement support.
-7. **Multi-warehouse / location** (optional, future) — `warehouses` table, stock per location. Skip for now or simple toggle.
+## UI flow
 
-### Operations & UX
-8. **Bulk actions** — multi-select rows → bulk stock in/out, bulk threshold update, bulk activate/deactivate.
-9. **Quick filters** — by category, by supplier, by tag, value range.
-10. **Stock alerts dashboard widget** — ERP home e low/out count.
-11. **Activity audit** — already movements ache; user name + avatar dekhabo, filter by user/date/reason.
-12. **Print stock report (PDF)** — per brand, date range.
-13. **Stock transfer** (multi-brand) — Brand A → Brand B transfer with paired movements.
-14. **Supplier link on stock-in** — kon supplier theke ese6e, cost auto-fill, purchase entry-r songe link.
+1. Orders list page e checkbox diye order select.
+2. Bulk Actions popover → "Courier Services" section → naya button **"Sync Courier Status"** (disabled icon ta remove).
+3. Click hole new `CourierStatusSyncDialog` open. Dialog er upore: spinner + progress (X / Y fetched).
+4. Server fn `syncCourierStatusFn` selected orderIds[] niye return korbe array of:
+   ```
+   { order_id, invoice_no, customer, phone, current_status,
+     provider, identifier, fetched_status, mapped_status,
+     ok, error }
+   ```
+5. Dialog table:
+   - Order (invoice + name)
+   - Current status badge → arrow → **Editable dropdown** (proposed mapped status, all ERP statuses)
+   - Courier raw status (small muted text)
+   - Checkbox per row (default checked if `mapped_status != current_status` and `ok`)
+   - Error row: red, "No tracking" → inline input for consignment ID + "Fetch" button.
+6. Footer: "Apply X updates" button → loops `transition_order_status` RPC for each checked row → toast + invalidate queries + close.
 
-### Smart features
-15. **Auto reorder suggestion** — low stock + sales velocity (last 30 days) = suggested PO qty.
-16. **Stock aging report** — kon product koto din thekey shelf-e ache (slow movers).
-17. **Sales velocity** — daily/weekly avg sell rate per product.
-18. **Expected stockout date** — current stock ÷ velocity = X days left.
-19. **Dead stock report** — 60+ days no sale.
+## Files to add / edit
 
-## Part 3 — Suggested Build Order (phased)
+**New:**
+- `src/lib/erp/courier-sync.functions.ts` — `syncCourierStatusFn` (server fn). Loops orderIds, resolves identifier per priority, calls Pathao `track()` or Steadfast `trackByCid/Invoice`, normalizes raw status string, applies default mapping.
+- `src/lib/erp/courier-status-mapping.ts` — pure mapping constants + `mapCourierStatus(provider, raw)` helper. Client-safe (used by dialog too for re-mapping when user edits).
+- `src/components/erp/orders/courier-status-sync-dialog.tsx` — the preview dialog.
 
-**Phase 1 (immediate, this turn or next):**
-- Migration: add `opening_stock` reason; add `cost_price`, `sku`, `barcode`, `reorder_point` columns to `products`.
-- New tab: **"Opening Stock"** — bulk per-product physical count input + apply.
-- Inline editable threshold in products tab.
+**Edit:**
+- `src/components/erp/orders/orders-bulk-actions.tsx` — add real "Sync Courier Status" action with `onSyncCourier` prop, remove the disabled placeholder.
+- `src/routes/_authenticated/erp.orders.list.tsx` — wire state + dialog mount, pass selected ids and rows.
 
-**Phase 2:**
-- Bulk actions, CSV import for opening stock, supplier-linked stock-in.
-- Stock valuation card + dashboard widgets.
+## Technical notes
 
-**Phase 3:**
-- Sales velocity, reorder suggestion, dead stock, aging, transfer between brands.
-- Variant-level movements.
+- Server fn rate-limits: batch of 4 parallel calls (mirror of `fetchCourierHistoryFn`).
+- For each shipment row uniquely identified by `order_id`, pick latest one (`order_by created_at desc, limit 1`).
+- Pathao status field path: `response.data.order_status` or `status` string. Normalize lowercase + underscore.
+- Steadfast status field: `response.delivery_status`.
+- Errors per-order surfaced inline; one failure doesn't break others.
+- `transition_order_status` already enforces auth + logs history — reuse it.
+- No DB migration needed Phase 1 (mapping is hard-coded default). Settings editor + jsonb column comes Phase 2.
 
-## Questions for tumi
-1. **Historical orders**: Option A (ignore, opening stock = today's count) ki ok? Naki cutoff date chao?
-2. **Phase 1 e kon kon feature** tumi age chao? (Suggestion: Opening stock screen + cost_price + sku + inline threshold edit + stock valuation card)
-3. **Multi-warehouse** kichu lagbe? (Akhon shudhu single location per brand?)
-4. **Barcode scanner** support dorkar? (USB scanner = just input focus, ja already kaj korbe; mobile camera scanner = extra lib)
-
-Tumi confirm korle Phase 1 implement kore felbo.
+## Out of scope (Phase 2, alada plan)
+- Phone-based historical matcher (purono ERP order er jonno).
+- Editable mapping UI in Settings.
+- Auto-sync cron / scheduled refresh.
+- Pathao webhook listener for real-time push.

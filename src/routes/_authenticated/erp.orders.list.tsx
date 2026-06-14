@@ -14,6 +14,7 @@ import { OrdersTable } from "@/components/erp/orders/orders-table";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
+import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
 import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderStatus } from "@/lib/erp/orders";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
@@ -43,6 +44,7 @@ function OrdersPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode | null>(null);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -154,6 +156,10 @@ function OrdersPage() {
                 if (selectedIds.size === 0) return;
                 setPathaoBulkOpen(true);
               }}
+              onSyncCourier={() => {
+                if (selectedIds.size === 0) return;
+                setSyncOpen(true);
+              }}
               onPrint={(mode) => {
                 if (selectedIds.size === 0) return;
                 setPrintMode(mode);
@@ -199,6 +205,15 @@ function OrdersPage() {
         open={printMode !== null}
         onOpenChange={(o) => { if (!o) setPrintMode(null); }}
         mode={printMode ?? "invoice"}
+        orderIds={Array.from(selectedIds)}
+      />
+
+      <CourierStatusSyncDialog
+        open={syncOpen}
+        onOpenChange={(o) => {
+          setSyncOpen(o);
+          if (!o) setSelectedIds(new Set());
+        }}
         orderIds={Array.from(selectedIds)}
       />
     </div>
