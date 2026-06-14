@@ -634,6 +634,9 @@ function OrderDetailsPage() {
     if (v === "on_hold" || v === "cancelled" || v === "advance_payment") {
       setPendingReason("");
       setPendingAdvance("");
+      setPendingAdvSource("");
+      setPendingAdvNumber("");
+      setPendingAdvTxnId("");
       setPendingWebStatus(v);
       return;
     }
