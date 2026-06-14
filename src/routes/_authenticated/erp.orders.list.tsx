@@ -15,6 +15,7 @@ import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
+import { PhoneHistorySyncDialog } from "@/components/erp/orders/phone-history-sync-dialog";
 import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderStatus } from "@/lib/erp/orders";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
@@ -45,6 +46,7 @@ function OrdersPage() {
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [phoneHistOpen, setPhoneHistOpen] = useState(false);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -160,6 +162,10 @@ function OrdersPage() {
                 if (selectedIds.size === 0) return;
                 setSyncOpen(true);
               }}
+              onPhoneHistory={() => {
+                if (selectedIds.size === 0) return;
+                setPhoneHistOpen(true);
+              }}
               onPrint={(mode) => {
                 if (selectedIds.size === 0) return;
                 setPrintMode(mode);
@@ -215,6 +221,23 @@ function OrdersPage() {
           if (!o) setSelectedIds(new Set());
         }}
         orderIds={Array.from(selectedIds)}
+      />
+
+      <PhoneHistorySyncDialog
+        open={phoneHistOpen}
+        onOpenChange={(o) => {
+          setPhoneHistOpen(o);
+          if (!o) setSelectedIds(new Set());
+        }}
+        orders={rows
+          .filter((r) => selectedIds.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            invoice_no: r.invoice_no ?? null,
+            customer: (r as any).shipping_name ?? (r as any).guest_name ?? null,
+            phone: (r as any).shipping_phone ?? (r as any).guest_phone ?? null,
+            status: r.status,
+          }))}
       />
     </div>
   );

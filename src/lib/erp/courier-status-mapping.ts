@@ -8,7 +8,7 @@ export function normalizeCourierStatus(raw: string | null | undefined): string {
 }
 
 /** Default mapping per provider. Key = normalized raw status, value = ERP status. */
-const PATHAO_MAP: Record<string, OrderStatus> = {
+export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   pickup_requested: "ready_to_ship",
   assigned_for_pickup: "ready_to_ship",
   picked: "ready_to_ship",
@@ -39,7 +39,7 @@ const PATHAO_MAP: Record<string, OrderStatus> = {
   exchanged: "exchanged",
 };
 
-const STEADFAST_MAP: Record<string, OrderStatus> = {
+export const DEFAULT_STEADFAST_MAP: Record<string, OrderStatus> = {
   pending: "ready_to_ship",
   in_review: "ready_to_ship",
   hold: "on_hold",
@@ -55,9 +55,27 @@ const STEADFAST_MAP: Record<string, OrderStatus> = {
   partial_delivered_return: "partial_return",
 };
 
-export function mapCourierStatus(provider: CourierProvider, raw: string | null | undefined): OrderStatus | null {
+export type CourierStatusMappingOverrides = {
+  pathao?: Record<string, OrderStatus>;
+  steadfast?: Record<string, OrderStatus>;
+};
+
+export function getMergedMap(
+  provider: CourierProvider,
+  overrides?: CourierStatusMappingOverrides | null,
+): Record<string, OrderStatus> {
+  const base = provider === "pathao" ? DEFAULT_PATHAO_MAP : DEFAULT_STEADFAST_MAP;
+  const extra = overrides?.[provider] ?? {};
+  return { ...base, ...extra };
+}
+
+export function mapCourierStatus(
+  provider: CourierProvider,
+  raw: string | null | undefined,
+  overrides?: CourierStatusMappingOverrides | null,
+): OrderStatus | null {
   const key = normalizeCourierStatus(raw);
   if (!key) return null;
-  const table = provider === "pathao" ? PATHAO_MAP : STEADFAST_MAP;
+  const table = getMergedMap(provider, overrides);
   return table[key] ?? null;
 }

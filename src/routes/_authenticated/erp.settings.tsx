@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BusinessSettings } from "@/components/erp/settings/business-settings";
 import { InvoiceSettings } from "@/components/erp/settings/invoice-settings";
+import { CourierMappingSettings } from "@/components/erp/settings/courier-mapping-settings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/erp/settings")({
@@ -19,9 +20,11 @@ function SettingsPage() {
         <TabsList>
           <TabsTrigger value="business">Business</TabsTrigger>
           <TabsTrigger value="invoice">Invoice</TabsTrigger>
+          <TabsTrigger value="courier">Courier Mapping</TabsTrigger>
         </TabsList>
         <TabsContent value="business"><BusinessSettings /></TabsContent>
         <TabsContent value="invoice"><InvoiceSettings /></TabsContent>
+        <TabsContent value="courier"><CourierMappingSettings /></TabsContent>
       </Tabs>
     </div>
   );

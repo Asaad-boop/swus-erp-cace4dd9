@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { mapCourierStatus, normalizeCourierStatus, type CourierProvider } from "./courier-status-mapping";
+import {
+  mapCourierStatus,
+  normalizeCourierStatus,
+  type CourierProvider,
+  type CourierStatusMappingOverrides,
+} from "./courier-status-mapping";
 import type { OrderStatus } from "./orders";
 
 export type CourierSyncResult = {
@@ -58,6 +63,7 @@ async function syncOne(
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
+  mappingOverrides?: CourierStatusMappingOverrides | null,
 ): Promise<CourierSyncResult> {
   const base: CourierSyncResult = {
     order_id: order.id,
@@ -129,7 +135,7 @@ async function syncOne(
     if (!raw) return { ...base, error: "Status not found in response" };
 
     base.raw_status = normalizeCourierStatus(raw);
-    base.mapped_status = mapCourierStatus(provider, raw);
+    base.mapped_status = mapCourierStatus(provider, raw, mappingOverrides);
     base.ok = true;
     return base;
   } catch (e) {
@@ -182,13 +188,31 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       overrideMap.set(o.orderId, { provider: o.provider, identifier: o.identifier });
     }
 
+    // Load per-brand mapping overrides from erp_settings.config.courier_status_mapping
+    let mappingOverrides: CourierStatusMappingOverrides | null = null;
+    const brandsInScope = new Set<string>();
+    for (const o of (orders ?? []) as Array<{ brand_id: string | null }>) {
+      if (o.brand_id) brandsInScope.add(o.brand_id);
+    }
+    if (data.brandId) brandsInScope.add(data.brandId);
+    if (brandsInScope.size === 1) {
+      const [bid] = Array.from(brandsInScope);
+      const { data: s } = await supabase
+        .from("erp_settings")
+        .select("config")
+        .eq("brand_id", bid)
+        .maybeSingle();
+      const m = (s?.config as any)?.courier_status_mapping;
+      if (m && typeof m === "object") mappingOverrides = m as CourierStatusMappingOverrides;
+    }
+
     const results: CourierSyncResult[] = [];
     const batchSize = 4;
     const list = (orders ?? []) as Array<Parameters<typeof syncOne>[2]>;
     for (let i = 0; i < list.length; i += batchSize) {
       const batch = list.slice(i, i + batchSize);
       const settled = await Promise.all(
-        batch.map((o) => syncOne(supabase, data.brandId ?? null, o, latestShipment.get(o.id) ?? null, overrideMap.get(o.id))),
+        batch.map((o) => syncOne(supabase, data.brandId ?? null, o, latestShipment.get(o.id) ?? null, overrideMap.get(o.id), mappingOverrides)),
       );
       results.push(...settled);
     }

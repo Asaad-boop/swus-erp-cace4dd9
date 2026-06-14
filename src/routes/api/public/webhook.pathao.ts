@@ -1,0 +1,124 @@
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  mapCourierStatus,
+  normalizeCourierStatus,
+  type CourierStatusMappingOverrides,
+} from "@/lib/erp/courier-status-mapping";
+
+/**
+ * Pathao webhook receiver.
+ * Configure in Pathao dashboard: https://swus-erp.lovable.app/api/public/webhook/pathao
+ * Signature: header `X-PATHAO-Signature` must match env PATHAO_WEBHOOK_SECRET
+ * (Pathao's documented default static value: f3992ecc-59da-4cbe-a049-a13da2018d51).
+ */
+const DEFAULT_PATHAO_SIGNATURE = "f3992ecc-59da-4cbe-a049-a13da2018d51";
+
+export const Route = createFileRoute("/api/public/webhook/pathao")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const sig = request.headers.get("x-pathao-signature");
+        const expected = process.env.PATHAO_WEBHOOK_SECRET ?? DEFAULT_PATHAO_SIGNATURE;
+        if (!sig || sig !== expected) {
+          return new Response("Invalid signature", { status: 401 });
+        }
+
+        let payload: any;
+        try {
+          payload = await request.json();
+        } catch {
+          return new Response("Invalid JSON", { status: 400 });
+        }
+
+        // Pathao sends: { event, consignment_id, order_status, merchant_order_id, updated_at, ... }
+        const consignmentId: string | null = payload?.consignment_id ?? payload?.data?.consignment_id ?? null;
+        const merchantOrderId: string | null = payload?.merchant_order_id ?? payload?.data?.merchant_order_id ?? null;
+        const rawStatus: string | null = payload?.order_status ?? payload?.event ?? payload?.data?.order_status ?? null;
+
+        if (!rawStatus || (!consignmentId && !merchantOrderId)) {
+          // Pathao validates the endpoint by POSTing — always 202 OK.
+          return new Response("Acknowledged", { status: 202, headers: { "X-Pathao-Merchant-Webhook-Integration-Secret": expected } });
+        }
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        // Find shipment → order
+        let orderId: string | null = null;
+        let brandId: string | null = null;
+        let currentStatus: string | null = null;
+
+        if (consignmentId) {
+          const { data: ship } = await supabaseAdmin
+            .from("courier_shipments")
+            .select("order_id, brand_id, orders:order_id(status)")
+            .eq("consignment_id", consignmentId)
+            .ilike("provider", "%pathao%")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (ship) {
+            orderId = ship.order_id;
+            brandId = (ship as any).brand_id ?? null;
+            currentStatus = (ship as any).orders?.status ?? null;
+          }
+        }
+
+        if (!orderId && merchantOrderId) {
+          const { data: o } = await supabaseAdmin
+            .from("orders")
+            .select("id, status, brand_id")
+            .or(`invoice_no.eq.${merchantOrderId},id.eq.${merchantOrderId}`)
+            .maybeSingle();
+          if (o) {
+            orderId = o.id;
+            brandId = o.brand_id;
+            currentStatus = o.status;
+          }
+        }
+
+        if (!orderId) {
+          return Response.json({ ok: true, matched: false }, { status: 200 });
+        }
+
+        if (!brandId || !currentStatus) {
+          const { data: o } = await supabaseAdmin
+            .from("orders").select("status, brand_id").eq("id", orderId).maybeSingle();
+          brandId = brandId ?? o?.brand_id ?? null;
+          currentStatus = currentStatus ?? o?.status ?? null;
+        }
+
+        // Load brand mapping overrides
+        let overrides: CourierStatusMappingOverrides | null = null;
+        if (brandId) {
+          const { data: s } = await supabaseAdmin
+            .from("erp_settings").select("config").eq("brand_id", brandId).maybeSingle();
+          const m = (s?.config as any)?.courier_status_mapping;
+          if (m && typeof m === "object") overrides = m as CourierStatusMappingOverrides;
+        }
+
+        const mapped = mapCourierStatus("pathao", rawStatus, overrides);
+        if (!mapped || mapped === currentStatus) {
+          return Response.json({ ok: true, matched: true, action: "noop", raw: normalizeCourierStatus(rawStatus) });
+        }
+
+        const { error: uErr } = await supabaseAdmin.from("orders").update({ status: mapped }).eq("id", orderId);
+        if (uErr) return Response.json({ error: uErr.message }, { status: 500 });
+
+        await supabaseAdmin.from("order_status_history").insert({
+          order_id: orderId,
+          from_status: currentStatus,
+          to_status: mapped,
+          reason: "pathao_webhook",
+          note: `pathao: ${normalizeCourierStatus(rawStatus)}`,
+        });
+
+        return Response.json({ ok: true, matched: true, action: "updated", from: currentStatus, to: mapped });
+      },
+
+      GET: async () => {
+        // Pathao verifies endpoint with a GET ping
+        return new Response("Pathao webhook OK", { status: 200 });
+      },
+    },
+  },
+});
