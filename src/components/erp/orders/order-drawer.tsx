@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -14,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
+import { Truck, Pencil } from "lucide-react";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -38,6 +41,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const [advSource, setAdvSource] = useState("");
   const [advNumber, setAdvNumber] = useState("");
   const [advTxnId, setAdvTxnId] = useState("");
+  const [feeOpen, setFeeOpen] = useState(false);
+  const [feeAmount, setFeeAmount] = useState("");
+  const setFeeFn = useServerFn(setOrderActualShippingCostFn);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -45,6 +51,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const notes = data?.notes ?? [];
   const subtotal = Number(order?.subtotal ?? 0);
   const shippingFee = Number(order?.shipping_fee ?? 0);
+  const actualShippingCost = (order as { actual_shipping_cost?: number | null } | undefined)?.actual_shipping_cost;
+  const actualShippingSource = (order as { actual_shipping_source?: string | null } | undefined)?.actual_shipping_source;
+  const hasActual = actualShippingCost !== undefined && actualShippingCost !== null;
+  const actualNum = hasActual ? Number(actualShippingCost) : 0;
+  const shippingLoss = hasActual ? actualNum - shippingFee : 0;
   const discountAmount = Number(order?.discount_amount ?? 0);
   const advanceAmount = Number(order?.advance_amount ?? 0);
   const grossTotal = Math.max(0, subtotal + shippingFee - discountAmount);
@@ -125,6 +136,25 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const saveFee = useMutation({
+    mutationFn: async (amt: number) => {
+      await setFeeFn({ data: { orderId: orderId!, amount: amt } });
+    },
+    onSuccess: () => {
+      toast.success("Courier cost saved");
+      setFeeOpen(false);
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["erp-transactions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openFeeDialog = () => {
+    setFeeAmount(hasActual ? String(actualNum) : "");
+    setFeeOpen(true);
+  };
 
   const addNote = useMutation({
     mutationFn: async () => {
