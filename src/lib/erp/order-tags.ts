@@ -110,10 +110,10 @@ export function computeAutoTags(
     });
   }
 
-  // Old Customer — has at least one previously delivered order.
-  // Repeat   — has ordered before but nothing delivered yet.
-  // Counts subtract the current order so "prior" history is what matters.
-  const histDelivered = (breakdown?.delivered ?? 0) + (cSuccess ?? 0);
+  // Old Customer — at least one previously delivered order in OUR ERP database.
+  // Repeat       — has ordered before in our DB but nothing delivered yet.
+  // Courier history is intentionally NOT used here — only our own orders count.
+  const histDelivered = breakdown?.delivered ?? 0;
   const histTotal = breakdown?.total ?? 0;
   const priorOrders = Math.max(0, histTotal - 1); // current order is in histTotal
 
