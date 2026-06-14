@@ -53,6 +53,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const shippingFee = Number(order?.shipping_fee ?? 0);
   const actualShippingCost = (order as { actual_shipping_cost?: number | null } | undefined)?.actual_shipping_cost;
   const actualShippingSource = (order as { actual_shipping_source?: string | null } | undefined)?.actual_shipping_source;
+  const actualShippingBreakdown = (order as { actual_shipping_breakdown?: { delivery?: number; cod?: number; extra?: number; total?: number } | null } | undefined)?.actual_shipping_breakdown ?? null;
   const hasActual = actualShippingCost !== undefined && actualShippingCost !== null;
   const actualNum = hasActual ? Number(actualShippingCost) : 0;
   const shippingLoss = hasActual ? actualNum - shippingFee : 0;
