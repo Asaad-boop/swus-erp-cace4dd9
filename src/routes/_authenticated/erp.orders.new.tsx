@@ -1107,7 +1107,7 @@ function CourierStatCard({
   success: number;
   cancelled: number;
 }) {
-  const v: CourierVariant = variant ?? (providerKey && PROVIDER_VARIANT[providerKey]) ?? "neutral";
+  const v: CourierVariant = variant ?? (providerKey ? PROVIDER_VARIANT[providerKey] : undefined) ?? "neutral";
   const t = COURIER_VARIANTS[v];
   const rateTone =
     successRate >= 80 ? "text-emerald-600 dark:text-emerald-400"
