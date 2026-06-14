@@ -46,7 +46,7 @@ function pickProviderFromName(name: string | null | undefined): CourierProvider 
 }
 
 function normalizeText(s: string): string {
-  return s.toLowerCase().replace(/[।,ও.,\-_/\\()[\]{}'"`!?:;]/g, " ").replace(/\s+/g, " ").trim();
+  return s.toLowerCase().replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function localPick(address: string, items: Array<{ id: number; name: string }>): { id: number; name: string } | null {
@@ -181,7 +181,10 @@ async function syncOne(
     total: number | null;
     pathao_city_id?: number | null;
     pathao_zone_id?: number | null;
+    shipping_address?: string | null;
     shipping_city?: string | null;
+    shipping_district?: string | null;
+    shipping_thana?: string | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
@@ -251,14 +254,21 @@ async function syncOne(
         order.pathao_city_id === 1 ||
         /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
       let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
-      if (deliveryFee <= 0 && order.pathao_city_id && order.pathao_zone_id) {
+      let priceCityId = order.pathao_city_id ?? null;
+      let priceZoneId = order.pathao_zone_id ?? null;
+      if (deliveryFee <= 0 && (!priceCityId || !priceZoneId)) {
+        const route = await resolvePathaoRoute(client, order);
+        priceCityId = route?.cityId ?? priceCityId;
+        priceZoneId = route?.zoneId ?? priceZoneId;
+      }
+      if (deliveryFee <= 0 && priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
           item_type: 2,
           delivery_type: 48,
           item_weight: 0.5,
-          recipient_city: order.pathao_city_id,
-          recipient_zone: order.pathao_zone_id,
+          recipient_city: priceCityId,
+          recipient_zone: priceZoneId,
         }).catch(() => null);
         deliveryFee = extractFee(priceRes, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
       }
