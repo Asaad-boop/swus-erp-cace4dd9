@@ -18,7 +18,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
       let q = supabase
         .from("products")
         .select(
-          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point",
+          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,product_variants(sku)",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
@@ -35,7 +35,12 @@ export function useInventoryQuery(filter: InventoryFilter) {
       q = q.range(from, to);
       const { data, error, count } = await q;
       if (error) throw error;
-      let rows = (data ?? []) as ProductRow[];
+      let rows = ((data ?? []) as Array<Record<string, unknown>>).map((d) => {
+        const variants = (d.product_variants as Array<{ sku: string | null }> | null) ?? [];
+        const variant_skus = variants.map((v) => v.sku).filter((s): s is string => !!s);
+        const { product_variants: _pv, ...rest } = d;
+        return { ...rest, variant_skus } as ProductRow;
+      });
       if (filter.stockState === "low") {
         rows = rows.filter((r) => r.stock > 0 && r.stock <= (r.low_stock_threshold ?? 5));
       }
