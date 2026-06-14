@@ -34,6 +34,43 @@ async function purgeCancelledShipments(supabase: any, orderId: string) {
   }
 }
 
+function readPositiveNumber(payload: any, keys: string[]): number | null {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function pathaoActualCost(result: any, deliveryFee: number, codAmount: number, cityId?: number | null) {
+  const totalCost = readPositiveNumber(result, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge", "charge"]);
+  const cod = readPositiveNumber(result, ["cod_fee", "cod_charge", "collection_fee"]) ?? Math.round(Math.max(codAmount, 0) * 0.01 * 100) / 100;
+  const discount = readPositiveNumber(result, ["discount", "discount_amount", "merchant_discount"]) ?? (cityId === 1 ? 15 : 10);
+  const promo = readPositiveNumber(result, ["promo_discount", "promo_discount_amount"]) ?? 0;
+  const additional = readPositiveNumber(result, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
+  const compensation = readPositiveNumber(result, ["compensation_cost", "compensation"]) ?? 0;
+  const computed = deliveryFee + cod + additional + compensation - discount - promo;
+  const total = totalCost && totalCost > 0 ? totalCost : computed;
+  const rounded = total > 0 ? Math.round(total * 100) / 100 : 0;
+  return {
+    total: rounded,
+    breakdown: { delivery: deliveryFee, cod, discount, promo_discount: promo, additional, compensation, extra: additional + compensation, total: rounded },
+  };
+}
+
 export const pathaoCitiesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
