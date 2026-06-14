@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Save, FileText, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Loader2, Save, FileText, Upload, Trash2, ImageIcon, Plus, X, Tag } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ type BrandSettings = {
   bin?: string;
   trade_license?: string;
   footer_thank_you?: string;
+  order_sources?: string[];
 };
 
 type FormState = {
@@ -41,6 +42,7 @@ type FormState = {
   bin: string;
   trade_license: string;
   footer_thank_you: string;
+  order_sources: string[];
 };
 
 const EMPTY: FormState = {
@@ -59,7 +61,13 @@ const EMPTY: FormState = {
   bin: "",
   trade_license: "",
   footer_thank_you: "",
+  order_sources: [],
 };
+
+const DEFAULT_ORDER_SOURCES = [
+  "Facebook", "Instagram", "WhatsApp", "Messenger", "TikTok",
+  "Phone Call", "Website", "Walk-in", "Referral", "Others",
+];
 
 const SLUG_RE = /^[A-Za-z0-9_]+-?$/;
 
@@ -107,6 +115,10 @@ export function BusinessSettings() {
       bin: data.bsettings.bin ?? "",
       trade_license: data.bsettings.trade_license ?? "",
       footer_thank_you: data.bsettings.footer_thank_you ?? "",
+      order_sources:
+        Array.isArray(data.bsettings.order_sources) && data.bsettings.order_sources.length > 0
+          ? data.bsettings.order_sources
+          : DEFAULT_ORDER_SOURCES,
     });
   }, [data]);
 
@@ -134,6 +146,7 @@ export function BusinessSettings() {
         bin: form.bin || undefined,
         trade_license: form.trade_license || undefined,
         footer_thank_you: form.footer_thank_you || undefined,
+        order_sources: form.order_sources.filter((s) => s.trim().length > 0),
       };
 
       const { error: brandErr } = await supabase
@@ -359,6 +372,17 @@ export function BusinessSettings() {
             </Field>
           </div>
         </Section>
+
+        {/* ============ ORDER SOURCES ============ */}
+        <Section
+          title="Order Sources"
+          desc="Manage where orders come from — shown as dropdown in New Order form."
+        >
+          <OrderSourcesEditor
+            sources={form.order_sources}
+            onChange={(next) => set("order_sources", next)}
+          />
+        </Section>
       </div>
 
       <footer className="px-5 py-3 border-t bg-muted/20 flex justify-end">
@@ -393,6 +417,65 @@ function Field({ label, hint, error, children, className }: { label: string; hin
       ) : hint ? (
         <p className="text-xs text-muted-foreground">{hint}</p>
       ) : null}
+    </div>
+  );
+}
+
+function OrderSourcesEditor({
+  sources, onChange,
+}: { sources: string[]; onChange: (next: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (sources.some((s) => s.toLowerCase() === v.toLowerCase())) {
+      toast.error("Already added");
+      return;
+    }
+    onChange([...sources, v]);
+    setDraft("");
+  };
+  const remove = (idx: number) => onChange(sources.filter((_, i) => i !== idx));
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {sources.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">No sources yet — add one below.</p>
+        )}
+        {sources.map((s, idx) => (
+          <span
+            key={`${s}-${idx}`}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 pl-3 pr-1 py-1 text-xs font-medium"
+          >
+            <Tag className="h-3 w-3 text-muted-foreground" />
+            {s}
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="rounded-full p-0.5 text-muted-foreground hover:bg-rose-100 hover:text-rose-600"
+              aria-label={`Remove ${s}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="e.g. Telegram, Live Chat, YouTube…"
+          className="max-w-xs"
+          maxLength={40}
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!draft.trim()}>
+          <Plus className="h-4 w-4" /> Add Source
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Click <X className="inline h-3 w-3 -mt-0.5" /> to remove. Don't forget to press <b>Update Business</b> below to save.
+      </p>
     </div>
   );
 }

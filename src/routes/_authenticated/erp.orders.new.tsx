@@ -65,6 +65,26 @@ function NewOrderPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pathao");
   const [isPreorder, setIsPreorder] = useState(false);
   const [isCrossSale, setIsCrossSale] = useState(false);
+  const [orderSource, setOrderSource] = useState<string>("");
+
+  // ── brand-defined order sources ───────────────────────────────────────
+  const { data: brandSources = [] } = useQuery({
+    queryKey: ["brand-order-sources", activeBrand?.id],
+    enabled: !!activeBrand?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brands")
+        .select("settings")
+        .eq("id", activeBrand!.id)
+        .maybeSingle();
+      if (error) throw error;
+      const s = (data?.settings ?? {}) as { order_sources?: string[] };
+      const list = Array.isArray(s.order_sources) ? s.order_sources.filter(Boolean) : [];
+      return list.length > 0
+        ? list
+        : ["Facebook", "Instagram", "WhatsApp", "Messenger", "Phone Call", "Website", "Walk-in", "Others"];
+    },
+  });
 
   // ── AI paste field ────────────────────────────────────────────────────
   const [pasteText, setPasteText] = useState("");
@@ -240,6 +260,7 @@ function NewOrderPage() {
           status: "confirmed",
           confirmation_status: "confirmed",
           source: "manual",
+          source_platform: orderSource || null,
           is_guest_order: true,
           guest_name: name,
           guest_phone: phone,
@@ -642,6 +663,18 @@ function NewOrderPage() {
             {/* Delivery method */}
             <Card className="shadow-sm">
               <CardContent className="space-y-4 p-5">
+                <Field label="Order Source" bn="অর্ডার সোর্স">
+                  <Select value={orderSource} onValueChange={setOrderSource}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Where did this order come from?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brandSources.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
                 <Field label="Delivery Method" bn="ডেলিভারি">
                   <Select value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
