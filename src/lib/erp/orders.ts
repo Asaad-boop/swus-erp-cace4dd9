@@ -37,7 +37,6 @@ export type StatusTabKey =
   | "partial" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled";
 
 export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
-  { key: "all", label: "All", statuses: [] },
   { key: "pending", label: "Pending", statuses: ["confirmed"] },
   { key: "packing", label: "Packing", statuses: ["ready_to_pack", "packed"] },
   { key: "rts", label: "RTS", statuses: ["ready_to_ship"] },
@@ -49,6 +48,7 @@ export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderSta
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
   { key: "on_hold", label: "On Hold", statuses: ["on_hold"] },
   { key: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
+  { key: "all", label: "All", statuses: [] },
 ];
 
 export function tabForStatuses(statuses: OrderStatus[]): StatusTabKey {
