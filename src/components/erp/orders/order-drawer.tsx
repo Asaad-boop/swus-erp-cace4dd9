@@ -130,6 +130,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   });
 
   return (
+    <>
     <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] overflow-hidden p-0 gap-0 border-border/60">
         {isLoading || !order ? (
