@@ -274,7 +274,7 @@ async function syncOne(
       let deliveryFee = 0;
       let additional = 0;
       let effectiveDiscount = 0;
-      let hasBaseDeliveryRate = false;
+      let usedPricePlanRate = false;
       if (priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
@@ -285,30 +285,21 @@ async function syncOne(
           recipient_zone: priceZoneId,
         }).catch(() => null);
         const data = priceRes?.data ?? priceRes;
-        // price-plan response e `price` = base delivery fee.
-        // `final_price` already discount-baad-deya. Total Cost calculate korar jonno
-        // base `price` use korte hobe, then discount ekbar subtract korte hobe.
-        const basePrice = Number(data?.price ?? data?.delivery_fee ?? data?.normal_delivery ?? 0);
+        // Pathao price-plan er `price`/`final_price` merchant discount applied delivery charge.
+        // Tai ekhane abar standing discount minus korbo na; only COD add korbo.
         const finalPrice = Number(data?.final_price ?? data?.finalPrice ?? 0);
-        additional = Number(data?.additional_charge ?? 0);
-        const apiDiscount = Number(data?.promo_discount ?? data?.discount ?? data?.merchant_discount ?? 0);
-        if (basePrice > 0) {
-          deliveryFee = basePrice;
-          hasBaseDeliveryRate = true;
-        } else if (finalPrice > 0 && apiDiscount > 0) {
-          deliveryFee = Math.max(finalPrice - additional + apiDiscount, 0);
-          hasBaseDeliveryRate = true;
-        } else if (finalPrice > 0) {
-          deliveryFee = finalPrice;
+        const planPrice = Number(data?.price ?? data?.delivery_fee ?? data?.normal_delivery ?? 0);
+        const planCharge = finalPrice > 0 ? finalPrice : planPrice;
+        if (planCharge > 0) {
+          deliveryFee = planCharge;
+          usedPricePlanRate = true;
         }
-        effectiveDiscount = apiDiscount > 0 ? apiDiscount : 0;
       }
       // Fallback: price API fail korle booking-time fee use koro
       if (deliveryFee <= 0) {
         deliveryFee = Number(shipment?.delivery_fee ?? order.shipping_fee ?? 0);
-        hasBaseDeliveryRate = deliveryFee > 0;
-      }
-      if (effectiveDiscount <= 0 && hasBaseDeliveryRate) {
+        if (deliveryFee > 0) effectiveDiscount = isInsideDhaka ? 15 : 10;
+      } else if (!usedPricePlanRate && effectiveDiscount <= 0) {
         effectiveDiscount = isInsideDhaka ? 15 : 10;
       }
       if (deliveryFee > 0) {
