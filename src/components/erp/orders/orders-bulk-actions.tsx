@@ -12,10 +12,11 @@ type Props = {
   onStatus: (s: OrderStatus) => void;
   onExport: () => void;
   onSendToPathao: () => void;
+  onPrint: (mode: "invoice" | "sticker" | "picking" | "sheet") => void;
   isPending: boolean;
 };
 
-export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, isPending }: Props) {
+export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onPrint, isPending }: Props) {
   const disabled = selectedCount === 0;
   const [open, setOpen] = useState(false);
 
@@ -61,10 +62,10 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
 
         <Section label="Print Options">
           <div className="grid grid-cols-2 gap-1.5">
-            <ActionTile icon={Printer} label="Invoice" disabled />
-            <ActionTile icon={Sticker} label="Sticker" disabled />
-            <ActionTile icon={ClipboardList} label="Picking" disabled />
-            <ActionTile icon={FileSpreadsheet} label="Sheet" disabled />
+            <ActionTile icon={Printer} label="Invoice" onClick={() => onPrint("invoice")} disabled={disabled} />
+            <ActionTile icon={Sticker} label="Sticker" onClick={() => onPrint("sticker")} disabled={disabled} />
+            <ActionTile icon={ClipboardList} label="Picking" onClick={() => onPrint("picking")} disabled={disabled} />
+            <ActionTile icon={FileSpreadsheet} label="Sheet" onClick={() => onPrint("sheet")} disabled={disabled} />
           </div>
         </Section>
 
