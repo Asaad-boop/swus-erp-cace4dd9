@@ -141,7 +141,9 @@ function buildFeeBreakdown(input: {
     : (input.collected > 0 ? Math.round(input.collected * 0.01 * 100) / 100 : 0);
   const standingDiscount = input.discount > 0 ? 0 : (input.isInsideDhaka ? 15 : 10);
   const effectiveDiscount = input.discount + standingDiscount;
-  const computed = input.deliveryFee + codFee + input.additional + input.compensation - effectiveDiscount - input.promoDiscount;
+  const computed = input.deliveryFee > 0
+    ? input.deliveryFee + codFee + input.additional + input.compensation - effectiveDiscount - input.promoDiscount
+    : 0;
   const total = input.totalCost && input.totalCost > 0 ? input.totalCost : computed;
   const roundedTotal = total > 0 ? Math.round(total * 100) / 100 : 0;
   return {
