@@ -141,18 +141,21 @@ function InventoryPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">Threshold</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 )}
                 {!isLoading && rows.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No products</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No products</TableCell></TableRow>
                 )}
                 {rows.map((r) => {
                   const b = stockBadge(r.stock, r.low_stock_threshold);
@@ -163,12 +166,21 @@ function InventoryPage() {
                           {r.image && <img src={r.image} alt="" className="h-9 w-9 rounded object-cover" />}
                           <div className="min-w-0">
                             <div className="font-medium truncate max-w-[280px]">{r.title}</div>
-                            <div className="text-xs text-muted-foreground truncate">{r.slug}</div>
+                            <div className="text-xs text-muted-foreground truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</div>
                           </div>
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <InlineTextEdit value={r.sku ?? ""} placeholder="SKU" onSave={(v) => updateInventoryField(r.id, { sku: v })} />
+                      </TableCell>
                       <TableCell className="text-right">৳{Number(r.price).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        <InlineNumberEdit value={Number(r.cost_price ?? 0)} onSave={(v) => updateInventoryField(r.id, { cost_price: v })} prefix="৳" />
+                      </TableCell>
                       <TableCell className="text-right font-mono">{r.stock}</TableCell>
+                      <TableCell className="text-right">
+                        <InlineNumberEdit value={r.low_stock_threshold ?? 5} onSave={(v) => updateInventoryField(r.id, { low_stock_threshold: v })} />
+                      </TableCell>
                       <TableCell><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>{b.label}</span></TableCell>
                       <TableCell className="text-right">
                         <div className="inline-flex gap-1">
@@ -197,6 +209,10 @@ function InventoryPage() {
               <Button variant="outline" size="sm" disabled={filter.page + 1 >= totalPages} onClick={() => setFilter({ ...filter, page: filter.page + 1 })}>Next</Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="opening" className="space-y-3 mt-3">
+          <OpeningStockTab brandId={activeBrand?.id ?? null} />
         </TabsContent>
 
         <TabsContent value="low" className="space-y-3 mt-3">
