@@ -1040,17 +1040,17 @@ function InlineStat({ label, value, tone, onClick, hint }: { label: string; valu
 
 type ProviderRow = { name: string; label: string; ok: boolean; total: number; success: number; cancelled: number };
 
-const PROVIDER_THEME: Record<string, { from: string; to: string; ring: string; chip: string; dot: string }> = {
-  pathao:    { from: "from-emerald-500/15", to: "to-emerald-500/0",  ring: "ring-emerald-300/60",  chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
-  steadfast: { from: "from-violet-500/15",  to: "to-violet-500/0",   ring: "ring-violet-300/60",   chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300",     dot: "bg-violet-500" },
-  redx:      { from: "from-rose-500/15",    to: "to-rose-500/0",     ring: "ring-rose-300/60",     chip: "bg-rose-500/15 text-rose-700 dark:text-rose-300",           dot: "bg-rose-500" },
-  paperfly:  { from: "from-sky-500/15",     to: "to-sky-500/0",      ring: "ring-sky-300/60",      chip: "bg-sky-500/15 text-sky-700 dark:text-sky-300",              dot: "bg-sky-500" },
-  ecourier:  { from: "from-amber-500/15",   to: "to-amber-500/0",    ring: "ring-amber-300/60",    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300",        dot: "bg-amber-500" },
+const PROVIDER_THEME: Record<string, { badge: string; ring: string; text: string; dot: string }> = {
+  pathao:    { badge: "bg-gradient-to-br from-emerald-500 to-teal-600",  ring: "ring-emerald-300/70 dark:ring-emerald-700/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  steadfast: { badge: "bg-gradient-to-br from-violet-500 to-purple-600", ring: "ring-violet-300/70 dark:ring-violet-700/40",   text: "text-violet-700 dark:text-violet-300",   dot: "bg-violet-500" },
+  redx:      { badge: "bg-gradient-to-br from-rose-500 to-red-600",      ring: "ring-rose-300/70 dark:ring-rose-700/40",       text: "text-rose-700 dark:text-rose-300",       dot: "bg-rose-500" },
+  paperfly:  { badge: "bg-gradient-to-br from-sky-500 to-blue-600",      ring: "ring-sky-300/70 dark:ring-sky-700/40",         text: "text-sky-700 dark:text-sky-300",         dot: "bg-sky-500" },
+  ecourier:  { badge: "bg-gradient-to-br from-amber-500 to-orange-600",  ring: "ring-amber-300/70 dark:ring-amber-700/40",     text: "text-amber-700 dark:text-amber-300",     dot: "bg-amber-500" },
 };
 
 function CourierProviderChip({ provider }: { provider: ProviderRow }) {
   const key = provider.name.toLowerCase();
-  const theme = PROVIDER_THEME[key] ?? { from: "", to: "", ring: "ring-border", chip: "bg-muted text-muted-foreground", dot: "bg-slate-400" };
+  const theme = PROVIDER_THEME[key] ?? { badge: "bg-slate-500", ring: "ring-border", text: "text-foreground", dot: "bg-slate-400" };
   const pct = provider.total > 0 ? Math.round((provider.success / provider.total) * 100) : null;
 
   const scoreTone =
@@ -1067,23 +1067,36 @@ function CourierProviderChip({ provider }: { provider: ProviderRow }) {
 
   if (!provider.ok) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed bg-muted/30 px-2.5 py-1">
-        <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{provider.label}</span>
-        <span className="text-[10px] italic text-muted-foreground/70">N/A</span>
+      <div className="inline-flex items-center gap-2 rounded-full border border-dashed bg-muted/30 py-1 pl-1 pr-3">
+        <span className={cn("flex h-5 items-center rounded-full px-2 text-[9px] font-extrabold uppercase tracking-wider text-white opacity-60", theme.badge)}>
+          {provider.label}
+        </span>
+        <span className="text-[10px] italic text-muted-foreground/70">No data</span>
       </div>
     );
   }
 
   return (
-    <div className={cn("inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1 ring-1 ring-inset", theme.ring)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/80">{provider.label}</span>
-      <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full transition-all", barTone)} style={{ width: `${pct ?? 0}%` }} />
+    <div className={cn(
+      "inline-flex items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 shadow-sm ring-1 ring-inset transition-all hover:shadow-md",
+      theme.ring,
+    )}>
+      <span className={cn(
+        "flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm",
+        theme.badge,
+      )}>
+        <Truck className="h-3 w-3" />
+        {provider.label}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
+          <div className={cn("h-full rounded-full transition-all", barTone)} style={{ width: `${pct ?? 0}%` }} />
+        </div>
+        <span className={cn("text-sm font-extrabold tabular-nums leading-none", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
       </div>
-      <span className={cn("text-xs font-extrabold tabular-nums", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
-      <span className="text-[10px] tabular-nums text-muted-foreground">{provider.success}/{provider.total}</span>
+      <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+        {provider.success}/{provider.total}
+      </span>
     </div>
   );
 }
