@@ -86,6 +86,7 @@ async function syncOne(
     courier_name: string | null;
     tracking_number: string | null;
     brand_id: string | null;
+    total: number | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
@@ -173,9 +174,10 @@ async function syncOne(
       }
       // Pathao COD amount collected from customer
       const collected = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
-      if (collected && collected > 0) {
-        base.order_total = collected;
-        base.courier_payable = Math.max(collected - (base.actual_fee ?? 0), 0);
+      const orderTotal = collected && collected > 0 ? collected : Number(order.total ?? 0);
+      if (orderTotal > 0) {
+        base.order_total = orderTotal;
+        base.courier_payable = Math.max(orderTotal - (base.actual_fee ?? 0), 0);
       }
     } else {
       const { loadSteadfastCreds, createSteadfastClient } = await import("./steadfast.server");
