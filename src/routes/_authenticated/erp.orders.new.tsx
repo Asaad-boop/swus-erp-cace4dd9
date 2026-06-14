@@ -373,6 +373,16 @@ function NewOrderPage() {
           </Field>
         </div>
 
+        {/* Customer history (auto-loads when phone has 11 digits) */}
+        {debouncedPhone && (
+          <CustomerHistoryStrip
+            phone={debouncedPhone}
+            past={pastOrders}
+            courier={courier}
+            loading={courierFetching}
+          />
+        )}
+
         {/* Row 2: Address | Shipping Note | Extra Options */}
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Address" required>
