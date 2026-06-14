@@ -95,16 +95,8 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
         const phone = customerPhone(o);
         const addr = [o.shipping_address, o.shipping_city, o.shipping_district].filter(Boolean).join(", ");
         const name = customerName(o);
-        const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
         return (
-          <div className="flex items-start gap-2.5 min-w-[220px] max-w-[280px]">
-            <div
-              className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-sm ring-1 ring-black/5"
-              style={{ background: `linear-gradient(135deg, ${statusAccent(o.status)}, ${statusAccent(o.status)}cc)` }}
-              title={name}
-            >
-              {initial}
-            </div>
+          <div className="min-w-[220px] max-w-[280px]">
             <div className="text-xs space-y-0.5 min-w-0">
               <div className="font-semibold text-sm truncate text-foreground">{name}</div>
               {phone && (
@@ -126,7 +118,6 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                   <span className="line-clamp-2 leading-snug">{addr}</span>
                 </div>
               )}
-            </div>
           </div>
         );
       },
