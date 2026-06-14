@@ -9,6 +9,7 @@ const TAB_DOT: Record<StatusTabKey, string> = {
   shipped:        "bg-amber-500",
   delivered:      "bg-emerald-500",
   partial:        "bg-emerald-400",
+  paid:           "bg-teal-500",
   pending_return: "bg-orange-500",
   returned:       "bg-red-500",
   exchange:       "bg-violet-500",
