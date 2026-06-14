@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import QRCode from "qrcode";
+import JsBarcode from "jsbarcode";
 import { customerName, customerPhone, invoiceDisplay } from "@/lib/erp/orders";
 import { useBrand } from "@/contexts/brand-context";
 import { useInvoiceConfig } from "@/hooks/erp/use-invoice-config";
@@ -80,7 +81,8 @@ export function PrintableInvoice({
     themeKey === "pos" ? PosInvoice
     : themeKey === "minimal" ? MinimalInvoice
     : themeKey === "classic" ? ClassicInvoice
-    : ModernInvoice;
+    : themeKey === "modern" ? ModernInvoice
+    : TemplateInvoice;
 
   return (
     <div id="print-invoice" className={wrapperBase}>
