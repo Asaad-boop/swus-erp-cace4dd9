@@ -400,16 +400,28 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
 
     const { data: shipments } = await supabase
       .from("courier_shipments")
-      .select("id, order_id, provider, consignment_id, tracking_code, delivery_fee, created_at")
+      .select("id, order_id, provider, consignment_id, tracking_code, delivery_fee, status, created_at")
       .in("order_id", data.orderIds)
       .order("created_at", { ascending: false });
 
-    type ShipRow = { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null };
+    type ShipRow = { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee: number | null; status: string | null };
     const shipmentsByOrder = new Map<string, ShipRow[]>();
     for (const s of (shipments ?? []) as Array<ShipRow & { order_id: string }>) {
       const arr = shipmentsByOrder.get(s.order_id) ?? [];
       arr.push(s);
       shipmentsByOrder.set(s.order_id, arr);
+    }
+    // Active (non-cancelled) shipments first, then cancelled as last resort.
+    // Pathao "Pickup_Cancelled" / "Cancelled" / "Return" → treat as inactive.
+    const isCancelledStatus = (s: string | null) =>
+      !!s && /cancel|return/i.test(s);
+    for (const [oid, arr] of shipmentsByOrder) {
+      arr.sort((a, b) => {
+        const ac = isCancelledStatus(a.status) ? 1 : 0;
+        const bc = isCancelledStatus(b.status) ? 1 : 0;
+        return ac - bc; // active (0) before cancelled (1); preserves created_at desc otherwise
+      });
+      shipmentsByOrder.set(oid, arr);
     }
     const latestShipment = new Map<string, ShipRow>();
     for (const [oid, arr] of shipmentsByOrder) {

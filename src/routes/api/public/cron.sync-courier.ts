@@ -46,13 +46,20 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         const orderIds = orders.map((o) => o.id);
         const { data: shipments } = await supabaseAdmin
           .from("courier_shipments")
-          .select("id, order_id, provider, consignment_id, tracking_code, created_at")
+          .select("id, order_id, provider, consignment_id, tracking_code, status, created_at")
           .in("order_id", orderIds)
           .order("created_at", { ascending: false });
 
-        const shipMap = new Map<string, { id: string; provider: string; consignment_id: string | null; tracking_code: string | null }>();
+        const shipMap = new Map<string, { id: string; provider: string; consignment_id: string | null; tracking_code: string | null; status: string | null }>();
+        const isCancelled = (s: string | null) => !!s && /cancel|return/i.test(s);
+        // Prefer active (non-cancelled) shipment per order; cancelled only as fallback.
         for (const s of shipments ?? []) {
-          if (!shipMap.has(s.order_id)) shipMap.set(s.order_id, s);
+          const existing = shipMap.get(s.order_id);
+          if (!existing) {
+            shipMap.set(s.order_id, s);
+          } else if (isCancelled(existing.status) && !isCancelled(s.status)) {
+            shipMap.set(s.order_id, s);
+          }
         }
 
         // Cache mapping per brand
