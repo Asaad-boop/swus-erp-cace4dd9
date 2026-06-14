@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
+import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 
 type Props = {
   rows: OrderRow[];
@@ -161,6 +162,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
           {row.original.payment_method && (
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{row.original.payment_method}</div>
           )}
+          <AdvanceBadge advance={row.original.advance_amount} total={row.original.total} variant="full" className="mt-1" />
         </div>
       ),
     },
