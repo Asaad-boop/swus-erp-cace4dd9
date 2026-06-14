@@ -12,6 +12,31 @@ export type PathaoCreds = {
 
 const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
 
+// In-memory caches for geo lookups. Pathao city/zone/area lists are huge but
+// nearly static — caching them per worker process eliminates the biggest
+// per-order latency in bulk uploads.
+const TTL = 1000 * 60 * 60 * 6; // 6h
+const geoCache = new Map<string, { value: any; expires_at: number }>();
+const inflight = new Map<string, Promise<any>>();
+
+async function memo<T>(key: string, loader: () => Promise<T>): Promise<T> {
+  const c = geoCache.get(key);
+  if (c && c.expires_at > Date.now()) return c.value as T;
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<T>;
+  const p = (async () => {
+    try {
+      const v = await loader();
+      geoCache.set(key, { value: v, expires_at: Date.now() + TTL });
+      return v;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+  inflight.set(key, p);
+  return p;
+}
+
 async function issueToken(creds: PathaoCreds) {
   const res = await fetch(`${creds.base_url}/aladdin/api/v1/issue-token`, {
     method: "POST",
@@ -73,9 +98,21 @@ export function createPathaoClient(creds: PathaoCreds) {
 
   return {
     storeId: creds.store_id,
-    cities: async () => { const d: any = await call("/aladdin/api/v1/city-list"); return d?.data ?? d ?? []; },
-    zones: async (cityId: number) => { const d: any = await call(`/aladdin/api/v1/cities/${cityId}/zone-list`); return d?.data ?? d ?? []; },
-    areas: async (zoneId: number) => { const d: any = await call(`/aladdin/api/v1/zones/${zoneId}/area-list`); return d?.data ?? d ?? []; },
+    cities: async () =>
+      memo(`cities::${creds.base_url}::${creds.client_id}`, async () => {
+        const d: any = await call("/aladdin/api/v1/city-list");
+        return d?.data ?? d ?? [];
+      }),
+    zones: async (cityId: number) =>
+      memo(`zones::${creds.base_url}::${creds.client_id}::${cityId}`, async () => {
+        const d: any = await call(`/aladdin/api/v1/cities/${cityId}/zone-list`);
+        return d?.data ?? d ?? [];
+      }),
+    areas: async (zoneId: number) =>
+      memo(`areas::${creds.base_url}::${creds.client_id}::${zoneId}`, async () => {
+        const d: any = await call(`/aladdin/api/v1/zones/${zoneId}/area-list`);
+        return d?.data ?? d ?? [];
+      }),
     price: (input: Record<string, unknown>) => call("/aladdin/api/v1/merchant/price-plan", { method: "POST", body: JSON.stringify(input) }),
     createOrder: (input: Record<string, unknown>) => call("/aladdin/api/v1/orders", { method: "POST", body: JSON.stringify(input) }),
     track: (consignmentId: string) => call(`/aladdin/api/v1/orders/${consignmentId}/info`),

@@ -1,10 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, X as XIcon, Truck } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  X as XIcon,
+  Truck,
+  Search,
+  RefreshCw,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { pathaoBookOrderAutoFn } from "@/lib/erp/pathao.functions";
 import { invoiceDisplay, type OrderRow } from "@/lib/erp/orders";
@@ -26,13 +36,92 @@ type Props = {
   orders: Pick<OrderRow, "id" | "invoice_no">[];
 };
 
+const CONCURRENCY = 12;
+const ROW_HEIGHT = 40;
+const VIEWPORT_H = 380;
+const OVERSCAN = 6;
+
 export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
   const bookFn = useServerFn(pathaoBookOrderAutoFn);
   const qc = useQueryClient();
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
+  const [filter, setFilter] = useState<"all" | RowStatus>("all");
+  const [query, setQuery] = useState("");
+  const [scrollTop, setScrollTop] = useState(0);
+  const [startedAt, setStartedAt] = useState<number>(0);
   const cancelRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Batched state updates — rather than setState() per row mutation, queue
+  // patches and flush them once per animation frame. This keeps the UI smooth
+  // when 1000 rows are updating in parallel.
+  const pendingPatchesRef = useRef<Map<number, Partial<Row>>>(new Map());
+  const flushScheduledRef = useRef(false);
+  const scheduleFlush = () => {
+    if (flushScheduledRef.current) return;
+    flushScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      flushScheduledRef.current = false;
+      const patches = pendingPatchesRef.current;
+      if (patches.size === 0) return;
+      setRows((prev) => {
+        const next = prev.slice();
+        patches.forEach((patch, i) => {
+          if (next[i]) next[i] = { ...next[i], ...patch };
+        });
+        return next;
+      });
+      patches.clear();
+    });
+  };
+  const patchRow = (i: number, patch: Partial<Row>) => {
+    const prev = pendingPatchesRef.current.get(i) ?? {};
+    pendingPatchesRef.current.set(i, { ...prev, ...patch });
+    scheduleFlush();
+  };
+
+  const runQueue = async (indexes: number[]) => {
+    let cursor = 0;
+    const runOne = async (i: number) => {
+      patchRow(i, { status: "uploading", message: "Uploading…" });
+      const t0 = Date.now();
+      try {
+        const res = (await bookFn({ data: { orderId: rowsRef.current[i].orderId } })) as {
+          consignment?: string | null;
+          tracking?: string | null;
+          skipped?: boolean;
+          message?: string;
+        };
+        const ms = Date.now() - t0;
+        const tracking = res.tracking || res.consignment || null;
+        patchRow(i, {
+          status: res.skipped ? "skipped" : "success",
+          tracking,
+          message: res.skipped ? (res.message ?? "Already booked") : "Upload successful",
+          ms,
+        });
+      } catch (e) {
+        const ms = Date.now() - t0;
+        patchRow(i, { status: "failed", message: (e as Error).message || "Failed", ms });
+      }
+    };
+    const worker = async () => {
+      while (!cancelRef.current) {
+        const k = cursor++;
+        if (k >= indexes.length) break;
+        await runOne(indexes[k]);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, indexes.length) }, worker));
+  };
+
+  // Keep a live ref to rows so the worker reads fresh data without re-binding.
+  const rowsRef = useRef<Row[]>([]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   // Initialise queue + run on open
   useEffect(() => {
@@ -46,58 +135,17 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
       ms: 0,
     }));
     setRows(initial);
+    rowsRef.current = initial;
     setDone(false);
     setRunning(true);
+    setStartedAt(Date.now());
+    setFilter("all");
+    setQuery("");
+    setScrollTop(0);
     cancelRef.current = false;
 
     (async () => {
-      // Run uploads in parallel batches for speed. Pathao + AI calls are
-      // network-bound, so concurrency cuts total time dramatically.
-      const CONCURRENCY = 6;
-      let cursor = 0;
-      const runOne = async (i: number) => {
-        const o = initial[i];
-        setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading", message: "Uploading…" } : r)));
-        const t0 = Date.now();
-        try {
-          const res = (await bookFn({ data: { orderId: o.orderId } })) as {
-            consignment?: string | null;
-            tracking?: string | null;
-            skipped?: boolean;
-            message?: string;
-          };
-          const ms = Date.now() - t0;
-          const tracking = res.tracking || res.consignment || null;
-          setRows((prev) =>
-            prev.map((r, idx) =>
-              idx === i
-                ? {
-                    ...r,
-                    status: res.skipped ? "skipped" : "success",
-                    tracking,
-                    message: res.skipped ? (res.message ?? "Already booked") : "Upload successful",
-                    ms,
-                  }
-                : r,
-            ),
-          );
-        } catch (e) {
-          const ms = Date.now() - t0;
-          setRows((prev) =>
-            prev.map((r, idx) =>
-              idx === i ? { ...r, status: "failed", message: (e as Error).message || "Failed", ms } : r,
-            ),
-          );
-        }
-      };
-      const worker = async () => {
-        while (!cancelRef.current) {
-          const i = cursor++;
-          if (i >= initial.length) break;
-          await runOne(i);
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, initial.length) }, worker));
+      await runQueue(initial.map((_, i) => i));
       setRunning(false);
       setDone(true);
       qc.invalidateQueries({ queryKey: ["orders"] });
@@ -111,13 +159,57 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
   }, [open]);
 
   const total = rows.length;
-  const finishedRows = rows.filter((r) => r.status === "success" || r.status === "failed" || r.status === "skipped");
-  const completed = finishedRows.length;
-  const success = rows.filter((r) => r.status === "success" || r.status === "skipped").length;
-  const failed = rows.filter((r) => r.status === "failed").length;
+  const counts = useMemo(() => {
+    const c = { pending: 0, uploading: 0, success: 0, failed: 0, skipped: 0 };
+    for (const r of rows) c[r.status]++;
+    return c;
+  }, [rows]);
+  const completed = counts.success + counts.failed + counts.skipped;
   const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
-  const avgMs = finishedRows.length > 0 ? finishedRows.reduce((s, r) => s + r.ms, 0) / finishedRows.length : 0;
-  const avgSec = (avgMs / 1000).toFixed(1);
+  const elapsedSec = running || startedAt === 0 ? (Date.now() - startedAt) / 1000 : 0;
+  const rate = elapsedSec > 0 && completed > 0 ? completed / elapsedSec : 0;
+  const etaSec = rate > 0 && running ? Math.max(0, (total - completed) / rate) : 0;
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (filter === "all" && !q) return rows;
+    return rows.filter((r) => {
+      if (filter !== "all" && r.status !== filter) return false;
+      if (q && !(r.display.toLowerCase().includes(q) || (r.tracking ?? "").toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [rows, filter, query]);
+
+  // Virtualization — only render rows in/near the viewport.
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(filteredRows.length, Math.ceil((scrollTop + VIEWPORT_H) / ROW_HEIGHT) + OVERSCAN);
+  const visible = filteredRows.slice(startIndex, endIndex);
+
+  const retryFailed = async () => {
+    const idxs: number[] = [];
+    rows.forEach((r, i) => {
+      if (r.status === "failed") {
+        idxs.push(i);
+        patchRow(i, { status: "pending", message: "Queued…", ms: 0, tracking: null });
+      }
+    });
+    if (idxs.length === 0) return;
+    setRunning(true);
+    setDone(false);
+    setStartedAt(Date.now());
+    cancelRef.current = false;
+    await runQueue(idxs);
+    setRunning(false);
+    setDone(true);
+    qc.invalidateQueries({ queryKey: ["orders"] });
+    qc.invalidateQueries({ queryKey: ["courier-shipments"] });
+  };
+
+  const copyAllTracking = async () => {
+    const ids = rows.filter((r) => r.tracking).map((r) => r.tracking!).join("\n");
+    if (!ids) return;
+    await navigator.clipboard.writeText(ids);
+  };
 
   return (
     <Dialog
@@ -127,98 +219,242 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-w-2xl p-0 overflow-hidden">
-        <DialogHeader className="px-5 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <Truck className="h-4 w-4 text-emerald-600" />
-              Pathao Upload Progress
-            </DialogTitle>
-            <StatusPill done={done} running={running} failed={failed} />
+      <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0">
+        {/* HERO HEADER with gradient + ring progress */}
+        <DialogHeader className="px-6 py-5 border-b bg-gradient-to-br from-emerald-500/10 via-card to-card relative">
+          <div className="flex items-center gap-4">
+            <RingProgress pct={pct} running={running} done={done} failed={counts.failed} />
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <Truck className="h-4 w-4 text-emerald-600" />
+                Pathao Bulk Upload
+                <StatusPill done={done} running={running} failed={counts.failed} />
+              </DialogTitle>
+              <div className="mt-1 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">{completed}</span>
+                <span> / {total} orders</span>
+                <span className="mx-2">·</span>
+                <span>{rate > 0 ? `${rate.toFixed(1)}/s` : "—"}</span>
+                {running && etaSec > 0 && (
+                  <>
+                    <span className="mx-2">·</span>
+                    <span>ETA {formatEta(etaSec)}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Stat chips */}
+          <div className="mt-4 grid grid-cols-4 gap-2">
+            <StatChip tone="emerald" label="Success" value={counts.success} active={filter === "success"} onClick={() => setFilter(filter === "success" ? "all" : "success")} />
+            <StatChip tone="sky" label="Skipped" value={counts.skipped} active={filter === "skipped"} onClick={() => setFilter(filter === "skipped" ? "all" : "skipped")} />
+            <StatChip tone="amber" label="In Queue" value={counts.pending + counts.uploading} active={filter === "pending" || filter === "uploading"} onClick={() => setFilter(filter === "pending" ? "all" : "pending")} />
+            <StatChip tone="red" label="Failed" value={counts.failed} active={filter === "failed"} onClick={() => setFilter(filter === "failed" ? "all" : "failed")} />
+          </div>
+
+          {/* Animated progress bar */}
+          <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                "h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-300",
+                running && "animate-pulse",
+              )}
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold tabular-nums">{pct}%</span>
-            <span className="text-muted-foreground tabular-nums">
-              Progress: <span className="font-semibold text-foreground">{completed}</span> / {total}
-              {avgMs > 0 && <> (Avg: {avgSec}s per order)</>}
-            </span>
+        {/* TOOLBAR */}
+        <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search order or tracking…"
+              className="h-8 pl-8 text-xs"
+            />
           </div>
-          <Progress value={pct} className="h-2.5 [&>div]:bg-emerald-500" />
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{avgMs > 0 ? `Average upload time: ${avgSec}s per order` : "Preparing…"}</span>
-            <span className="space-x-3">
-              <span className="text-emerald-600 font-semibold">Success: {success}</span>
-              <span className={cn("font-semibold", failed > 0 ? "text-red-600" : "text-muted-foreground")}>
-                Failed: {failed}
-              </span>
+          <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            {filter !== "all" && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setFilter("all")}>
+                Clear filter
+              </Button>
+            )}
+            <span className="tabular-nums">
+              Showing <span className="font-semibold text-foreground">{filteredRows.length}</span>
             </span>
           </div>
         </div>
 
-        <div className="mx-5 mb-4 rounded-lg border overflow-hidden bg-card">
-          <div className="grid grid-cols-[1.1fr_0.8fr_1.1fr_1.4fr_0.5fr] px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-muted/40 border-b">
-            <div>Order ID</div>
+        {/* VIRTUALIZED TABLE */}
+        <div className="border-b">
+          <div className="grid grid-cols-[1.1fr_0.9fr_1.1fr_1.4fr_0.5fr] px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-muted/40 border-b">
+            <div>Order</div>
             <div>Status</div>
-            <div>Tracking ID</div>
+            <div>Tracking</div>
             <div>Message</div>
             <div className="text-right">Time</div>
           </div>
-          <div className="max-h-[320px] overflow-y-auto divide-y">
-            {rows.map((r) => (
-              <RowItem key={r.orderId} row={r} />
-            ))}
+          <div
+            ref={scrollRef}
+            onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
+            className="overflow-y-auto bg-card"
+            style={{ height: VIEWPORT_H }}
+          >
+            {filteredRows.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No orders match this filter
+              </div>
+            ) : (
+              <div style={{ height: filteredRows.length * ROW_HEIGHT, position: "relative" }}>
+                <div style={{ position: "absolute", top: startIndex * ROW_HEIGHT, left: 0, right: 0 }}>
+                  {visible.map((r) => (
+                    <RowItem key={r.orderId} row={r} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t bg-muted/30 flex justify-end gap-2">
-          {running ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                cancelRef.current = true;
-              }}
-            >
-              Stop
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-red-600 hover:text-red-700"
-              onClick={() => onOpenChange(false)}
-            >
-              Close
-            </Button>
-          )}
+        {/* FOOTER ACTIONS */}
+        <div className="px-5 py-3 bg-muted/30 flex items-center justify-between gap-2">
+          <div className="text-[11px] text-muted-foreground">
+            {running ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {CONCURRENCY} parallel workers
+              </span>
+            ) : done ? (
+              <span>Finished in {((Date.now() - startedAt) / 1000).toFixed(1)}s</span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {!running && counts.failed > 0 && (
+              <Button size="sm" variant="outline" onClick={retryFailed} className="h-8 gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" /> Retry {counts.failed} failed
+              </Button>
+            )}
+            {!running && counts.success > 0 && (
+              <CopyButton onClick={copyAllTracking} count={rows.filter((r) => r.tracking).length} />
+            )}
+            {running ? (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => { cancelRef.current = true; }}>
+                Stop
+              </Button>
+            ) : (
+              <Button size="sm" className="h-8" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
+function formatEta(s: number): string {
+  if (s < 60) return `${Math.ceil(s)}s`;
+  const m = Math.floor(s / 60);
+  const r = Math.ceil(s % 60);
+  return `${m}m ${r}s`;
+}
+
+function RingProgress({ pct, running, done, failed }: { pct: number; running: boolean; done: boolean; failed: number }) {
+  const size = 56;
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const dash = (pct / 100) * c;
+  const color = done && failed > 0 ? "text-amber-500" : "text-emerald-500";
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="currentColor" className="text-muted" strokeWidth={stroke} fill="none" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="currentColor"
+          className={cn(color, "transition-all duration-300")}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={`${dash} ${c}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums">
+        {running && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground absolute -top-0.5 right-0" />}
+        {pct}%
+      </div>
+    </div>
+  );
+}
+
+function StatChip({ tone, label, value, active, onClick }: { tone: "emerald" | "sky" | "amber" | "red"; label: string; value: number; active: boolean; onClick: () => void }) {
+  const tones: Record<string, string> = {
+    emerald: "border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+    sky: "border-sky-500/30 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300",
+    amber: "border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+    red: "border-red-500/30 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-lg border px-2.5 py-1.5 text-left transition-all hover:scale-[1.02]",
+        tones[tone],
+        active && "ring-2 ring-offset-1 ring-offset-card ring-current shadow-sm",
+      )}
+    >
+      <div className="text-[9px] uppercase tracking-wider font-bold opacity-80">{label}</div>
+      <div className="text-base font-bold tabular-nums leading-tight">{value}</div>
+    </button>
+  );
+}
+
+function CopyButton({ onClick, count }: { onClick: () => Promise<void>; count: number }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-8 gap-1.5"
+      onClick={async () => {
+        await onClick();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+      Copy {count} tracking
+    </Button>
+  );
+}
+
 function StatusPill({ done, running, failed }: { done: boolean; running: boolean; failed: number }) {
   if (running) {
     return (
-      <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">
-        <Loader2 className="h-3 w-3 animate-spin" /> Uploading
+      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold tracking-wider">
+        <Loader2 className="h-2.5 w-2.5 animate-spin" /> RUNNING
       </span>
     );
   }
   if (done && failed === 0) {
     return (
-      <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold">
-        <CheckCircle2 className="h-3 w-3" /> Complete
+      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold tracking-wider">
+        <CheckCircle2 className="h-2.5 w-2.5" /> COMPLETE
       </span>
     );
   }
   if (done && failed > 0) {
     return (
-      <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 text-[11px] font-semibold">
-        <XCircle className="h-3 w-3" /> Completed with errors
+      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold tracking-wider">
+        <XCircle className="h-2.5 w-2.5" /> WITH ERRORS
       </span>
     );
   }
@@ -227,7 +463,10 @@ function StatusPill({ done, running, failed }: { done: boolean; running: boolean
 
 function RowItem({ row }: { row: Row }) {
   return (
-    <div className="grid grid-cols-[1.1fr_0.8fr_1.1fr_1.4fr_0.5fr] items-center px-3 py-2 text-xs">
+    <div
+      className="grid grid-cols-[1.1fr_0.9fr_1.1fr_1.4fr_0.5fr] items-center px-3 text-xs border-b last:border-b-0 hover:bg-muted/30"
+      style={{ height: ROW_HEIGHT }}
+    >
       <div className="font-mono font-semibold truncate pr-2">{row.display}</div>
       <div>
         <StatusBadge status={row.status} />
