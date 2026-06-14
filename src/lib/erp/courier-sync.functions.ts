@@ -435,21 +435,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
         const ship = latestShipment.get(r.order_id);
         const o = orderById.get(r.order_id);
         const f = Number(ship?.delivery_fee ?? o?.shipping_fee ?? 0);
-        if (f > 0 && r.provider === "pathao") {
-          const computed = buildFeeBreakdown({
-            deliveryFee: f,
-            collected: Number(o?.total ?? 0),
-            codFeeRaw: null,
-            discount: 0,
-            promoDiscount: 0,
-            additional: 0,
-            compensation: 0,
-            totalCost: null,
-            isInsideDhaka: o?.pathao_city_id === 1 || /dhaka|ঢাকা/i.test(o?.shipping_city ?? ""),
-          });
-          r.actual_fee = computed.actualFee;
-          r.fee_breakdown = computed.breakdown;
-        } else if (f > 0) {
+        if (f > 0) {
           r.actual_fee = f;
         }
       }
