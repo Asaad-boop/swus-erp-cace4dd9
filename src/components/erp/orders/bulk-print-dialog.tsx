@@ -122,6 +122,7 @@ export function BulkPrintDialog({
                 order={o as any}
                 items={(itemsByOrder.get(o.id) ?? []) as any}
                 visible
+                bulk
               />
             </div>
           ))}
