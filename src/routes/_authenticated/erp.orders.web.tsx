@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useBrand } from "@/contexts/brand-context";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { cn } from "@/lib/utils";
@@ -485,19 +486,59 @@ function WebOrdersPage() {
                       <div className="flex items-start gap-2">
                         <div className="flex -space-x-2">
                           {items.slice(0, 3).map((it, i) => (
-                            <div
-                              key={i}
-                              className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0"
-                              title={it.name}
-                            >
-                              {it.image ? (
-                                <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                                  {it.name.slice(0, 2)}
+                            <Popover key={i}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0 hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                  title={it.name}
+                                >
+                                  {it.image ? (
+                                    <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
+                                      {it.name.slice(0, 2)}
+                                    </div>
+                                  )}
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                align="start"
+                                side="top"
+                                className="w-72 p-0 overflow-hidden"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex gap-3 p-3">
+                                  <div className="h-[72px] w-[72px] rounded-lg border bg-muted overflow-hidden shrink-0">
+                                    {it.image ? (
+                                      <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                                        {it.name.slice(0, 2)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-semibold leading-tight line-clamp-3">{it.name}</div>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
+                                <div className="grid grid-cols-3 border-t bg-muted/30 text-center">
+                                  <div className="px-2 py-2 border-r">
+                                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Qty</div>
+                                    <div className="text-sm font-bold tabular-nums">{it.quantity}</div>
+                                  </div>
+                                  <div className="px-2 py-2 border-r">
+                                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Price</div>
+                                    <div className="text-sm font-bold tabular-nums">৳{Number(it.unit_price ?? 0).toLocaleString()}</div>
+                                  </div>
+                                  <div className="px-2 py-2">
+                                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Total</div>
+                                    <div className="text-sm font-bold tabular-nums text-primary">৳{(Number(it.unit_price ?? 0) * (it.quantity ?? 0)).toLocaleString()}</div>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           ))}
                           {items.length > 3 && (
                             <div className="h-10 w-10 rounded-md border-2 border-card bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
