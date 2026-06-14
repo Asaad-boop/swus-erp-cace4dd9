@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Save, FileText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Save, FileText, Upload, Trash2, ImageIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,15 @@ type BrandSettings = {
   business_mobile?: string;
   business_address?: string;
   default_delivery_cost?: number;
+  hotline?: string;
+  whatsapp?: string;
+  email?: string;
+  website?: string;
+  facebook?: string;
+  instagram?: string;
+  bin?: string;
+  trade_license?: string;
+  footer_thank_you?: string;
 };
 
 type FormState = {
@@ -23,6 +32,15 @@ type FormState = {
   business_address: string;
   default_delivery_cost: string;
   logo_url: string;
+  hotline: string;
+  whatsapp: string;
+  email: string;
+  website: string;
+  facebook: string;
+  instagram: string;
+  bin: string;
+  trade_license: string;
+  footer_thank_you: string;
 };
 
 const EMPTY: FormState = {
@@ -32,6 +50,15 @@ const EMPTY: FormState = {
   business_address: "",
   default_delivery_cost: "0",
   logo_url: "",
+  hotline: "",
+  whatsapp: "",
+  email: "",
+  website: "",
+  facebook: "",
+  instagram: "",
+  bin: "",
+  trade_license: "",
+  footer_thank_you: "",
 };
 
 const SLUG_RE = /^[A-Za-z0-9_]+-?$/;
@@ -71,6 +98,15 @@ export function BusinessSettings() {
       business_address: data.bsettings.business_address ?? "",
       default_delivery_cost: String(data.bsettings.default_delivery_cost ?? 0),
       logo_url: data.brand?.logo_url ?? "",
+      hotline: data.bsettings.hotline ?? "",
+      whatsapp: data.bsettings.whatsapp ?? "",
+      email: data.bsettings.email ?? "",
+      website: data.bsettings.website ?? "",
+      facebook: data.bsettings.facebook ?? "",
+      instagram: data.bsettings.instagram ?? "",
+      bin: data.bsettings.bin ?? "",
+      trade_license: data.bsettings.trade_license ?? "",
+      footer_thank_you: data.bsettings.footer_thank_you ?? "",
     });
   }, [data]);
 
@@ -89,6 +125,15 @@ export function BusinessSettings() {
         business_mobile: form.business_mobile || undefined,
         business_address: form.business_address || undefined,
         default_delivery_cost: Number(form.default_delivery_cost) || 0,
+        hotline: form.hotline || undefined,
+        whatsapp: form.whatsapp || undefined,
+        email: form.email || undefined,
+        website: form.website || undefined,
+        facebook: form.facebook || undefined,
+        instagram: form.instagram || undefined,
+        bin: form.bin || undefined,
+        trade_license: form.trade_license || undefined,
+        footer_thank_you: form.footer_thank_you || undefined,
       };
 
       const { error: brandErr } = await supabase
