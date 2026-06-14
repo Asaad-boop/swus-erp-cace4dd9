@@ -1,0 +1,2 @@
+UPDATE public.orders SET web_status = 'processing' WHERE source = 'website' AND web_status IS NULL AND status IN ('new','confirmed','packaging','packed','ready_to_ship','shipped','in_transit');
+ALTER TABLE public.orders ALTER COLUMN web_status SET DEFAULT 'processing';
