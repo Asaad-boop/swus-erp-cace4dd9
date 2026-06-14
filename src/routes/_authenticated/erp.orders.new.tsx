@@ -1013,18 +1013,20 @@ function OurRecordCard({
       ) : (
         <>
           <div className="relative mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-            <RecordLine dot="bg-sky-400"     label="Total"     value={total} />
-            <RecordLine dot="bg-emerald-400" label="Delivered" value={delivered} />
-            <RecordLine dot="bg-rose-400"    label="Cancelled" value={cancelled} />
-            <RecordLine dot="bg-amber-400"   label="Returned"  value={returned} />
+            <RecordLine dot="bg-sky-400" label="Total" value={total} />
+            {delivered > 0 && <RecordLine dot="bg-emerald-400" label="Delivered" value={delivered} />}
+            {cancelled > 0 && <RecordLine dot="bg-rose-400"    label="Cancelled" value={cancelled} />}
+            {returned > 0  && <RecordLine dot="bg-amber-400"   label="Returned"  value={returned} />}
           </div>
 
-          <div className="relative mt-2 flex items-center justify-between text-[10px] text-indigo-200">
-            <span>Spent</span>
-            <span className="font-extrabold tabular-nums text-white">৳{spent.toLocaleString()}</span>
-          </div>
+          {spent > 0 && (
+            <div className="relative mt-2 flex items-center justify-between text-[10px] text-indigo-200">
+              <span>Spent</span>
+              <span className="font-extrabold tabular-nums text-white">৳{spent.toLocaleString()}</span>
+            </div>
+          )}
 
-          {successPct != null && (
+          {successPct != null && delivered > 0 && (
             <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className={cn(
@@ -1039,21 +1041,9 @@ function OurRecordCard({
           {/* Recent orders mini-list */}
           {recent.length > 0 && (
             <div className="relative mt-2 space-y-1">
-              {recent.slice(0, 2).map((o) => {
-                const date = new Date(o.created_at);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    onClick={() => onOpenOrder(o.id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md bg-white/5 px-1.5 py-1 text-left text-[10px] ring-1 ring-white/10 transition hover:bg-white/10"
-                  >
-                    <span className="truncate font-semibold tabular-nums">#{o.id.slice(0, 8)}</span>
-                    <span className="text-indigo-300">{date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
-                    <span className="font-extrabold tabular-nums text-white">৳{Number(o.total ?? 0).toLocaleString()}</span>
-                  </button>
-                );
-              })}
+              {recent.slice(0, 2).map((o) => (
+                <RecentOrderPreview key={o.id} order={o} onOpen={() => onOpenOrder(o.id)} />
+              ))}
               {total > 2 && (
                 <button
                   type="button"
@@ -1080,6 +1070,56 @@ function RecordLine({ dot, label, value }: { dot: string; label: string; value: 
       </span>
       <span className="font-extrabold tabular-nums text-white">{value}</span>
     </div>
+  );
+}
+
+function RecentOrderPreview({ order, onOpen }: { order: RecentOrder; onOpen: () => void }) {
+  const [open, setOpen] = useState(false);
+  const date = new Date(order.created_at);
+  const tone = STATUS_TONE[order.status] ?? "bg-muted text-muted-foreground";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 rounded-md bg-white/5 px-1.5 py-1 text-left text-[10px] ring-1 ring-white/10 transition hover:bg-white/10"
+        >
+          <span className="truncate font-semibold tabular-nums">#{order.id.slice(0, 8)}</span>
+          <span className={cn("rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wider", tone)}>{order.status}</span>
+          <span className="font-extrabold tabular-nums text-white">৳{Number(order.total ?? 0).toLocaleString()}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" side="right" className="w-72 p-0">
+        <div className="flex items-center justify-between border-b bg-gradient-to-r from-indigo-50 to-sky-50 px-3 py-2 dark:from-indigo-950/30 dark:to-sky-950/20">
+          <div className="leading-tight">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Order</div>
+            <div className="font-mono text-xs font-bold tabular-nums">#{order.id.slice(0, 12)}</div>
+          </div>
+          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", tone)}>{order.status}</span>
+        </div>
+        <div className="space-y-2 p-3 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Placed</span>
+            <span className="font-semibold tabular-nums">
+              {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} · {date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+          <div className="flex items-center justify-between border-t pt-2">
+            <span className="text-muted-foreground">Total</span>
+            <span className="text-base font-extrabold tabular-nums text-indigo-700 dark:text-indigo-300">৳{Number(order.total ?? 0).toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="border-t bg-muted/30 p-2">
+          <Button
+            size="sm"
+            className="w-full gap-1.5 bg-gradient-to-br from-indigo-600 to-sky-600 text-white hover:from-indigo-700 hover:to-sky-700"
+            onClick={() => { setOpen(false); onOpen(); }}
+          >
+            Open order <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
