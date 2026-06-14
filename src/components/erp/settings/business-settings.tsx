@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Save, FileText, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Loader2, Save, FileText, Upload, Trash2, ImageIcon, Plus, X, Tag } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ type BrandSettings = {
   bin?: string;
   trade_license?: string;
   footer_thank_you?: string;
+  order_sources?: string[];
 };
 
 type FormState = {
@@ -41,6 +42,7 @@ type FormState = {
   bin: string;
   trade_license: string;
   footer_thank_you: string;
+  order_sources: string[];
 };
 
 const EMPTY: FormState = {
@@ -59,7 +61,13 @@ const EMPTY: FormState = {
   bin: "",
   trade_license: "",
   footer_thank_you: "",
+  order_sources: [],
 };
+
+const DEFAULT_ORDER_SOURCES = [
+  "Facebook", "Instagram", "WhatsApp", "Messenger", "TikTok",
+  "Phone Call", "Website", "Walk-in", "Referral", "Others",
+];
 
 const SLUG_RE = /^[A-Za-z0-9_]+-?$/;
 
@@ -107,6 +115,10 @@ export function BusinessSettings() {
       bin: data.bsettings.bin ?? "",
       trade_license: data.bsettings.trade_license ?? "",
       footer_thank_you: data.bsettings.footer_thank_you ?? "",
+      order_sources:
+        Array.isArray(data.bsettings.order_sources) && data.bsettings.order_sources.length > 0
+          ? data.bsettings.order_sources
+          : DEFAULT_ORDER_SOURCES,
     });
   }, [data]);
 
@@ -134,6 +146,7 @@ export function BusinessSettings() {
         bin: form.bin || undefined,
         trade_license: form.trade_license || undefined,
         footer_thank_you: form.footer_thank_you || undefined,
+        order_sources: form.order_sources.filter((s) => s.trim().length > 0),
       };
 
       const { error: brandErr } = await supabase
