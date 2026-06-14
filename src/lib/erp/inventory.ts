@@ -10,6 +10,10 @@ export type ProductRow = {
   brand_id: string | null;
   category_id: string | null;
   updated_at: string;
+  cost_price?: number | null;
+  sku?: string | null;
+  barcode?: string | null;
+  reorder_point?: number | null;
 };
 
 export type StockMovementRow = {
@@ -26,6 +30,7 @@ export type StockMovementRow = {
 };
 
 export const STOCK_REASONS = [
+  { value: "opening_stock", label: "Opening Stock" },
   { value: "stock_in", label: "Stock In (Purchase)" },
   { value: "stock_out", label: "Stock Out (Manual)" },
   { value: "correction", label: "Correction" },
@@ -41,20 +46,26 @@ export function stockBadge(stock: number, threshold: number | null) {
 }
 
 export function exportProductsCsv(rows: ProductRow[]): string {
-  const headers = ["Product ID", "Title", "Slug", "Price", "Stock", "Threshold", "Status"];
+  const headers = ["Product ID", "Title", "SKU", "Barcode", "Slug", "Price", "Cost", "Stock", "Threshold", "Reorder Point", "Stock Value", "Status"];
   const esc = (v: unknown) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [headers.join(",")];
   for (const r of rows) {
+    const cost = Number(r.cost_price ?? 0);
     lines.push([
       r.id.slice(0, 8),
       r.title,
+      r.sku ?? "",
+      r.barcode ?? "",
       r.slug,
       r.price,
+      cost,
       r.stock,
       r.low_stock_threshold ?? 5,
+      r.reorder_point ?? "",
+      (cost * r.stock).toFixed(2),
       r.is_active ? "active" : "inactive",
     ].map(esc).join(","));
   }
