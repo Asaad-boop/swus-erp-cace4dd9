@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Search, ArrowLeft, Loader2, Sparkles, Truck, Package,
   Star, MinusCircle, PlusCircle, ImageIcon, Info, Wand2, History,
-  CheckCircle2, XCircle, AlertCircle,
+  CheckCircle2, XCircle, AlertCircle, MapPin, User2, Receipt, ArrowRight,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -292,44 +292,47 @@ function NewOrderPage() {
   });
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/erp/orders" })}>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50/70 to-slate-50 pb-32 dark:from-background dark:to-background">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 border-b border-border/60 bg-background/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate({ to: "/erp/orders" })}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-semibold tracking-tight md:text-xl">New Order</h1>
-              <div className="text-[11px] text-muted-foreground">{activeBrand?.name ?? "—"}</div>
+              <h1 className="text-lg font-bold tracking-tight md:text-xl">
+                New Order <span className="ml-1 font-normal text-muted-foreground">— নতুন অর্ডার</span>
+              </h1>
+              <div className="text-[11px] text-muted-foreground">{activeBrand?.name ?? "Select a brand"}</div>
             </div>
           </div>
-          <div className="hidden text-xs text-muted-foreground md:flex items-center gap-1">
-            <Info className="h-3.5 w-3.5" /> Address likhle Filed গুলো auto fill হবে।
+          <div className="hidden items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground md:flex">
+            <Info className="h-3.5 w-3.5 text-sky-500" />
+            Address likhle field গুলো auto-fill হবে।
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
-        {/* AI paste field */}
-        <Card className="border-violet-300/60 bg-gradient-to-br from-violet-50/80 to-fuchsia-50/40 dark:from-violet-950/20 dark:to-fuchsia-950/10">
-          <CardContent className="p-3 md:p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="rounded-md bg-violet-600/10 p-1.5 text-violet-700 dark:text-violet-300">
-                  <Wand2 className="h-4 w-4" />
+      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+        {/* AI Smart Paste */}
+        <Card className="overflow-hidden border-indigo-200/70 shadow-sm dark:border-indigo-900/40">
+          <div className="bg-gradient-to-br from-indigo-50/80 via-indigo-50/40 to-fuchsia-50/40 p-4 dark:from-indigo-950/30 dark:via-indigo-950/10 dark:to-fuchsia-950/10">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-950/40">
+                  <Wand2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold">AI Smart Paste</div>
+                  <div className="text-sm font-semibold">AI Smart Paste <span className="ml-1 text-xs font-normal text-indigo-600 dark:text-indigo-300">স্মার্ট পেস্ট</span></div>
                   <div className="text-[11px] text-muted-foreground">
-                    Customer er messy text (name + mobile + address) এখানে paste করুন — auto fill হবে।
+                    Messy text (name + mobile + address) paste করুন — auto fill হবে।
                   </div>
                 </div>
               </div>
               <Button
                 size="sm"
-                className="bg-violet-600 text-white hover:bg-violet-700"
+                className="bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
                 disabled={parse.isPending || pasteText.trim().length < 5}
                 onClick={() => parse.mutate()}
               >
@@ -343,37 +346,12 @@ function NewOrderPage() {
               placeholder={`e.g. "Rahim Uddin, 01712345678, House 12, Road 5, Dhanmondi, Dhaka"`}
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              className="resize-none bg-background/70"
+              className="resize-none border-indigo-100 bg-background/80 focus-visible:ring-indigo-500/30 dark:border-indigo-900/40"
             />
-          </CardContent>
+          </div>
         </Card>
 
-        {/* Row 1: Mobile | Name | Delivery Method */}
-        <div className="grid gap-3 md:grid-cols-3">
-          <Field label="Mobile Number" required>
-            <Input
-              placeholder="01XXXXXXXXX"
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </Field>
-          <Field label="Name" required>
-            <Input placeholder="Customer Name" value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="Delivery Method">
-            <Select value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pathao">Pathao</SelectItem>
-                <SelectItem value="steadfast">Steadfast</SelectItem>
-                <SelectItem value="manual">Manual / Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-
-        {/* Customer history (auto-loads when phone has 11 digits) */}
+        {/* Customer history strip */}
         {debouncedPhone && (
           <CustomerHistoryStrip
             phone={debouncedPhone}
@@ -383,151 +361,360 @@ function NewOrderPage() {
           />
         )}
 
-        {/* Row 2: Address | Shipping Note | Extra Options */}
-        <div className="grid gap-3 md:grid-cols-3">
-          <Field label="Address" required>
-            <Textarea
-              placeholder="Enter full address"
-              rows={4}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Shipping Note"
-            hint={`${shippingNote.length}/350`}
-          >
-            <Textarea
-              rows={4}
-              maxLength={350}
-              value={shippingNote}
-              onChange={(e) => setShippingNote(e.target.value)}
-            />
-          </Field>
-          <Field label="Extra Options">
-            <Card className="shadow-none">
-              <CardContent className="space-y-2 p-3">
-                <ToggleRow
-                  label="Preorder"
-                  checked={isPreorder}
-                  onChange={setIsPreorder}
-                />
-                <ToggleRow
-                  label="Cross Sale"
-                  checked={isCrossSale}
-                  onChange={setIsCrossSale}
-                />
+        {/* Main grid: Customer + Courier (left)  |  Quick add + Extras (right) */}
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* LEFT: Customer + Courier + Items + Totals */}
+          <div className="space-y-6 lg:col-span-8">
+            {/* Customer card */}
+            <Card className="overflow-hidden shadow-sm">
+              <CardContent className="space-y-5 p-5">
+                <SectionHeader icon={<User2 className="h-3.5 w-3.5" />} accent="bg-indigo-600" title="Customer Details" sub="গ্রাহকের বিবরণ" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Mobile Number" bn="মোবাইল নম্বর" required>
+                    <Input
+                      placeholder="01XXXXXXXXX"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="h-10 bg-muted/30 focus-visible:bg-background"
+                    />
+                  </Field>
+                  <Field label="Customer Name" bn="নাম" required>
+                    <Input
+                      placeholder="Full Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="h-10 bg-muted/30 focus-visible:bg-background"
+                    />
+                  </Field>
+                  <Field label="Full Address" bn="বিস্তারিত ঠিকানা" required className="md:col-span-2">
+                    <Textarea
+                      placeholder="House, Road, Area, Thana, District…"
+                      rows={3}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="bg-muted/30 focus-visible:bg-background"
+                    />
+                  </Field>
+                </div>
+              </CardContent>
+
+              {/* Pathao auto-detect rail tucked inside the same card */}
+              {showPathao && (
+                <div className="border-t border-emerald-100 bg-emerald-50/50 px-5 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/15">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                      </span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        Courier Routing
+                      </span>
+                      <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— ঠিকানা থেকে auto detect</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1.5 border-emerald-200 bg-background text-[11px] font-bold uppercase tracking-wider text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => detect.mutate()}
+                      disabled={detect.isPending || !address.trim()}
+                    >
+                      {detect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
+                      AI Detect
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <Field label="City">
+                      <Select
+                        value={cityId ? String(cityId) : ""}
+                        onValueChange={(v) => {
+                          const c = cities.find((x) => x.city_id === Number(v));
+                          setCityId(Number(v));
+                          setCityName(c?.city_name ?? "");
+                          setZoneId(null); setZoneName(""); setAreaId(null); setAreaName("");
+                        }}
+                      >
+                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background">
+                          <SelectValue placeholder={cityLoading ? "Loading…" : cityError ? "Pathao config missing" : "Select a city"} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {cities.map((c) => (
+                            <SelectItem key={c.city_id} value={String(c.city_id)}>{c.city_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Zone">
+                      <Select
+                        value={zoneId ? String(zoneId) : ""}
+                        onValueChange={(v) => {
+                          const z = zones.find((x) => x.zone_id === Number(v));
+                          setZoneId(Number(v));
+                          setZoneName(z?.zone_name ?? "");
+                          setAreaId(null); setAreaName("");
+                        }}
+                        disabled={!cityId}
+                      >
+                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background"><SelectValue placeholder="Select a zone" /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {zones.map((z) => (
+                            <SelectItem key={z.zone_id} value={String(z.zone_id)}>{z.zone_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Area">
+                      <Select
+                        value={areaId ? String(areaId) : ""}
+                        onValueChange={(v) => {
+                          const a = areas.find((x) => x.area_id === Number(v));
+                          setAreaId(Number(v));
+                          setAreaName(a?.area_name ?? "");
+                        }}
+                        disabled={!zoneId}
+                      >
+                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background"><SelectValue placeholder="Select an area" /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {areas.map((a) => (
+                            <SelectItem key={a.area_id} value={String(a.area_id)}>{a.area_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Ordered Products */}
+            <Card className="overflow-hidden shadow-sm">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-center justify-between">
+                  <SectionHeader icon={<Package className="h-3.5 w-3.5" />} accent="bg-orange-500" title="Ordered Products" sub="অর্ডারকৃত পণ্য" />
+                  <span className="rounded-full bg-muted/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground tabular-nums">
+                    {items.length} items · {totalQty} qty
+                  </span>
+                </div>
+
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-muted-foreground/15 bg-muted/20 py-12 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border bg-background shadow-sm">
+                      <Package className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">No products added</p>
+                    <p className="text-[11px] text-muted-foreground/80">ডান পাশ থেকে product add করুন</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((it, idx) => (
+                      <div key={idx} className="flex items-center gap-3 rounded-xl border bg-background p-2.5 transition-all hover:border-indigo-200 hover:shadow-sm">
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                          {it.image ? (
+                            <img src={it.image} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                              <ImageIcon className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold">{it.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            ৳{it.unit_price.toLocaleString()} · stock {it.stock ?? "—"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5">
+                          <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md"
+                            onClick={() => updateItem(idx, { quantity: Math.max(1, it.quantity - 1) })}>
+                            <MinusCircle className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            type="number" min={1}
+                            value={it.quantity}
+                            onChange={(e) => updateItem(idx, { quantity: Math.max(1, Number(e.target.value)) })}
+                            className="h-7 w-12 border-0 bg-transparent text-center font-semibold shadow-none focus-visible:ring-0"
+                          />
+                          <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md"
+                            onClick={() => updateItem(idx, { quantity: it.quantity + 1 })}>
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Input
+                          type="number" min={0}
+                          value={it.unit_price}
+                          onChange={(e) => updateItem(idx, { unit_price: Number(e.target.value) })}
+                          className="h-8 w-24"
+                        />
+                        <div className="w-24 shrink-0 text-right text-sm font-bold tabular-nums">
+                          ৳{(it.unit_price * it.quantity).toLocaleString()}
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          onClick={() => removeItem(idx)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </Field>
-        </div>
 
-        {/* Pathao detect bar */}
-        {showPathao && (
-          <div className="rounded-lg border border-emerald-300/50 bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                Address থেকে City / Zone / Area auto detect করুন। ভুল হলে manually select করুন।
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => detect.mutate()}
-                disabled={detect.isPending || !address.trim()}
-              >
-                {detect.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                AI Detect
-              </Button>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Field label="City">
-                <Select
-                  value={cityId ? String(cityId) : ""}
-                  onValueChange={(v) => {
-                    const c = cities.find((x) => x.city_id === Number(v));
-                    setCityId(Number(v));
-                    setCityName(c?.city_name ?? "");
-                    setZoneId(null); setZoneName(""); setAreaId(null); setAreaName("");
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={cityLoading ? "Loading…" : cityError ? "Pathao config missing" : "Select a city"} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {cities.map((c) => (
-                      <SelectItem key={c.city_id} value={String(c.city_id)}>{c.city_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Zone">
-                <Select
-                  value={zoneId ? String(zoneId) : ""}
-                  onValueChange={(v) => {
-                    const z = zones.find((x) => x.zone_id === Number(v));
-                    setZoneId(Number(v));
-                    setZoneName(z?.zone_name ?? "");
-                    setAreaId(null); setAreaName("");
-                  }}
-                  disabled={!cityId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select a zone" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {zones.map((z) => (
-                      <SelectItem key={z.zone_id} value={String(z.zone_id)}>{z.zone_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Area">
-                <Select
-                  value={areaId ? String(areaId) : ""}
-                  onValueChange={(v) => {
-                    const a = areas.find((x) => x.area_id === Number(v));
-                    setAreaId(Number(v));
-                    setAreaName(a?.area_name ?? "");
-                  }}
-                  disabled={!zoneId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select an area" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {areas.map((a) => (
-                      <SelectItem key={a.area_id} value={String(a.area_id)}>{a.area_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            {/* Totals */}
+            <Card className="shadow-sm">
+              <CardContent className="space-y-4 p-5">
+                <SectionHeader icon={<Receipt className="h-3.5 w-3.5" />} accent="bg-rose-500" title="Financial Summary" sub="হিসাব" />
+                <div className="grid gap-3 md:grid-cols-5">
+                  <MoneyField label="Discount">
+                    <Input type="number" min={0} value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} placeholder="0"
+                      className="h-10 border-0 bg-transparent pl-7 text-sm font-semibold tabular-nums shadow-none focus-visible:ring-0" />
+                  </MoneyField>
+                  <MoneyField label="Advance">
+                    <Input type="number" min={0} value={advance || ""} onChange={(e) => setAdvance(Number(e.target.value))} placeholder="0"
+                      className="h-10 border-0 bg-transparent pl-7 text-sm font-semibold tabular-nums shadow-none focus-visible:ring-0" />
+                  </MoneyField>
+                  <MoneyField label="Sub Total" readOnly>
+                    <div className="px-3 py-2 text-sm font-bold tabular-nums text-muted-foreground">
+                      ৳ {subtotal.toLocaleString()}
+                    </div>
+                  </MoneyField>
+                  <MoneyField label="Delivery">
+                    <Input type="number" min={0} value={shippingFee || ""} onChange={(e) => setShippingFee(Number(e.target.value))} placeholder="0"
+                      className="h-10 border-0 bg-transparent pl-7 text-sm font-semibold tabular-nums shadow-none focus-visible:ring-0" />
+                  </MoneyField>
+                  <MoneyField label="Grand Total" tone="danger">
+                    <div className="px-3 py-2 text-base font-black tabular-nums text-rose-600">
+                      ৳ {grandTotal.toLocaleString()}
+                    </div>
+                  </MoneyField>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Advance details */}
+            {Number(advance) > 0 && (
+              <Card className="border-amber-300/60 bg-amber-50/40 shadow-sm dark:bg-amber-950/10">
+                <CardContent className="space-y-4 p-5">
+                  <SectionHeader icon={<Sparkles className="h-3.5 w-3.5" />} accent="bg-amber-500" title="Advance Payment Details" sub="অগ্রিম পেমেন্টের তথ্য" />
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <Field label="Payment Method">
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="COD">Cash on Delivery</SelectItem>
+                          <SelectItem value="bKash">bKash</SelectItem>
+                          <SelectItem value="Nagad">Nagad</SelectItem>
+                          <SelectItem value="Bank">Bank Transfer</SelectItem>
+                          <SelectItem value="Cash">Cash</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Advance Source" required>
+                      <Select value={advanceSource} onValueChange={setAdvanceSource}>
+                        <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                        <SelectContent>
+                          {["bKash", "Nagad", "Rocket", "Upay", "Bank", "Card", "Cash", "Other"].map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Payment Number / Last 4" required>
+                      <Input
+                        inputMode="numeric"
+                        maxLength={20}
+                        value={advanceNumber}
+                        onChange={(e) => setAdvanceNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="01712345678 / 5678"
+                      />
+                    </Field>
+                    <Field label="Transaction ID (optional)">
+                      <Input maxLength={50} value={advanceTxnId} onChange={(e) => setAdvanceTxnId(e.target.value)} placeholder="e.g. 9F7A2BX1Q" />
+                    </Field>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        )}
 
-        {/* Products area */}
-        <div className="grid gap-4 lg:grid-cols-5">
-          {/* Ordered Products */}
-          <Card className="lg:col-span-3">
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <Package className="h-4 w-4 text-primary" /> Ordered Products
-                </h2>
-                <div className="text-xs text-muted-foreground tabular-nums">
-                  {items.length} item{items.length !== 1 ? "s" : ""} · {totalQty} qty
-                </div>
-              </div>
-
-              {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed py-12 text-center">
-                  <Package className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm font-medium text-rose-600">No Products added.</p>
-                  <p className="text-xs text-muted-foreground">ডান পাশ থেকে product add করুন।</p>
-                </div>
-              ) : (
+          {/* RIGHT: Quick add + Delivery + Extras */}
+          <div className="space-y-6 lg:col-span-4">
+            {/* Delivery method */}
+            <Card className="shadow-sm">
+              <CardContent className="space-y-4 p-5">
+                <Field label="Delivery Method" bn="ডেলিভারি">
+                  <Select value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pathao">Pathao Courier</SelectItem>
+                      <SelectItem value="steadfast">Steadfast</SelectItem>
+                      <SelectItem value="manual">Manual / Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Shipping Note" hint={`${shippingNote.length}/350`}>
+                  <Textarea
+                    rows={4}
+                    maxLength={350}
+                    value={shippingNote}
+                    onChange={(e) => setShippingNote(e.target.value)}
+                    className="resize-none bg-muted/30 focus-visible:bg-background"
+                  />
+                </Field>
                 <div className="space-y-2">
-                  {items.map((it, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-lg border bg-card p-2 transition-colors hover:bg-muted/40">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
-                        {it.image ? (
-                          <img src={it.image} alt="" className="h-full w-full object-cover" />
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Extra Options</div>
+                  <ToggleRow label="Preorder" checked={isPreorder} onChange={setIsPreorder} />
+                  <ToggleRow label="Cross Sale" checked={isCrossSale} onChange={setIsCrossSale} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick add products */}
+            <Card className="shadow-sm">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Quick Add Products</div>
+                    <div className="text-[11px] text-muted-foreground">পণ্য যোগ করুন</div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant={featuredOnly ? "default" : "outline"}
+                    className="h-8 w-8 rounded-lg"
+                    onClick={() => setFeaturedOnly((v) => !v)}
+                    title="Featured only"
+                  >
+                    <Star className={cn("h-4 w-4", featuredOnly && "fill-current")} />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="h-9 pl-9" placeholder="Search by Code / SKU" value={skuQuery} onChange={(e) => setSkuQuery(e.target.value)} />
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="h-9 pl-9" placeholder="Search by Name" value={nameQuery} onChange={(e) => setNameQuery(e.target.value)} />
+                  </div>
+                </div>
+                <div className="max-h-[520px] space-y-1.5 overflow-y-auto rounded-xl border bg-muted/20 p-2">
+                  {searching && (
+                    <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+                    </div>
+                  )}
+                  {!searching && products.length === 0 && (
+                    <div className="p-6 text-center text-xs text-muted-foreground">No products found</div>
+                  )}
+                  {products.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => addItem(p)}
+                      className="group flex w-full items-center gap-3 rounded-lg border border-transparent bg-background p-2 text-left transition-all hover:border-indigo-200 hover:shadow-sm"
+                    >
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                        {p.image ? (
+                          <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                             <ImageIcon className="h-4 w-4" />
@@ -535,208 +722,74 @@ function NewOrderPage() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{it.name}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          ৳{it.unit_price.toLocaleString()} · stock {it.stock ?? "—"}
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="line-clamp-2 text-[12px] font-semibold leading-tight">{p.title}</div>
+                          {p.is_featured && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between text-[10px] tabular-nums">
+                          <span className="font-bold text-primary">৳{Number(p.price).toLocaleString()}</span>
+                          <span className={cn("font-semibold", p.stock <= 0 ? "text-rose-600" : "text-emerald-700")}>
+                            stock {p.stock}
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => updateItem(idx, { quantity: Math.max(1, it.quantity - 1) })}>
-                          <MinusCircle className="h-4 w-4" />
-                        </Button>
-                        <Input
-                          type="number" min={1}
-                          value={it.quantity}
-                          onChange={(e) => updateItem(idx, { quantity: Math.max(1, Number(e.target.value)) })}
-                          className="h-8 w-14 text-center"
-                        />
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          onClick={() => updateItem(idx, { quantity: it.quantity + 1 })}>
-                          <PlusCircle className="h-4 w-4" />
-                        </Button>
+                      <div className="rounded-md bg-muted p-1 text-muted-foreground transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+                        <Plus className="h-3.5 w-3.5" />
                       </div>
-                      <Input
-                        type="number" min={0}
-                        value={it.unit_price}
-                        onChange={(e) => updateItem(idx, { unit_price: Number(e.target.value) })}
-                        className="h-8 w-24"
-                      />
-                      <div className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
-                        ৳{(it.unit_price * it.quantity).toLocaleString()}
-                      </div>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-600 hover:text-rose-700"
-                        onClick={() => removeItem(idx)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Add Products */}
-          <Card className="lg:col-span-2">
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">Click To Add Products</h2>
-                <Button
-                  size="icon"
-                  variant={featuredOnly ? "default" : "outline"}
-                  className="h-8 w-8"
-                  onClick={() => setFeaturedOnly((v) => !v)}
-                  title="Featured only"
-                >
-                  <Star className={cn("h-4 w-4", featuredOnly && "fill-current")} />
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Code / SKU">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input className="h-8 pl-8" placeholder="Type to Search…" value={skuQuery} onChange={(e) => setSkuQuery(e.target.value)} />
-                  </div>
-                </Field>
-                <Field label="Name">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input className="h-8 pl-8" placeholder="Type to Search…" value={nameQuery} onChange={(e) => setNameQuery(e.target.value)} />
-                  </div>
-                </Field>
-              </div>
-              <div className="max-h-[440px] divide-y overflow-y-auto rounded-md border">
-                {searching && (
-                  <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
-                  </div>
-                )}
-                {!searching && products.length === 0 && (
-                  <div className="p-6 text-center text-xs text-muted-foreground">No products found</div>
-                )}
-                {products.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => addItem(p)}
-                    className="flex w-full items-center gap-3 p-2.5 text-left transition-colors hover:bg-accent"
-                  >
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
-                      {p.image ? (
-                        <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <ImageIcon className="h-4 w-4" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="line-clamp-2 text-sm font-medium leading-tight">{p.title}</div>
-                        {p.is_featured && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
-                      </div>
-                      <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
-                        <span>Price: <span className="font-semibold text-primary">৳{Number(p.price).toLocaleString()}</span></span>
-                        <span className={cn("font-semibold", p.stock <= 0 ? "text-rose-600" : "text-emerald-700")}>
-                          Stock: {p.stock}
-                        </span>
-                      </div>
-                    </div>
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {/* Totals row */}
-        <Card>
-          <CardContent className="grid gap-3 p-4 md:grid-cols-5">
-            <Field label="Discount">
-              <Input type="number" min={0} value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} placeholder="0" />
-            </Field>
-            <Field label="Advance">
-              <Input type="number" min={0} value={advance || ""} onChange={(e) => setAdvance(Number(e.target.value))} placeholder="0" />
-            </Field>
-            <Field label="Sub Total">
-              <Input readOnly value={subtotal} className="bg-muted/40 font-semibold tabular-nums" />
-            </Field>
-            <Field label="Delivery Charge">
-              <Input type="number" min={0} value={shippingFee || ""} onChange={(e) => setShippingFee(Number(e.target.value))} placeholder="0" />
-            </Field>
-            <Field label="Grand Total">
-              <Input
-                readOnly
-                value={grandTotal}
-                className="border-rose-300 bg-rose-50/60 font-bold tabular-nums text-rose-700 dark:bg-rose-950/30"
-              />
-            </Field>
-          </CardContent>
-        </Card>
-
-        {/* Advance details */}
-        {Number(advance) > 0 && (
-          <Card className="border-amber-300/60 bg-amber-50/40 dark:bg-amber-950/10">
-            <CardContent className="grid gap-3 p-4 md:grid-cols-4">
-              <Field label="Payment Method">
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="COD">Cash on Delivery</SelectItem>
-                    <SelectItem value="bKash">bKash</SelectItem>
-                    <SelectItem value="Nagad">Nagad</SelectItem>
-                    <SelectItem value="Bank">Bank Transfer</SelectItem>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Advance Source" required>
-                <Select value={advanceSource} onValueChange={setAdvanceSource}>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                  <SelectContent>
-                    {["bKash", "Nagad", "Rocket", "Upay", "Bank", "Card", "Cash", "Other"].map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Payment Number / Last 4" required>
-                <Input
-                  inputMode="numeric"
-                  maxLength={20}
-                  value={advanceNumber}
-                  onChange={(e) => setAdvanceNumber(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="01712345678 / 5678"
-                />
-              </Field>
-              <Field label="Transaction ID (optional)">
-                <Input maxLength={50} value={advanceTxnId} onChange={(e) => setAdvanceTxnId(e.target.value)} placeholder="e.g. 9F7A2BX1Q" />
-              </Field>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
-      {/* Sticky create bar */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="hidden text-sm text-muted-foreground md:flex items-center gap-4">
-            <span><Truck className="mr-1 inline h-3.5 w-3.5" /> {deliveryMethod}</span>
-            <span>Items: <span className="font-semibold text-foreground">{totalQty}</span></span>
-            <span>Subtotal: <span className="font-semibold text-foreground">৳{subtotal.toLocaleString()}</span></span>
+      {/* Sleek sticky bottom bar */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/85 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="hidden items-center gap-6 md:flex">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <Truck className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Courier</div>
+                <div className="text-sm font-semibold capitalize">{deliveryMethod}</div>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Items</div>
+              <div className="text-sm font-bold tabular-nums">{totalQty} pcs</div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Subtotal</div>
+              <div className="text-sm font-bold tabular-nums">৳ {subtotal.toLocaleString()}</div>
+            </div>
           </div>
-          <Button
-            size="lg"
-            className="ml-auto h-12 min-w-[260px] bg-emerald-600 text-base font-semibold text-white hover:bg-emerald-700"
-            disabled={create.isPending || items.length === 0}
-            onClick={() => create.mutate()}
-          >
-            {create.isPending ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…</>
-            ) : (
-              <>Create Order (৳{grandTotal.toLocaleString()})</>
-            )}
-          </Button>
+          <div className="ml-auto flex items-center gap-4">
+            <div className="hidden text-right md:block">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payable</div>
+              <div className="text-lg font-black tabular-nums text-indigo-600">৳ {grandTotal.toLocaleString()}</div>
+            </div>
+            <Button
+              size="lg"
+              className="group h-12 gap-2 rounded-xl bg-emerald-600 px-6 text-base font-bold text-white shadow-lg shadow-emerald-200/60 hover:bg-emerald-700 dark:shadow-emerald-950/30"
+              disabled={create.isPending || items.length === 0}
+              onClick={() => create.mutate()}
+            >
+              {create.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Creating…</>
+              ) : (
+                <>
+                  <span>Create Order</span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -744,13 +797,14 @@ function NewOrderPage() {
 }
 
 function Field({
-  label, required, hint, children,
-}: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  label, required, hint, children, bn, className,
+}: { label: string; required?: boolean; hint?: string; children: React.ReactNode; bn?: string; className?: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium text-foreground/80">
-          {label}{required && <span className="ml-0.5 text-rose-600">*</span>}
+        <Label className="flex items-baseline gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <span>{label}{required && <span className="ml-0.5 text-rose-500">*</span>}</span>
+          {bn && <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground/70">{bn}</span>}
         </Label>
         {hint && <span className="text-[10px] text-muted-foreground tabular-nums">{hint}</span>}
       </div>
@@ -763,9 +817,50 @@ function ToggleRow({
   label, checked, onChange,
 }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between rounded-md border bg-background px-2.5 py-1.5">
-      <span className="text-xs font-medium">{label}</span>
+    <div className="flex items-center justify-between rounded-lg border bg-background/60 px-3 py-2 transition-colors hover:bg-background">
+      <span className="text-xs font-semibold">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon, accent, title, sub,
+}: { icon: React.ReactNode; accent: string; title: string; sub?: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={cn("inline-block h-4 w-1 rounded-full", accent)} />
+      <div className="flex items-center gap-1.5 text-muted-foreground/70">{icon}</div>
+      <div className="text-sm font-bold text-foreground">
+        {title}
+        {sub && <span className="ml-1.5 text-xs font-normal text-muted-foreground">— {sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+function MoneyField({
+  label, children, tone, readOnly,
+}: { label: string; children: React.ReactNode; tone?: "danger"; readOnly?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className={cn(
+        "block text-[10px] font-bold uppercase tracking-wider",
+        tone === "danger" ? "text-rose-500" : "text-muted-foreground",
+      )}>{label}</Label>
+      <div className={cn(
+        "relative flex items-center rounded-lg border bg-muted/30 transition-colors focus-within:bg-background focus-within:ring-2 focus-within:ring-indigo-500/20",
+        tone === "danger" && "border-rose-200 bg-rose-50/60 focus-within:ring-rose-500/20 dark:border-rose-900/40 dark:bg-rose-950/20",
+        readOnly && "bg-muted/40",
+      )}>
+        {!readOnly && (
+          <span className={cn(
+            "pointer-events-none absolute left-3 text-sm font-semibold",
+            tone === "danger" ? "text-rose-400" : "text-muted-foreground/60",
+          )}>৳</span>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
