@@ -1104,11 +1104,11 @@ function RecentOrderPreview({ order, onOpen }: { order: RecentOrder; onOpen: () 
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-2 rounded-md bg-white/5 px-1.5 py-1 text-left text-[10px] ring-1 ring-white/10 transition hover:bg-white/10"
+          className="flex w-full items-center justify-between gap-2 rounded-md bg-white/95 px-2 py-1 text-left text-[10px] text-slate-900 ring-1 ring-white/20 shadow-sm transition hover:bg-white"
         >
-          <span className="truncate font-semibold tabular-nums">#{order.id.slice(0, 8)}</span>
+          <span className="truncate font-mono font-semibold tabular-nums text-slate-700">#{order.id.slice(0, 8)}</span>
           <span className={cn("rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wider", tone)}>{order.status}</span>
-          <span className="font-extrabold tabular-nums text-white">৳{Number(order.total ?? 0).toLocaleString()}</span>
+          <span className="font-extrabold tabular-nums text-slate-900">৳{Number(order.total ?? 0).toLocaleString()}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" side="right" className="w-80 p-0">
