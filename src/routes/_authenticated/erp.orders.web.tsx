@@ -160,6 +160,60 @@ function SuccessBlock({ total, success }: { total: number; success: number }) {
   );
 }
 
+function AllItemsPopover({
+  items,
+  total,
+}: {
+  items: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
+  total: number;
+}) {
+  const totalQty = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+  return (
+    <PopoverContent
+      align="start"
+      side="top"
+      className="w-80 p-0 overflow-hidden"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+          {items.length} item{items.length === 1 ? "" : "s"} · {totalQty} qty
+        </div>
+        <div className="text-sm font-bold tabular-nums text-primary">৳{Number(total).toLocaleString()}</div>
+      </div>
+      <div className="max-h-80 overflow-y-auto divide-y">
+        {items.map((it, idx) => (
+          <div key={idx} className="flex items-center gap-2.5 p-2.5 hover:bg-muted/40">
+            <div className="h-11 w-11 rounded-md border bg-muted overflow-hidden shrink-0">
+              {it.image ? (
+                <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
+                  {it.name.slice(0, 2)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium leading-tight line-clamp-2">{it.name}</div>
+              {it.unit_price != null && (
+                <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                  ৳{Number(it.unit_price).toLocaleString()} × {it.quantity}
+                </div>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-[11px] font-bold tabular-nums">×{it.quantity}</div>
+              <div className="text-[10px] font-semibold tabular-nums text-primary">
+                ৳{(Number(it.unit_price ?? 0) * (it.quantity ?? 0)).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </PopoverContent>
+  );
+}
+
 function WebOrdersPage() {
   const { activeBrand } = useBrand();
   const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
