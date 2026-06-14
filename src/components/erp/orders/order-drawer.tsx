@@ -5,6 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +33,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
   const [note, setNote] = useState("");
+  const [advOpen, setAdvOpen] = useState(false);
+  const [advAmount, setAdvAmount] = useState("");
+  const [advSource, setAdvSource] = useState("");
+  const [advNumber, setAdvNumber] = useState("");
+  const [advTxnId, setAdvTxnId] = useState("");
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -50,8 +58,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async (web_status: string) => {
-      const { error } = await supabase.from("orders").update({ web_status: web_status as never }).eq("id", orderId!);
+    mutationFn: async ({ web_status, extra }: { web_status: string; extra?: Record<string, unknown> }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: web_status as never, ...(extra ?? {}) })
+        .eq("id", orderId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -62,6 +73,35 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const onPickWebStatus = (v: string) => {
+    if (v === "advance_payment") {
+      setAdvAmount("");
+      setAdvSource("");
+      setAdvNumber("");
+      setAdvTxnId("");
+      setAdvOpen(true);
+      return;
+    }
+    updateWebStatus.mutate({ web_status: v });
+  };
+
+  const submitAdvance = () => {
+    const amt = Number(advAmount);
+    if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
+    if (!advSource) { toast.error("Select advance payment source"); return; }
+    if (!advNumber || advNumber.length < 4) { toast.error("Enter payment number (min 4 digits)"); return; }
+    updateWebStatus.mutate({
+      web_status: "advance_payment",
+      extra: {
+        advance_amount: amt,
+        advance_source: advSource,
+        advance_payment_number: advNumber,
+        advance_txn_id: advTxnId || null,
+      },
+    });
+    setAdvOpen(false);
+  };
 
   const assignStaff = useMutation({
     mutationFn: async (userId: string | null) => {
@@ -90,6 +130,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   });
 
   return (
+    <>
     <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl w-[96vw] max-h-[92vh] overflow-hidden p-0 gap-0 border-border/60">
         {isLoading || !order ? (
@@ -198,7 +239,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <Select
                       value={(order as { web_status?: string | null }).web_status ?? "processing"}
                       disabled={updateWebStatus.isPending}
-                      onValueChange={(v) => updateWebStatus.mutate(v)}
+                      onValueChange={onPickWebStatus}
                     >
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -280,5 +321,58 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
         )}
       </DialogContent>
     </Dialog>
+
+    <Dialog open={advOpen} onOpenChange={setAdvOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Advance Payment</DialogTitle>
+          <DialogDescription>Customer kotota advance pay korlo, ki diye?</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Advance Amount (৳) <span className="text-rose-600">*</span></Label>
+            <Input type="number" min={1} autoFocus value={advAmount} onChange={(e) => setAdvAmount(e.target.value)} placeholder="e.g. 100" />
+          </div>
+          <div>
+            <Label>Payment Source <span className="text-rose-600">*</span></Label>
+            <Select value={advSource} onValueChange={setAdvSource}>
+              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bKash">bKash</SelectItem>
+                <SelectItem value="Nagad">Nagad</SelectItem>
+                <SelectItem value="Rocket">Rocket</SelectItem>
+                <SelectItem value="Upay">Upay</SelectItem>
+                <SelectItem value="Bank">Bank Transfer</SelectItem>
+                <SelectItem value="Card">Card</SelectItem>
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Payment Number / Last 4 Digits <span className="text-rose-600">*</span></Label>
+            <Input
+              inputMode="numeric"
+              maxLength={20}
+              value={advNumber}
+              onChange={(e) => setAdvNumber(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="e.g. 01712345678 or 5678"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">Full number ba last 4 digit — jeta accept koreche.</p>
+          </div>
+          <div>
+            <Label className="text-muted-foreground">Transaction ID <span className="text-muted-foreground/70">(optional)</span></Label>
+            <Input maxLength={50} value={advTxnId} onChange={(e) => setAdvTxnId(e.target.value)} placeholder="e.g. 9F7A2BX1Q" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setAdvOpen(false)}>Cancel</Button>
+          <Button disabled={updateWebStatus.isPending} onClick={submitAdvance} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {updateWebStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
