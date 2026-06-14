@@ -541,17 +541,35 @@ function WebOrdersPage() {
                             </Popover>
                           ))}
                           {items.length > 3 && (
-                            <div className="h-10 w-10 rounded-md border-2 border-card bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
-                              +{items.length - 3}
-                            </div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-10 w-10 rounded-md border-2 border-card bg-muted hover:bg-muted/70 flex items-center justify-center text-[10px] font-semibold text-muted-foreground hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                  +{items.length - 3}
+                                </button>
+                              </PopoverTrigger>
+                              <AllItemsPopover items={items} total={r.total} />
+                            </Popover>
                           )}
                         </div>
-                        <div className="text-xs space-y-0.5 min-w-0">
-                          <div className="font-semibold text-foreground">৳ {Number(r.total).toLocaleString()}</div>
-                          <div className="text-muted-foreground">
-                            {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
-                          </div>
-                        </div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs space-y-0.5 min-w-0 text-left rounded-md px-1.5 py-1 hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors"
+                            >
+                              <div className="font-semibold text-foreground">৳ {Number(r.total).toLocaleString()}</div>
+                              <div className="text-muted-foreground">
+                                {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
+                              </div>
+                            </button>
+                          </PopoverTrigger>
+                          <AllItemsPopover items={items} total={r.total} />
+                        </Popover>
                       </div>
                     </TableCell>
 
