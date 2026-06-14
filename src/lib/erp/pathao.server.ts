@@ -11,6 +11,25 @@ export type PathaoCreds = {
 };
 
 const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
+const FETCH_TIMEOUT_MS = 12_000;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: init.signal ?? controller.signal });
+  } catch (e) {
+    if ((e as Error).name === "AbortError") {
+      throw new Error("Pathao request timed out");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // In-memory caches for geo lookups. Pathao city/zone/area lists are huge but
 // nearly static — caching them per worker process eliminates the biggest
@@ -38,7 +57,7 @@ async function memo<T>(key: string, loader: () => Promise<T>): Promise<T> {
 }
 
 async function issueToken(creds: PathaoCreds) {
-  const res = await fetch(`${creds.base_url}/aladdin/api/v1/issue-token`, {
+  const res = await fetchWithTimeout(`${creds.base_url}/aladdin/api/v1/issue-token`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -72,7 +91,7 @@ async function getToken(creds: PathaoCreds): Promise<string> {
 export function createPathaoClient(creds: PathaoCreds) {
   async function call<T = any>(path: string, init: RequestInit = {}): Promise<T> {
     const doFetch = async (tok: string) =>
-      fetch(`${creds.base_url}${path}`, {
+      fetchWithTimeout(`${creds.base_url}${path}`, {
         ...init,
         headers: {
           Accept: "application/json",
