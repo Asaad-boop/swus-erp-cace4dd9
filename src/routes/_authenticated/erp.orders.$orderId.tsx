@@ -615,7 +615,7 @@ function OrderDetailsPage() {
   });
 
   const updateWebStatus = useMutation({
-    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number }> }) => {
+    mutationFn: async ({ status, extra }: { status: WebStatus; extra?: Partial<{ hold_reason: string; cancellation_reason: string; cancel_reason: string; advance_amount: number; advance_source: string; advance_payment_number: string; advance_txn_id: string | null }> }) => {
       const { error } = await supabase
         .from("orders")
         .update({ web_status: status, ...(extra ?? {}) })
