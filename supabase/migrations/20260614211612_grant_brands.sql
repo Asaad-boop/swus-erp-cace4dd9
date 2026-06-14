@@ -1,2 +1,0 @@
-grant select on public.brands to authenticated;
-grant all on public.brands to service_role;
