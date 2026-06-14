@@ -549,7 +549,7 @@ function OrderDetailsPage() {
     () => items.reduce((s, it) => s + Number(it.line_total ?? Number(it.unit_price ?? it.price) * it.quantity), 0),
     [items],
   );
-  const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount));
+  const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
 
   /* ------------------------------ Mutations -------------------------------- */
 
@@ -577,7 +577,7 @@ function OrderDetailsPage() {
       if (advanceError) throw new Error(advanceError);
       // 1) Persist any pending customer + pricing edits first
       const subtotal = itemsSubtotal;
-      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
+      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
       const basePayload = {
         shipping_phone: form.mobile,
         shipping_name: form.name,
@@ -716,7 +716,7 @@ function OrderDetailsPage() {
       const advanceError = getAdvanceValidationError();
       if (advanceError) throw new Error(advanceError);
       const subtotal = itemsSubtotal;
-      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
+      const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
       const { error } = await supabase.from("orders").update({
         subtotal, shipping_fee: Number(form.shipping_fee), discount_amount: Number(form.discount),
         advance_amount: Number(form.advance),
