@@ -252,6 +252,19 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       results.push(...settled);
     }
 
+    // Mirror the raw courier status back to the latest shipment row so that
+    // re-booking flows can detect cancelled consignments and drop them.
+    for (const r of results) {
+      if (!r.ok || !r.raw_status) continue;
+      const ship = latestShipment.get(r.order_id);
+      if (!ship) continue;
+      await supabase
+        .from("courier_shipments")
+        .update({ status: r.raw_status, updated_at: new Date().toISOString() })
+        .eq("order_id", r.order_id)
+        .eq("provider", ship.provider);
+    }
+
     // Fallback: if track API didn't return a fee, use the fee captured at booking time.
     for (const r of results) {
       if (r.ok && (!r.actual_fee || r.actual_fee <= 0)) {
