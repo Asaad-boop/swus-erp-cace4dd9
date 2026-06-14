@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Search, ArrowLeft, Loader2, Sparkles, Truck, Package,
   Star, MinusCircle, PlusCircle, ImageIcon, Info, Wand2, History,
@@ -174,34 +174,43 @@ function NewOrderPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // ── autofill from latest past order for this phone ───────────────────
-  const autofilledPhoneRef = useRef<string>("");
-  useEffect(() => {
-    if (!debouncedPhone || !pastOrders?.last) return;
-    if (autofilledPhoneRef.current === debouncedPhone) return;
-    const last = pastOrders.last as any;
-    let filled = 0;
-    if (!name.trim() && last.shipping_name) { setName(last.shipping_name); filled++; }
-    if (!address.trim() && last.shipping_address) { setAddress(last.shipping_address); filled++; }
-    if (!cityId && last.pathao_city_id) {
+  // ── autofill suggestion from latest past order for this phone ────────
+  const [dismissedAutofillPhone, setDismissedAutofillPhone] = useState<string>("");
+  const autofillSuggestion = useMemo(() => {
+    const last: any = pastOrders?.last;
+    if (!debouncedPhone || !last) return null;
+    const fields: { key: string; label: string; value: string }[] = [];
+    if (last.shipping_name && last.shipping_name !== name) fields.push({ key: "name", label: "Name", value: last.shipping_name });
+    if (last.shipping_address && last.shipping_address !== address) fields.push({ key: "address", label: "Address", value: last.shipping_address });
+    if (last.pathao_city_id && Number(last.pathao_city_id) !== cityId)
+      fields.push({ key: "city", label: "City", value: last.pathao_city_name ?? last.shipping_city ?? "" });
+    if (last.pathao_zone_id && Number(last.pathao_zone_id) !== zoneId)
+      fields.push({ key: "zone", label: "Zone", value: last.pathao_zone_name ?? "" });
+    if (last.pathao_area_id && Number(last.pathao_area_id) !== areaId)
+      fields.push({ key: "area", label: "Area", value: last.pathao_area_name ?? "" });
+    if (fields.length === 0) return null;
+    return { last, fields };
+  }, [debouncedPhone, pastOrders, name, address, cityId, zoneId, areaId]);
+
+  const applyAutofill = () => {
+    const last: any = pastOrders?.last;
+    if (!last) return;
+    if (last.shipping_name) setName(last.shipping_name);
+    if (last.shipping_address) setAddress(last.shipping_address);
+    if (last.pathao_city_id) {
       setCityId(Number(last.pathao_city_id));
       setCityName(last.pathao_city_name ?? last.shipping_city ?? "");
-      filled++;
     }
-    if (!zoneId && last.pathao_zone_id) {
+    if (last.pathao_zone_id) {
       setZoneId(Number(last.pathao_zone_id));
       setZoneName(last.pathao_zone_name ?? "");
-      filled++;
     }
-    if (!areaId && last.pathao_area_id) {
+    if (last.pathao_area_id) {
       setAreaId(Number(last.pathao_area_id));
       setAreaName(last.pathao_area_name ?? "");
-      filled++;
     }
-    autofilledPhoneRef.current = debouncedPhone;
-    if (filled > 0) toast.success(`Previous info theke ${filled} field auto-fill holo`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedPhone, pastOrders]);
+    toast.success("Previous info theke auto-fill holo");
+  };
 
   // ── items ─────────────────────────────────────────────────────────────
   const [items, setItems] = useState<LineItem[]>([]);
@@ -420,6 +429,29 @@ function NewOrderPage() {
             <Card className="overflow-hidden shadow-sm">
               <CardContent className="space-y-5 p-5">
                 <SectionHeader icon={<User2 className="h-3.5 w-3.5" />} accent="bg-indigo-600" title="Customer Details" sub="গ্রাহকের বিবরণ" />
+                {autofillSuggestion && dismissedAutofillPhone !== debouncedPhone && (
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] dark:border-amber-900/40 dark:bg-amber-950/20">
+                    <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                      <History className="h-4 w-4 shrink-0" />
+                      <span className="font-semibold">Previous info found</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {autofillSuggestion.fields.map((f) => (
+                        <span key={f.key} className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                          {f.label}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40" onClick={() => setDismissedAutofillPhone(debouncedPhone)}>
+                        Dismiss
+                      </Button>
+                      <Button size="sm" className="h-7 gap-1.5 bg-amber-600 px-2.5 text-[12px] font-bold text-white hover:bg-amber-700" onClick={applyAutofill}>
+                        <Wand2 className="h-3.5 w-3.5" /> Autofill
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Mobile Number" bn="মোবাইল নম্বর" required>
                     <Input
