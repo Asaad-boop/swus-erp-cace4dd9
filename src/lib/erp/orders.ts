@@ -115,6 +115,7 @@ export type OrderRow = {
   shipping_fee: number;
   discount_amount: number;
   payment_method: string | null;
+  advance_amount: number | null;
   shipping_name: string | null;
   shipping_phone: string | null;
   shipping_address: string | null;

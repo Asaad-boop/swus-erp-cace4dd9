@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { computeAutoTags, topTag, type AutoTagKey } from "@/lib/erp/order-tags";
 import { AutoTagChips } from "@/components/erp/orders/auto-tag-chips";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
+import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
@@ -64,6 +65,7 @@ type WebOrderRow = {
   source_website: string | null;
   web_status: WebStatus | null;
   total: number;
+  advance_amount: number | null;
   call_attempt_count: number | null;
   call_status: string | null;
   brand_id: string | null;
@@ -218,7 +220,7 @@ function WebOrdersPage() {
       let q = supabase
         .from("orders")
         .select(
-          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
+          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
         .eq("brand_id", activeBrand!.id)
@@ -667,6 +669,7 @@ function WebOrdersPage() {
                               <div className="text-muted-foreground">
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
+                              <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
                             </button>
                           </PopoverTrigger>
                           <AllItemsPopover items={items} total={r.total} />
