@@ -125,7 +125,8 @@ export function InvoiceSettings() {
               <Select value={cfg.theme} onValueChange={(v) => upd("theme", v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="modern">Modern (colored band)</SelectItem>
+                <SelectItem value="template">HobbyShop Template (recommended)</SelectItem>
+                <SelectItem value="modern">Modern (colored band)</SelectItem>
                   <SelectItem value="classic">Classic (B&W)</SelectItem>
                   <SelectItem value="minimal">Minimal</SelectItem>
                   <SelectItem value="pos">POS / Thermal</SelectItem>
