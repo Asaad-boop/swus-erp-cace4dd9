@@ -120,7 +120,7 @@ function NewOrderPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id,total,status,created_at")
+        .select("id,total,status,created_at,shipping_name,shipping_address,shipping_city,pathao_city_id,pathao_city_name,pathao_zone_id,pathao_zone_name,pathao_area_id,pathao_area_name")
         .eq("brand_id", activeBrand!.id)
         .or(`shipping_phone.eq.${debouncedPhone},guest_phone.eq.${debouncedPhone}`)
         .order("created_at", { ascending: false })
