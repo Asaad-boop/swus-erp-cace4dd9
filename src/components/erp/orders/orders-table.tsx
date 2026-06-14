@@ -368,3 +368,96 @@ function Thumb({ src, name, size = 36 }: { src: string | null; name: string | nu
     />
   );
 }
+
+function CustomerPhoneHistory({ phone, brandId, currentOrderId }: { phone: string; brandId: string | null; currentOrderId: string }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useCustomerHistory(phone, brandId, open);
+  const others = (data?.rows ?? []).filter((r) => r.id !== currentOrderId);
+  const summary = data?.summary;
+  const repeatCount = summary ? Math.max(0, summary.total - 1) : 0;
+
+  return (
+    <HoverCard openDelay={150} closeDelay={80} onOpenChange={setOpen}>
+      <HoverCardTrigger asChild>
+        <button
+          onClick={(e) => { e.stopPropagation(); }}
+          className="font-mono inline-flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          <span>{phone}</span>
+          {repeatCount > 0 && (
+            <span className="inline-flex items-center h-[15px] px-1 rounded text-[9px] font-bold bg-primary/10 text-primary tabular-nums">
+              ×{summary!.total}
+            </span>
+          )}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" side="bottom" className="w-[340px] p-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-3 py-2 border-b bg-muted/40">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Customer History</div>
+          <div className="font-mono text-xs mt-0.5">{phone}</div>
+        </div>
+        {isLoading && !data ? (
+          <div className="p-4 space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ) : !summary || summary.total === 0 ? (
+          <div className="p-4 text-xs text-muted-foreground text-center">No previous orders found.</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-4 gap-1 px-3 py-2.5 border-b text-center">
+              <Stat label="Total" value={summary.total} tone="default" />
+              <Stat label="Delivered" value={summary.delivered} tone="success" />
+              <Stat label="Returned" value={summary.returned} tone="warn" />
+              <Stat label="Cancelled" value={summary.cancelled} tone="danger" />
+            </div>
+            <div className="px-3 py-1.5 bg-muted/20 border-b flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Spent</span>
+              <span className="text-xs font-bold tabular-nums">৳{summary.spent.toLocaleString()}</span>
+            </div>
+            {others.length > 0 ? (
+              <div className="max-h-64 overflow-y-auto divide-y">
+                {others.slice(0, 8).map((r) => {
+                  const b = statusBadge(r.status);
+                  return (
+                    <div key={r.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-mono text-[11px] font-semibold truncate">#{r.invoice_no ?? r.id.slice(0, 6)}</div>
+                        <div className="text-[10px] text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</div>
+                      </div>
+                      <span className={cn("inline-flex items-center h-[18px] px-1.5 rounded-full text-[9px] font-semibold whitespace-nowrap", b.className)}>
+                        {b.label}
+                      </span>
+                      <div className="text-[11px] font-bold tabular-nums w-16 text-right">৳{Number(r.total).toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+                {others.length > 8 && (
+                  <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-center">+{others.length - 8} more orders</div>
+                )}
+              </div>
+            ) : (
+              <div className="px-3 py-3 text-[11px] text-muted-foreground text-center italic">First order from this customer.</div>
+            )}
+          </>
+        )}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone: "default" | "success" | "warn" | "danger" }) {
+  const toneCls = {
+    default: "text-foreground",
+    success: "text-emerald-600 dark:text-emerald-400",
+    warn: "text-amber-600 dark:text-amber-400",
+    danger: "text-red-600 dark:text-red-400",
+  }[tone];
+  return (
+    <div>
+      <div className={cn("text-sm font-bold tabular-nums leading-none", toneCls)}>{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
+    </div>
+  );
+}
