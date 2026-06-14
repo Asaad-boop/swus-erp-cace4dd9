@@ -152,7 +152,14 @@ async function syncOne(
       // Pathao returns delivery_fee, cod_fee, promo_discount, total_price, etc.
       // We want what Pathao actually charges us (delivery + cod + extras).
       const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
-      const codFee = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]) ?? 0;
+      // Pathao /orders/{cid}/info usually only returns delivery_fee.
+      // Compute COD fee at standard 1% of amount-to-collect when not provided.
+      const collectedRaw = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
+      const collected = collectedRaw && collectedRaw > 0 ? collectedRaw : Number(order.total ?? 0);
+      const codFeeRaw = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]);
+      const codFee = codFeeRaw && codFeeRaw > 0
+        ? codFeeRaw
+        : (collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0);
       const discount = extractFee(res, ["discount", "discount_amount"]) ?? 0;
       const promoDiscount = extractFee(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
       const additional = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
@@ -172,12 +179,9 @@ async function syncOne(
           total: base.actual_fee,
         };
       }
-      // Pathao COD amount collected from customer
-      const collected = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
-      const orderTotal = collected && collected > 0 ? collected : Number(order.total ?? 0);
-      if (orderTotal > 0) {
-        base.order_total = orderTotal;
-        base.courier_payable = Math.max(orderTotal - (base.actual_fee ?? 0), 0);
+      if (collected > 0) {
+        base.order_total = collected;
+        base.courier_payable = Math.max(collected - (base.actual_fee ?? 0), 0);
       }
     } else {
       const { loadSteadfastCreds, createSteadfastClient } = await import("./steadfast.server");
