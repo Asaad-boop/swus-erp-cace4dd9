@@ -372,6 +372,17 @@ export function BusinessSettings() {
             </Field>
           </div>
         </Section>
+
+        {/* ============ ORDER SOURCES ============ */}
+        <Section
+          title="Order Sources"
+          desc="Manage where orders come from — shown as dropdown in New Order form."
+        >
+          <OrderSourcesEditor
+            sources={form.order_sources}
+            onChange={(next) => set("order_sources", next)}
+          />
+        </Section>
       </div>
 
       <footer className="px-5 py-3 border-t bg-muted/20 flex justify-end">
@@ -406,6 +417,65 @@ function Field({ label, hint, error, children, className }: { label: string; hin
       ) : hint ? (
         <p className="text-xs text-muted-foreground">{hint}</p>
       ) : null}
+    </div>
+  );
+}
+
+function OrderSourcesEditor({
+  sources, onChange,
+}: { sources: string[]; onChange: (next: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (sources.some((s) => s.toLowerCase() === v.toLowerCase())) {
+      toast.error("Already added");
+      return;
+    }
+    onChange([...sources, v]);
+    setDraft("");
+  };
+  const remove = (idx: number) => onChange(sources.filter((_, i) => i !== idx));
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {sources.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">No sources yet — add one below.</p>
+        )}
+        {sources.map((s, idx) => (
+          <span
+            key={`${s}-${idx}`}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 pl-3 pr-1 py-1 text-xs font-medium"
+          >
+            <Tag className="h-3 w-3 text-muted-foreground" />
+            {s}
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="rounded-full p-0.5 text-muted-foreground hover:bg-rose-100 hover:text-rose-600"
+              aria-label={`Remove ${s}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="e.g. Telegram, Live Chat, YouTube…"
+          className="max-w-xs"
+          maxLength={40}
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!draft.trim()}>
+          <Plus className="h-4 w-4" /> Add Source
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Click <X className="inline h-3 w-3 -mt-0.5" /> to remove. Don't forget to press <b>Update Business</b> below to save.
+      </p>
     </div>
   );
 }
