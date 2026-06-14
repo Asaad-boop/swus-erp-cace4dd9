@@ -924,15 +924,7 @@ function CustomerHistoryStrip({
     : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
 
   const navigate = useNavigate();
-  const lastOrderId = past?.last?.id ?? null;
-
-  const goToHistory = () => {
-    if (lastOrderId) {
-      navigate({ to: "/erp/orders/$orderId", params: { orderId: lastOrderId } });
-    } else if (phone) {
-      navigate({ to: "/erp/orders/list", search: { search: phone } as never });
-    }
-  };
+  const recent = past?.recent ?? [];
 
   return (
     <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -952,7 +944,13 @@ function CustomerHistoryStrip({
           {/* Inline stats — hide zero values */}
           <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
             {(past?.total ?? 0) > 0 && (
-              <InlineStat label="Orders" value={past!.total} onClick={goToHistory} hint={lastOrderId ? "View order" : "View history"} />
+              <OrdersPopoverStat
+                total={past!.total}
+                recent={recent}
+                phone={phone}
+                onOpen={(id) => navigate({ to: "/erp/orders/$orderId", params: { orderId: id } })}
+                onViewAll={() => phone && navigate({ to: "/erp/orders/list", search: { search: phone } as never })}
+              />
             )}
             {(past?.delivered ?? 0) > 0 && (
               <InlineStat label="Delivered" value={past!.delivered} tone="text-emerald-600 dark:text-emerald-400" />
