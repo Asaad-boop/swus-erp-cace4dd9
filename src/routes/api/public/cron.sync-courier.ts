@@ -46,11 +46,11 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         const orderIds = orders.map((o) => o.id);
         const { data: shipments } = await supabaseAdmin
           .from("courier_shipments")
-          .select("order_id, provider, consignment_id, tracking_code, created_at")
+          .select("id, order_id, provider, consignment_id, tracking_code, created_at")
           .in("order_id", orderIds)
           .order("created_at", { ascending: false });
 
-        const shipMap = new Map<string, { provider: string; consignment_id: string | null; tracking_code: string | null }>();
+        const shipMap = new Map<string, { id: string; provider: string; consignment_id: string | null; tracking_code: string | null }>();
         for (const s of shipments ?? []) {
           if (!shipMap.has(s.order_id)) shipMap.set(s.order_id, s);
         }
