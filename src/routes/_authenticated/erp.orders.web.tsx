@@ -64,6 +64,7 @@ type WebOrderRow = {
   source_website: string | null;
   web_status: WebStatus | null;
   total: number;
+  advance_amount: number | null;
   call_attempt_count: number | null;
   call_status: string | null;
   brand_id: string | null;
@@ -218,7 +219,7 @@ function WebOrdersPage() {
       let q = supabase
         .from("orders")
         .select(
-          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,call_attempt_count,call_status,brand_id",
+          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
         .eq("brand_id", activeBrand!.id)
