@@ -62,7 +62,7 @@ function pathaoActualCost(result: any, deliveryFee: number, codAmount: number, c
   const promo = readPositiveNumber(result, ["promo_discount", "promo_discount_amount"]) ?? 0;
   const additional = readPositiveNumber(result, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
   const compensation = readPositiveNumber(result, ["compensation_cost", "compensation"]) ?? 0;
-  const computed = deliveryFee + cod + additional + compensation - discount - promo;
+  const computed = deliveryFee > 0 ? deliveryFee + cod + additional + compensation - discount - promo : 0;
   const total = totalCost && totalCost > 0 ? totalCost : computed;
   const rounded = total > 0 ? Math.round(total * 100) / 100 : 0;
   return {
