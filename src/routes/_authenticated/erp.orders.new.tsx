@@ -130,7 +130,7 @@ function NewOrderPage() {
       const cancelled = rows.filter((o) => o.status === "cancelled" || o.status === "fake").length;
       const returned = rows.filter((o) => o.status === "returned").length;
       const spent = rows.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.total ?? 0), 0);
-      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null };
+      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null, recent: rows.slice(0, 5) };
     },
   });
 
