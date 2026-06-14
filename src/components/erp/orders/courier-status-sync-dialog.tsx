@@ -213,11 +213,16 @@ export function CourierStatusSyncDialog({
       let ok = 0;
       let fail = 0;
       for (const t of targets) {
+        const note = t.result.ok
+          ? `${t.result.provider}: ${t.result.raw_status ?? ""}`
+          : t.phoneHistory?.suggested
+            ? `phone_history: ${t.phoneHistory.success}/${t.phoneHistory.total} delivered, ${t.phoneHistory.cancelled} cancelled`
+            : "manual";
         const { error } = await supabase.rpc("transition_order_status", {
           _order_id: t.result.order_id,
           _new_status: t.overrideStatus!,
-          _reason: "courier_sync",
-          _note: `${t.result.provider}: ${t.result.raw_status ?? ""}`,
+          _reason: t.result.ok ? "courier_sync" : "phone_history_sync",
+          _note: note,
         });
         if (error) fail++;
         else ok++;
