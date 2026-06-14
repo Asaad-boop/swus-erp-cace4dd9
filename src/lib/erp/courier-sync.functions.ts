@@ -257,9 +257,6 @@ async function syncOne(
       // Standing Discount: Dhaka inside 15, baire 10 (merchant'er fixed deal).
       // Pathao info/track API cost expose kore na, tai price-plan call kori
       // jeta ekhonkar actual delivery rate dey city/zone/weight onujayi.
-      const isInsideDhaka =
-        order.pathao_city_id === 1 ||
-        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
       let priceCityId = order.pathao_city_id ?? null;
       let priceZoneId = order.pathao_zone_id ?? null;
       if (!priceCityId || !priceZoneId) {
@@ -267,10 +264,17 @@ async function syncOne(
         priceCityId = route?.cityId ?? priceCityId;
         priceZoneId = route?.zoneId ?? priceZoneId;
       }
+      const locationText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+        .filter(Boolean)
+        .join(" ");
+      const isInsideDhaka =
+        priceCityId === 1 ||
+        /dhaka|ঢাকা|mirpur|uttara|banani|dhanmondi|khilgaon|jurain|mohammadpur|gulshan|badda|wari|motijheel|tejgaon/i.test(locationText);
       const collected = Number(order.total ?? 0);
       let deliveryFee = 0;
       let additional = 0;
-      let promo = 0;
+      let effectiveDiscount = 0;
+      let hasBaseDeliveryRate = false;
       if (priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
@@ -282,27 +286,41 @@ async function syncOne(
         }).catch(() => null);
         const data = priceRes?.data ?? priceRes;
         // price-plan response e `price` = base delivery fee.
-        // `final_price` = price + additional_charge - promo_discount.
-        // Amra final_price ta use kori - eta i Pathao'r actual delivery charge.
-        deliveryFee = Number(data?.final_price ?? data?.price ?? 0);
+        // `final_price` already discount-baad-deya. Total Cost calculate korar jonno
+        // base `price` use korte hobe, then discount ekbar subtract korte hobe.
+        const basePrice = Number(data?.price ?? data?.delivery_fee ?? data?.normal_delivery ?? 0);
+        const finalPrice = Number(data?.final_price ?? data?.finalPrice ?? 0);
         additional = Number(data?.additional_charge ?? 0);
-        promo = Number(data?.promo_discount ?? 0);
+        const apiDiscount = Number(data?.promo_discount ?? data?.discount ?? data?.merchant_discount ?? 0);
+        if (basePrice > 0) {
+          deliveryFee = basePrice;
+          hasBaseDeliveryRate = true;
+        } else if (finalPrice > 0 && apiDiscount > 0) {
+          deliveryFee = Math.max(finalPrice - additional + apiDiscount, 0);
+          hasBaseDeliveryRate = true;
+        } else if (finalPrice > 0) {
+          deliveryFee = finalPrice;
+        }
+        effectiveDiscount = apiDiscount > 0 ? apiDiscount : 0;
       }
       // Fallback: price API fail korle booking-time fee use koro
       if (deliveryFee <= 0) {
         deliveryFee = Number(shipment?.delivery_fee ?? order.shipping_fee ?? 0);
+        hasBaseDeliveryRate = deliveryFee > 0;
+      }
+      if (effectiveDiscount <= 0 && hasBaseDeliveryRate) {
+        effectiveDiscount = isInsideDhaka ? 15 : 10;
       }
       if (deliveryFee > 0) {
         const codFee = collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0;
-        const standingDiscount = isInsideDhaka ? 15 : 10;
-        const total = Math.max(deliveryFee + codFee - standingDiscount, 0);
+        const total = Math.max(deliveryFee + codFee + additional - effectiveDiscount, 0);
         const rounded = Math.round(total * 100) / 100;
         base.actual_fee = rounded;
         base.fee_breakdown = {
           delivery: deliveryFee,
           cod: codFee,
-          discount: standingDiscount,
-          promo_discount: promo,
+          discount: effectiveDiscount,
+          promo_discount: 0,
           additional,
           compensation: 0,
           extra: additional,
