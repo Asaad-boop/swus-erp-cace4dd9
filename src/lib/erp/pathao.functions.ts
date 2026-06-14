@@ -16,6 +16,24 @@ async function clientForBrand(supabase: any, brandId?: string | null) {
   return createPathaoClient(creds);
 }
 
+/**
+ * Remove any existing courier_shipments rows for this order whose status
+ * looks cancelled (e.g. "Pickup_Cancelled", "Cancelled", "Canceled").
+ * Lets the user re-book a fresh consignment without keeping stale history.
+ */
+async function purgeCancelledShipments(supabase: any, orderId: string) {
+  const { data: rows } = await supabase
+    .from("courier_shipments")
+    .select("id, status")
+    .eq("order_id", orderId);
+  const ids = ((rows ?? []) as Array<{ id: string; status: string | null }>)
+    .filter((r) => /cancel/i.test(r.status ?? ""))
+    .map((r) => r.id);
+  if (ids.length > 0) {
+    await supabase.from("courier_shipments").delete().in("id", ids);
+  }
+}
+
 export const pathaoCitiesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ brandId: z.string().uuid().optional() }).optional().parse(d ?? {}))
@@ -271,6 +289,9 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
     const phone = order.shipping_phone || order.guest_phone || "";
     const address = [order.shipping_address, order.shipping_thana, order.shipping_city].filter(Boolean).join(", ");
 
+    // Drop any prior cancelled shipments so we start fresh
+    await purgeCancelledShipments(supabase, order.id);
+
     const client = await clientForBrand(supabase, order.brand_id);
     const merchantId = order.id.slice(0, 8).toUpperCase();
     const result: any = await client.createOrder({
@@ -397,12 +418,14 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     // Bail early if already booked with Pathao
     const { data: existing } = await supabase
       .from("courier_shipments")
-      .select("consignment_id, tracking_code")
+      .select("consignment_id, tracking_code, status")
       .eq("order_id", order.id)
       .eq("provider", "pathao")
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing?.consignment_id) {
+    const existingIsCancelled = /cancel/i.test(existing?.status ?? "");
+    if (existing?.consignment_id && !existingIsCancelled) {
       return {
         skipped: true,
         consignment: existing.consignment_id,
@@ -410,6 +433,9 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         message: "Already booked",
       };
     }
+
+    // Existing one was cancelled — wipe it and book fresh.
+    await purgeCancelledShipments(supabase, order.id);
 
     const name = order.shipping_name || order.guest_name || "Customer";
     const phone = order.shipping_phone || order.guest_phone || "";
