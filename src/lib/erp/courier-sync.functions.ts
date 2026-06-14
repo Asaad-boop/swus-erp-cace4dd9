@@ -252,8 +252,14 @@ async function syncOne(
       const client = createPathaoClient(creds);
       const res: any = await client.track(identifier);
       raw = extractPathaoStatus(res);
-      // Just ask Pathao's price-plan API for the total merchant cost.
-      // final_price already includes delivery_fee + COD fee - discount.
+      // Pathao'r merchant portal e dekhano "Total Cost" =
+      //   Delivery Fee (price-plan theke) + COD Fee (collected * 1%) - Standing Discount
+      // Standing Discount: Dhaka inside 15, baire 10 (merchant'er fixed deal).
+      // Pathao info/track API cost expose kore na, tai price-plan call kori
+      // jeta ekhonkar actual delivery rate dey city/zone/weight onujayi.
+      const isInsideDhaka =
+        order.pathao_city_id === 1 ||
+        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
       let priceCityId = order.pathao_city_id ?? null;
       let priceZoneId = order.pathao_zone_id ?? null;
       if (!priceCityId || !priceZoneId) {
@@ -262,7 +268,9 @@ async function syncOne(
         priceZoneId = route?.zoneId ?? priceZoneId;
       }
       const collected = Number(order.total ?? 0);
-      let totalCost: number | null = null;
+      let deliveryFee = 0;
+      let additional = 0;
+      let promo = 0;
       if (priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
@@ -273,17 +281,32 @@ async function syncOne(
           recipient_zone: priceZoneId,
         }).catch(() => null);
         const data = priceRes?.data ?? priceRes;
-        const finalPrice = Number(data?.final_price ?? data?.price ?? 0);
-        const additional = Number(data?.additional_charge ?? 0);
-        const promo = Number(data?.promo_discount ?? data?.discount ?? 0);
-        if (finalPrice > 0) totalCost = finalPrice + additional - promo;
+        // price-plan response e `price` = base delivery fee.
+        // `final_price` = price + additional_charge - promo_discount.
+        // Amra final_price ta use kori - eta i Pathao'r actual delivery charge.
+        deliveryFee = Number(data?.final_price ?? data?.price ?? 0);
+        additional = Number(data?.additional_charge ?? 0);
+        promo = Number(data?.promo_discount ?? 0);
       }
-      if (totalCost && totalCost > 0) {
-        const rounded = Math.round(totalCost * 100) / 100;
+      // Fallback: price API fail korle booking-time fee use koro
+      if (deliveryFee <= 0) {
+        deliveryFee = Number(shipment?.delivery_fee ?? order.shipping_fee ?? 0);
+      }
+      if (deliveryFee > 0) {
+        const codFee = collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0;
+        const standingDiscount = isInsideDhaka ? 15 : 10;
+        const total = Math.max(deliveryFee + codFee - standingDiscount, 0);
+        const rounded = Math.round(total * 100) / 100;
         base.actual_fee = rounded;
         base.fee_breakdown = {
-          delivery: 0, cod: 0, discount: 0, promo_discount: 0,
-          additional: 0, compensation: 0, extra: 0, total: rounded,
+          delivery: deliveryFee,
+          cod: codFee,
+          discount: standingDiscount,
+          promo_discount: promo,
+          additional,
+          compensation: 0,
+          extra: additional,
+          total: rounded,
         };
       }
       if (collected > 0) {
