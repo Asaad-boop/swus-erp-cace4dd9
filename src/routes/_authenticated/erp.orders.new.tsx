@@ -66,6 +66,66 @@ function NewOrderPage() {
   const [isPreorder, setIsPreorder] = useState(false);
   const [isCrossSale, setIsCrossSale] = useState(false);
 
+  // ── AI paste field ────────────────────────────────────────────────────
+  const [pasteText, setPasteText] = useState("");
+  const parseFn = useServerFn(parseCustomerTextFn);
+  const parse = useMutation({
+    mutationFn: async () => parseFn({ data: { text: pasteText.trim() } }),
+    onSuccess: (r) => {
+      let filled = 0;
+      if (r.name) { setName(r.name); filled++; }
+      if (r.phone) { setPhone(r.phone); filled++; }
+      if (r.address) { setAddress(r.address); filled++; }
+      if (filled === 0) toast.error("Kichu extract korte parini");
+      else toast.success(`AI ne ${filled} field fill koreche`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── debounced phone → customer & courier history ──────────────────────
+  const [debouncedPhone, setDebouncedPhone] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const digits = phone.replace(/\D/g, "");
+      setDebouncedPhone(digits.length >= 11 ? digits.slice(-11).replace(/^(?!0)/, "0") : "");
+    }, 500);
+    return () => clearTimeout(t);
+  }, [phone]);
+
+  // Past orders breakdown for this phone in this brand
+  const { data: pastOrders } = useQuery({
+    queryKey: ["new-order-customer-history", activeBrand?.id, debouncedPhone],
+    enabled: !!activeBrand?.id && !!debouncedPhone,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id,total,status,created_at")
+        .eq("brand_id", activeBrand!.id)
+        .or(`shipping_phone.eq.${debouncedPhone},guest_phone.eq.${debouncedPhone}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = data ?? [];
+      const delivered = rows.filter((o) => o.status === "delivered").length;
+      const cancelled = rows.filter((o) => o.status === "cancelled" || o.status === "fake").length;
+      const returned = rows.filter((o) => o.status === "returned").length;
+      const spent = rows.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.total ?? 0), 0);
+      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null };
+    },
+  });
+
+  // Courier history (Pathao + Steadfast)
+  const historyFn = useServerFn(fetchCourierHistoryFn);
+  const { data: courier, isFetching: courierFetching } = useQuery({
+    queryKey: ["new-order-courier-history", activeBrand?.id, debouncedPhone],
+    enabled: !!activeBrand?.id && !!debouncedPhone,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const r = await historyFn({ data: { phones: [debouncedPhone], brandId: activeBrand!.id } });
+      return r.results[debouncedPhone] ?? null;
+    },
+  });
+
   // ── pathao city/zone/area ─────────────────────────────────────────────
   const [cityId, setCityId] = useState<number | null>(null);
   const [zoneId, setZoneId] = useState<number | null>(null);
