@@ -11,8 +11,8 @@ export function normalizeCourierStatus(raw: string | null | undefined): string {
 export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   pickup_requested: "ready_to_ship",
   assigned_for_pickup: "ready_to_ship",
-  picked: "ready_to_ship",
-  pickup: "ready_to_ship",
+  picked: "in_transit",
+  pickup: "in_transit",
   pickup_failed: "on_hold",
   pickup_cancelled: "cancelled",
   at_the_sorting_hub: "in_transit",
