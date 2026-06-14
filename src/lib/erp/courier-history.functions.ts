@@ -5,13 +5,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const CACHE_TTL_HOURS = 24;
 const HISTORY_FETCH_TIMEOUT_MS = 10_000;
 
-async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}) {
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HISTORY_FETCH_TIMEOUT_MS);
   try {
     return await fetch(input, { ...init, signal: init.signal ?? controller.signal });
   } catch (e) {
-    if ((e as Error).name === "AbortError") throw new Error("Courier history request timed out");
+    if ((e as Error).name === "AbortError") {
+      throw new Error("Courier history request timed out");
+    }
     throw e;
   } finally {
     clearTimeout(timer);
