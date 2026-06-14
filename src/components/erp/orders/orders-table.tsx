@@ -308,7 +308,7 @@ function ProductsCell({ items }: { items: NonNullable<OrderRow["items"]> }) {
         >
           <div className="flex -space-x-2">
             {visible.map((it) => (
-              <Thumb key={it.id} src={it.image} name={it.name} />
+              <ItemThumbPopover key={it.id} item={it} />
             ))}
             {extra > 0 && (
               <div className="h-9 w-9 rounded-lg border-2 border-card bg-muted text-[10px] font-bold flex items-center justify-center text-muted-foreground shadow-sm">
@@ -370,6 +370,49 @@ function Thumb({ src, name, size = 36 }: { src: string | null; name: string | nu
       className="rounded-lg border-2 border-card object-cover shadow-sm shrink-0 bg-muted"
       onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
     />
+  );
+}
+
+function ItemThumbPopover({ item }: { item: NonNullable<OrderRow["items"]>[number] }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); }}
+          className="relative rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 hover:z-10 hover:scale-110 transition-transform shrink-0"
+          aria-label={item.name ?? "Item"}
+        >
+          <Thumb src={item.image} name={item.name} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-72 p-0 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex gap-3 p-3">
+          <Thumb src={item.image} name={item.name} size={72} />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold leading-tight line-clamp-2">{item.name ?? "Unnamed item"}</div>
+            {item.variant_label && (
+              <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.variant_label}</div>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 border-t bg-muted/30 text-center">
+          <div className="px-2 py-2 border-r">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Qty</div>
+            <div className="text-sm font-bold tabular-nums">{item.quantity ?? 0}</div>
+          </div>
+          <div className="px-2 py-2">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Total</div>
+            <div className="text-sm font-bold tabular-nums text-primary">৳{Number(item.line_total ?? 0).toLocaleString()}</div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
