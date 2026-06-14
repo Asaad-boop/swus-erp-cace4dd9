@@ -161,7 +161,6 @@ function SuccessBlock({ total, success }: { total: number; success: number }) {
 }
 
 function WebOrdersPage() {
-  // placeholder so editor groups stay tidy
   const { activeBrand } = useBrand();
   const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
   const [search, setSearch] = useState("");
