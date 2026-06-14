@@ -441,13 +441,13 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     try {
       const areasRaw = (await client.areas(resolvedZoneId)) as Array<{ area_id: number; area_name: string }>;
       if (areasRaw.length > 0) {
-        const pick = await aiPickFromList({
+        // Try ultra-fast local match only; skip AI for area to save latency.
+        // Area is optional — Pathao routes by phone/address regardless.
+        const local = localPick(
           address,
-          stage: "area",
-          parentLabel: resolvedZoneName ?? undefined,
-          items: areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
-        });
-        areaId = pick.id ?? areasRaw[0].area_id;
+          areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
+        );
+        areaId = local?.id ?? areasRaw[0].area_id;
       }
     } catch { /* area is optional */ }
 
