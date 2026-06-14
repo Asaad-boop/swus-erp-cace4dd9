@@ -1013,18 +1013,20 @@ function OurRecordCard({
       ) : (
         <>
           <div className="relative mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-            <RecordLine dot="bg-sky-400"     label="Total"     value={total} />
-            <RecordLine dot="bg-emerald-400" label="Delivered" value={delivered} />
-            <RecordLine dot="bg-rose-400"    label="Cancelled" value={cancelled} />
-            <RecordLine dot="bg-amber-400"   label="Returned"  value={returned} />
+            <RecordLine dot="bg-sky-400" label="Total" value={total} />
+            {delivered > 0 && <RecordLine dot="bg-emerald-400" label="Delivered" value={delivered} />}
+            {cancelled > 0 && <RecordLine dot="bg-rose-400"    label="Cancelled" value={cancelled} />}
+            {returned > 0  && <RecordLine dot="bg-amber-400"   label="Returned"  value={returned} />}
           </div>
 
-          <div className="relative mt-2 flex items-center justify-between text-[10px] text-indigo-200">
-            <span>Spent</span>
-            <span className="font-extrabold tabular-nums text-white">৳{spent.toLocaleString()}</span>
-          </div>
+          {spent > 0 && (
+            <div className="relative mt-2 flex items-center justify-between text-[10px] text-indigo-200">
+              <span>Spent</span>
+              <span className="font-extrabold tabular-nums text-white">৳{spent.toLocaleString()}</span>
+            </div>
+          )}
 
-          {successPct != null && (
+          {successPct != null && delivered > 0 && (
             <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className={cn(
@@ -1039,21 +1041,9 @@ function OurRecordCard({
           {/* Recent orders mini-list */}
           {recent.length > 0 && (
             <div className="relative mt-2 space-y-1">
-              {recent.slice(0, 2).map((o) => {
-                const date = new Date(o.created_at);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    onClick={() => onOpenOrder(o.id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md bg-white/5 px-1.5 py-1 text-left text-[10px] ring-1 ring-white/10 transition hover:bg-white/10"
-                  >
-                    <span className="truncate font-semibold tabular-nums">#{o.id.slice(0, 8)}</span>
-                    <span className="text-indigo-300">{date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
-                    <span className="font-extrabold tabular-nums text-white">৳{Number(o.total ?? 0).toLocaleString()}</span>
-                  </button>
-                );
-              })}
+              {recent.slice(0, 2).map((o) => (
+                <RecentOrderPreview key={o.id} order={o} onOpen={() => onOpenOrder(o.id)} />
+              ))}
               {total > 2 && (
                 <button
                   type="button"
