@@ -137,11 +137,13 @@ export async function loadPathaoCreds(supabase: any, brandId?: string | null): P
   // works for non-admin operations users. Fall back to the caller's client if
   // the service-role env isn't configured (dev/preview).
   let client: any = supabase;
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    client = supabaseAdmin;
-  } catch {
-    // env not set — use caller's client (works for admin users via RLS)
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      client = supabaseAdmin;
+    } catch {
+      // fall back to caller's client
+    }
   }
   let q = client
     .from("erp_courier_settings")
