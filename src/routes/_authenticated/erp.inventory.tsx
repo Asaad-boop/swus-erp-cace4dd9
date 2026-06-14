@@ -171,7 +171,16 @@ function InventoryPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <InlineTextEdit value={r.sku ?? ""} placeholder="SKU" onSave={(v) => updateInventoryField(r.id, { sku: v })} />
+                        <div className="space-y-1">
+                          <InlineTextEdit value={r.sku ?? ""} placeholder="SKU" onSave={(v) => updateInventoryField(r.id, { sku: v })} />
+                          {r.variant_skus && r.variant_skus.length > 0 && (
+                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                              {r.variant_skus.map((s) => (
+                                <span key={s} className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">{s}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">৳{Number(r.price).toLocaleString()}</TableCell>
                       <TableCell className="text-right">
