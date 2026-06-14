@@ -125,6 +125,12 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
                 if (!raw) return;
                 const overrides = await loadMapping(o.brand_id);
                 const mapped = mapCourierStatus(provider, raw, overrides);
+                // If courier reports cancelled, drop the shipment row instead
+                // of cancelling the order. Next run picks the next active one.
+                if (/cancel/i.test(raw) && ship?.id) {
+                  await supabaseAdmin.from("courier_shipments").delete().eq("id", ship.id);
+                  return;
+                }
                 if (!mapped || mapped === o.status) return;
 
                 const { error: uErr } = await supabaseAdmin
