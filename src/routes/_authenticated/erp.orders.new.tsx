@@ -1003,3 +1003,93 @@ function Stat({ label, value, icon, accent = "slate" }: { label: string; value: 
     </div>
   );
 }
+
+type ProviderRow = { name: string; label: string; ok: boolean; total: number; success: number; cancelled: number };
+
+const PROVIDER_THEME: Record<string, { from: string; to: string; ring: string; chip: string; dot: string }> = {
+  pathao:    { from: "from-emerald-500/15", to: "to-emerald-500/0",  ring: "ring-emerald-300/60",  chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  steadfast: { from: "from-violet-500/15",  to: "to-violet-500/0",   ring: "ring-violet-300/60",   chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300",     dot: "bg-violet-500" },
+  redx:      { from: "from-rose-500/15",    to: "to-rose-500/0",     ring: "ring-rose-300/60",     chip: "bg-rose-500/15 text-rose-700 dark:text-rose-300",           dot: "bg-rose-500" },
+  paperfly:  { from: "from-sky-500/15",     to: "to-sky-500/0",      ring: "ring-sky-300/60",      chip: "bg-sky-500/15 text-sky-700 dark:text-sky-300",              dot: "bg-sky-500" },
+  ecourier:  { from: "from-amber-500/15",   to: "to-amber-500/0",    ring: "ring-amber-300/60",    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300",        dot: "bg-amber-500" },
+};
+
+function CourierProviderCard({ provider }: { provider: ProviderRow }) {
+  const key = provider.name.toLowerCase();
+  const theme = PROVIDER_THEME[key] ?? { from: "from-slate-500/10", to: "to-slate-500/0", ring: "ring-slate-300/60", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-300", dot: "bg-slate-500" };
+  const pct = provider.total > 0 ? Math.round((provider.success / provider.total) * 100) : null;
+
+  const scoreTone =
+    pct == null ? "text-muted-foreground"
+    : pct >= 80 ? "text-emerald-600 dark:text-emerald-400"
+    : pct >= 50 ? "text-amber-600 dark:text-amber-400"
+    : "text-rose-600 dark:text-rose-400";
+
+  const ringStroke =
+    pct == null ? "stroke-slate-400"
+    : pct >= 80 ? "stroke-emerald-500"
+    : pct >= 50 ? "stroke-amber-500"
+    : "stroke-rose-500";
+
+  const dash = pct == null ? 0 : (pct / 100) * 87.96; // r=14 circumference
+
+  if (!provider.ok) {
+    return (
+      <div className={cn("flex w-[112px] flex-col rounded-xl border bg-gradient-to-br p-2 shadow-sm ring-1 ring-inset", theme.from, theme.to, theme.ring)}>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">{provider.label}</span>
+        </div>
+        <div className="mt-2 flex flex-1 items-center justify-center text-[11px] italic text-muted-foreground">Not connected</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("group relative flex w-[132px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-gradient-to-br p-2 shadow-sm ring-1 ring-inset transition-all hover:-translate-y-0.5 hover:shadow-md", theme.from, theme.to, theme.ring)}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">{provider.label}</span>
+        </div>
+        <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
+          {provider.total}
+        </span>
+      </div>
+
+      {/* Gauge + score */}
+      <div className="flex items-center gap-2">
+        <div className="relative h-10 w-10 shrink-0">
+          <svg viewBox="0 0 32 32" className="h-10 w-10 -rotate-90">
+            <circle cx="16" cy="16" r="14" fill="none" strokeWidth="3" className="stroke-foreground/10" />
+            <circle
+              cx="16" cy="16" r="14" fill="none" strokeWidth="3" strokeLinecap="round"
+              className={cn("transition-all duration-500", ringStroke)}
+              strokeDasharray={`${dash} 87.96`}
+            />
+          </svg>
+          <div className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-extrabold tabular-nums", scoreTone)}>
+            {pct == null ? "—" : `${pct}`}
+          </div>
+        </div>
+        <div className="flex flex-col leading-tight">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Success</span>
+          <span className={cn("text-sm font-extrabold tabular-nums", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
+        </div>
+      </div>
+
+      {/* Mini split: success vs cancelled */}
+      <div className="grid grid-cols-2 gap-1">
+        <div className="flex items-center justify-between rounded-md bg-background/70 px-1.5 py-0.5 ring-1 ring-inset ring-border">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">OK</span>
+          <span className="text-[10px] font-bold tabular-nums">{provider.success}</span>
+        </div>
+        <div className="flex items-center justify-between rounded-md bg-background/70 px-1.5 py-0.5 ring-1 ring-inset ring-border">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">X</span>
+          <span className="text-[10px] font-bold tabular-nums">{provider.cancelled}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
