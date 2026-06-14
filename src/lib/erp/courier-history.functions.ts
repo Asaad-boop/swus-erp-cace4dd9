@@ -105,7 +105,15 @@ async function fetchPathao(supabase: any, brandId: string | null, phone: string)
     const cancelled = Math.max(0, total - success);
     return { name: "pathao", label: "Pathao", ok: true, total, success, cancelled };
   } catch (e) {
-    return { name: "pathao", label: "Pathao", ok: false, total: 0, success: 0, cancelled: 0, error: (e as Error).message };
+    return {
+      name: "pathao",
+      label: "Pathao",
+      ok: false,
+      total: 0,
+      success: 0,
+      cancelled: 0,
+      error: (e as Error).message,
+    };
   }
 }
 
@@ -113,14 +121,17 @@ async function fetchSteadfast(supabase: any, brandId: string | null, phone: stri
   try {
     const { loadSteadfastCreds } = await import("./steadfast.server");
     const creds = await loadSteadfastCreds(supabase, brandId);
-    const res = await fetchWithTimeout(`${creds.base_url}/fraud_check/${encodeURIComponent(phone)}`, {
-      method: "GET",
-      headers: {
-        "Api-Key": creds.api_key,
-        "Secret-Key": creds.secret_key,
-        Accept: "application/json",
+    const res = await fetchWithTimeout(
+      `${creds.base_url}/fraud_check/${encodeURIComponent(phone)}`,
+      {
+        method: "GET",
+        headers: {
+          "Api-Key": creds.api_key,
+          "Secret-Key": creds.secret_key,
+          Accept: "application/json",
+        },
       },
-    });
+    );
     const text = await res.text();
     if (!res.ok) throw new Error(`${res.status}: ${text.slice(0, 120)}`);
     const j = JSON.parse(text);
