@@ -56,13 +56,15 @@ function readPositiveNumber(payload: any, keys: string[]): number | null {
 }
 
 function pathaoActualCost(result: any, deliveryFee: number, codAmount: number, cityId?: number | null) {
-  const totalCost = readPositiveNumber(result, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge", "charge"]);
+  const rawTotalCost = readPositiveNumber(result, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge"]);
   const cod = readPositiveNumber(result, ["cod_fee", "cod_charge", "collection_fee"]) ?? Math.round(Math.max(codAmount, 0) * 0.01 * 100) / 100;
   const discount = readPositiveNumber(result, ["discount", "discount_amount", "merchant_discount"]) ?? (cityId === 1 ? 15 : 10);
   const promo = readPositiveNumber(result, ["promo_discount", "promo_discount_amount"]) ?? 0;
   const additional = readPositiveNumber(result, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
   const compensation = readPositiveNumber(result, ["compensation_cost", "compensation"]) ?? 0;
   const computed = deliveryFee > 0 ? deliveryFee + cod + additional + compensation - discount - promo : 0;
+  const maxReasonableTotal = Math.max(500, Math.max(codAmount, 0) * 0.5);
+  const totalCost = rawTotalCost && rawTotalCost <= maxReasonableTotal ? rawTotalCost : null;
   const total = totalCost && totalCost > 0 ? totalCost : computed;
   const rounded = total > 0 ? Math.round(total * 100) / 100 : 0;
   return {
@@ -351,7 +353,7 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
     const actualCost = pathaoActualCost(result, fee, data.amount_to_collect, data.recipient_city);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
@@ -555,7 +557,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
     const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, cityPick.id);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
