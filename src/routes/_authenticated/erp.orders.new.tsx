@@ -429,6 +429,29 @@ function NewOrderPage() {
             <Card className="overflow-hidden shadow-sm">
               <CardContent className="space-y-5 p-5">
                 <SectionHeader icon={<User2 className="h-3.5 w-3.5" />} accent="bg-indigo-600" title="Customer Details" sub="গ্রাহকের বিবরণ" />
+                {autofillSuggestion && dismissedAutofillPhone !== debouncedPhone && (
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] dark:border-amber-900/40 dark:bg-amber-950/20">
+                    <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                      <History className="h-4 w-4 shrink-0" />
+                      <span className="font-semibold">Previous info found</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {autofillSuggestion.fields.map((f) => (
+                        <span key={f.key} className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                          {f.label}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40" onClick={() => setDismissedAutofillPhone(debouncedPhone)}>
+                        Dismiss
+                      </Button>
+                      <Button size="sm" className="h-7 gap-1.5 bg-amber-600 px-2.5 text-[12px] font-bold text-white hover:bg-amber-700" onClick={applyAutofill}>
+                        <Wand2 className="h-3.5 w-3.5" /> Autofill
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Mobile Number" bn="মোবাইল নম্বর" required>
                     <Input
