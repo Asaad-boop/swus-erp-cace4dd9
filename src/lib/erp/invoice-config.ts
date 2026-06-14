@@ -1,4 +1,4 @@
-export type InvoiceTheme = "classic" | "modern" | "minimal" | "pos";
+export type InvoiceTheme = "template" | "classic" | "modern" | "minimal" | "pos";
 export type InvoicePaper = "A4" | "A5" | "80mm" | "58mm";
 export type InvoiceMargin = "compact" | "normal" | "wide";
 export type HeaderLayout = "logo-left" | "logo-center" | "logo-right";
@@ -69,7 +69,7 @@ export type InvoiceConfig = {
 };
 
 export const DEFAULT_INVOICE_CONFIG: InvoiceConfig = {
-  theme: "modern",
+  theme: "template",
   paper: "A4",
   orientation: "portrait",
   margin: "normal",
