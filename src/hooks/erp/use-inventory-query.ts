@@ -18,12 +18,15 @@ export function useInventoryQuery(filter: InventoryFilter) {
       let q = supabase
         .from("products")
         .select(
-          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at",
+          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
       if (filter.brandId) q = q.eq("brand_id", filter.brandId);
-      if (filter.search.trim()) q = q.ilike("title", `%${filter.search.trim()}%`);
+      if (filter.search.trim()) {
+        const s = filter.search.trim();
+        q = q.or(`title.ilike.%${s}%,sku.ilike.%${s}%,barcode.ilike.%${s}%,slug.ilike.%${s}%`);
+      }
       if (filter.stockState === "out") q = q.lte("stock", 0);
       if (filter.stockState === "in") q = q.gt("stock", 0);
       // "low" is handled client-side because it compares two columns
