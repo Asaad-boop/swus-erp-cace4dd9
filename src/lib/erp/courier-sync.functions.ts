@@ -152,6 +152,7 @@ async function syncOne(
     brand_id: string | null;
     total: number | null;
     pathao_city_id?: number | null;
+    pathao_zone_id?: number | null;
     shipping_city?: string | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
@@ -215,47 +216,38 @@ async function syncOne(
       const client = createPathaoClient(creds);
       const res: any = await client.track(identifier);
       raw = extractPathaoStatus(res);
-      // Pathao returns delivery_fee, cod_fee, promo_discount, total_price, etc.
-      // We want what Pathao actually charges us (delivery + cod + extras).
-      const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
-      // If Pathao didn't return a delivery_fee (pre-pickup / API quirk), skip
-      // the computed total entirely and let the booking-time fallback fill it.
-      const hasDeliveryFee = deliveryFee > 0;
+      // Pathao can nest the cost fields. If track/info does not expose the
+      // delivery charge yet, call price-plan with the saved city/zone and use
+      // that as the delivery-fee source instead of showing the stale booking fee.
+      const isInsideDhaka =
+        order.pathao_city_id === 1 ||
+        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
+      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+      if (deliveryFee <= 0 && order.pathao_city_id && order.pathao_zone_id) {
+        const priceRes: any = await client.price({
+          store_id: client.storeId,
+          item_type: 2,
+          delivery_type: 48,
+          item_weight: 0.5,
+          recipient_city: order.pathao_city_id,
+          recipient_zone: order.pathao_zone_id,
+        }).catch(() => null);
+        deliveryFee = extractFee(priceRes, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+      }
       // Pathao /orders/{cid}/info usually only returns delivery_fee.
       // Compute COD fee at standard 1% of amount-to-collect when not provided.
       const collectedRaw = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
       const collected = collectedRaw && collectedRaw > 0 ? collectedRaw : Number(order.total ?? 0);
       const codFeeRaw = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]);
-      const codFee = codFeeRaw && codFeeRaw > 0
-        ? codFeeRaw
-        : (collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0);
-      const discount = extractFee(res, ["discount", "discount_amount"]) ?? 0;
-      const promoDiscount = extractFee(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
-      // Pathao standard merchant discount: 15 tk inside Dhaka (city_id=1), 10 tk outside.
-      // /orders/info doesn't return this — apply it locally so the total matches portal.
-      const isInsideDhaka =
-        order.pathao_city_id === 1 ||
-        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
-      const standingDiscount = discount > 0 ? 0 : (isInsideDhaka ? 15 : 10);
-      const effectiveDiscount = discount + standingDiscount;
-      const additional = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
+      const discount = extractNumber(res, ["discount", "discount_amount", "merchant_discount"]) ?? 0;
+      const promoDiscount = extractNumber(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
+      const additional = extractFee(res, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
       const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
-      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost"]);
-      const computed = deliveryFee + codFee + additional + compensation - effectiveDiscount - promoDiscount;
-      base.actual_fee = totalCost && totalCost > 0
-        ? totalCost
-        : (hasDeliveryFee && computed > 0 ? computed : null);
-      if (base.actual_fee && base.actual_fee > 0 && hasDeliveryFee) {
-        base.fee_breakdown = {
-          delivery: deliveryFee,
-          cod: codFee,
-          discount: effectiveDiscount,
-          promo_discount: promoDiscount,
-          additional,
-          compensation,
-          extra: additional + compensation,
-          total: base.actual_fee,
-        };
+      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge", "charge"]);
+      const computed = buildFeeBreakdown({ deliveryFee, collected, codFeeRaw, discount, promoDiscount, additional, compensation, totalCost, isInsideDhaka });
+      base.actual_fee = computed.actualFee;
+      if (base.actual_fee && base.actual_fee > 0) {
+        base.fee_breakdown = computed.breakdown;
       }
       if (collected > 0) {
         base.order_total = collected;
