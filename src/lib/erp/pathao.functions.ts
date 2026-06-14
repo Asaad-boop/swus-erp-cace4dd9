@@ -58,7 +58,9 @@ function readPositiveNumber(payload: any, keys: string[]): number | null {
 function pathaoActualCost(result: any, deliveryFee: number, codAmount: number, cityId?: number | null) {
   const rawTotalCost = readPositiveNumber(result, ["total_cost", "total_delivery_cost", "merchant_total_cost", "courier_charge"]);
   const cod = readPositiveNumber(result, ["cod_fee", "cod_charge", "collection_fee"]) ?? Math.round(Math.max(codAmount, 0) * 0.01 * 100) / 100;
-  const discount = readPositiveNumber(result, ["discount", "discount_amount", "merchant_discount", "promo_discount", "promo_discount_amount"]) ?? (cityId === 1 ? 15 : 10);
+  // Pathao order response er `delivery_fee` already merchant discount applied hoye ashe.
+  // Only API explicit discount dile minus korbo; default discount ekhane abar minus kora jabe na.
+  const discount = readPositiveNumber(result, ["discount", "discount_amount", "merchant_discount", "promo_discount", "promo_discount_amount"]) ?? 0;
   const promo = 0;
   const additional = readPositiveNumber(result, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
   const compensation = readPositiveNumber(result, ["compensation_cost", "compensation"]) ?? 0;
