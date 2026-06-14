@@ -21,7 +21,18 @@ export type CourierSyncResult = {
   mapped_status: OrderStatus | null;
   actual_fee: number | null;
   fee_recorded: boolean;
-  fee_breakdown: { delivery: number; cod: number; extra: number; total: number } | null;
+  fee_breakdown: {
+    delivery: number;
+    cod: number;
+    discount: number;
+    promo_discount: number;
+    additional: number;
+    compensation: number;
+    extra: number;
+    total: number;
+  } | null;
+  order_total: number | null;
+  courier_payable: number | null;
   ok: boolean;
   error?: string;
 };
@@ -75,6 +86,7 @@ async function syncOne(
     courier_name: string | null;
     tracking_number: string | null;
     brand_id: string | null;
+    total: number | null;
   },
   shipment: { provider: string; consignment_id: string | null; tracking_code: string | null; delivery_fee?: number | null } | null,
   overrideId?: { provider: CourierProvider; identifier: string },
@@ -93,6 +105,8 @@ async function syncOne(
     actual_fee: null,
     fee_recorded: false,
     fee_breakdown: null,
+    order_total: null,
+    courier_payable: null,
     ok: false,
   };
 
@@ -139,17 +153,31 @@ async function syncOne(
       // We want what Pathao actually charges us (delivery + cod + extras).
       const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
       const codFee = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]) ?? 0;
-      const extra = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
-      const total = extractFee(res, ["total_price", "invoice_amount", "merchant_total"]);
-      const sum = deliveryFee + codFee + extra;
-      base.actual_fee = total && total > 0 ? total : (sum > 0 ? sum : null);
+      const discount = extractFee(res, ["discount", "discount_amount"]) ?? 0;
+      const promoDiscount = extractFee(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
+      const additional = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
+      const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
+      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost"]);
+      const computed = deliveryFee + codFee + additional + compensation - discount - promoDiscount;
+      base.actual_fee = totalCost && totalCost > 0 ? totalCost : (computed > 0 ? computed : null);
       if (base.actual_fee && base.actual_fee > 0) {
         base.fee_breakdown = {
           delivery: deliveryFee,
           cod: codFee,
-          extra,
+          discount,
+          promo_discount: promoDiscount,
+          additional,
+          compensation,
+          extra: additional + compensation,
           total: base.actual_fee,
         };
+      }
+      // Pathao COD amount collected from customer
+      const collected = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
+      const orderTotal = collected && collected > 0 ? collected : Number(order.total ?? 0);
+      if (orderTotal > 0) {
+        base.order_total = orderTotal;
+        base.courier_payable = Math.max(orderTotal - (base.actual_fee ?? 0), 0);
       }
     } else {
       const { loadSteadfastCreds, createSteadfastClient } = await import("./steadfast.server");
@@ -202,7 +230,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;

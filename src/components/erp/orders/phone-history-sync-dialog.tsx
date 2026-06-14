@@ -47,6 +47,9 @@ type RowState = {
   fetchedRaw?: string | null;
   fetchedFee?: number | null;
   fetchedProvider?: string | null;
+  fetchedBreakdown?: CourierSyncResult["fee_breakdown"];
+  fetchedOrderTotal?: number | null;
+  fetchedPayable?: number | null;
 };
 
 function normalizePhone(raw: string | null): string | null {
@@ -213,8 +216,11 @@ export function PhoneHistorySyncDialog({
           ...p[orderId],
           fetching: false,
           fetchedRaw: out.raw_status,
-          fetchedFee: (out as unknown as { actual_fee?: number | null }).actual_fee ?? null,
+          fetchedFee: out.actual_fee ?? null,
           fetchedProvider: out.provider,
+          fetchedBreakdown: out.fee_breakdown ?? null,
+          fetchedOrderTotal: out.order_total ?? null,
+          fetchedPayable: out.courier_payable ?? null,
           override: out.mapped_status ?? p[orderId].override,
           selected: !!out.mapped_status && out.mapped_status !== p[orderId].order.status,
           error: out.ok ? undefined : out.error,
@@ -318,9 +324,28 @@ export function PhoneHistorySyncDialog({
                             <span className="text-muted-foreground">/ {r.total}</span>
                           </div>
                           {r.fetchedRaw && (
-                            <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Truck className="h-3 w-3" /> {r.fetchedProvider}: <span className="font-mono">{r.fetchedRaw}</span>
-                              {r.fetchedFee ? <span>· fee {r.fetchedFee}</span> : null}
+                            <div className="text-[11px] space-y-0.5 rounded border bg-muted/30 p-1.5">
+                              <div className="flex items-center gap-1 font-medium">
+                                <Truck className="h-3 w-3" /> {r.fetchedProvider}: <span className="font-mono">{r.fetchedRaw}</span>
+                              </div>
+                              {r.fetchedBreakdown && (
+                                <div className="grid grid-cols-2 gap-x-2 text-[10px] text-muted-foreground">
+                                  <span>Delivery</span><span className="text-right font-mono">৳{r.fetchedBreakdown.delivery}</span>
+                                  <span>COD</span><span className="text-right font-mono">৳{r.fetchedBreakdown.cod}</span>
+                                  {r.fetchedBreakdown.discount > 0 && (<><span>Discount</span><span className="text-right font-mono">-৳{r.fetchedBreakdown.discount}</span></>)}
+                                  {r.fetchedBreakdown.promo_discount > 0 && (<><span>Promo</span><span className="text-right font-mono">-৳{r.fetchedBreakdown.promo_discount}</span></>)}
+                                  {r.fetchedBreakdown.additional > 0 && (<><span>Additional</span><span className="text-right font-mono">৳{r.fetchedBreakdown.additional}</span></>)}
+                                  {r.fetchedBreakdown.compensation > 0 && (<><span>Compensation</span><span className="text-right font-mono">৳{r.fetchedBreakdown.compensation}</span></>)}
+                                  <span className="font-semibold text-foreground">Total Cost</span>
+                                  <span className="text-right font-mono font-semibold text-foreground">৳{r.fetchedBreakdown.total.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {r.fetchedPayable != null && (
+                                <div className="flex items-center justify-between border-t pt-1 mt-1 text-foreground">
+                                  <span className="font-medium">Courier Payable</span>
+                                  <span className="font-mono font-semibold text-green-600">৳{r.fetchedPayable.toFixed(2)}</span>
+                                </div>
+                              )}
                             </div>
                           )}
                           <div className="flex items-center gap-1">
