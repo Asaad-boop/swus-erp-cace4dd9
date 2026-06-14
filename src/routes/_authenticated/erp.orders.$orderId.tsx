@@ -1056,7 +1056,7 @@ function OrderDetailsPage() {
                 <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} />
               </FieldShell>
               {Number(form.advance) > 0 && (
-                <div className="md:col-span-5 grid gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:grid-cols-3">
+                <div className="md:col-span-5 grid gap-3 rounded-lg border bg-muted/30 p-3 sm:grid-cols-3">
                   <FieldShell label="Advance Source *">
                     <Select value={form.advance_source} onValueChange={(v) => setForm({ ...form, advance_source: v })}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Select source" /></SelectTrigger>
