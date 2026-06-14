@@ -70,6 +70,16 @@ export function PrintableInvoice({ order, items }: { order: Record<string, any>;
           </tbody>
         </table>
       </div>
+      {(order.shipping_note || order.customer_note) && (
+        <div className="mt-4 border border-black/40 rounded p-2 text-xs space-y-1">
+          {order.shipping_note && (
+            <div><strong>Shipping Note:</strong> {order.shipping_note}</div>
+          )}
+          {order.customer_note && (
+            <div><strong>Customer Note:</strong> {order.customer_note}</div>
+          )}
+        </div>
+      )}
       <div className="mt-8 text-xs text-center text-gray-600">Thank you for your purchase.</div>
     </div>
   );
