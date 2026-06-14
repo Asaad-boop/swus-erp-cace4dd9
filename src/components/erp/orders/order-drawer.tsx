@@ -53,6 +53,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const shippingFee = Number(order?.shipping_fee ?? 0);
   const actualShippingCost = (order as { actual_shipping_cost?: number | null } | undefined)?.actual_shipping_cost;
   const actualShippingSource = (order as { actual_shipping_source?: string | null } | undefined)?.actual_shipping_source;
+  const actualShippingBreakdown = (order as { actual_shipping_breakdown?: { delivery?: number; cod?: number; extra?: number; total?: number } | null } | undefined)?.actual_shipping_breakdown ?? null;
   const hasActual = actualShippingCost !== undefined && actualShippingCost !== null;
   const actualNum = hasActual ? Number(actualShippingCost) : 0;
   const shippingLoss = hasActual ? actualNum - shippingFee : 0;
@@ -269,6 +270,16 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                               <span className="text-muted-foreground">Courier charged us</span>
                               <span className="tabular-nums font-medium">৳ {actualNum.toLocaleString()}</span>
                             </div>
+                            {actualShippingBreakdown && (Number(actualShippingBreakdown.delivery ?? 0) > 0 || Number(actualShippingBreakdown.cod ?? 0) > 0 || Number(actualShippingBreakdown.extra ?? 0) > 0) && (
+                              <div className="rounded bg-background/60 border border-dashed px-2 py-1.5 space-y-0.5 text-[11px]">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Delivery charge</span><span className="tabular-nums">৳ {Number(actualShippingBreakdown.delivery ?? 0).toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">COD charge</span><span className="tabular-nums">৳ {Number(actualShippingBreakdown.cod ?? 0).toLocaleString()}</span></div>
+                                {Number(actualShippingBreakdown.extra ?? 0) > 0 && (
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Extra charge</span><span className="tabular-nums">৳ {Number(actualShippingBreakdown.extra ?? 0).toLocaleString()}</span></div>
+                                )}
+                                <div className="flex justify-between font-semibold pt-1 mt-1 border-t border-dashed"><span>Total delivery charge</span><span className="tabular-nums">৳ {Number(actualShippingBreakdown.total ?? actualNum).toLocaleString()}</span></div>
+                              </div>
+                            )}
                             <div className={`flex justify-between text-sm font-semibold ${shippingLoss > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                               <span>{shippingLoss > 0 ? "Shipping loss" : "Shipping margin"}</span>
                               <span className="tabular-nums">{shippingLoss > 0 ? "− " : "+ "}৳ {Math.abs(shippingLoss).toLocaleString()}</span>

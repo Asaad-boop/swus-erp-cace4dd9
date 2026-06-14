@@ -1378,6 +1378,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          actual_shipping_breakdown: Json | null
           actual_shipping_cost: number | null
           actual_shipping_recorded_at: string | null
           actual_shipping_source: string | null
@@ -1477,6 +1478,7 @@ export type Database = {
           web_status: Database["public"]["Enums"]["web_order_status"] | null
         }
         Insert: {
+          actual_shipping_breakdown?: Json | null
           actual_shipping_cost?: number | null
           actual_shipping_recorded_at?: string | null
           actual_shipping_source?: string | null
@@ -1576,6 +1578,7 @@ export type Database = {
           web_status?: Database["public"]["Enums"]["web_order_status"] | null
         }
         Update: {
+          actual_shipping_breakdown?: Json | null
           actual_shipping_cost?: number | null
           actual_shipping_recorded_at?: string | null
           actual_shipping_source?: string | null
