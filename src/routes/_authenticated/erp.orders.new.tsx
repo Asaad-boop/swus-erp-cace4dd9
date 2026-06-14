@@ -312,6 +312,42 @@ function NewOrderPage() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
+        {/* AI paste field */}
+        <Card className="border-violet-300/60 bg-gradient-to-br from-violet-50/80 to-fuchsia-50/40 dark:from-violet-950/20 dark:to-fuchsia-950/10">
+          <CardContent className="p-3 md:p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="rounded-md bg-violet-600/10 p-1.5 text-violet-700 dark:text-violet-300">
+                  <Wand2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">AI Smart Paste</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Customer er messy text (name + mobile + address) এখানে paste করুন — auto fill হবে।
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="bg-violet-600 text-white hover:bg-violet-700"
+                disabled={parse.isPending || pasteText.trim().length < 5}
+                onClick={() => parse.mutate()}
+              >
+                {parse.isPending
+                  ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Parsing…</>
+                  : <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Parse & Fill</>}
+              </Button>
+            </div>
+            <Textarea
+              rows={2}
+              placeholder={`e.g. "Rahim Uddin, 01712345678, House 12, Road 5, Dhanmondi, Dhaka"`}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              className="resize-none bg-background/70"
+            />
+          </CardContent>
+        </Card>
+
         {/* Row 1: Mobile | Name | Delivery Method */}
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Mobile Number" required>
