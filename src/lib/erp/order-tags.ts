@@ -51,7 +51,6 @@ export type TagInputRow = {
   totalQty?: number;
 };
 
-const HIGH_VALUE_THRESHOLD = 5000;
 const PRIORITY_AMOUNT = 3000;
 const PRIORITY_ITEM_COUNT = 3;
 const PRIORITY_TOTAL_QTY = 4;
@@ -68,7 +67,6 @@ export function computeAutoTags(
   const cSuccess = (courier?.pathao.success ?? 0) + (courier?.steadfast.success ?? 0);
   const cCancelled = (courier?.pathao.cancelled ?? 0) + (courier?.steadfast.cancelled ?? 0);
   const cancelRate = cTotal > 0 ? cCancelled / cTotal : 0;
-  const successRate = cTotal > 0 ? cSuccess / cTotal : 0;
 
   if (cTotal >= 5 && cSuccess === 0) {
     tags.push({
