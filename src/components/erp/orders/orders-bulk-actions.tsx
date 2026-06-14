@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2 } from "lucide-react";
+import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import type { OrderStatus } from "@/lib/erp/orders";
+import { STATUS_GROUPS, statusAccent, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 
 type Props = {
   selectedCount: number;
@@ -69,9 +69,27 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
         </Section>
 
         <Section label={`Status Update${selectedCount ? ` (${selectedCount} selected)` : ""}`}>
-          <ActionRow icon={CheckCheck} label="Ready to Ship" onClick={() => onStatus("ready_to_ship")} disabled={disabled} />
-          <ActionRow icon={Truck} label="Mark Shipped" onClick={() => onStatus("shipped")} disabled={disabled} />
-          <ActionRow icon={X} label="Cancel Orders" tone="destructive" onClick={() => onStatus("cancelled")} disabled={disabled} />
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <ActionTile icon={CheckCheck} label="RTS" onClick={() => onStatus("ready_to_ship")} disabled={disabled} />
+            <ActionTile icon={Truck} label="Shipped" onClick={() => onStatus("shipped")} disabled={disabled} />
+          </div>
+          {STATUS_GROUPS.map((g) => (
+            <StatusGroupCollapsible
+              key={g.key}
+              label={g.label}
+              statuses={g.statuses}
+              onStatus={onStatus}
+              disabled={disabled}
+            />
+          ))}
+          <button
+            onClick={() => onStatus("cancelled")}
+            disabled={disabled}
+            className="w-full flex items-center gap-2.5 px-2 h-9 mt-1 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X className="h-4 w-4" />
+            <span className="flex-1 text-left">Cancel Orders</span>
+          </button>
         </Section>
 
         <Section label="Courier Services">
@@ -124,5 +142,49 @@ function ActionTile({ icon: Icon, label, onClick, disabled }: { icon: React.Elem
       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
       {label}
     </button>
+  );
+}
+
+function StatusGroupCollapsible({
+  label,
+  statuses,
+  onStatus,
+  disabled,
+}: {
+  label: string;
+  statuses: OrderStatus[];
+  onStatus: (s: OrderStatus) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(label === "Fulfillment");
+  return (
+    <div className="rounded-md border bg-card/50 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-2 h-8 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-muted/60"
+      >
+        <span>{label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="p-1 space-y-0.5">
+          {statuses.map((s) => {
+            const b = statusBadge(s);
+            return (
+              <button
+                key={s}
+                onClick={() => onStatus(s)}
+                disabled={disabled}
+                className="w-full flex items-center gap-2 px-2 h-8 rounded text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: statusAccent(s) }} />
+                <span className="flex-1 text-left">{b.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
