@@ -45,10 +45,22 @@ export function BulkPrintDialog({
       if (oRes.error) throw oRes.error;
       if (iRes.error) throw iRes.error;
       const orders = oRes.data ?? [];
+      const items = iRes.data ?? [];
+      // fetch SKUs for variants present in these items
+      const variantIds = Array.from(new Set(items.map((i) => i.variant_id).filter(Boolean))) as string[];
+      const skuByVariant = new Map<string, string>();
+      if (variantIds.length) {
+        const { data: vrows } = await supabase
+          .from("product_variants")
+          .select("id,sku")
+          .in("id", variantIds);
+        for (const v of vrows ?? []) skuByVariant.set(v.id, v.sku ?? "");
+      }
       const itemsByOrder = new Map<string, any[]>();
-      for (const it of iRes.data ?? []) {
+      for (const it of items) {
+        const enriched = { ...it, sku: it.variant_id ? skuByVariant.get(it.variant_id) ?? "" : "" };
         const arr = itemsByOrder.get(it.order_id) ?? [];
-        arr.push(it);
+        arr.push(enriched);
         itemsByOrder.set(it.order_id, arr);
       }
       // preserve original selection order
