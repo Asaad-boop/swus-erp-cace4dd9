@@ -139,3 +139,43 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
     },
   });
 }
+
+export type CustomerHistoryOrder = {
+  id: string;
+  invoice_no: string | null;
+  created_at: string;
+  status: OrderStatus;
+  total: number;
+};
+
+export function useCustomerHistory(phone: string | null, brandId: string | null, enabled: boolean) {
+  const norm = (phone ?? "").replace(/[^0-9]/g, "").slice(-11);
+  return useQuery({
+    queryKey: ["customer-history", brandId, norm],
+    enabled: enabled && !!brandId && norm.length >= 6,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id,invoice_no,created_at,status,total,shipping_phone,guest_phone")
+        .eq("brand_id", brandId!)
+        .or(`shipping_phone.ilike.%${norm}%,guest_phone.ilike.%${norm}%`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = (data ?? []) as CustomerHistoryOrder[];
+      const summary = rows.reduce(
+        (a, r) => {
+          a.total += 1;
+          a.spent += Number(r.total) || 0;
+          if (r.status === "delivered") a.delivered += 1;
+          else if (r.status === "cancelled") a.cancelled += 1;
+          else if (r.status === "returned") a.returned += 1;
+          return a;
+        },
+        { total: 0, spent: 0, delivered: 0, cancelled: 0, returned: 0 },
+      );
+      return { rows, summary };
+    },
+  });
+}
