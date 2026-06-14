@@ -340,6 +340,7 @@ function OrderDetailsPage() {
     city_id: "", zone_id: "", area_id: "",
     source_platform: "", is_preorder: false, is_cross_sale: false,
     discount: 0, advance: 0, shipping_fee: 0,
+    advance_source: "", advance_payment_number: "", advance_txn_id: "",
     note_input: "", tag_input: "",
   });
   const [baseline, setBaseline] = useState<typeof form | null>(null);
@@ -363,6 +364,9 @@ function OrderDetailsPage() {
         discount: Number(order.discount_amount ?? 0),
         advance: Number(order.advance_amount ?? 0),
         shipping_fee: Number(order.shipping_fee ?? 0),
+        advance_source: order.advance_source ?? "",
+        advance_payment_number: order.advance_payment_number ?? "",
+        advance_txn_id: order.advance_txn_id ?? "",
       };
       setBaseline(next);
       return next;
@@ -551,6 +555,13 @@ function OrderDetailsPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
 
+  const getAdvanceValidationError = () => {
+    if (Number(form.advance) <= 0) return null;
+    if (!form.advance_source) return "Select advance payment source";
+    if (!form.advance_payment_number || form.advance_payment_number.length < 4) return "Enter payment number or last 4 digits";
+    return null;
+  };
+
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
       const { error } = await supabase.rpc("transition_order_status", { _order_id: orderId, _new_status: status });
@@ -562,6 +573,8 @@ function OrderDetailsPage() {
 
   const confirmOrder = useMutation({
     mutationFn: async () => {
+      const advanceError = getAdvanceValidationError();
+      if (advanceError) throw new Error(advanceError);
       // 1) Persist any pending customer + pricing edits first
       const subtotal = itemsSubtotal;
       const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
@@ -586,6 +599,9 @@ function OrderDetailsPage() {
         shipping_fee: Number(form.shipping_fee),
         discount_amount: Number(form.discount),
         advance_amount: Number(form.advance),
+        advance_source: Number(form.advance) > 0 ? form.advance_source : null,
+        advance_payment_number: Number(form.advance) > 0 ? form.advance_payment_number : null,
+        advance_txn_id: Number(form.advance) > 0 && form.advance_txn_id ? form.advance_txn_id : null,
         total,
         web_status: "complete" as const,
       };
@@ -697,15 +713,33 @@ function OrderDetailsPage() {
 
   const savePricing = useMutation({
     mutationFn: async () => {
+      const advanceError = getAdvanceValidationError();
+      if (advanceError) throw new Error(advanceError);
       const subtotal = itemsSubtotal;
       const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
       const { error } = await supabase.from("orders").update({
         subtotal, shipping_fee: Number(form.shipping_fee), discount_amount: Number(form.discount),
-        advance_amount: Number(form.advance), total,
+        advance_amount: Number(form.advance),
+        advance_source: Number(form.advance) > 0 ? form.advance_source : null,
+        advance_payment_number: Number(form.advance) > 0 ? form.advance_payment_number : null,
+        advance_txn_id: Number(form.advance) > 0 && form.advance_txn_id ? form.advance_txn_id : null,
+        total,
       }).eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Pricing saved"); setBaseline((b) => b ? { ...b, discount: form.discount, advance: form.advance, shipping_fee: form.shipping_fee } : b); invalidate(); },
+    onSuccess: () => {
+      toast.success("Pricing saved");
+      setBaseline((b) => b ? {
+        ...b,
+        discount: form.discount,
+        advance: form.advance,
+        shipping_fee: form.shipping_fee,
+        advance_source: form.advance_source,
+        advance_payment_number: form.advance_payment_number,
+        advance_txn_id: form.advance_txn_id,
+      } : b);
+      invalidate();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -1021,6 +1055,44 @@ function OrderDetailsPage() {
               <FieldShell label="Advance">
                 <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} />
               </FieldShell>
+              {Number(form.advance) > 0 && (
+                <div className="col-span-2 md:col-span-5 grid gap-3 rounded-lg border bg-muted/30 p-3 sm:grid-cols-3">
+                  <FieldShell label="Advance Source *">
+                    <Select value={form.advance_source} onValueChange={(v) => setForm({ ...form, advance_source: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select source" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bKash">bKash</SelectItem>
+                        <SelectItem value="Nagad">Nagad</SelectItem>
+                        <SelectItem value="Rocket">Rocket</SelectItem>
+                        <SelectItem value="Upay">Upay</SelectItem>
+                        <SelectItem value="Bank">Bank Transfer</SelectItem>
+                        <SelectItem value="Card">Card</SelectItem>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldShell>
+                  <FieldShell label="Payment No / Last 4 *">
+                    <Input
+                      inputMode="numeric"
+                      maxLength={20}
+                      value={form.advance_payment_number}
+                      onChange={(e) => setForm({ ...form, advance_payment_number: e.target.value.replace(/[^0-9]/g, "") })}
+                      placeholder="017... or 5678"
+                      className="h-9 tabular-nums"
+                    />
+                  </FieldShell>
+                  <FieldShell label="Transaction ID (optional)">
+                    <Input
+                      maxLength={50}
+                      value={form.advance_txn_id}
+                      onChange={(e) => setForm({ ...form, advance_txn_id: e.target.value })}
+                      placeholder="Txn ID"
+                      className="h-9"
+                    />
+                  </FieldShell>
+                </div>
+              )}
               <FieldShell label="Sub Total">
                 <Input value={bdtCompact(itemsSubtotal)} readOnly className="h-9 bg-muted/40 tabular-nums" />
               </FieldShell>
