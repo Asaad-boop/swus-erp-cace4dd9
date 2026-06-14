@@ -770,6 +770,9 @@ function OrderDetailsPage() {
   const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
   const [pendingReason, setPendingReason] = useState("");
   const [pendingAdvance, setPendingAdvance] = useState("");
+  const [pendingAdvSource, setPendingAdvSource] = useState("");
+  const [pendingAdvNumber, setPendingAdvNumber] = useState("");
+  const [pendingAdvTxnId, setPendingAdvTxnId] = useState("");
   const [draftWebStatus, setDraftWebStatus] = useState<WebStatus | "">("");
 
   if (isLoading || !order) {
