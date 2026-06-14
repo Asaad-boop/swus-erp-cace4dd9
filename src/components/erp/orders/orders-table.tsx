@@ -476,10 +476,14 @@ function rateTone(rate: number | null): { text: string; bg: string; stroke: stri
 function CourierRateBadge({ phone, brandId }: { phone: string; brandId: string | null }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
-  const { data, isLoading, isFetching, error } = useCourierHistory(phone, brandId, open);
+  // Fetch eagerly so the % is visible at a glance. Server caches results for 24h.
+  const { data, isLoading, isFetching, error } = useCourierHistory(phone, brandId, true);
   const summary = data?.summary;
   const rate = summary && summary.total > 0 ? Math.round((summary.success / summary.total) * 100) : null;
   const tone = rateTone(rate);
+
+  // Hide badge entirely if there's no data and nothing's loading (per design rule).
+  if (!isLoading && !isFetching && !error && rate === null) return null;
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["courier-history", brandId, phone.replace(/\D/g, "")] });
