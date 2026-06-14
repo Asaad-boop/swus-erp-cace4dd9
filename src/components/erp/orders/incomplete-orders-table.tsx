@@ -42,7 +42,9 @@ export function IncompleteOrdersTable({
   const convertMut = useMutation({
     mutationFn: (cart: AbandonedCartRow) => {
       setPendingId(cart.id);
-      return convertFn({ data: { id: cart.id, brandId: brandId! } });
+      const targetBrandId = cart.brand_id ?? brandId;
+      if (!targetBrandId) throw new Error("Brand select koro");
+      return convertFn({ data: { id: cart.id, brandId: targetBrandId } });
     },
     onSuccess: (res) => {
       toast.success(`Order created${res.invoiceNo ? " · " + res.invoiceNo : ""}`);
@@ -139,7 +141,7 @@ export function IncompleteOrdersTable({
                       <Button
                         size="sm"
                         className="h-8 gap-1"
-                        disabled={busy || !brandId}
+                        disabled={busy || !(r.brand_id ?? brandId)}
                         onClick={() => convertMut.mutate(r)}
                         title="Confirm as order"
                       >
