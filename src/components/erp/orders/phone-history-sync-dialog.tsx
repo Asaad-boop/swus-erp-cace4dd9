@@ -245,7 +245,7 @@ export function PhoneHistorySyncDialog({
                 <th className="w-8 px-3 py-2"></th>
                 <th className="text-left px-3 py-2">Order</th>
                 <th className="text-left px-3 py-2">Phone</th>
-                <th className="text-left px-3 py-2">History</th>
+                <th className="text-left px-3 py-2">History / Consignment</th>
                 <th className="text-left px-3 py-2">Current → Apply</th>
               </tr>
             </thead>
@@ -276,14 +276,53 @@ export function PhoneHistorySyncDialog({
                           <AlertCircle className="h-3 w-3" /> {r.error}
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Badge variant="outline" className="gap-1">
-                            <CheckCircle2 className="h-3 w-3 text-green-600" /> {r.success}
-                          </Badge>
-                          <Badge variant="outline" className="gap-1">
-                            <XCircle className="h-3 w-3 text-destructive" /> {r.cancelled}
-                          </Badge>
-                          <span className="text-muted-foreground">/ {r.total}</span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs">
+                            <Badge variant="outline" className="gap-1">
+                              <CheckCircle2 className="h-3 w-3 text-green-600" /> {r.success}
+                            </Badge>
+                            <Badge variant="outline" className="gap-1">
+                              <XCircle className="h-3 w-3 text-destructive" /> {r.cancelled}
+                            </Badge>
+                            <span className="text-muted-foreground">/ {r.total}</span>
+                          </div>
+                          {r.fetchedRaw && (
+                            <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Truck className="h-3 w-3" /> {r.fetchedProvider}: <span className="font-mono">{r.fetchedRaw}</span>
+                              {r.fetchedFee ? <span>· fee {r.fetchedFee}</span> : null}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={r.manualProvider}
+                              onValueChange={(v) =>
+                                setRows((p) => ({ ...p, [r.order.id]: { ...p[r.order.id], manualProvider: v as CourierProvider } }))
+                              }
+                            >
+                              <SelectTrigger className="h-7 w-[90px] text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pathao">Pathao</SelectItem>
+                                <SelectItem value="steadfast">Steadfast</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              value={r.manualId}
+                              onChange={(e) =>
+                                setRows((p) => ({ ...p, [r.order.id]: { ...p[r.order.id], manualId: e.target.value } }))
+                              }
+                              placeholder="Consignment ID"
+                              className="h-7 text-xs w-[150px]"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2"
+                              onClick={() => fetchByConsignment(r.order.id)}
+                              disabled={r.fetching}
+                            >
+                              {r.fetching ? <Loader2 className="h-3 w-3 animate-spin" /> : "Fetch"}
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </td>
