@@ -924,57 +924,61 @@ function CustomerHistoryStrip({
   const initials = (phone || "").slice(-2);
 
   return (
-    <Card className="overflow-hidden border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-indigo-50/40 shadow-sm dark:from-sky-950/20 dark:via-background dark:to-indigo-950/10">
-      <CardContent className="flex flex-wrap items-stretch gap-3 p-3 md:gap-4">
-        {/* Customer chip */}
-        <div className="flex items-center gap-2.5 rounded-xl border border-sky-200/60 bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur dark:bg-background/40">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[11px] font-bold text-white shadow-inner ring-2 ring-white dark:ring-background">
-            {initials || <History className="h-4 w-4" />}
-          </div>
-          <div className="leading-tight">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
-            <div className="text-sm font-bold tabular-nums">{phone || "—"}</div>
-          </div>
-        </div>
-
-        {/* Past order stats */}
-        <div className="flex flex-1 flex-wrap items-stretch gap-2">
-          <Stat label="Orders" value={past?.total ?? 0} icon={<History className="h-3 w-3" />} accent="slate" />
-          <Stat label="Delivered" value={past?.delivered ?? 0} icon={<CheckCircle2 className="h-3 w-3" />} accent="emerald" />
-          <Stat label="Cancelled" value={past?.cancelled ?? 0} icon={<XCircle className="h-3 w-3" />} accent="rose" />
-          <Stat label="Returned" value={past?.returned ?? 0} icon={<AlertCircle className="h-3 w-3" />} accent="amber" />
-          <Stat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} icon={<span className="text-[9px] font-bold">৳</span>} accent="indigo" />
-        </div>
-
-        <div className="mx-1 hidden h-12 self-center border-l border-dashed border-sky-300/50 md:block" />
-
-        {/* Courier providers */}
-        <div className="flex items-stretch gap-2">
-          <div className="flex flex-col items-center justify-center gap-1 self-stretch rounded-lg bg-gradient-to-b from-indigo-500/10 to-sky-500/5 px-2 py-1.5 text-indigo-600 dark:text-indigo-300">
-            <Truck className="h-4 w-4" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Courier</span>
-            {loading && !courier && <Loader2 className="h-3 w-3 animate-spin" />}
-          </div>
-          {(courier?.providers ?? []).map((p) => (
-            <CourierProviderCard key={p.name} provider={p} />
-          ))}
-        </div>
-
-        {/* Overall score badge */}
-        {pct != null && (
-          <div className={cn(
-            "ml-auto flex items-center gap-2 self-center rounded-xl bg-gradient-to-br px-3.5 py-2 shadow-sm ring-1 ring-inset",
-            toneBg,
-          )}>
-            <div className="relative h-9 w-9">
-              <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90">
-                <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-current opacity-20" />
-                <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" strokeLinecap="round" className="stroke-current" strokeDasharray={`${(pct / 100) * 94.25} 94.25`} />
-              </svg>
+    <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
+      <CardContent className="space-y-3 p-3 md:p-4">
+        {/* Row 1: customer + inline stats + overall score */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xs font-bold text-white shadow ring-2 ring-white dark:ring-background">
+              {initials || <History className="h-4 w-4" />}
             </div>
-            <div className="leading-tight">
-              <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">Overall</div>
-              <div className="text-lg font-extrabold tabular-nums">{pct}%</div>
+            <div className="min-w-0 leading-tight">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer · গ্রাহক</div>
+              <div className="truncate text-sm font-bold tabular-nums">{phone || "—"}</div>
+            </div>
+          </div>
+
+          {/* Inline stats — no individual cards, just clean numbers with dividers */}
+          <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
+            <InlineStat label="Orders" value={past?.total ?? 0} />
+            <InlineStat label="Delivered" value={past?.delivered ?? 0} tone="text-emerald-600 dark:text-emerald-400" />
+            <InlineStat label="Cancelled" value={past?.cancelled ?? 0} tone="text-rose-600 dark:text-rose-400" />
+            <InlineStat label="Returned" value={past?.returned ?? 0} tone="text-amber-600 dark:text-amber-400" />
+            <InlineStat label="Spent" value={`৳${(past?.spent ?? 0).toLocaleString()}`} tone="text-indigo-600 dark:text-indigo-400" />
+          </div>
+
+          {pct != null && (
+            <div className={cn(
+              "flex items-center gap-2 rounded-full bg-gradient-to-br px-3 py-1.5 ring-1 ring-inset",
+              toneBg,
+            )}>
+              <div className="relative h-8 w-8">
+                <svg viewBox="0 0 36 36" className="h-8 w-8 -rotate-90">
+                  <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3.5" className="stroke-current opacity-20" />
+                  <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3.5" strokeLinecap="round" className="stroke-current" strokeDasharray={`${(pct / 100) * 94.25} 94.25`} />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold tabular-nums">{pct}</div>
+              </div>
+              <div className="leading-tight">
+                <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">Success rate</div>
+                <div className="text-sm font-extrabold">Overall {pct}%</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Row 2: courier providers — only render if we have data */}
+        {(courier?.providers?.length ?? 0) > 0 && (
+          <div className="flex items-center gap-2 border-t border-dashed border-sky-200/60 pt-3 dark:border-sky-900/40">
+            <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+              <Truck className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Courier</span>
+              {loading && <Loader2 className="h-3 w-3 animate-spin" />}
+            </div>
+            <div className="flex flex-1 flex-wrap gap-1.5">
+              {(courier?.providers ?? []).map((p) => (
+                <CourierProviderChip key={p.name} provider={p} />
+              ))}
             </div>
           </div>
         )}
@@ -983,23 +987,11 @@ function CustomerHistoryStrip({
   );
 }
 
-const STAT_ACCENTS: Record<string, { chip: string; value: string }> = {
-  slate:   { chip: "bg-slate-500/10 text-slate-600 dark:text-slate-300",       value: "text-foreground" },
-  emerald: { chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", value: "text-emerald-700 dark:text-emerald-400" },
-  rose:    { chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400",          value: "text-rose-700 dark:text-rose-400" },
-  amber:   { chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",       value: "text-amber-700 dark:text-amber-400" },
-  indigo:  { chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",    value: "text-indigo-700 dark:text-indigo-400" },
-};
-
-function Stat({ label, value, icon, accent = "slate" }: { label: string; value: React.ReactNode; icon?: React.ReactNode; accent?: keyof typeof STAT_ACCENTS }) {
-  const a = STAT_ACCENTS[accent] ?? STAT_ACCENTS.slate;
+function InlineStat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div className="flex min-w-[78px] flex-1 items-center gap-2 rounded-lg border bg-white/80 px-2.5 py-1.5 shadow-sm dark:bg-background/60">
-      <div className={cn("flex h-6 w-6 items-center justify-center rounded-md", a.chip)}>{icon}</div>
-      <div className="leading-tight">
-        <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className={cn("text-sm font-extrabold tabular-nums", a.value)}>{value}</div>
-      </div>
+    <div className="flex shrink-0 flex-col leading-tight">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={cn("text-base font-extrabold tabular-nums", tone ?? "text-foreground")}>{value}</span>
     </div>
   );
 }
@@ -1014,9 +1006,9 @@ const PROVIDER_THEME: Record<string, { from: string; to: string; ring: string; c
   ecourier:  { from: "from-amber-500/15",   to: "to-amber-500/0",    ring: "ring-amber-300/60",    chip: "bg-amber-500/15 text-amber-700 dark:text-amber-300",        dot: "bg-amber-500" },
 };
 
-function CourierProviderCard({ provider }: { provider: ProviderRow }) {
+function CourierProviderChip({ provider }: { provider: ProviderRow }) {
   const key = provider.name.toLowerCase();
-  const theme = PROVIDER_THEME[key] ?? { from: "from-slate-500/10", to: "to-slate-500/0", ring: "ring-slate-300/60", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-300", dot: "bg-slate-500" };
+  const theme = PROVIDER_THEME[key] ?? { from: "", to: "", ring: "ring-border", chip: "bg-muted text-muted-foreground", dot: "bg-slate-400" };
   const pct = provider.total > 0 ? Math.round((provider.success / provider.total) * 100) : null;
 
   const scoreTone =
@@ -1025,71 +1017,31 @@ function CourierProviderCard({ provider }: { provider: ProviderRow }) {
     : pct >= 50 ? "text-amber-600 dark:text-amber-400"
     : "text-rose-600 dark:text-rose-400";
 
-  const ringStroke =
-    pct == null ? "stroke-slate-400"
-    : pct >= 80 ? "stroke-emerald-500"
-    : pct >= 50 ? "stroke-amber-500"
-    : "stroke-rose-500";
-
-  const dash = pct == null ? 0 : (pct / 100) * 87.96; // r=14 circumference
+  const barTone =
+    pct == null ? "bg-muted-foreground/30"
+    : pct >= 80 ? "bg-emerald-500"
+    : pct >= 50 ? "bg-amber-500"
+    : "bg-rose-500";
 
   if (!provider.ok) {
     return (
-      <div className={cn("flex w-[112px] flex-col rounded-xl border bg-gradient-to-br p-2 shadow-sm ring-1 ring-inset", theme.from, theme.to, theme.ring)}>
-        <div className="flex items-center gap-1.5">
-          <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-          <span className="text-[10px] font-bold uppercase tracking-wider">{provider.label}</span>
-        </div>
-        <div className="mt-2 flex flex-1 items-center justify-center text-[11px] italic text-muted-foreground">Not connected</div>
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed bg-muted/30 px-2.5 py-1">
+        <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{provider.label}</span>
+        <span className="text-[10px] italic text-muted-foreground/70">N/A</span>
       </div>
     );
   }
 
   return (
-    <div className={cn("group relative flex w-[132px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-gradient-to-br p-2 shadow-sm ring-1 ring-inset transition-all hover:-translate-y-0.5 hover:shadow-md", theme.from, theme.to, theme.ring)}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">{provider.label}</span>
-        </div>
-        <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
-          {provider.total}
-        </span>
+    <div className={cn("inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1 ring-1 ring-inset", theme.ring)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} />
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/80">{provider.label}</span>
+      <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full transition-all", barTone)} style={{ width: `${pct ?? 0}%` }} />
       </div>
-
-      {/* Gauge + score */}
-      <div className="flex items-center gap-2">
-        <div className="relative h-10 w-10 shrink-0">
-          <svg viewBox="0 0 32 32" className="h-10 w-10 -rotate-90">
-            <circle cx="16" cy="16" r="14" fill="none" strokeWidth="3" className="stroke-foreground/10" />
-            <circle
-              cx="16" cy="16" r="14" fill="none" strokeWidth="3" strokeLinecap="round"
-              className={cn("transition-all duration-500", ringStroke)}
-              strokeDasharray={`${dash} 87.96`}
-            />
-          </svg>
-          <div className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-extrabold tabular-nums", scoreTone)}>
-            {pct == null ? "—" : `${pct}`}
-          </div>
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Success</span>
-          <span className={cn("text-sm font-extrabold tabular-nums", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
-        </div>
-      </div>
-
-      {/* Mini split: success vs cancelled */}
-      <div className="grid grid-cols-2 gap-1">
-        <div className="flex items-center justify-between rounded-md bg-background/70 px-1.5 py-0.5 ring-1 ring-inset ring-border">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">OK</span>
-          <span className="text-[10px] font-bold tabular-nums">{provider.success}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-md bg-background/70 px-1.5 py-0.5 ring-1 ring-inset ring-border">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">X</span>
-          <span className="text-[10px] font-bold tabular-nums">{provider.cancelled}</span>
-        </div>
-      </div>
+      <span className={cn("text-xs font-extrabold tabular-nums", scoreTone)}>{pct == null ? "—" : `${pct}%`}</span>
+      <span className="text-[10px] tabular-nums text-muted-foreground">{provider.success}/{provider.total}</span>
     </div>
   );
 }
