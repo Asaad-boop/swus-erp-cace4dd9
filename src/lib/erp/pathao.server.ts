@@ -132,11 +132,18 @@ function envCreds(): PathaoCreds | null {
   };
 }
 
-export async function loadPathaoCreds(_supabase: unknown, brandId?: string | null): Promise<PathaoCreds> {
-  // Credentials are sensitive (client_secret, password). Always read via
-  // service-role client so RLS can stay locked down to admins only.
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  let q = supabaseAdmin
+export async function loadPathaoCreds(supabase: any, brandId?: string | null): Promise<PathaoCreds> {
+  // Prefer service-role client so admin-only RLS on erp_courier_settings still
+  // works for non-admin operations users. Fall back to the caller's client if
+  // the service-role env isn't configured (dev/preview).
+  let client: any = supabase;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    client = supabaseAdmin;
+  } catch {
+    // env not set — use caller's client (works for admin users via RLS)
+  }
+  let q = client
     .from("erp_courier_settings")
     .select("brand_id, base_url, client_id, client_secret, username, password, store_id, is_active")
     .eq("provider", "pathao")
