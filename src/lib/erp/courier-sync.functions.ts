@@ -271,10 +271,11 @@ async function syncOne(
         priceCityId === 1 ||
         /dhaka|ঢাকা|mirpur|uttara|banani|dhanmondi|khilgaon|jurain|mohammadpur|gulshan|badda|wari|motijheel|tejgaon/i.test(locationText);
       const collected = Number(order.total ?? 0);
-      let deliveryFee = 0;
-      let additional = 0;
-      let effectiveDiscount = 0;
-      let hasBaseDeliveryRate = false;
+      const trackedTotalCost = extractNumber(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "courier_charge"]);
+      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
+      let additional = extractNumber(res, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
+      let effectiveDiscount = extractNumber(res, ["discount", "discount_amount", "merchant_discount", "promo_discount", "promo_discount_amount"]) ?? 0;
+      let hasBaseDeliveryRate = deliveryFee > 0;
       if (priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
@@ -300,7 +301,7 @@ async function syncOne(
         } else if (finalPrice > 0) {
           deliveryFee = finalPrice;
         }
-        effectiveDiscount = apiDiscount > 0 ? apiDiscount : 0;
+        if (effectiveDiscount <= 0) effectiveDiscount = apiDiscount > 0 ? apiDiscount : 0;
       }
       // Fallback: price API fail korle booking-time fee use koro
       if (deliveryFee <= 0) {
@@ -312,7 +313,9 @@ async function syncOne(
       }
       if (deliveryFee > 0) {
         const codFee = collected > 0 ? Math.round(collected * 0.01 * 100) / 100 : 0;
-        const total = Math.max(deliveryFee + codFee + additional - effectiveDiscount, 0);
+        const maxReasonableTotal = Math.max(500, collected * 0.5);
+        const trustedTotalCost = trackedTotalCost && trackedTotalCost > 0 && trackedTotalCost <= maxReasonableTotal ? trackedTotalCost : null;
+        const total = trustedTotalCost ?? Math.max(deliveryFee + codFee + additional - effectiveDiscount, 0);
         const rounded = Math.round(total * 100) / 100;
         base.actual_fee = rounded;
         base.fee_breakdown = {
