@@ -19,6 +19,8 @@ export type CourierSyncResult = {
   identifier: string | null;
   raw_status: string | null;
   mapped_status: OrderStatus | null;
+  actual_fee: number | null;
+  fee_recorded: boolean;
   ok: boolean;
   error?: string;
 };
@@ -39,6 +41,18 @@ function extractPathaoStatus(payload: any): string | null {
     d?.delivery_status ??
     null
   );
+}
+
+function extractFee(payload: any, keys: string[]): number | null {
+  const d = payload?.data ?? payload;
+  for (const k of keys) {
+    const v = d?.[k];
+    if (v !== undefined && v !== null && v !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return null;
 }
 
 function extractSteadfastStatus(payload: any): string | null {
@@ -75,6 +89,8 @@ async function syncOne(
     identifier: null,
     raw_status: null,
     mapped_status: null,
+    actual_fee: null,
+    fee_recorded: false,
     ok: false,
   };
 
@@ -117,6 +133,14 @@ async function syncOne(
       const client = createPathaoClient(creds);
       const res: any = await client.track(identifier);
       raw = extractPathaoStatus(res);
+      // Pathao returns delivery_fee, cod_fee, promo_discount, total_price, etc.
+      // We want what Pathao actually charges us (delivery + cod + extras).
+      const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
+      const codFee = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]) ?? 0;
+      const extra = extractFee(res, ["additional_charge", "extra_charge"]) ?? 0;
+      const total = extractFee(res, ["total_price", "invoice_amount", "merchant_total"]);
+      const sum = deliveryFee + codFee + extra;
+      base.actual_fee = total && total > 0 ? total : (sum > 0 ? sum : null);
     } else {
       const { loadSteadfastCreds, createSteadfastClient } = await import("./steadfast.server");
       const creds = await loadSteadfastCreds(supabase, effectiveBrand);
@@ -130,6 +154,7 @@ async function syncOne(
       }
       if (!res) return { ...base, error: "Steadfast lookup failed" };
       raw = extractSteadfastStatus(res);
+      base.actual_fee = extractFee(res, ["delivery_fee", "delivery_charge", "charge", "amount"]);
     }
 
     if (!raw) return { ...base, error: "Status not found in response" };
@@ -217,5 +242,72 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       results.push(...settled);
     }
 
+    // Persist actual courier fees + write expense (skip orders manually overridden)
+    if (results.some((r) => r.ok && r.actual_fee && r.actual_fee > 0)) {
+      const ids = results.filter((r) => r.ok && r.actual_fee).map((r) => r.order_id);
+      const { data: existing } = await supabase
+        .from("orders")
+        .select("id, actual_shipping_source")
+        .in("id", ids);
+      const manualSet = new Set(
+        ((existing ?? []) as Array<{ id: string; actual_shipping_source: string | null }>)
+          .filter((r) => r.actual_shipping_source === "manual")
+          .map((r) => r.id),
+      );
+      for (const r of results) {
+        if (!r.ok || !r.actual_fee || r.actual_fee <= 0) continue;
+        if (manualSet.has(r.order_id)) continue; // respect manual override
+        const { error: uErr } = await supabase
+          .from("orders")
+          .update({
+            actual_shipping_cost: r.actual_fee,
+            actual_shipping_source: "auto",
+            actual_shipping_recorded_at: new Date().toISOString(),
+          })
+          .eq("id", r.order_id);
+        if (uErr) continue;
+        const { error: rpcErr } = await supabase.rpc("record_order_courier_expense", {
+          _order_id: r.order_id,
+          _amount: r.actual_fee,
+        });
+        if (!rpcErr) r.fee_recorded = true;
+      }
+    }
+
     return { results };
+  });
+
+// Manual override: staff enters actual courier cost on an order.
+export const setOrderActualShippingCostFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        orderId: z.string().uuid(),
+        amount: z.number().min(0).max(100000),
+        accountId: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error: uErr } = await supabase
+      .from("orders")
+      .update({
+        actual_shipping_cost: data.amount,
+        actual_shipping_source: "manual",
+        actual_shipping_recorded_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId);
+    if (uErr) throw new Error(uErr.message);
+
+    if (data.amount > 0) {
+      const { error: rpcErr } = await supabase.rpc("record_order_courier_expense", {
+        _order_id: data.orderId,
+        _amount: data.amount,
+        _account_id: data.accountId ?? undefined,
+      });
+      if (rpcErr) throw new Error(rpcErr.message);
+    }
+    return { ok: true };
   });

@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -14,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
+import { Truck, Pencil } from "lucide-react";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -38,6 +41,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const [advSource, setAdvSource] = useState("");
   const [advNumber, setAdvNumber] = useState("");
   const [advTxnId, setAdvTxnId] = useState("");
+  const [feeOpen, setFeeOpen] = useState(false);
+  const [feeAmount, setFeeAmount] = useState("");
+  const setFeeFn = useServerFn(setOrderActualShippingCostFn);
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -45,6 +51,11 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const notes = data?.notes ?? [];
   const subtotal = Number(order?.subtotal ?? 0);
   const shippingFee = Number(order?.shipping_fee ?? 0);
+  const actualShippingCost = (order as { actual_shipping_cost?: number | null } | undefined)?.actual_shipping_cost;
+  const actualShippingSource = (order as { actual_shipping_source?: string | null } | undefined)?.actual_shipping_source;
+  const hasActual = actualShippingCost !== undefined && actualShippingCost !== null;
+  const actualNum = hasActual ? Number(actualShippingCost) : 0;
+  const shippingLoss = hasActual ? actualNum - shippingFee : 0;
   const discountAmount = Number(order?.discount_amount ?? 0);
   const advanceAmount = Number(order?.advance_amount ?? 0);
   const grossTotal = Math.max(0, subtotal + shippingFee - discountAmount);
@@ -125,6 +136,25 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const saveFee = useMutation({
+    mutationFn: async (amt: number) => {
+      await setFeeFn({ data: { orderId: orderId!, amount: amt } });
+    },
+    onSuccess: () => {
+      toast.success("Courier cost saved");
+      setFeeOpen(false);
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["erp-transactions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openFeeDialog = () => {
+    setFeeAmount(hasActual ? String(actualNum) : "");
+    setFeeOpen(true);
+  };
 
   const addNote = useMutation({
     mutationFn: async () => {
@@ -226,6 +256,29 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <div className="mt-4 pt-3 border-t space-y-1.5 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">৳ {subtotal.toLocaleString()}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">৳ {shippingFee.toLocaleString()}</span></div>
+                      <div className="rounded-md border bg-muted/30 p-2.5 mt-1 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground">
+                          <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" /> Courier Actual Charge</span>
+                          <button onClick={openFeeDialog} className="text-primary hover:underline inline-flex items-center gap-0.5">
+                            <Pencil className="h-3 w-3" /> {hasActual ? "Edit" : "Set"}
+                          </button>
+                        </div>
+                        {hasActual ? (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Courier charged us</span>
+                              <span className="tabular-nums font-medium">৳ {actualNum.toLocaleString()}</span>
+                            </div>
+                            <div className={`flex justify-between text-sm font-semibold ${shippingLoss > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                              <span>{shippingLoss > 0 ? "Shipping loss" : "Shipping margin"}</span>
+                              <span className="tabular-nums">{shippingLoss > 0 ? "− " : "+ "}৳ {Math.abs(shippingLoss).toLocaleString()}</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">Source: {actualShippingSource ?? "—"}</div>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground italic">Courier sync er por automatic bose jabe, ba manually set koro.</p>
+                        )}
+                      </div>
                       {discountAmount > 0 && (
                         <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− ৳ {discountAmount.toLocaleString()}</span></div>
                       )}
@@ -407,6 +460,51 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
           </Button>
         </DialogFooter>
       </DialogContent>
+        </Dialog>
+
+        <Dialog open={feeOpen} onOpenChange={setFeeOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Courier Actual Charge</DialogTitle>
+              <DialogDescription>
+                Courier (Pathao/Steadfast) amader theke koto taka delivery charge niyeche? Eta finance e expense entry hisebe boshe jabe.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Customer Paid (Shipping)</Label>
+                <Input value={`৳ ${shippingFee.toLocaleString()}`} disabled />
+              </div>
+              <div>
+                <Label>Courier Actual Charge (৳) <span className="text-rose-600">*</span></Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  autoFocus
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                  placeholder="e.g. 108.50"
+                />
+                {feeAmount && Number(feeAmount) > 0 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {Number(feeAmount) > shippingFee
+                      ? <>Loss: <span className="text-rose-600 font-semibold">৳ {(Number(feeAmount) - shippingFee).toLocaleString()}</span></>
+                      : <>Margin: <span className="text-emerald-600 font-semibold">৳ {(shippingFee - Number(feeAmount)).toLocaleString()}</span></>}
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setFeeOpen(false)}>Cancel</Button>
+              <Button
+                disabled={saveFee.isPending || !feeAmount || Number(feeAmount) < 0}
+                onClick={() => saveFee.mutate(Number(feeAmount))}
+              >
+                {saveFee.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       </DialogContent>
     </Dialog>

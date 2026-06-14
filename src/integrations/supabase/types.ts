@@ -1378,6 +1378,9 @@ export type Database = {
       }
       orders: {
         Row: {
+          actual_shipping_cost: number | null
+          actual_shipping_recorded_at: string | null
+          actual_shipping_source: string | null
           admin_notes: string | null
           advance_amount: number
           advance_payment_number: string | null
@@ -1474,6 +1477,9 @@ export type Database = {
           web_status: Database["public"]["Enums"]["web_order_status"] | null
         }
         Insert: {
+          actual_shipping_cost?: number | null
+          actual_shipping_recorded_at?: string | null
+          actual_shipping_source?: string | null
           admin_notes?: string | null
           advance_amount?: number
           advance_payment_number?: string | null
@@ -1570,6 +1576,9 @@ export type Database = {
           web_status?: Database["public"]["Enums"]["web_order_status"] | null
         }
         Update: {
+          actual_shipping_cost?: number | null
+          actual_shipping_recorded_at?: string | null
+          actual_shipping_source?: string | null
           admin_notes?: string | null
           advance_amount?: number
           advance_payment_number?: string | null
@@ -2388,6 +2397,10 @@ export type Database = {
       }
       record_courier_expense: {
         Args: { _account_id?: string; _amount: number; _shipment_id: string }
+        Returns: string
+      }
+      record_order_courier_expense: {
+        Args: { _account_id?: string; _amount: number; _order_id: string }
         Returns: string
       }
       record_supplier_payment: {
