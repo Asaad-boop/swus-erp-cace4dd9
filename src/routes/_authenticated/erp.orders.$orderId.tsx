@@ -1043,6 +1043,44 @@ function OrderDetailsPage() {
               <FieldShell label="Advance">
                 <NumInput value={form.advance} onChange={(v) => setForm({ ...form, advance: v })} />
               </FieldShell>
+              {Number(form.advance) > 0 && (
+                <div className="md:col-span-5 grid gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:grid-cols-3">
+                  <FieldShell label="Advance Source *">
+                    <Select value={form.advance_source} onValueChange={(v) => setForm({ ...form, advance_source: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select source" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bKash">bKash</SelectItem>
+                        <SelectItem value="Nagad">Nagad</SelectItem>
+                        <SelectItem value="Rocket">Rocket</SelectItem>
+                        <SelectItem value="Upay">Upay</SelectItem>
+                        <SelectItem value="Bank">Bank Transfer</SelectItem>
+                        <SelectItem value="Card">Card</SelectItem>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldShell>
+                  <FieldShell label="Payment No / Last 4 *">
+                    <Input
+                      inputMode="numeric"
+                      maxLength={20}
+                      value={form.advance_payment_number}
+                      onChange={(e) => setForm({ ...form, advance_payment_number: e.target.value.replace(/[^0-9]/g, "") })}
+                      placeholder="017... or 5678"
+                      className="h-9 tabular-nums"
+                    />
+                  </FieldShell>
+                  <FieldShell label="Transaction ID (optional)">
+                    <Input
+                      maxLength={50}
+                      value={form.advance_txn_id}
+                      onChange={(e) => setForm({ ...form, advance_txn_id: e.target.value })}
+                      placeholder="Txn ID"
+                      className="h-9"
+                    />
+                  </FieldShell>
+                </div>
+              )}
               <FieldShell label="Sub Total">
                 <Input value={bdtCompact(itemsSubtotal)} readOnly className="h-9 bg-muted/40 tabular-nums" />
               </FieldShell>
