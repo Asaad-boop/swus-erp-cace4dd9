@@ -133,6 +133,7 @@ export type OrderRow = {
   assigned_to: string | null;
   admin_notes: string | null;
   customer_note: string | null;
+  shipping_note: string | null;
   call_status: string | null;
   call_attempt_count: number | null;
   delivered_at: string | null;

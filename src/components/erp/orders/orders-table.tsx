@@ -154,22 +154,40 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     {
       header: "Note",
       cell: ({ row }) => {
-        const note = row.original.customer_note || row.original.admin_notes || "";
-        const label = row.original.customer_note ? "Customer Note" : (row.original.admin_notes ? "Internal Note" : "");
-        if (!note) return <span className="text-xs text-muted-foreground/50">—</span>;
+        const o = row.original;
+        const entries: { label: string; text: string; tone: string; iconBg: string; labelClr: string }[] = [];
+        if (o.shipping_note?.trim()) entries.push({
+          label: "Shipping Note", text: o.shipping_note,
+          tone: "border-sky-300/70 dark:border-sky-900/50",
+          iconBg: "bg-sky-50 dark:bg-sky-950/40 border-sky-100 dark:border-sky-900/50 text-sky-600 dark:text-sky-400",
+          labelClr: "text-sky-700/80 dark:text-sky-400/80",
+        });
+        if (o.customer_note?.trim()) entries.push({
+          label: "Customer Note", text: o.customer_note,
+          tone: "border-amber-200/70 dark:border-amber-900/40",
+          iconBg: "bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/50 text-amber-600 dark:text-amber-400",
+          labelClr: "text-amber-700/70 dark:text-amber-400/70",
+        });
+        if (o.admin_notes?.trim()) entries.push({
+          label: "Internal Note", text: o.admin_notes,
+          tone: "border-violet-200/70 dark:border-violet-900/40",
+          iconBg: "bg-violet-50 dark:bg-violet-950/40 border-violet-100 dark:border-violet-900/50 text-violet-600 dark:text-violet-400",
+          labelClr: "text-violet-700/80 dark:text-violet-400/80",
+        });
+        if (entries.length === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
         return (
-          <div className="w-[200px] flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-card border border-amber-200/70 dark:border-amber-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_-1px_0_rgba(0,0,0,0.02)] hover:border-amber-300 dark:hover:border-amber-800 hover:shadow-md transition-all">
-            <div className="mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 shadow-inner">
-              <MessageSquare className="h-3 w-3 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-400/70 leading-none">
-                {label}
-              </span>
-              <p className="text-xs leading-snug text-foreground font-bold line-clamp-2">
-                {note}
-              </p>
-            </div>
+          <div className="w-[210px] flex flex-col gap-1.5">
+            {entries.map((e, i) => (
+              <div key={i} className={cn("flex items-start gap-2 p-1.5 rounded-lg bg-white dark:bg-card border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-all", e.tone)}>
+                <div className={cn("mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md border shadow-inner", e.iconBg)}>
+                  <MessageSquare className="h-3 w-3" strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className={cn("text-[9px] font-bold uppercase tracking-wider leading-none", e.labelClr)}>{e.label}</span>
+                  <p className="text-xs leading-snug text-foreground font-semibold line-clamp-2">{e.text}</p>
+                </div>
+              </div>
+            ))}
           </div>
         );
       },

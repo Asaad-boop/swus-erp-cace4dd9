@@ -42,6 +42,7 @@ function NewOrderPage() {
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [notes, setNotes] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [shippingNote, setShippingNote] = useState("");
 
   const [productSearch, setProductSearch] = useState("");
   const { data: products = [], isFetching: searching } = useQuery({
@@ -121,6 +122,7 @@ function NewOrderPage() {
           total,
           customer_note: notes || null,
           admin_notes: adminNotes || null,
+          shipping_note: shippingNote || null,
         })
         .select("id")
         .single();
@@ -225,6 +227,10 @@ function NewOrderPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
             <CardContent className="space-y-3">
+              <div>
+                <Label>Shipping note <span className="text-[10px] text-muted-foreground">(courier instruction, max 150)</span></Label>
+                <Textarea rows={2} maxLength={150} value={shippingNote} onChange={(e) => setShippingNote(e.target.value)} />
+              </div>
               <div><Label>Customer note</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
               <div><Label>Internal note</Label><Textarea rows={2} value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} /></div>
             </CardContent>
