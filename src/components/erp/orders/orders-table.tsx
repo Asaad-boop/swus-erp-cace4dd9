@@ -29,6 +29,13 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   exchange: "exchanged",
 };
 
+function courierTrackingUrl(provider: string, tracking: string): string {
+  const t = encodeURIComponent(tracking);
+  if (provider.includes("pathao")) return `https://merchant.pathao.com/tracking?consignment_id=${t}`;
+  if (provider.includes("steadfast")) return `https://steadfast.com.bd/t/${t}`;
+  return `https://www.google.com/search?q=${t}+courier+tracking`;
+}
+
 type Props = {
   rows: OrderRow[];
   loading: boolean;
