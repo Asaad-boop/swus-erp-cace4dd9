@@ -303,6 +303,7 @@ function Row({
   onChangeProvider,
   onChangeManualId,
   onFetch,
+  onShowManual,
 }: {
   row: RowState;
   onToggle: (v: boolean) => void;
@@ -310,11 +311,14 @@ function Row({
   onChangeProvider: (p: CourierProvider) => void;
   onChangeManualId: (v: string) => void;
   onFetch: () => void;
+  onShowManual: () => void;
 }) {
   const r = row.result;
   const cur = statusBadge(r.current_status);
   const next = row.overrideStatus ? statusBadge(row.overrideStatus) : null;
-  const canSelect = r.ok && !!row.overrideStatus;
+  const canSelect = (r.ok || !!row.phoneHistory?.suggested) && !!row.overrideStatus;
+  const ph = row.phoneHistory;
+  const showManualUI = r.ok ? false : (row.showManual || !ph || (!ph.loading && !ph.suggested));
 
   return (
     <tr className={`border-b last:border-0 ${!r.ok ? "bg-destructive/5" : ""}`}>
@@ -337,10 +341,42 @@ function Row({
             <div className="text-[11px] text-muted-foreground">Raw: <span className="font-mono">{r.raw_status}</span></div>
           </div>
         ) : (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-destructive">
-              <AlertCircle className="h-3 w-3" /> {r.error}
-            </div>
+          <div className="space-y-1.5">
+            {ph?.loading ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <Phone className="h-3 w-3" /> Phone history fetch hocche…
+              </div>
+            ) : ph && ph.suggested ? (
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Phone className="h-3 w-3" /> Phone history match
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge variant="outline" className="gap-1 h-5">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" /> {ph.success}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1 h-5">
+                    <XCircle className="h-3 w-3 text-destructive" /> {ph.cancelled}
+                  </Badge>
+                  <span className="text-muted-foreground">/ {ph.total}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-xs text-destructive">
+                <AlertCircle className="h-3 w-3" /> {ph?.error ?? r.error}
+              </div>
+            )}
+            {!showManualUI && !ph?.loading && (
+              <button
+                type="button"
+                onClick={onShowManual}
+                className="text-[11px] text-primary hover:underline"
+              >
+                Consignment ID diye fetch korun
+              </button>
+            )}
+            {showManualUI && (
             <div className="flex items-center gap-1">
               <Select value={row.manualProvider} onValueChange={(v) => onChangeProvider(v as CourierProvider)}>
                 <SelectTrigger className="h-7 w-[90px] text-xs"><SelectValue /></SelectTrigger>
@@ -359,6 +395,7 @@ function Row({
                 {row.fetching ? <Loader2 className="h-3 w-3 animate-spin" /> : "Fetch"}
               </Button>
             </div>
+            )}
           </div>
         )}
       </td>
@@ -369,7 +406,7 @@ function Row({
           <Select
             value={row.overrideStatus ?? ""}
             onValueChange={(v) => onChangeStatus(v as OrderStatus)}
-            disabled={!r.ok}
+            disabled={!r.ok && !ph?.suggested}
           >
             <SelectTrigger className="h-7 w-[170px] text-xs">
               <SelectValue placeholder="—">
@@ -384,7 +421,12 @@ function Row({
             </SelectContent>
           </Select>
         </div>
+        {!r.ok && ph?.suggested && (
+          <div className="mt-1 text-[10px] text-muted-foreground">Phone history theke estimate</div>
+        )}
       </td>
     </tr>
   );
 }
+
+// Use checkbox via canSelect computed above
