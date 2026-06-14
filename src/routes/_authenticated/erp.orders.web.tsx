@@ -550,12 +550,21 @@ function WebOrdersPage() {
                     <TableCell className="py-4">
                       <div>
                         <div className="min-w-0 text-xs space-y-0.5">
-                          <div className="font-semibold text-foreground truncate">{name}</div>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-semibold text-foreground truncate">{name}</span>
+                            {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0" />}
+                          </div>
                           {phone && (
-                            <div className="text-muted-foreground truncate font-mono">{phone}</div>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="text-muted-foreground truncate font-mono">{phone}</span>
+                              <PhoneActions phone={phone} className="shrink-0" />
+                            </div>
                           )}
                           {address && (
-                            <div className="text-muted-foreground line-clamp-2 leading-tight">{address}</div>
+                            <div className="flex items-start gap-1 min-w-0">
+                              <span className="text-muted-foreground line-clamp-2 leading-tight flex-1">{address}</span>
+                              <CopyIconBtn value={address} label="Address" className="shrink-0 mt-0.5" />
+                            </div>
                           )}
                         </div>
                       </div>
