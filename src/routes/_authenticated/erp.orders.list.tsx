@@ -13,6 +13,7 @@ import { OrdersBulkActions } from "@/components/erp/orders/orders-bulk-actions";
 import { OrdersTable } from "@/components/erp/orders/orders-table";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
+import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderStatus } from "@/lib/erp/orders";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
@@ -41,6 +42,7 @@ function OrdersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState<string | null>(null);
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
+  const [printMode, setPrintMode] = useState<PrintMode | null>(null);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -152,6 +154,10 @@ function OrdersPage() {
                 if (selectedIds.size === 0) return;
                 setPathaoBulkOpen(true);
               }}
+              onPrint={(mode) => {
+                if (selectedIds.size === 0) return;
+                setPrintMode(mode);
+              }}
               isPending={bulkStatus.isPending}
             />
           }
@@ -187,6 +193,13 @@ function OrdersPage() {
           if (!o) setSelectedIds(new Set());
         }}
         orders={rows.filter((r) => selectedIds.has(r.id)).map((r) => ({ id: r.id, invoice_no: r.invoice_no }))}
+      />
+
+      <BulkPrintDialog
+        open={printMode !== null}
+        onOpenChange={(o) => { if (!o) setPrintMode(null); }}
+        mode={printMode ?? "invoice"}
+        orderIds={Array.from(selectedIds)}
       />
     </div>
   );
