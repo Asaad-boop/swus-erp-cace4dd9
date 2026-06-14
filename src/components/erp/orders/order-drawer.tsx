@@ -256,6 +256,29 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <div className="mt-4 pt-3 border-t space-y-1.5 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">৳ {subtotal.toLocaleString()}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">৳ {shippingFee.toLocaleString()}</span></div>
+                      <div className="rounded-md border bg-muted/30 p-2.5 mt-1 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground">
+                          <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" /> Courier Actual Charge</span>
+                          <button onClick={openFeeDialog} className="text-primary hover:underline inline-flex items-center gap-0.5">
+                            <Pencil className="h-3 w-3" /> {hasActual ? "Edit" : "Set"}
+                          </button>
+                        </div>
+                        {hasActual ? (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Courier charged us</span>
+                              <span className="tabular-nums font-medium">৳ {actualNum.toLocaleString()}</span>
+                            </div>
+                            <div className={`flex justify-between text-sm font-semibold ${shippingLoss > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                              <span>{shippingLoss > 0 ? "Shipping loss" : "Shipping margin"}</span>
+                              <span className="tabular-nums">{shippingLoss > 0 ? "− " : "+ "}৳ {Math.abs(shippingLoss).toLocaleString()}</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">Source: {actualShippingSource ?? "—"}</div>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground italic">Courier sync er por automatic bose jabe, ba manually set koro.</p>
+                        )}
+                      </div>
                       {discountAmount > 0 && (
                         <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− ৳ {discountAmount.toLocaleString()}</span></div>
                       )}
