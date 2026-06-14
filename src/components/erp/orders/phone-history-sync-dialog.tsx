@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, ArrowRight, Phone, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Loader2, ArrowRight, Phone, CheckCircle2, XCircle, AlertCircle, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -14,11 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useBrand } from "@/contexts/brand-context";
 import { ORDER_STATUSES, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
+import { syncCourierStatusFn, type CourierSyncResult } from "@/lib/erp/courier-sync.functions";
+import type { CourierProvider } from "@/lib/erp/courier-status-mapping";
 
 type OrderInput = {
   id: string;
@@ -38,6 +41,12 @@ type RowState = {
   override: OrderStatus | null;
   selected: boolean;
   error?: string;
+  manualProvider: CourierProvider;
+  manualId: string;
+  fetching: boolean;
+  fetchedRaw?: string | null;
+  fetchedFee?: number | null;
+  fetchedProvider?: string | null;
 };
 
 function normalizePhone(raw: string | null): string | null {
@@ -70,6 +79,7 @@ export function PhoneHistorySyncDialog({
   const qc = useQueryClient();
   const { activeBrand } = useBrand();
   const fetchFn = useServerFn(fetchCourierHistoryFn);
+  const syncFn = useServerFn(syncCourierStatusFn);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [fetching, setFetching] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -89,6 +99,9 @@ export function PhoneHistorySyncDialog({
         suggested: null,
         override: null,
         selected: false,
+        manualProvider: "pathao",
+        manualId: "",
+        fetching: false,
       };
     }
     setRows(initial);
@@ -146,6 +159,44 @@ export function PhoneHistorySyncDialog({
   const list = useMemo(() => Object.values(rows), [rows]);
   const selectedCount = list.filter((r) => r.selected && r.override).length;
 
+  const fetchByConsignment = async (orderId: string) => {
+    const r = rows[orderId];
+    if (!r) return;
+    if (!r.manualId.trim()) {
+      toast.error("Consignment ID din");
+      return;
+    }
+    setRows((p) => ({ ...p, [orderId]: { ...p[orderId], fetching: true } }));
+    try {
+      const res = await syncFn({
+        data: {
+          orderIds: [orderId],
+          brandId: activeBrand?.id ?? undefined,
+          overrides: [{ orderId, provider: r.manualProvider, identifier: r.manualId.trim() }],
+        },
+      });
+      const out = (res.results as CourierSyncResult[])[0];
+      setRows((p) => ({
+        ...p,
+        [orderId]: {
+          ...p[orderId],
+          fetching: false,
+          fetchedRaw: out.raw_status,
+          fetchedFee: (out as unknown as { actual_fee?: number | null }).actual_fee ?? null,
+          fetchedProvider: out.provider,
+          override: out.mapped_status ?? p[orderId].override,
+          selected: !!out.mapped_status && out.mapped_status !== p[orderId].order.status,
+          error: out.ok ? undefined : out.error,
+        },
+      }));
+      if (!out.ok) toast.error(out.error ?? "Fetch fail");
+      else toast.success(`Status: ${out.raw_status ?? "—"}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setRows((p) => ({ ...p, [orderId]: { ...p[orderId], fetching: false } }));
+    }
+  };
+
   const apply = async () => {
     const toApply = list.filter((r) => r.selected && r.override);
     if (toApply.length === 0) return;
@@ -157,8 +208,10 @@ export function PhoneHistorySyncDialog({
         const { error } = await supabase.rpc("transition_order_status", {
           _order_id: r.order.id,
           _new_status: r.override!,
-          _reason: "phone_history_sync",
-          _note: `Matched by phone history: ${r.success}/${r.total} delivered, ${r.cancelled} cancelled`,
+          _reason: r.fetchedRaw ? "courier_sync" : "phone_history_sync",
+          _note: r.fetchedRaw
+            ? `${r.fetchedProvider}: ${r.fetchedRaw}${r.fetchedFee ? ` · fee ${r.fetchedFee}` : ""}`
+            : `Matched by phone history: ${r.success}/${r.total} delivered, ${r.cancelled} cancelled`,
         });
         if (error) throw error;
         okCount++;
