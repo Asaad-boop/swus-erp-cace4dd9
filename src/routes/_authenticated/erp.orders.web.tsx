@@ -15,6 +15,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useBrand } from "@/contexts/brand-context";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { cn } from "@/lib/utils";
+import { computeAutoTags, topTag, type AutoTagKey } from "@/lib/erp/order-tags";
+import { AutoTagChips } from "@/components/erp/orders/auto-tag-chips";
+import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
@@ -93,20 +96,6 @@ const STATUS_ACCENT: Record<string, string> = {
   complete: "bg-emerald-500",
   cancelled: "bg-zinc-400",
 };
-
-const TAG_PALETTE = [
-  "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
-  "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-];
-
-function tagColor(tag: string) {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
-  return TAG_PALETTE[hash % TAG_PALETTE.length];
-}
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
