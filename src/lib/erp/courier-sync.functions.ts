@@ -183,6 +183,7 @@ async function syncOne(
     tracking_number: string | null;
     brand_id: string | null;
     total: number | null;
+    shipping_fee?: number | null;
     pathao_city_id?: number | null;
     pathao_zone_id?: number | null;
     shipping_address?: string | null;
@@ -346,7 +347,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,pathao_zone_id,shipping_address,shipping_city,shipping_district,shipping_thana",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,shipping_fee,pathao_city_id,pathao_zone_id,shipping_address,shipping_city,shipping_district,shipping_thana",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;
@@ -438,9 +439,9 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     for (const r of results) {
       if (r.ok && (!r.actual_fee || r.actual_fee <= 0)) {
         const ship = latestShipment.get(r.order_id);
-        const f = Number(ship?.delivery_fee ?? 0);
+        const o = orderById.get(r.order_id);
+        const f = Number(ship?.delivery_fee ?? o?.shipping_fee ?? 0);
         if (f > 0 && r.provider === "pathao") {
-          const o = orderById.get(r.order_id);
           const computed = buildFeeBreakdown({
             deliveryFee: f,
             collected: Number(o?.total ?? 0),
