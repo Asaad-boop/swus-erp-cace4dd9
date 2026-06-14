@@ -1,5 +1,5 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -135,11 +135,26 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     },
     {
       header: "Note",
-      cell: ({ row }) => (
-        <div className="text-xs text-muted-foreground max-w-[180px] line-clamp-2 leading-snug">
-          {row.original.customer_note || row.original.admin_notes || <span className="text-muted-foreground/50">—</span>}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const note = row.original.customer_note || row.original.admin_notes || "";
+        const label = row.original.customer_note ? "Customer Note" : (row.original.admin_notes ? "Internal Note" : "");
+        if (!note) return <span className="text-xs text-muted-foreground/50">—</span>;
+        return (
+          <div className="w-[200px] flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-card border border-amber-200/70 dark:border-amber-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_-1px_0_rgba(0,0,0,0.02)] hover:border-amber-300 dark:hover:border-amber-800 hover:shadow-md transition-all">
+            <div className="mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 shadow-inner">
+              <MessageSquare className="h-3 w-3 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-400/70 leading-none">
+                {label}
+              </span>
+              <p className="text-xs leading-snug text-foreground font-bold line-clamp-2">
+                {note}
+              </p>
+            </div>
+          </div>
+        );
+      },
     },
     {
       header: "Status",
