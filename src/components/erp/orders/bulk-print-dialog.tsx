@@ -184,51 +184,129 @@ function StickerSheet({ orders, brandName, cfg }: { orders: any[]; brandName: st
 /* ---------------------------- Picking List ---------------------------- */
 
 function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; itemsByOrder: Map<string, any[]>; brandName: string }) {
+  // Build flat lines: one per order_item, enriched with order context
+  type Line = {
+    sku: string;
+    name: string;
+    variant: string;
+    qty: number;
+    order: any;
+  };
+  const lines: Line[] = [];
+  for (const o of orders) {
+    for (const it of itemsByOrder.get(o.id) ?? []) {
+      lines.push({
+        sku: (it.sku || "").trim(),
+        name: it.name ?? "",
+        variant: it.variant_label ?? "",
+        qty: Number(it.quantity || 0),
+        order: o,
+      });
+    }
+  }
+
+  // Group by SKU (fallback to name+variant when SKU missing)
+  const groupKey = (l: Line) => l.sku || `${l.name}::${l.variant}`;
+  const groups = new Map<string, { key: string; sku: string; name: string; variant: string; lines: Line[]; totalQty: number }>();
+  for (const l of lines) {
+    const k = groupKey(l);
+    let g = groups.get(k);
+    if (!g) {
+      g = { key: k, sku: l.sku, name: l.name, variant: l.variant, lines: [], totalQty: 0 };
+      groups.set(k, g);
+    }
+    g.lines.push(l);
+    g.totalQty += l.qty;
+  }
+  // Sort SKU groups by total qty desc, then SKU asc for stability
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    if (b.totalQty !== a.totalQty) return b.totalQty - a.totalQty;
+    return (a.sku || a.name).localeCompare(b.sku || b.name);
+  });
+  // Within each group split by qty>=2 (multi) and qty==1 (single); multi first, sorted qty desc
+  for (const g of sortedGroups) {
+    g.lines.sort((a, b) => b.qty - a.qty);
+  }
+
+  const grandQty = sortedGroups.reduce((s, g) => s + g.totalQty, 0);
+  let serial = 0;
+
   return (
     <>
-      <style>{`@media print { @page { size: A4; margin: 12mm; } }`}</style>
-      <div style={{ color: "#000", background: "#fff", padding: 16, fontSize: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #000", paddingBottom: 6, marginBottom: 10 }}>
+      <style>{`@media print { @page { size: A4; margin: 10mm; } .pk-row{break-inside:avoid;} .pk-group{break-inside:avoid;} }`}</style>
+      <div style={{ color: "#000", background: "#fff", padding: 14, fontSize: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "2px solid #000", paddingBottom: 6, marginBottom: 10 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 16 }}>{brandName} — Picking List</div>
-            <div style={{ fontSize: 11, color: "#555" }}>{orders.length} orders · {format(new Date(), "dd MMM yyyy HH:mm")}</div>
+            <div style={{ fontSize: 11, color: "#555" }}>
+              {orders.length} orders · {sortedGroups.length} SKUs · {grandQty} pcs · {format(new Date(), "dd MMM yyyy HH:mm")}
+            </div>
           </div>
+          <div style={{ fontSize: 10, color: "#555", textAlign: "right" }}>
+            Grouped by SKU · sorted by quantity (high → low)<br />
+            Multi-qty rows printed before single-qty rows in each group.
+          </div>
+        </div>
+
+        {sortedGroups.map((g) => {
+          const multi = g.lines.filter((l) => l.qty >= 2);
+          const single = g.lines.filter((l) => l.qty < 2);
+          return (
+            <div key={g.key} className="pk-group" style={{ marginBottom: 10, border: "1px solid #ccc", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ background: "#111", color: "#fff", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                  <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13 }}>{g.sku || "—"}</span>
+                  <span style={{ fontSize: 12 }}>{g.name}</span>
+                  {g.variant && <span style={{ fontSize: 11, opacity: 0.8 }}>({g.variant})</span>}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>
+                  Total: {g.totalQty} pc · {g.lines.length} order{g.lines.length === 1 ? "" : "s"}
+                </div>
+              </div>
+
+              {renderBucket("Multi-Qty (2+)", multi)}
+              {renderBucket("Single Qty", single)}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  function renderBucket(label: string, bucket: Line[]) {
+    if (!bucket.length) return null;
+    return (
+      <div>
+        <div style={{ background: "#f3f4f6", padding: "3px 10px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#444", borderTop: "1px solid #ddd" }}>
+          {label} · {bucket.length} order{bucket.length === 1 ? "" : "s"} · {bucket.reduce((s, l) => s + l.qty, 0)} pcs
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#f3f4f6" }}>
-              <th style={th}>#</th>
-              <th style={th}>Invoice</th>
+            <tr style={{ background: "#fafafa" }}>
+              <th style={{ ...th, width: 30 }}>#</th>
+              <th style={{ ...th, width: 110 }}>Invoice</th>
               <th style={th}>Customer</th>
-              <th style={th}>Items</th>
-              <th style={{ ...th, textAlign: "center" }}>Qty</th>
-              <th style={th}>✓</th>
+              <th style={th}>Phone</th>
+              <th style={th}>Area</th>
+              <th style={{ ...th, textAlign: "center", width: 50 }}>Qty</th>
+              <th style={{ ...th, width: 28 }}>✓</th>
             </tr>
           </thead>
           <tbody>
-            {orders.map((o, i) => {
-              const items = itemsByOrder.get(o.id) ?? [];
-              const qty = items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+            {bucket.map((l) => {
+              serial += 1;
               return (
-                <tr key={o.id} style={{ borderBottom: "1px solid #ddd" }}>
-                  <td style={td}>{i + 1}</td>
-                  <td style={{ ...td, fontFamily: "monospace", fontSize: 11 }}>#{invoiceDisplay(o)}</td>
-                  <td style={td}>
-                    <div style={{ fontWeight: 600 }}>{customerName(o)}</div>
-                    <div style={{ fontSize: 10, color: "#666" }}>{customerPhone(o)}</div>
+                <tr key={`${l.order.id}-${serial}`} className="pk-row" style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={td}>{serial}</td>
+                  <td style={{ ...td, fontFamily: "monospace", fontSize: 11 }}>#{invoiceDisplay(l.order)}</td>
+                  <td style={{ ...td, fontWeight: 600 }}>{customerName(l.order)}</td>
+                  <td style={td}>{customerPhone(l.order)}</td>
+                  <td style={{ ...td, fontSize: 10, color: "#555" }}>
+                    {[l.order.shipping_thana, l.order.shipping_city].filter(Boolean).join(", ")}
                   </td>
+                  <td style={{ ...td, textAlign: "center", fontWeight: 800, fontSize: 13 }}>{l.qty}</td>
                   <td style={td}>
-                    {items.map((it, k) => (
-                      <div key={k} style={{ fontSize: 11 }}>
-                        • {it.name}
-                        {it.variant_label && <span style={{ color: "#666" }}> ({it.variant_label})</span>}
-                        <strong> × {it.quantity}</strong>
-                      </div>
-                    ))}
-                  </td>
-                  <td style={{ ...td, textAlign: "center", fontWeight: 700 }}>{qty}</td>
-                  <td style={{ ...td, width: 28 }}>
-                    <div style={{ width: 16, height: 16, border: "1.5px solid #000", borderRadius: 2 }} />
+                    <div style={{ width: 14, height: 14, border: "1.5px solid #000", borderRadius: 2 }} />
                   </td>
                 </tr>
               );
@@ -236,8 +314,8 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
           </tbody>
         </table>
       </div>
-    </>
-  );
+    );
+  }
 }
 
 /* ---------------------------- Order Sheet ---------------------------- */
