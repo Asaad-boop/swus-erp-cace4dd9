@@ -187,6 +187,24 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                         <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <span className="leading-relaxed">{order.shipping_address}, {[order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ")}</span>
                       </div>
+                      {((order as { shipping_note?: string | null }).shipping_note ?? "").trim() && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-sky-300/60 bg-sky-50 dark:bg-sky-950/30 dark:border-sky-900/50">
+                          <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Shipping Note</div>
+                            <p className="text-xs text-foreground leading-snug">{(order as { shipping_note?: string | null }).shipping_note}</p>
+                          </div>
+                        </div>
+                      )}
+                      {(order.customer_note ?? "").trim() && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/50">
+                          <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Customer Note</div>
+                            <p className="text-xs text-foreground leading-snug">{order.customer_note}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </section>
 
