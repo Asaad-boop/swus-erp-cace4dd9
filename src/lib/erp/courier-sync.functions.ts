@@ -154,6 +154,9 @@ async function syncOne(
       // Pathao returns delivery_fee, cod_fee, promo_discount, total_price, etc.
       // We want what Pathao actually charges us (delivery + cod + extras).
       const deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge"]) ?? 0;
+      // If Pathao didn't return a delivery_fee (pre-pickup / API quirk), skip
+      // the computed total entirely and let the booking-time fallback fill it.
+      const hasDeliveryFee = deliveryFee > 0;
       // Pathao /orders/{cid}/info usually only returns delivery_fee.
       // Compute COD fee at standard 1% of amount-to-collect when not provided.
       const collectedRaw = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
@@ -175,8 +178,10 @@ async function syncOne(
       const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
       const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost"]);
       const computed = deliveryFee + codFee + additional + compensation - effectiveDiscount - promoDiscount;
-      base.actual_fee = totalCost && totalCost > 0 ? totalCost : (computed > 0 ? computed : null);
-      if (base.actual_fee && base.actual_fee > 0) {
+      base.actual_fee = totalCost && totalCost > 0
+        ? totalCost
+        : (hasDeliveryFee && computed > 0 ? computed : null);
+      if (base.actual_fee && base.actual_fee > 0 && hasDeliveryFee) {
         base.fee_breakdown = {
           delivery: deliveryFee,
           cod: codFee,
