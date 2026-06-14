@@ -104,7 +104,10 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
         return (
           <div className="min-w-[220px] max-w-[280px]">
             <div className="text-xs space-y-0.5 min-w-0">
-              <div className="font-semibold text-sm truncate text-foreground">{name}</div>
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="font-semibold text-sm truncate text-foreground">{name}</span>
+                {name && <CopyIconBtn value={name} label="Name" className="shrink-0" />}
+              </div>
               {phone && (
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Phone className="h-3 w-3 shrink-0" />
@@ -114,19 +117,14 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                     currentOrderId={o.id}
                   />
                   <CourierRateBadge phone={phone} brandId={o.brand_id} />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
-                    className="p-0.5 rounded hover:bg-muted opacity-0 group-hover/row:opacity-100 transition-opacity"
-                    title="Copy phone"
-                  >
-                    <Copy className="h-2.5 w-2.5" />
-                  </button>
+                  <PhoneActions phone={phone} className="ml-auto" />
                 </div>
               )}
               {addr && (
                 <div className="flex items-start gap-1.5 text-muted-foreground/80">
                   <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
-                  <span className="line-clamp-2 leading-snug">{addr}</span>
+                  <span className="line-clamp-2 leading-snug flex-1">{addr}</span>
+                  <CopyIconBtn value={addr} label="Address" className="shrink-0 mt-0.5" />
                 </div>
               )}
             </div>
