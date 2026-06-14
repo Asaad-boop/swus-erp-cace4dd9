@@ -555,6 +555,13 @@ function OrderDetailsPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
 
+  const getAdvanceValidationError = () => {
+    if (Number(form.advance) <= 0) return null;
+    if (!form.advance_source) return "Select advance payment source";
+    if (!form.advance_payment_number || form.advance_payment_number.length < 4) return "Enter payment number or last 4 digits";
+    return null;
+  };
+
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
       const { error } = await supabase.rpc("transition_order_status", { _order_id: orderId, _new_status: status });
@@ -566,6 +573,8 @@ function OrderDetailsPage() {
 
   const confirmOrder = useMutation({
     mutationFn: async () => {
+      const advanceError = getAdvanceValidationError();
+      if (advanceError) throw new Error(advanceError);
       // 1) Persist any pending customer + pricing edits first
       const subtotal = itemsSubtotal;
       const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
@@ -590,6 +599,9 @@ function OrderDetailsPage() {
         shipping_fee: Number(form.shipping_fee),
         discount_amount: Number(form.discount),
         advance_amount: Number(form.advance),
+        advance_source: Number(form.advance) > 0 ? form.advance_source : null,
+        advance_payment_number: Number(form.advance) > 0 ? form.advance_payment_number : null,
+        advance_txn_id: Number(form.advance) > 0 && form.advance_txn_id ? form.advance_txn_id : null,
         total,
         web_status: "complete" as const,
       };
@@ -701,11 +713,17 @@ function OrderDetailsPage() {
 
   const savePricing = useMutation({
     mutationFn: async () => {
+      const advanceError = getAdvanceValidationError();
+      if (advanceError) throw new Error(advanceError);
       const subtotal = itemsSubtotal;
       const total = Math.max(0, subtotal + Number(form.shipping_fee) - Number(form.discount));
       const { error } = await supabase.from("orders").update({
         subtotal, shipping_fee: Number(form.shipping_fee), discount_amount: Number(form.discount),
-        advance_amount: Number(form.advance), total,
+        advance_amount: Number(form.advance),
+        advance_source: Number(form.advance) > 0 ? form.advance_source : null,
+        advance_payment_number: Number(form.advance) > 0 ? form.advance_payment_number : null,
+        advance_txn_id: Number(form.advance) > 0 && form.advance_txn_id ? form.advance_txn_id : null,
+        total,
       }).eq("id", orderId);
       if (error) throw error;
     },
