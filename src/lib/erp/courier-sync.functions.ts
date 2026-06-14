@@ -304,7 +304,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,shipping_city",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,pathao_zone_id,shipping_city",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;
@@ -356,6 +356,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const results: CourierSyncResult[] = [];
     const batchSize = 4;
     const list = (orders ?? []) as Array<Parameters<typeof syncOne>[2]>;
+    const orderById = new Map(list.map((o) => [o.id, o]));
     const tryOne = async (o: Parameters<typeof syncOne>[2]): Promise<CourierSyncResult> => {
       const override = overrideMap.get(o.id);
       if (override) {
@@ -396,7 +397,24 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       if (r.ok && (!r.actual_fee || r.actual_fee <= 0)) {
         const ship = latestShipment.get(r.order_id);
         const f = Number(ship?.delivery_fee ?? 0);
-        if (f > 0) r.actual_fee = f;
+        if (f > 0 && r.provider === "pathao") {
+          const o = orderById.get(r.order_id);
+          const computed = buildFeeBreakdown({
+            deliveryFee: f,
+            collected: Number(o?.total ?? 0),
+            codFeeRaw: null,
+            discount: 0,
+            promoDiscount: 0,
+            additional: 0,
+            compensation: 0,
+            totalCost: null,
+            isInsideDhaka: o?.pathao_city_id === 1 || /dhaka|ঢাকা/i.test(o?.shipping_city ?? ""),
+          });
+          r.actual_fee = computed.actualFee;
+          r.fee_breakdown = computed.breakdown;
+        } else if (f > 0) {
+          r.actual_fee = f;
+        }
       }
     }
 
