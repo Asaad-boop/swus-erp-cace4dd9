@@ -58,11 +58,13 @@ function envCreds(): SteadfastCreds | null {
 
 export async function loadSteadfastCreds(supabase: any, brandId?: string | null): Promise<SteadfastCreds> {
   let client: any = supabase;
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    client = supabaseAdmin;
-  } catch {
-    // fall back to caller's client
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      client = supabaseAdmin;
+    } catch {
+      // fall back to caller's client
+    }
   }
   let q = client
     .from("erp_courier_settings")
