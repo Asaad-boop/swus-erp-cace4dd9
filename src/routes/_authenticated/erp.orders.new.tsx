@@ -174,34 +174,43 @@ function NewOrderPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // ── autofill from latest past order for this phone ───────────────────
-  const autofilledPhoneRef = useRef<string>("");
-  useEffect(() => {
-    if (!debouncedPhone || !pastOrders?.last) return;
-    if (autofilledPhoneRef.current === debouncedPhone) return;
-    const last = pastOrders.last as any;
-    let filled = 0;
-    if (!name.trim() && last.shipping_name) { setName(last.shipping_name); filled++; }
-    if (!address.trim() && last.shipping_address) { setAddress(last.shipping_address); filled++; }
-    if (!cityId && last.pathao_city_id) {
+  // ── autofill suggestion from latest past order for this phone ────────
+  const [dismissedAutofillPhone, setDismissedAutofillPhone] = useState<string>("");
+  const autofillSuggestion = useMemo(() => {
+    const last: any = pastOrders?.last;
+    if (!debouncedPhone || !last) return null;
+    const fields: { key: string; label: string; value: string }[] = [];
+    if (last.shipping_name && last.shipping_name !== name) fields.push({ key: "name", label: "Name", value: last.shipping_name });
+    if (last.shipping_address && last.shipping_address !== address) fields.push({ key: "address", label: "Address", value: last.shipping_address });
+    if (last.pathao_city_id && Number(last.pathao_city_id) !== cityId)
+      fields.push({ key: "city", label: "City", value: last.pathao_city_name ?? last.shipping_city ?? "" });
+    if (last.pathao_zone_id && Number(last.pathao_zone_id) !== zoneId)
+      fields.push({ key: "zone", label: "Zone", value: last.pathao_zone_name ?? "" });
+    if (last.pathao_area_id && Number(last.pathao_area_id) !== areaId)
+      fields.push({ key: "area", label: "Area", value: last.pathao_area_name ?? "" });
+    if (fields.length === 0) return null;
+    return { last, fields };
+  }, [debouncedPhone, pastOrders, name, address, cityId, zoneId, areaId]);
+
+  const applyAutofill = () => {
+    const last: any = pastOrders?.last;
+    if (!last) return;
+    if (last.shipping_name) setName(last.shipping_name);
+    if (last.shipping_address) setAddress(last.shipping_address);
+    if (last.pathao_city_id) {
       setCityId(Number(last.pathao_city_id));
       setCityName(last.pathao_city_name ?? last.shipping_city ?? "");
-      filled++;
     }
-    if (!zoneId && last.pathao_zone_id) {
+    if (last.pathao_zone_id) {
       setZoneId(Number(last.pathao_zone_id));
       setZoneName(last.pathao_zone_name ?? "");
-      filled++;
     }
-    if (!areaId && last.pathao_area_id) {
+    if (last.pathao_area_id) {
       setAreaId(Number(last.pathao_area_id));
       setAreaName(last.pathao_area_name ?? "");
-      filled++;
     }
-    autofilledPhoneRef.current = debouncedPhone;
-    if (filled > 0) toast.success(`Previous info theke ${filled} field auto-fill holo`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedPhone, pastOrders]);
+    toast.success("Previous info theke auto-fill holo");
+  };
 
   // ── items ─────────────────────────────────────────────────────────────
   const [items, setItems] = useState<LineItem[]>([]);
