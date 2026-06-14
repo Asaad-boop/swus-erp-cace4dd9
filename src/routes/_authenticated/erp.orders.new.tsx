@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
@@ -130,7 +131,7 @@ function NewOrderPage() {
       const cancelled = rows.filter((o) => o.status === "cancelled" || o.status === "fake").length;
       const returned = rows.filter((o) => o.status === "returned").length;
       const spent = rows.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.total ?? 0), 0);
-      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null };
+      return { total: rows.length, delivered, cancelled, returned, spent, last: rows[0] ?? null, recent: rows.slice(0, 5) };
     },
   });
 
@@ -901,6 +902,7 @@ function MoneyField({
 type PastSummary = {
   total: number; delivered: number; cancelled: number; returned: number; spent: number;
   last: { id: string; created_at: string; total: number; status: string } | null;
+  recent?: { id: string; created_at: string; total: number; status: string }[];
 } | undefined;
 
 type CourierData = {
@@ -922,15 +924,7 @@ function CustomerHistoryStrip({
     : "from-rose-500/15 to-rose-500/0 text-rose-700 ring-rose-300/70 dark:text-rose-300";
 
   const navigate = useNavigate();
-  const lastOrderId = past?.last?.id ?? null;
-
-  const goToHistory = () => {
-    if (lastOrderId) {
-      navigate({ to: "/erp/orders/$orderId", params: { orderId: lastOrderId } });
-    } else if (phone) {
-      navigate({ to: "/erp/orders/list", search: { search: phone } as never });
-    }
-  };
+  const recent = past?.recent ?? [];
 
   return (
     <Card className="overflow-hidden border-sky-200/60 bg-gradient-to-r from-sky-50/80 via-white to-white shadow-sm dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -950,7 +944,13 @@ function CustomerHistoryStrip({
           {/* Inline stats — hide zero values */}
           <div className="flex flex-1 items-center gap-x-5 gap-y-2 overflow-x-auto">
             {(past?.total ?? 0) > 0 && (
-              <InlineStat label="Orders" value={past!.total} onClick={goToHistory} hint={lastOrderId ? "View order" : "View history"} />
+              <OrdersPopoverStat
+                total={past!.total}
+                recent={recent}
+                phone={phone}
+                onOpen={(id) => navigate({ to: "/erp/orders/$orderId", params: { orderId: id } })}
+                onViewAll={() => phone && navigate({ to: "/erp/orders/list", search: { search: phone } as never })}
+              />
             )}
             {(past?.delivered ?? 0) > 0 && (
               <InlineStat label="Delivered" value={past!.delivered} tone="text-emerald-600 dark:text-emerald-400" />
@@ -1035,6 +1035,102 @@ function InlineStat({ label, value, tone, onClick, hint }: { label: string; valu
     <div className="flex shrink-0 flex-col gap-0.5 leading-tight">
       {content}
     </div>
+  );
+}
+
+type RecentOrder = { id: string; created_at: string; total: number; status: string };
+
+const STATUS_TONE: Record<string, string> = {
+  pending:    "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  confirmed:  "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+  processing: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
+  shipped:    "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+  delivered:  "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  cancelled:  "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+  fake:       "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+  returned:   "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+};
+
+function OrdersPopoverStat({
+  total, recent, phone, onOpen, onViewAll,
+}: {
+  total: number;
+  recent: RecentOrder[];
+  phone: string;
+  onOpen: (id: string) => void;
+  onViewAll: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="group flex shrink-0 flex-col items-start gap-0.5 rounded-md px-1.5 py-1 leading-tight transition-colors hover:bg-sky-100/60 dark:hover:bg-sky-900/30"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Orders</span>
+          <span className="text-base font-extrabold tabular-nums leading-none text-foreground">{total}</span>
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-sky-400">
+            Preview <ArrowRight className="h-2.5 w-2.5" />
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-0">
+        <div className="flex items-center justify-between border-b bg-gradient-to-r from-sky-50 to-indigo-50/50 px-3 py-2 dark:from-sky-950/30 dark:to-indigo-950/20">
+          <div className="leading-tight">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recent orders</div>
+            <div className="text-sm font-bold tabular-nums">{phone}</div>
+          </div>
+          <span className="rounded-full bg-sky-600/10 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">{total} total</span>
+        </div>
+        <div className="max-h-72 overflow-y-auto p-1.5">
+          {recent.length === 0 ? (
+            <div className="p-4 text-center text-xs text-muted-foreground">No orders</div>
+          ) : recent.map((o) => {
+            const tone = STATUS_TONE[o.status] ?? "bg-muted text-muted-foreground";
+            const date = new Date(o.created_at);
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => { setOpen(false); onOpen(o.id); }}
+                className="group flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/15 to-indigo-500/10 text-sky-700 dark:text-sky-300">
+                  <Package className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[11px] font-bold tabular-nums">#{o.id.slice(0, 8)}</span>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider", tone)}>
+                      {o.status}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                    {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  </div>
+                </div>
+                <div className="text-right leading-tight">
+                  <div className="text-sm font-extrabold tabular-nums">৳{Number(o.total ?? 0).toLocaleString()}</div>
+                  <ArrowRight className="ml-auto h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {total > recent.length && (
+          <div className="border-t p-1.5">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onViewAll(); }}
+              className="flex w-full items-center justify-center gap-1 rounded-md bg-muted/40 px-2 py-1.5 text-[11px] font-semibold text-foreground hover:bg-muted"
+            >
+              View all {total} orders <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
