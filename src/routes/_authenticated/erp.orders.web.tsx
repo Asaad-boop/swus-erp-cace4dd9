@@ -70,7 +70,7 @@ type WebOrderRow = {
   latest_order_note?: string | null;
 };
 
-type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number };
+type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number; delivered: number };
 
 type ProviderStat = { total: number; success: number; cancelled: number };
 type CourierBreakdown = {
@@ -302,7 +302,7 @@ function WebOrdersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("shipping_phone,guest_phone,web_status")
+        .select("shipping_phone,guest_phone,web_status,status")
         .eq("brand_id", activeBrand!.id)
         .or(phones.map((p) => `shipping_phone.eq.${p},guest_phone.eq.${p}`).join(","))
         .limit(5000);
@@ -312,11 +312,14 @@ function WebOrdersPage() {
         const ph = (o as { shipping_phone: string | null; guest_phone: string | null }).shipping_phone
           ?? (o as { guest_phone: string | null }).guest_phone;
         if (!ph) return;
-        const b = map.get(ph) ?? { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
+        const b = map.get(ph) ?? { total: 0, confirmed: 0, cancelled: 0, returned: 0, delivered: 0 };
         b.total++;
-        const s = (o as { web_status: string | null }).web_status;
-        if (s === "complete") b.confirmed++;
-        else if (s === "cancelled") b.cancelled++;
+        const ws = (o as { web_status: string | null }).web_status;
+        const st = (o as { status: string | null }).status;
+        if (ws === "complete") b.confirmed++;
+        else if (ws === "cancelled") b.cancelled++;
+        if (st === "delivered") b.delivered++;
+        else if (st === "returned") b.returned++;
         map.set(ph, b);
       });
       return map;
@@ -385,8 +388,8 @@ function WebOrdersPage() {
 
   const getBreakdown = (r: WebOrderRow): Breakdown => {
     const phone = r.shipping_phone ?? r.guest_phone;
-    if (!phone) return { total: 0, confirmed: 0, cancelled: 0, returned: 0 };
-    return breakdowns?.get(phone) ?? { total: 1, confirmed: 0, cancelled: 0, returned: 0 };
+    if (!phone) return { total: 0, confirmed: 0, cancelled: 0, returned: 0, delivered: 0 };
+    return breakdowns?.get(phone) ?? { total: 1, confirmed: 0, cancelled: 0, returned: 0, delivered: 0 };
   };
 
   const emptyProvider: ProviderStat = { total: 0, success: 0, cancelled: 0 };
