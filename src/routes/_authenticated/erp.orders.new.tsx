@@ -36,6 +36,9 @@ function NewOrderPage() {
   const [shipping, setShipping] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [advance, setAdvance] = useState(0);
+  const [advanceSource, setAdvanceSource] = useState("");
+  const [advanceNumber, setAdvanceNumber] = useState("");
+  const [advanceTxnId, setAdvanceTxnId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [notes, setNotes] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -85,6 +88,11 @@ function NewOrderPage() {
       if (!customer.address) throw new Error("Address required");
       if (items.length === 0) throw new Error("Add at least one item");
 
+      if (Number(advance) > 0) {
+        if (!advanceSource) throw new Error("Select advance payment source");
+        if (!advanceNumber || advanceNumber.length < 4) throw new Error("Enter advance payment number (min 4 digits)");
+      }
+
       const { data: orderData, error: orderErr } = await supabase
         .from("orders")
         .insert({
@@ -107,6 +115,9 @@ function NewOrderPage() {
           shipping_fee: Number(shipping),
           discount_amount: Number(discount),
           advance_amount: Number(advance),
+          advance_source: Number(advance) > 0 ? advanceSource : null,
+          advance_payment_number: Number(advance) > 0 ? advanceNumber : null,
+          advance_txn_id: Number(advance) > 0 && advanceTxnId ? advanceTxnId : null,
           total,
           customer_note: notes || null,
           admin_notes: adminNotes || null,
@@ -240,6 +251,46 @@ function NewOrderPage() {
               <div><Label>Shipping fee</Label><Input type="number" min={0} value={shipping} onChange={(e) => setShipping(Number(e.target.value))} /></div>
               <div><Label>Discount</Label><Input type="number" min={0} value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
               <div><Label>Advance paid</Label><Input type="number" min={0} value={advance} onChange={(e) => setAdvance(Number(e.target.value))} /></div>
+              {Number(advance) > 0 && (
+                <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50/50 p-3">
+                  <div>
+                    <Label>Advance Source <span className="text-rose-600">*</span></Label>
+                    <Select value={advanceSource} onValueChange={setAdvanceSource}>
+                      <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bKash">bKash</SelectItem>
+                        <SelectItem value="Nagad">Nagad</SelectItem>
+                        <SelectItem value="Rocket">Rocket</SelectItem>
+                        <SelectItem value="Upay">Upay</SelectItem>
+                        <SelectItem value="Bank">Bank Transfer</SelectItem>
+                        <SelectItem value="Card">Card</SelectItem>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Payment Number / Last 4 Digits <span className="text-rose-600">*</span></Label>
+                    <Input
+                      inputMode="numeric"
+                      maxLength={20}
+                      value={advanceNumber}
+                      onChange={(e) => setAdvanceNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="e.g. 01712345678 or 5678"
+                    />
+                    <p className="mt-1 text-[10px] text-muted-foreground">Full number ba last 4 digit — jeta accept koreche.</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Transaction ID <span className="text-muted-foreground/70">(optional)</span></Label>
+                    <Input
+                      maxLength={50}
+                      value={advanceTxnId}
+                      onChange={(e) => setAdvanceTxnId(e.target.value)}
+                      placeholder="e.g. 9F7A2BX1Q"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
