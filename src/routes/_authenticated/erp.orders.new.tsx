@@ -797,13 +797,14 @@ function NewOrderPage() {
 }
 
 function Field({
-  label, required, hint, children,
-}: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  label, required, hint, children, bn, className,
+}: { label: string; required?: boolean; hint?: string; children: React.ReactNode; bn?: string; className?: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium text-foreground/80">
-          {label}{required && <span className="ml-0.5 text-rose-600">*</span>}
+        <Label className="flex items-baseline gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <span>{label}{required && <span className="ml-0.5 text-rose-500">*</span>}</span>
+          {bn && <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground/70">{bn}</span>}
         </Label>
         {hint && <span className="text-[10px] text-muted-foreground tabular-nums">{hint}</span>}
       </div>
@@ -816,9 +817,50 @@ function ToggleRow({
   label, checked, onChange,
 }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between rounded-md border bg-background px-2.5 py-1.5">
-      <span className="text-xs font-medium">{label}</span>
+    <div className="flex items-center justify-between rounded-lg border bg-background/60 px-3 py-2 transition-colors hover:bg-background">
+      <span className="text-xs font-semibold">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon, accent, title, sub,
+}: { icon: React.ReactNode; accent: string; title: string; sub?: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={cn("inline-block h-4 w-1 rounded-full", accent)} />
+      <div className="flex items-center gap-1.5 text-muted-foreground/70">{icon}</div>
+      <div className="text-sm font-bold text-foreground">
+        {title}
+        {sub && <span className="ml-1.5 text-xs font-normal text-muted-foreground">— {sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+function MoneyField({
+  label, children, tone, readOnly,
+}: { label: string; children: React.ReactNode; tone?: "danger"; readOnly?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className={cn(
+        "block text-[10px] font-bold uppercase tracking-wider",
+        tone === "danger" ? "text-rose-500" : "text-muted-foreground",
+      )}>{label}</Label>
+      <div className={cn(
+        "relative flex items-center rounded-lg border bg-muted/30 transition-colors focus-within:bg-background focus-within:ring-2 focus-within:ring-indigo-500/20",
+        tone === "danger" && "border-rose-200 bg-rose-50/60 focus-within:ring-rose-500/20 dark:border-rose-900/40 dark:bg-rose-950/20",
+        readOnly && "bg-muted/40",
+      )}>
+        {!readOnly && (
+          <span className={cn(
+            "pointer-events-none absolute left-3 text-sm font-semibold",
+            tone === "danger" ? "text-rose-400" : "text-muted-foreground/60",
+          )}>৳</span>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
