@@ -326,6 +326,37 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       }
     }
 
+    // Backfill orders.courier_name + tracking_number for orders that were
+    // synced via manual consignment override but had no booking row yet.
+    const backfillIds = results
+      .filter((r) => r.ok && r.provider && r.identifier)
+      .map((r) => r.order_id);
+    if (backfillIds.length > 0) {
+      const { data: existingCourier } = await supabase
+        .from("orders")
+        .select("id, courier_name, tracking_number")
+        .in("id", backfillIds);
+      const courierMap = new Map(
+        ((existingCourier ?? []) as Array<{ id: string; courier_name: string | null; tracking_number: string | null }>)
+          .map((r) => [r.id, r]),
+      );
+      for (const r of results) {
+        if (!r.ok || !r.provider || !r.identifier) continue;
+        const cur = courierMap.get(r.order_id);
+        if (!cur) continue;
+        const needsName = !cur.courier_name;
+        const needsId = !cur.tracking_number;
+        if (!needsName && !needsId) continue;
+        await supabase
+          .from("orders")
+          .update({
+            ...(needsName ? { courier_name: r.provider } : {}),
+            ...(needsId ? { tracking_number: r.identifier } : {}),
+          })
+          .eq("id", r.order_id);
+      }
+    }
+
     // Persist actual courier fees + write expense (skip orders manually overridden)
     if (results.some((r) => r.ok && r.actual_fee && r.actual_fee > 0)) {
       const ids = results.filter((r) => r.ok && r.actual_fee).map((r) => r.order_id);
