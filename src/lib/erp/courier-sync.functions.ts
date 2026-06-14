@@ -252,21 +252,18 @@ async function syncOne(
       const client = createPathaoClient(creds);
       const res: any = await client.track(identifier);
       raw = extractPathaoStatus(res);
-      // Pathao can nest the cost fields. If track/info does not expose the
-      // delivery charge yet, call price-plan with the saved city/zone and use
-      // that as the delivery-fee source instead of showing the stale booking fee.
-      const isInsideDhaka =
-        order.pathao_city_id === 1 ||
-        /dhaka|ঢাকা/i.test(order.shipping_city ?? "");
-      let deliveryFee = extractFee(res, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
+      // Just ask Pathao's price-plan API for the total merchant cost.
+      // final_price already includes delivery_fee + COD fee - discount.
       let priceCityId = order.pathao_city_id ?? null;
       let priceZoneId = order.pathao_zone_id ?? null;
-      if (deliveryFee <= 0 && (!priceCityId || !priceZoneId)) {
+      if (!priceCityId || !priceZoneId) {
         const route = await resolvePathaoRoute(client, order);
         priceCityId = route?.cityId ?? priceCityId;
         priceZoneId = route?.zoneId ?? priceZoneId;
       }
-      if (deliveryFee <= 0 && priceCityId && priceZoneId) {
+      const collected = Number(order.total ?? 0);
+      let totalCost: number | null = null;
+      if (priceCityId && priceZoneId) {
         const priceRes: any = await client.price({
           store_id: client.storeId,
           item_type: 2,
@@ -275,22 +272,19 @@ async function syncOne(
           recipient_city: priceCityId,
           recipient_zone: priceZoneId,
         }).catch(() => null);
-        deliveryFee = extractFee(priceRes, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+        const data = priceRes?.data ?? priceRes;
+        const finalPrice = Number(data?.final_price ?? data?.price ?? 0);
+        const additional = Number(data?.additional_charge ?? 0);
+        const promo = Number(data?.promo_discount ?? data?.discount ?? 0);
+        if (finalPrice > 0) totalCost = finalPrice + additional - promo;
       }
-      // Pathao /orders/{cid}/info usually only returns delivery_fee.
-      // Compute COD fee at standard 1% of amount-to-collect when not provided.
-      const collectedRaw = extractFee(res, ["amount_to_collect", "collected_amount", "cod_amount", "order_amount"]);
-      const collected = collectedRaw && collectedRaw > 0 ? collectedRaw : Number(order.total ?? 0);
-      const codFeeRaw = extractFee(res, ["cod_fee", "cod_charge", "collection_fee"]);
-      const discount = extractNumber(res, ["discount", "discount_amount", "merchant_discount"]) ?? 0;
-      const promoDiscount = extractNumber(res, ["promo_discount", "promo_discount_amount"]) ?? 0;
-      const additional = extractFee(res, ["additional_charge", "extra_charge", "weight_charge", "insurance_fee"]) ?? 0;
-      const compensation = extractFee(res, ["compensation_cost", "compensation"]) ?? 0;
-      const totalCost = extractFee(res, ["total_cost", "total_delivery_cost", "merchant_total_cost", "total_price", "courier_charge"]);
-      const computed = buildFeeBreakdown({ deliveryFee, collected, codFeeRaw, discount, promoDiscount, additional, compensation, totalCost, isInsideDhaka });
-      base.actual_fee = computed.actualFee;
-      if (base.actual_fee && base.actual_fee > 0) {
-        base.fee_breakdown = computed.breakdown;
+      if (totalCost && totalCost > 0) {
+        const rounded = Math.round(totalCost * 100) / 100;
+        base.actual_fee = rounded;
+        base.fee_breakdown = {
+          delivery: 0, cod: 0, discount: 0, promo_discount: 0,
+          additional: 0, compensation: 0, extra: 0, total: rounded,
+        };
       }
       if (collected > 0) {
         base.order_total = collected;
