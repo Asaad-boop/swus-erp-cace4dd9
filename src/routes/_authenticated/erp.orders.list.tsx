@@ -222,6 +222,23 @@ function OrdersPage() {
         }}
         orderIds={Array.from(selectedIds)}
       />
+
+      <PhoneHistorySyncDialog
+        open={phoneHistOpen}
+        onOpenChange={(o) => {
+          setPhoneHistOpen(o);
+          if (!o) setSelectedIds(new Set());
+        }}
+        orders={rows
+          .filter((r) => selectedIds.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            invoice_no: r.invoice_no ?? null,
+            customer: (r as any).shipping_name ?? (r as any).guest_name ?? null,
+            phone: (r as any).shipping_phone ?? (r as any).guest_phone ?? null,
+            status: r.status,
+          }))}
+      />
     </div>
   );
 }
