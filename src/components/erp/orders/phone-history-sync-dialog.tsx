@@ -107,6 +107,37 @@ export function PhoneHistorySyncDialog({
     setRows(initial);
 
     (async () => {
+      // Prefill consignment ID from courier_shipments (latest per order)
+      try {
+        const orderIds = orders.map((o) => o.id);
+        const { data: shipments } = await supabase
+          .from("courier_shipments")
+          .select("order_id,provider,consignment_id,tracking_code,created_at")
+          .in("order_id", orderIds)
+          .order("created_at", { ascending: false });
+        if (shipments && !cancel) {
+          const seen = new Set<string>();
+          const latest: Record<string, { provider: string; id: string }> = {};
+          for (const s of shipments) {
+            if (seen.has(s.order_id)) continue;
+            seen.add(s.order_id);
+            const id = s.consignment_id ?? s.tracking_code ?? "";
+            if (id) latest[s.order_id] = { provider: s.provider, id };
+          }
+          setRows((prev) => {
+            const next = { ...prev };
+            for (const oid of Object.keys(latest)) {
+              if (!next[oid]) continue;
+              const prov = latest[oid].provider === "steadfast" ? "steadfast" : "pathao";
+              next[oid] = { ...next[oid], manualProvider: prov as CourierProvider, manualId: latest[oid].id };
+            }
+            return next;
+          });
+        }
+      } catch {
+        // ignore prefill failures
+      }
+
       const phones = Array.from(
         new Set(orders.map((o) => normalizePhone(o.phone)).filter((p): p is string => !!p)),
       );
