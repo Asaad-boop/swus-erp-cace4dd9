@@ -159,7 +159,10 @@ export function PhoneHistorySyncDialog({
       try {
         const res = await fetchFn({ data: { phones, brandId: activeBrand?.id ?? undefined } });
         if (cancel) return;
-        const map = res.results as Record<string, { found: boolean; summary: { total: number; success: number; cancelled: number } }>;
+        const map = res.results as Record<
+          string,
+          { found: boolean; summary: { total: number; success: number; cancelled: number } }
+        >;
         setRows((prev) => {
           const next = { ...prev };
           for (const o of orders) {
@@ -189,7 +192,9 @@ export function PhoneHistorySyncDialog({
         setRows((prev) => {
           const next = { ...prev };
           for (const o of orders) {
-            if (next[o.id]) next[o.id] = { ...next[o.id], loading: false, error: (e as Error).message };
+            if (next[o.id]) {
+              next[o.id] = { ...next[o.id], loading: false, error: (e as Error).message };
+            }
           }
           return next;
         });
