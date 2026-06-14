@@ -16,28 +16,32 @@ const TAB_DOT: Record<StatusTabKey, string> = {
   exchange:       "bg-violet-500",
   on_hold:        "bg-yellow-500",
   cancelled:      "bg-zinc-400",
+  incomplete:     "bg-pink-500",
 };
 
 type Props = {
   active: StatusTabKey;
   counts: Record<string, number>;
   total: number;
-  onChange: (statuses: OrderStatus[]) => void;
+  onChange: (statuses: OrderStatus[], tabKey: StatusTabKey) => void;
+  incompleteCount?: number;
 };
 
-export function OrdersStatusTabs({ active, counts, total, onChange }: Props) {
+export function OrdersStatusTabs({ active, counts, total, onChange, incompleteCount = 0 }: Props) {
   return (
     <div className="border-b bg-gradient-to-b from-muted/30 to-card overflow-x-auto">
       <div className="flex items-stretch gap-0.5 px-2 min-w-max">
         {STATUS_TABS.map((t) => {
           const c = t.key === "all"
             ? total
-            : t.statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
+            : t.key === "incomplete"
+              ? incompleteCount
+              : t.statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
           const isActive = active === t.key;
           return (
             <button
               key={t.key}
-              onClick={() => onChange(t.statuses)}
+              onClick={() => onChange(t.statuses, t.key)}
               className={cn(
                 "group relative inline-flex items-center gap-2 px-3 h-11 text-[13px] font-medium whitespace-nowrap transition-all",
                 "after:absolute after:left-3 after:right-3 after:bottom-[-1px] after:h-[2px] after:rounded-full after:transition-all",

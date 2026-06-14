@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       abandoned_carts: {
         Row: {
+          brand_id: string | null
           cart_items: Json
           converted_order_id: string | null
           created_at: string
@@ -35,6 +36,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          brand_id?: string | null
           cart_items?: Json
           converted_order_id?: string | null
           created_at?: string
@@ -54,6 +56,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          brand_id?: string | null
           cart_items?: Json
           converted_order_id?: string | null
           created_at?: string
@@ -72,7 +75,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_carts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       active_sessions: {
         Row: {

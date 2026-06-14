@@ -1,83 +1,55 @@
+## Incomplete Orders (Abandoned Checkout) Tab
 
-## Goal
-Order List e bulk select kore "Sync Courier Status" button. Pathao + Steadfast direct API theke per-order live status enbe, preview dialog e ERP status mapping dekhabe (per-row editable), confirm korle bulk apply hobe.
+Website checkout-e jara name/phone/address diyeche kintu order place koreni — tader ekta notun **"Incomplete"** tab e dekhabo Order List er moddhe. Eta `abandoned_carts` table theke ashbe (ja already exist kore). Staff chaile ekhan theke confirm korte parbe — confirm korle real order create hobe.
 
-## Identifier strategy (kivabe match korbo)
-Per order following priority te courier identifier resolve hobe:
+### Scope
 
-1. **`courier_shipments` table** e existing record thakle → `consignment_id` + `provider` use kore direct track API call.
-2. **`orders.tracking_number` + `courier_name`** thakle → setei track call.
-3. **Steadfast specifically** → `invoice_no` diye `/status_by_invoice` fallback.
-4. **Eta kichu na thakle** → row dekhabe "No tracking — paste consignment ID" inline input. User paste korle live fetch.
+1. **Notun "Incomplete" tab** Order Status Tabs strip e (orange/gray dot).
+   - Count = `abandoned_carts` rows jegulo `is_converted = false` AND `customer_phone` non-empty AND current brand er.
+   - Brand scope: `abandoned_carts` e direct `brand_id` nei, tai cart_items er prothom product theke brand resolve korbo (ba ekta brand_id column add korbo — recommended).
 
-Phone-only purono order er jonno: Phase 2 e alada "Phone history matcher" dialog (boltobo separately). Eta Phase 1 e nai.
+2. **Incomplete table view** (separate component, normal orders table noy):
+   - Columns: Date, Customer Name, Phone, Address (city/district), Items count, Subtotal, Last Step, Actions
+   - Row click → Drawer with full cart details + customer info
+   - Actions: **Confirm → Order**, **Call**, **Delete**
 
-## Status mapping (editable)
-Default mapping (constants file):
+3. **"Confirm to Order" flow**:
+   - Server function `convertAbandonedCartToOrder({ cartId, brandId })`
+   - Creates a real `orders` row with status = `confirmed`, source = `website`, all customer fields copied
+   - Creates `order_items` from `cart_items` jsonb
+   - Calls `mark_abandoned_cart_converted(cartId, newOrderId)`
+   - Returns new order id → opens order drawer
 
-```text
-Pathao:
-  Delivered / Partial Delivered          → delivered / partial_delivered
-  Pickup_Requested / Pickup / Pickup_Failed → ready_to_ship
-  At_Sorting_HUB / In_Transit / On_Delivery → shipped
-  Hold                                    → on_hold
-  Delivery_Failed / Return / Returned     → returned
-  Cancelled                               → cancelled
+4. **Filtering**:
+   - Only show carts with phone length ≥ 10 AND at least 1 item
+   - Sort by `updated_at DESC`
+   - Old carts (>30 days, configurable) hide korbo by default
 
-Steadfast:
-  delivered                  → delivered
-  partial_delivered          → partial_delivered
-  in_review / pending        → ready_to_ship
-  in_transit / hold          → shipped
-  delivery_failed / cancelled / returned → returned/cancelled
-  unknown / unknown_approval → on_hold
-```
+### Technical Details
 
-Settings page (`erp.settings.tsx`) e ekta "Courier Status Mapping" card add hobe — `erp_settings.courier_status_mapping jsonb` column theke load/save, per-brand. Mapping editor table format e: courier status text + dropdown to ERP status. Phase 1 e default ship korbo, settings card next phase e add korbo (default constants prothome built-in thakbe, kaj korbe).
+**Schema change** (1 migration):
+- `abandoned_carts.brand_id uuid` add (nullable, FK to brands). Backfill via cart_items[0].product_id → products.brand_id.
+- Trigger: on insert/update of abandoned_carts, auto-set brand_id from first cart item's product.
 
-## UI flow
+**New files**:
+- `src/lib/erp/abandoned-carts.functions.ts` — `listAbandonedCarts`, `convertAbandonedCartToOrder`, `deleteAbandonedCart`
+- `src/components/erp/orders/incomplete-orders-table.tsx`
+- `src/components/erp/orders/incomplete-cart-drawer.tsx`
+- `src/hooks/erp/use-abandoned-carts-query.ts`
 
-1. Orders list page e checkbox diye order select.
-2. Bulk Actions popover → "Courier Services" section → naya button **"Sync Courier Status"** (disabled icon ta remove).
-3. Click hole new `CourierStatusSyncDialog` open. Dialog er upore: spinner + progress (X / Y fetched).
-4. Server fn `syncCourierStatusFn` selected orderIds[] niye return korbe array of:
-   ```
-   { order_id, invoice_no, customer, phone, current_status,
-     provider, identifier, fetched_status, mapped_status,
-     ok, error }
-   ```
-5. Dialog table:
-   - Order (invoice + name)
-   - Current status badge → arrow → **Editable dropdown** (proposed mapped status, all ERP statuses)
-   - Courier raw status (small muted text)
-   - Checkbox per row (default checked if `mapped_status != current_status` and `ok`)
-   - Error row: red, "No tracking" → inline input for consignment ID + "Fetch" button.
-6. Footer: "Apply X updates" button → loops `transition_order_status` RPC for each checked row → toast + invalidate queries + close.
+**Modified files**:
+- `src/lib/erp/orders.ts` — add `"incomplete"` to `StatusTabKey`, add tab entry in `STATUS_TABS`
+- `src/components/erp/orders/orders-status-tabs.tsx` — add dot color for incomplete
+- `src/routes/_authenticated/erp.orders.list.tsx` — when active tab === "incomplete", render IncompleteOrdersTable instead of normal OrdersTable
+- `src/hooks/erp/use-orders-query.ts` — add `useIncompleteCount` for tab badge
 
-## Files to add / edit
+**RLS / Grants**:
+- `abandoned_carts` already has policies; verify staff (admin/CS/ops) can SELECT/UPDATE/DELETE rows for their brand.
+- Add policy if missing.
 
-**New:**
-- `src/lib/erp/courier-sync.functions.ts` — `syncCourierStatusFn` (server fn). Loops orderIds, resolves identifier per priority, calls Pathao `track()` or Steadfast `trackByCid/Invoice`, normalizes raw status string, applies default mapping.
-- `src/lib/erp/courier-status-mapping.ts` — pure mapping constants + `mapCourierStatus(provider, raw)` helper. Client-safe (used by dialog too for re-mapping when user edits).
-- `src/components/erp/orders/courier-status-sync-dialog.tsx` — the preview dialog.
+### Out of scope (next iteration)
+- Auto-recovery emails/SMS to incomplete carts
+- Funnel analytics (drop-off rate by step)
+- Bulk confirm/delete actions
 
-**Edit:**
-- `src/components/erp/orders/orders-bulk-actions.tsx` — add real "Sync Courier Status" action with `onSyncCourier` prop, remove the disabled placeholder.
-- `src/routes/_authenticated/erp.orders.list.tsx` — wire state + dialog mount, pass selected ids and rows.
-
-## Technical notes
-
-- Server fn rate-limits: batch of 4 parallel calls (mirror of `fetchCourierHistoryFn`).
-- For each shipment row uniquely identified by `order_id`, pick latest one (`order_by created_at desc, limit 1`).
-- Pathao status field path: `response.data.order_status` or `status` string. Normalize lowercase + underscore.
-- Steadfast status field: `response.delivery_status`.
-- Errors per-order surfaced inline; one failure doesn't break others.
-- `transition_order_status` already enforces auth + logs history — reuse it.
-- No DB migration needed Phase 1 (mapping is hard-coded default). Settings editor + jsonb column comes Phase 2.
-
-## Out of scope (Phase 2, alada plan)
-## Phase 2 — DONE
-- Editable mapping UI: `src/components/erp/settings/courier-mapping-settings.tsx`, saves to `erp_settings.config.courier_status_mapping` (per-brand). Sync fn + cron + webhook all load brand overrides.
-- Phone-based historical matcher: `src/components/erp/orders/phone-history-sync-dialog.tsx`. Uses existing `fetchCourierHistoryFn`. Suggests status from delivered/cancelled counts.
-- Auto-sync cron: `src/routes/api/public/cron/sync-courier.ts`, hourly pg_cron job `auto-sync-courier-status`, processes ready_to_ship/shipped/in_transit orders.
-- Pathao webhook: `src/routes/api/public/webhook/pathao.ts`. Configure at Pathao with URL `https://swus-erp.lovable.app/api/public/webhook/pathao`, signature header `X-PATHAO-Signature` = env `PATHAO_WEBHOOK_SECRET` (default `f3992ecc-...`).
+Confirm korle implement korbo.
