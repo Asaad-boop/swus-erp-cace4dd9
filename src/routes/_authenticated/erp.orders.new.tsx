@@ -901,6 +901,7 @@ function MoneyField({
 type PastSummary = {
   total: number; delivered: number; cancelled: number; returned: number; spent: number;
   last: { id: string; created_at: string; total: number; status: string } | null;
+  recent?: { id: string; created_at: string; total: number; status: string }[];
 } | undefined;
 
 type CourierData = {
