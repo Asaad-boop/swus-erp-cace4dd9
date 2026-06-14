@@ -67,6 +67,18 @@ function InventoryPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
 
+  // Stock valuation across all rows in current page (for summary card we use full count via separate query when needed)
+  const summary = useMemo(() => {
+    let units = 0, value = 0, low = 0, out = 0;
+    for (const r of rows) {
+      units += r.stock;
+      value += (Number(r.cost_price ?? 0)) * r.stock;
+      if (r.stock <= 0) out += 1;
+      else if (r.stock <= (r.low_stock_threshold ?? 5)) low += 1;
+    }
+    return { units, value, low, out };
+  }, [rows]);
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -81,9 +93,17 @@ function InventoryPage() {
         </Button>
       </header>
 
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard icon={<Package className="h-4 w-4" />} label="Products (page)" value={rows.length.toLocaleString()} hint={`${total.toLocaleString()} total`} />
+        <StatCard icon={<Boxes className="h-4 w-4" />} label="Stock units (page)" value={summary.units.toLocaleString()} />
+        <StatCard icon={<Wallet className="h-4 w-4" />} label="Stock value (page)" value={`৳${summary.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} hint="cost × stock" />
+        <StatCard icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} label="Low / Out (page)" value={`${summary.low} / ${summary.out}`} hint={lowQuery.data?.length ? `${lowQuery.data.length} alerts total` : undefined} />
+      </div>
+
       <Tabs defaultValue="products">
         <TabsList>
           <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="opening">Opening Stock</TabsTrigger>
           <TabsTrigger value="low">
             Low Stock {lowQuery.data?.length ? <Badge variant="destructive" className="ml-2">{lowQuery.data.length}</Badge> : null}
           </TabsTrigger>
@@ -96,9 +116,10 @@ function InventoryPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="Search by product title…"
+                placeholder="Search title, SKU, barcode, slug… (scanner ready)"
                 value={filter.search}
                 onChange={(e) => setFilter({ ...filter, search: e.target.value, page: 0 })}
+                autoFocus
               />
             </div>
             <Select
