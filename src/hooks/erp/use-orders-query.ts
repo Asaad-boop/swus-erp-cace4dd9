@@ -170,7 +170,7 @@ export function useCustomerHistory(phone: string | null, brandId: string | null,
           a.spent += Number(r.total) || 0;
           if (r.status === "delivered") a.delivered += 1;
           else if (r.status === "cancelled") a.cancelled += 1;
-          else if (r.status === "returned" || r.status === "pending_return") a.returned += 1;
+          else if (r.status === "returned") a.returned += 1;
           return a;
         },
         { total: 0, spent: 0, delivered: 0, cancelled: 0, returned: 0 },
