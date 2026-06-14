@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown } from "lucide-react";
+import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown, Phone } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { STATUS_GROUPS, statusAccent, statusBadge, type OrderStatus } from "@/lib/erp/orders";
@@ -13,11 +13,12 @@ type Props = {
   onExport: () => void;
   onSendToPathao: () => void;
   onSyncCourier: () => void;
+  onPhoneHistory: () => void;
   onPrint: (mode: "invoice" | "sticker" | "picking" | "sheet") => void;
   isPending: boolean;
 };
 
-export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onSyncCourier, onPrint, isPending }: Props) {
+export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onSyncCourier, onPhoneHistory, onPrint, isPending }: Props) {
   const disabled = selectedCount === 0;
   const [open, setOpen] = useState(false);
 
@@ -97,6 +98,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
         <Section label="Courier Services">
           <ActionRow icon={Truck} label="Send to Pathao" onClick={onSendToPathao} disabled={disabled} />
           <ActionRow icon={RefreshCw} label="Sync Courier Status" onClick={onSyncCourier} disabled={disabled} />
+          <ActionRow icon={Phone} label="Match by Phone (History)" onClick={onPhoneHistory} disabled={disabled} />
         </Section>
 
         <Section label="Tools & Export">
