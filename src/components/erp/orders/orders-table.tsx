@@ -1,5 +1,5 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, User as UserIcon, Copy, ImageIcon } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -31,21 +31,30 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     {
       id: "select",
       header: () => (
-        <Checkbox
-          checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
-          onCheckedChange={(v) => onToggleAll(!!v)}
-          aria-label="Select all"
-        />
+        <div className="pl-1">
+          <Checkbox
+            checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
+            onCheckedChange={(v) => onToggleAll(!!v)}
+            aria-label="Select all"
+          />
+        </div>
       ),
       cell: ({ row }) => (
-        <Checkbox
-          checked={selectedIds.has(row.original.id)}
-          onCheckedChange={() => onToggleSelect(row.original.id)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Select row"
-        />
+        <div className="relative pl-1">
+          <span
+            aria-hidden
+            className="absolute left-[-12px] top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full"
+            style={{ backgroundColor: statusAccent(row.original.status) }}
+          />
+          <Checkbox
+            checked={selectedIds.has(row.original.id)}
+            onCheckedChange={() => onToggleSelect(row.original.id)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Select row"
+          />
+        </div>
       ),
-      size: 36,
+      size: 40,
     },
     {
       header: "Date",
@@ -85,31 +94,39 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
         const o = row.original;
         const phone = customerPhone(o);
         const addr = [o.shipping_address, o.shipping_city, o.shipping_district].filter(Boolean).join(", ");
+        const name = customerName(o);
+        const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
         return (
-          <div className="text-xs space-y-0.5 min-w-[200px] max-w-[260px]">
-            <div className="flex items-center gap-1.5 font-medium text-sm">
-              <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-              <span className="truncate">{customerName(o)}</span>
+          <div className="flex items-start gap-2.5 min-w-[220px] max-w-[280px]">
+            <div
+              className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-sm ring-1 ring-black/5"
+              style={{ background: `linear-gradient(135deg, ${statusAccent(o.status)}, ${statusAccent(o.status)}cc)` }}
+              title={name}
+            >
+              {initial}
             </div>
-            {phone && (
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Phone className="h-3 w-3 shrink-0" />
-                <span className="font-mono">{phone}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
-                  className="p-0.5 rounded hover:bg-muted"
-                  title="Copy phone"
-                >
-                  <Copy className="h-2.5 w-2.5" />
-                </button>
-              </div>
-            )}
-            {addr && (
-              <div className="flex items-start gap-1.5 text-muted-foreground">
-                <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
-                <span className="line-clamp-2 leading-tight">{addr}</span>
-              </div>
-            )}
+            <div className="text-xs space-y-0.5 min-w-0">
+              <div className="font-semibold text-sm truncate text-foreground">{name}</div>
+              {phone && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Phone className="h-3 w-3 shrink-0" />
+                  <span className="font-mono">{phone}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copyText(phone, "Phone"); }}
+                    className="p-0.5 rounded hover:bg-muted opacity-0 group-hover/row:opacity-100 transition-opacity"
+                    title="Copy phone"
+                  >
+                    <Copy className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              )}
+              {addr && (
+                <div className="flex items-start gap-1.5 text-muted-foreground/80">
+                  <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+                  <span className="line-clamp-2 leading-snug">{addr}</span>
+                </div>
+              )}
+            </div>
           </div>
         );
       },
@@ -138,8 +155,11 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
     {
       header: "Total",
       cell: ({ row }) => (
-        <div className="text-right font-semibold text-sm tabular-nums whitespace-nowrap">
-          ৳ {Number(row.original.total).toLocaleString()}
+        <div className="text-right whitespace-nowrap">
+          <div className="font-bold text-sm tabular-nums">৳{Number(row.original.total).toLocaleString()}</div>
+          {row.original.payment_method && (
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{row.original.payment_method}</div>
+          )}
         </div>
       ),
     },
@@ -241,12 +261,11 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer transition-colors border-b last:border-0 hover:bg-muted/40 group/row"
+                className="cursor-pointer transition-colors border-b last:border-0 hover:bg-muted/50 group/row"
                 onClick={() => onRowClick(row.original.id)}
-                style={{ boxShadow: `inset 3px 0 0 0 ${statusAccent(row.original.status)}` }}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-3 px-3 align-top">
+                  <TableCell key={cell.id} className="py-3 px-3 align-middle">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

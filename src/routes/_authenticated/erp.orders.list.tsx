@@ -86,31 +86,43 @@ function OrdersPage() {
   const activeTab = tabForStatuses(effective.statuses);
 
   return (
-    <div className="p-4 md:p-6 space-y-4 min-h-screen bg-muted/20">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="p-4 md:p-6 space-y-4 min-h-screen bg-gradient-to-b from-muted/30 via-muted/10 to-background">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {activeBrand?.name ?? "All brands"}
-          </div>
-          <div className="flex items-baseline gap-3 mt-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-            <span className="text-sm text-muted-foreground">
-              <span className="tabular-nums font-medium text-foreground">{total.toLocaleString()}</span> total
-              {isFetching && <span className="ml-2 text-xs text-primary">syncing…</span>}
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-60 animate-ping" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
+            {activeBrand?.name ?? "All brands"} · Orders
+          </div>
+          <div className="flex items-baseline gap-3 mt-1.5">
+            <h1 className="text-[28px] font-bold tracking-tight leading-none">Orders</h1>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-foreground/5 border text-xs">
+              <span className="tabular-nums font-bold text-foreground">{total.toLocaleString()}</span>
+              <span className="text-muted-foreground">total</span>
+              {isFetching && <span className="text-primary font-medium">· syncing</span>}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9" onClick={() => qc.invalidateQueries({ queryKey: ["orders"] })} title="Refresh">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5" /> Export
-          </Button>
+        <div className="flex items-center gap-1.5">
+          <div className="inline-flex rounded-lg border bg-card shadow-sm overflow-hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 rounded-none border-r"
+              onClick={() => qc.invalidateQueries({ queryKey: ["orders"] })}
+              title="Refresh"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-9 rounded-none gap-1.5" onClick={handleExport}>
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
+          </div>
           <Link to="/erp/orders/new">
-            <Button size="sm" className="h-9 shadow-sm">
-              <Plus className="h-3.5 w-3.5 mr-1.5" />New Order
+            <Button size="sm" className="h-9 shadow-sm gap-1.5 px-3">
+              <Plus className="h-3.5 w-3.5" />New Order
             </Button>
           </Link>
         </div>
