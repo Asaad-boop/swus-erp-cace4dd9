@@ -76,7 +76,8 @@ Settings page (`erp.settings.tsx`) e ekta "Courier Status Mapping" card add hobe
 - No DB migration needed Phase 1 (mapping is hard-coded default). Settings editor + jsonb column comes Phase 2.
 
 ## Out of scope (Phase 2, alada plan)
-- Phone-based historical matcher (purono ERP order er jonno).
-- Editable mapping UI in Settings.
-- Auto-sync cron / scheduled refresh.
-- Pathao webhook listener for real-time push.
+## Phase 2 — DONE
+- Editable mapping UI: `src/components/erp/settings/courier-mapping-settings.tsx`, saves to `erp_settings.config.courier_status_mapping` (per-brand). Sync fn + cron + webhook all load brand overrides.
+- Phone-based historical matcher: `src/components/erp/orders/phone-history-sync-dialog.tsx`. Uses existing `fetchCourierHistoryFn`. Suggests status from delivered/cancelled counts.
+- Auto-sync cron: `src/routes/api/public/cron/sync-courier.ts`, hourly pg_cron job `auto-sync-courier-status`, processes ready_to_ship/shipped/in_transit orders.
+- Pathao webhook: `src/routes/api/public/webhook/pathao.ts`. Configure at Pathao with URL `https://swus-erp.lovable.app/api/public/webhook/pathao`, signature header `X-PATHAO-Signature` = env `PATHAO_WEBHOOK_SECRET` (default `f3992ecc-...`).
