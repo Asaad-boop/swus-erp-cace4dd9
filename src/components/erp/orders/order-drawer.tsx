@@ -43,6 +43,16 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const items = data?.items ?? [];
   const history = data?.history ?? [];
   const notes = data?.notes ?? [];
+  const subtotal = Number(order?.subtotal ?? 0);
+  const shippingFee = Number(order?.shipping_fee ?? 0);
+  const discountAmount = Number(order?.discount_amount ?? 0);
+  const advanceAmount = Number(order?.advance_amount ?? 0);
+  const grossTotal = Math.max(0, subtotal + shippingFee - discountAmount);
+  const dueTotal = Math.max(0, grossTotal - advanceAmount);
+  const payableTotal = advanceAmount > 0 ? dueTotal : Number(order?.total ?? grossTotal);
+  const advanceSource = (order as { advance_source?: string | null } | undefined)?.advance_source;
+  const advancePaymentNumber = (order as { advance_payment_number?: string | null } | undefined)?.advance_payment_number;
+  const advanceTxnId = (order as { advance_txn_id?: string | null } | undefined)?.advance_txn_id;
 
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
@@ -154,7 +164,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                 <div className="flex items-center gap-3">
                   <div className="text-right hidden sm:block">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-                    <div className="text-xl font-bold tabular-nums">৳ {Number(order.total).toLocaleString()}</div>
+                    <div className="text-xl font-bold tabular-nums">৳ {payableTotal.toLocaleString()}</div>
                   </div>
                   <Badge className={statusBadge(order.status).className + " text-xs px-3 py-1 rounded-full"}>{statusBadge(order.status).label}</Badge>
                 </div>
@@ -196,12 +206,22 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                       ))}
                     </div>
                     <div className="mt-4 pt-3 border-t space-y-1.5 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">৳ {Number(order.subtotal).toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">৳ {Number(order.shipping_fee).toLocaleString()}</span></div>
-                      {Number(order.discount_amount) > 0 && (
-                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− ৳ {Number(order.discount_amount).toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">৳ {subtotal.toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">৳ {shippingFee.toLocaleString()}</span></div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− ৳ {discountAmount.toLocaleString()}</span></div>
                       )}
-                      <div className="flex justify-between font-bold text-base pt-2 mt-1 border-t"><span>Total</span><span className="tabular-nums text-primary">৳ {Number(order.total).toLocaleString()}</span></div>
+                      {advanceAmount > 0 && (
+                        <div className="space-y-1.5 rounded-md border bg-muted/30 p-2.5">
+                          <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400"><span>Advance Paid</span><span className="tabular-nums">− ৳ {advanceAmount.toLocaleString()}</span></div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] text-muted-foreground">
+                            <span><b className="text-foreground">Source:</b> {advanceSource || "—"}</span>
+                            <span><b className="text-foreground">Number:</b> {advancePaymentNumber || "—"}</span>
+                            <span><b className="text-foreground">Txn ID:</b> {advanceTxnId || "—"}</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-base pt-2 mt-1 border-t"><span>{advanceAmount > 0 ? "Due Total" : "Total"}</span><span className="tabular-nums text-primary">৳ {payableTotal.toLocaleString()}</span></div>
                     </div>
                   </section>
 
