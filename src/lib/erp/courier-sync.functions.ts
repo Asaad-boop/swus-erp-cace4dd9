@@ -92,6 +92,7 @@ async function syncOne(
     mapped_status: null,
     actual_fee: null,
     fee_recorded: false,
+    fee_breakdown: null,
     ok: false,
   };
 
@@ -142,6 +143,14 @@ async function syncOne(
       const total = extractFee(res, ["total_price", "invoice_amount", "merchant_total"]);
       const sum = deliveryFee + codFee + extra;
       base.actual_fee = total && total > 0 ? total : (sum > 0 ? sum : null);
+      if (base.actual_fee && base.actual_fee > 0) {
+        base.fee_breakdown = {
+          delivery: deliveryFee,
+          cod: codFee,
+          extra,
+          total: base.actual_fee,
+        };
+      }
     } else {
       const { loadSteadfastCreds, createSteadfastClient } = await import("./steadfast.server");
       const creds = await loadSteadfastCreds(supabase, effectiveBrand);
@@ -273,6 +282,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
             actual_shipping_cost: r.actual_fee,
             actual_shipping_source: "auto",
             actual_shipping_recorded_at: new Date().toISOString(),
+            actual_shipping_breakdown: r.fee_breakdown ?? null,
           })
           .eq("id", r.order_id);
         if (uErr) continue;
