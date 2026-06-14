@@ -179,6 +179,40 @@ export function BusinessSettings() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ---------------- Logo upload ----------------
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleLogoFile(file: File) {
+    if (!brandId) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Logo must be under 4 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `brands/${brandId}/logo-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
+      set("logo_url", pub.publicUrl);
+      toast.success("Logo uploaded — click Update to save");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (!brandId) {
     return <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Select a brand to edit its settings.</div>;
   }
