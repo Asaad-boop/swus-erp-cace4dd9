@@ -1380,6 +1380,9 @@ export type Database = {
         Row: {
           admin_notes: string | null
           advance_amount: number
+          advance_payment_number: string | null
+          advance_source: string | null
+          advance_txn_id: string | null
           alternate_phone: string | null
           assigned_to: string | null
           auto_call_enabled: boolean | null
@@ -1472,6 +1475,9 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           advance_amount?: number
+          advance_payment_number?: string | null
+          advance_source?: string | null
+          advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
           auto_call_enabled?: boolean | null
@@ -1564,6 +1570,9 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           advance_amount?: number
+          advance_payment_number?: string | null
+          advance_source?: string | null
+          advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
           auto_call_enabled?: boolean | null
