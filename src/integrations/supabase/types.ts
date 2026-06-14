@@ -1881,9 +1881,11 @@ export type Database = {
       }
       products: {
         Row: {
+          barcode: string | null
           benefits: Json
           brand_id: string | null
           category_id: string | null
+          cost_price: number
           created_at: string
           description: string
           display_order: number
@@ -1897,9 +1899,11 @@ export type Database = {
           old_price: number | null
           price: number
           rating: number
+          reorder_point: number | null
           reviews: number
           shipping_fee_inside: number | null
           shipping_fee_outside: number | null
+          sku: string | null
           slug: string
           specs: Json
           stock: number
@@ -1907,9 +1911,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
           benefits?: Json
           brand_id?: string | null
           category_id?: string | null
+          cost_price?: number
           created_at?: string
           description?: string
           display_order?: number
@@ -1923,9 +1929,11 @@ export type Database = {
           old_price?: number | null
           price: number
           rating?: number
+          reorder_point?: number | null
           reviews?: number
           shipping_fee_inside?: number | null
           shipping_fee_outside?: number | null
+          sku?: string | null
           slug: string
           specs?: Json
           stock?: number
@@ -1933,9 +1941,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
           benefits?: Json
           brand_id?: string | null
           category_id?: string | null
+          cost_price?: number
           created_at?: string
           description?: string
           display_order?: number
@@ -1949,9 +1959,11 @@ export type Database = {
           old_price?: number | null
           price?: number
           rating?: number
+          reorder_point?: number | null
           reviews?: number
           shipping_fee_inside?: number | null
           shipping_fee_outside?: number | null
+          sku?: string | null
           slug?: string
           specs?: Json
           stock?: number
@@ -2389,12 +2401,32 @@ export type Database = {
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
       reserve_stock: { Args: { _order_id: string }; Returns: undefined }
+      set_product_stock: {
+        Args: {
+          _new_qty: number
+          _note?: string
+          _product_id: string
+          _reason?: string
+        }
+        Returns: Json
+      }
       transition_order_status: {
         Args: {
           _new_status: Database["public"]["Enums"]["order_status"]
           _note?: string
           _order_id: string
           _reason?: string
+        }
+        Returns: undefined
+      }
+      update_product_inventory_fields: {
+        Args: {
+          _barcode?: string
+          _cost_price?: number
+          _low_stock_threshold?: number
+          _product_id: string
+          _reorder_point?: number
+          _sku?: string
         }
         Returns: undefined
       }
