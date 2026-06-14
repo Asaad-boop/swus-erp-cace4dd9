@@ -354,6 +354,167 @@ export const pathaoTrackFn = createServerFn({ method: "POST" })
     return { status, info };
   });
 
+/**
+ * Auto-detect city/zone/area from the order's shipping address (using AI) and
+ * book a Pathao consignment in one call. Designed for bulk "Send to Pathao".
+ */
+export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        orderId: z.string().uuid(),
+        item_weight: z.number().positive().default(0.5),
+        item_quantity: z.number().int().positive().default(1),
+        delivery_type: z.union([z.literal(48), z.literal(12)]).default(48),
+        item_type: z.union([z.literal(1), z.literal(2)]).default(2),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCourierRole(context.supabase, context.userId);
+    const { supabase, userId } = context;
+
+    const { data: order, error: oErr } = await supabase
+      .from("orders")
+      .select(
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_address, shipping_thana, shipping_city, shipping_district, total, items:order_items(name, quantity)",
+      )
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (oErr) throw oErr;
+    if (!order) throw new Error("Order not found");
+
+    // Bail early if already booked with Pathao
+    const { data: existing } = await supabase
+      .from("courier_shipments")
+      .select("consignment_id, tracking_code")
+      .eq("order_id", order.id)
+      .eq("provider", "pathao")
+      .limit(1)
+      .maybeSingle();
+    if (existing?.consignment_id) {
+      return {
+        skipped: true,
+        consignment: existing.consignment_id,
+        tracking: existing.tracking_code,
+        message: "Already booked",
+      };
+    }
+
+    const name = order.shipping_name || order.guest_name || "Customer";
+    const phone = order.shipping_phone || order.guest_phone || "";
+    const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+      .filter(Boolean)
+      .join(", ");
+    if (!phone || address.length < 5) throw new Error("Missing phone or address");
+
+    // Resolve city / zone / area
+    const client = await clientForBrand(supabase, order.brand_id);
+    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityPick = await aiPickFromList({
+      address,
+      stage: "city",
+      items: citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })),
+    });
+    if (!cityPick.id) throw new Error("Could not detect city from address");
+
+    const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
+    const zonePick = await aiPickFromList({
+      address,
+      stage: "zone",
+      parentLabel: cityPick.name ?? undefined,
+      items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
+    });
+    if (!zonePick.id) throw new Error("Could not detect zone from address");
+
+    let areaId: number | undefined;
+    try {
+      const areasRaw = (await client.areas(zonePick.id)) as Array<{ area_id: number; area_name: string }>;
+      if (areasRaw.length > 0) {
+        const pick = await aiPickFromList({
+          address,
+          stage: "area",
+          parentLabel: zonePick.name ?? undefined,
+          items: areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
+        });
+        if (pick.id) areaId = pick.id;
+      }
+    } catch { /* area is optional */ }
+
+    const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
+    const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
+    const desc = items
+      .map((it) => `${it.quantity ?? 1}× ${it.name ?? "item"}`)
+      .join(", ")
+      .slice(0, 480) || "Order items";
+
+    const merchantId = order.invoice_no || order.id.slice(0, 8).toUpperCase();
+    const result: any = await client.createOrder({
+      store_id: client.storeId,
+      merchant_order_id: merchantId,
+      recipient_name: name,
+      recipient_phone: phone,
+      recipient_address: address,
+      recipient_city: cityPick.id,
+      recipient_zone: zonePick.id,
+      recipient_area: areaId,
+      delivery_type: data.delivery_type,
+      item_type: data.item_type,
+      item_quantity: totalQty,
+      item_weight: data.item_weight,
+      amount_to_collect: Number(order.total) || 0,
+      item_description: desc,
+    });
+
+    const consignment = result?.consignment_id || result?.data?.consignment_id || null;
+    const tracking = result?.tracking_code || result?.data?.tracking_code || null;
+    const fee = Number(result?.delivery_fee ?? result?.data?.delivery_fee ?? 0);
+    const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
+
+    const { data: shipment, error: sErr } = await supabase
+      .from("courier_shipments")
+      .insert({
+        order_id: order.id,
+        brand_id: order.brand_id,
+        provider: "pathao",
+        consignment_id: consignment,
+        merchant_order_id: merchantId,
+        tracking_code: tracking,
+        delivery_fee: fee || null,
+        status,
+        request_payload: { auto: true, city: cityPick, zone: zonePick, area: areaId } as never,
+        response_payload: result as never,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (sErr) throw sErr;
+
+    if (fee > 0) {
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
+    }
+
+    await supabase
+      .from("orders")
+      .update({
+        courier_name: "pathao",
+        courier_assigned_at: new Date().toISOString(),
+        tracking_number: consignment ?? undefined,
+      })
+      .eq("id", order.id);
+
+    return {
+      shipmentId: shipment.id,
+      consignment,
+      tracking,
+      fee,
+      status,
+      city: cityPick.name,
+      zone: zonePick.name,
+    };
+  });
+
 // ---- Settings management ----
 
 const SettingsSchema = z.object({

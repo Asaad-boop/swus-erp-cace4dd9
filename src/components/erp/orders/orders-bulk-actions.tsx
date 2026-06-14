@@ -11,10 +11,11 @@ type Props = {
   onClear: () => void;
   onStatus: (s: OrderStatus) => void;
   onExport: () => void;
+  onSendToPathao: () => void;
   isPending: boolean;
 };
 
-export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, isPending }: Props) {
+export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, isPending }: Props) {
   const disabled = selectedCount === 0;
   const [open, setOpen] = useState(false);
 
@@ -74,7 +75,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
         </Section>
 
         <Section label="Courier Services">
-          <ActionRow icon={Truck} label="Send to Pathao" disabled />
+          <ActionRow icon={Truck} label="Send to Pathao" onClick={onSendToPathao} disabled={disabled} />
           <ActionRow icon={RefreshCw} label="Refresh Status" disabled />
         </Section>
 
