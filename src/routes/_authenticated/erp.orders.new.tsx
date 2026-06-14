@@ -1077,6 +1077,28 @@ function RecentOrderPreview({ order, onOpen }: { order: RecentOrder; onOpen: () 
   const [open, setOpen] = useState(false);
   const date = new Date(order.created_at);
   const tone = STATUS_TONE[order.status] ?? "bg-muted text-muted-foreground";
+  const { data: detail, isLoading } = useQuery({
+    queryKey: ["new-order-recent-preview", order.id],
+    enabled: open,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const [o, i] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("payment_method,payment_status,shipping_address,shipping_city,subtotal")
+          .eq("id", order.id)
+          .maybeSingle(),
+        supabase
+          .from("order_items")
+          .select("id,name,image,quantity,unit_price,line_total,variant_label")
+          .eq("order_id", order.id)
+          .limit(6),
+      ]);
+      return { order: o.data, items: i.data ?? [] };
+    },
+  });
+  const items = detail?.items ?? [];
+  const od = detail?.order;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -1089,7 +1111,7 @@ function RecentOrderPreview({ order, onOpen }: { order: RecentOrder; onOpen: () 
           <span className="font-extrabold tabular-nums text-white">৳{Number(order.total ?? 0).toLocaleString()}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" side="right" className="w-72 p-0">
+      <PopoverContent align="start" side="right" className="w-80 p-0">
         <div className="flex items-center justify-between border-b bg-gradient-to-r from-indigo-50 to-sky-50 px-3 py-2 dark:from-indigo-950/30 dark:to-sky-950/20">
           <div className="leading-tight">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Order</div>
@@ -1097,17 +1119,65 @@ function RecentOrderPreview({ order, onOpen }: { order: RecentOrder; onOpen: () 
           </div>
           <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", tone)}>{order.status}</span>
         </div>
-        <div className="space-y-2 p-3 text-xs">
+        <div className="space-y-1.5 px-3 py-2 text-[11px]">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Placed</span>
             <span className="font-semibold tabular-nums">
               {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} · {date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
-          <div className="flex items-center justify-between border-t pt-2">
-            <span className="text-muted-foreground">Total</span>
-            <span className="text-base font-extrabold tabular-nums text-indigo-700 dark:text-indigo-300">৳{Number(order.total ?? 0).toLocaleString()}</span>
+          {od?.payment_method && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Payment</span>
+              <span className="font-semibold uppercase">{od.payment_method}{od.payment_status ? ` · ${od.payment_status}` : ""}</span>
+            </div>
+          )}
+          {(od?.shipping_city || od?.shipping_address) && (
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-muted-foreground shrink-0">Ship to</span>
+              <span className="text-right font-medium line-clamp-2">{[od?.shipping_address, od?.shipping_city].filter(Boolean).join(", ")}</span>
+            </div>
+          )}
+        </div>
+        <div className="border-t bg-muted/20 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span>Items{items.length ? ` · ${items.length}` : ""}</span>
+            <span>Qty × Price</span>
           </div>
+          {isLoading ? (
+            <div className="space-y-1.5">
+              {[0, 1].map((i) => <div key={i} className="h-9 animate-pulse rounded bg-muted" />)}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-2 text-center text-[11px] text-muted-foreground">No items</div>
+          ) : (
+            <div className="space-y-1.5">
+              {items.slice(0, 4).map((it: any) => (
+                <div key={it.id} className="flex items-center gap-2 rounded-md bg-background px-1.5 py-1 ring-1 ring-border">
+                  {it.image ? (
+                    <img src={it.image} alt="" className="h-8 w-8 shrink-0 rounded object-cover ring-1 ring-border" />
+                  ) : (
+                    <div className="h-8 w-8 shrink-0 rounded bg-muted" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[11px] font-semibold leading-tight">{it.name}</div>
+                    {it.variant_label && <div className="truncate text-[9px] text-muted-foreground">{it.variant_label}</div>}
+                  </div>
+                  <div className="shrink-0 text-right text-[10px] tabular-nums">
+                    <div className="font-bold">×{it.quantity}</div>
+                    <div className="text-muted-foreground">৳{Number(it.unit_price ?? 0).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+              {items.length > 4 && (
+                <div className="text-center text-[10px] text-muted-foreground">+{items.length - 4} more item{items.length - 4 > 1 ? "s" : ""}</div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between border-t px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</span>
+          <span className="text-base font-extrabold tabular-nums text-indigo-700 dark:text-indigo-300">৳{Number(order.total ?? 0).toLocaleString()}</span>
         </div>
         <div className="border-t bg-muted/30 p-2">
           <Button
