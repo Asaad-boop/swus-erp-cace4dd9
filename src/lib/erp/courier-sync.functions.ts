@@ -342,7 +342,7 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,pathao_zone_id,shipping_city",
+        "id,invoice_no,status,shipping_name,guest_name,shipping_phone,guest_phone,courier_name,tracking_number,brand_id,total,pathao_city_id,pathao_zone_id,shipping_address,shipping_city,shipping_district,shipping_thana",
       )
       .in("id", data.orderIds);
     if (oErr) throw oErr;
