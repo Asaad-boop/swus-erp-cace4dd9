@@ -56,15 +56,79 @@ function extractPathaoStatus(payload: any): string | null {
 }
 
 function extractFee(payload: any, keys: string[]): number | null {
-  const d = payload?.data ?? payload;
-  for (const k of keys) {
-    const v = d?.[k];
-    if (v !== undefined && v !== null && v !== "") {
-      const n = Number(v);
-      if (Number.isFinite(n) && n > 0) return n;
+  const seen = new Set<any>();
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
     }
-  }
-  return null;
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function extractNumber(payload: any, keys: string[]): number | null {
+  const seen = new Set<any>();
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const visit = (node: any): number | null => {
+    if (!node || typeof node !== "object" || seen.has(node)) return null;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && value !== "") {
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function buildFeeBreakdown(input: {
+  deliveryFee: number;
+  collected: number;
+  codFeeRaw: number | null;
+  discount: number;
+  promoDiscount: number;
+  additional: number;
+  compensation: number;
+  totalCost: number | null;
+  isInsideDhaka: boolean;
+}) {
+  const codFee = input.codFeeRaw && input.codFeeRaw > 0
+    ? input.codFeeRaw
+    : (input.collected > 0 ? Math.round(input.collected * 0.01 * 100) / 100 : 0);
+  const standingDiscount = input.discount > 0 ? 0 : (input.isInsideDhaka ? 15 : 10);
+  const effectiveDiscount = input.discount + standingDiscount;
+  const computed = input.deliveryFee + codFee + input.additional + input.compensation - effectiveDiscount - input.promoDiscount;
+  const total = input.totalCost && input.totalCost > 0 ? input.totalCost : computed;
+  const roundedTotal = total > 0 ? Math.round(total * 100) / 100 : 0;
+  return {
+    actualFee: roundedTotal > 0 ? roundedTotal : null,
+    breakdown: {
+      delivery: input.deliveryFee,
+      cod: codFee,
+      discount: effectiveDiscount,
+      promo_discount: input.promoDiscount,
+      additional: input.additional,
+      compensation: input.compensation,
+      extra: input.additional + input.compensation,
+      total: roundedTotal,
+    },
+  };
 }
 
 function extractSteadfastStatus(payload: any): string | null {
