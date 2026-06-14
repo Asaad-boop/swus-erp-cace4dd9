@@ -1,13 +1,13 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare } from "lucide-react";
+import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, STATUS_GROUPS, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { useCustomerHistory, useCourierHistory, type CourierProviderStat } from "@/hooks/erp/use-orders-query";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
+
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  confirmed: "ready_to_pack",
+  ready_to_pack: "packed",
+  packed: "ready_to_ship",
+  ready_to_ship: "shipped",
+  shipped: "in_transit",
+  in_transit: "delivered",
+  pending_return: "returned",
+  exchange: "exchanged",
+};
 
 type Props = {
   rows: OrderRow[];
@@ -204,6 +215,8 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       cell: ({ row }) => {
         const o = row.original;
         const busy = pendingStatusId === o.id;
+        const next = NEXT_STATUS[o.status];
+        const nextLabel = next ? statusBadge(next).label : null;
         return (
           <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
             <DropdownMenu>
@@ -212,7 +225,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onClick={() => onRowClick(o.id)}>
                   <FileText className="h-4 w-4" /> Order Details
                 </DropdownMenuItem>
@@ -222,6 +235,44 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                 <DropdownMenuItem onClick={() => onRowClick(o.id)}>
                   <Pencil className="h-4 w-4" /> Edit
                 </DropdownMenuItem>
+                {next && nextLabel && (
+                  <DropdownMenuItem onClick={() => onStatusChange(o.id, next)}>
+                    <ArrowRight className="h-4 w-4" /> Next: {nextLabel}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <RefreshCcw className="h-4 w-4" /> Change Status
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-56 max-h-[60vh] overflow-y-auto">
+                      {STATUS_GROUPS.map((g, gi) => (
+                        <div key={g.key}>
+                          {gi > 0 && <DropdownMenuSeparator />}
+                          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground py-1">
+                            {g.label}
+                          </DropdownMenuLabel>
+                          {g.statuses.map((s) => {
+                            const b = statusBadge(s);
+                            const active = o.status === s;
+                            return (
+                              <DropdownMenuItem
+                                key={s}
+                                disabled={active}
+                                onClick={() => onStatusChange(o.id, s)}
+                                className="gap-2"
+                              >
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusAccent(s) }} />
+                                <span className="flex-1">{b.label}</span>
+                                {active && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
                 <DropdownMenuItem onClick={() => onStatusChange(o.id, "ready_to_ship")} disabled={o.status === "ready_to_ship"}>
                   <Send className="h-4 w-4" /> Send to RTS
                 </DropdownMenuItem>
