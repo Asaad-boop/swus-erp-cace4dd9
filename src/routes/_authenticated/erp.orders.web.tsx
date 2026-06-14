@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { computeAutoTags, topTag, type AutoTagKey } from "@/lib/erp/order-tags";
 import { AutoTagChips } from "@/components/erp/orders/auto-tag-chips";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
+import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
@@ -668,6 +669,7 @@ function WebOrdersPage() {
                               <div className="text-muted-foreground">
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
+                              <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
                             </button>
                           </PopoverTrigger>
                           <AllItemsPopover items={items} total={r.total} />
