@@ -1230,46 +1230,18 @@ function OrderDetailsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">
-                  Payment Source <span className="text-rose-600">*</span>
-                </label>
-                <Select value={pendingAdvSource} onValueChange={setPendingAdvSource}>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bKash">bKash</SelectItem>
-                    <SelectItem value="Nagad">Nagad</SelectItem>
-                    <SelectItem value="Rocket">Rocket</SelectItem>
-                    <SelectItem value="Upay">Upay</SelectItem>
-                    <SelectItem value="Bank">Bank Transfer</SelectItem>
-                    <SelectItem value="Card">Card</SelectItem>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">
-                  Payment Number / Last 4 Digits <span className="text-rose-600">*</span>
-                </label>
-                <Input
-                  inputMode="numeric"
-                  maxLength={20}
-                  value={pendingAdvNumber}
-                  onChange={(e) => setPendingAdvNumber(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="e.g. 01712345678 or 5678"
-                />
-                <p className="text-[10px] text-muted-foreground">Full number ba last 4 digit — jeta accept koreche.</p>
-              </div>
-              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
-                  Transaction ID <span className="text-muted-foreground/70">(optional)</span>
+                  Note <span className="text-muted-foreground/70">(optional)</span>
                 </label>
-                <Input
-                  maxLength={50}
-                  value={pendingAdvTxnId}
-                  onChange={(e) => setPendingAdvTxnId(e.target.value)}
-                  placeholder="e.g. 9F7A2BX1Q"
+                <Textarea
+                  rows={2}
+                  maxLength={300}
+                  value={pendingReason}
+                  onChange={(e) => setPendingReason(e.target.value)}
+                  placeholder="e.g. customer ke advance jonno bola hoyeche…"
+                  className="resize-none"
                 />
+                <p className="text-[10px] text-muted-foreground">Source/payment details order create form e add koren.</p>
               </div>
             </div>
           ) : (
