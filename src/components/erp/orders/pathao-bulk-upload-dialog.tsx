@@ -51,8 +51,11 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
     cancelRef.current = false;
 
     (async () => {
-      for (let i = 0; i < initial.length; i++) {
-        if (cancelRef.current) break;
+      // Run uploads in parallel batches for speed. Pathao + AI calls are
+      // network-bound, so concurrency cuts total time dramatically.
+      const CONCURRENCY = 6;
+      let cursor = 0;
+      const runOne = async (i: number) => {
         const o = initial[i];
         setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading", message: "Uploading…" } : r)));
         const t0 = Date.now();
@@ -86,7 +89,15 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
             ),
           );
         }
-      }
+      };
+      const worker = async () => {
+        while (!cancelRef.current) {
+          const i = cursor++;
+          if (i >= initial.length) break;
+          await runOne(i);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, initial.length) }, worker));
       setRunning(false);
       setDone(true);
       qc.invalidateQueries({ queryKey: ["orders"] });

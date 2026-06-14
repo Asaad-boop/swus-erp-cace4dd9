@@ -426,19 +426,28 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       parentLabel: cityPick.name ?? undefined,
       items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
     });
-    if (!zonePick.id) throw new Error("Could not detect zone from address");
+    // Fallback: if AI could not match a zone, pick the first available zone
+    // in the detected city so the consignment still goes through. The rider
+    // re-routes by phone/address anyway — the zone is just for routing fee.
+    let resolvedZoneId = zonePick.id;
+    let resolvedZoneName = zonePick.name;
+    if (!resolvedZoneId) {
+      if (zonesRaw.length === 0) throw new Error("No Pathao zones available for detected city");
+      resolvedZoneId = zonesRaw[0].zone_id;
+      resolvedZoneName = zonesRaw[0].zone_name + " (fallback)";
+    }
 
     let areaId: number | undefined;
     try {
-      const areasRaw = (await client.areas(zonePick.id)) as Array<{ area_id: number; area_name: string }>;
+      const areasRaw = (await client.areas(resolvedZoneId)) as Array<{ area_id: number; area_name: string }>;
       if (areasRaw.length > 0) {
         const pick = await aiPickFromList({
           address,
           stage: "area",
-          parentLabel: zonePick.name ?? undefined,
+          parentLabel: resolvedZoneName ?? undefined,
           items: areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
         });
-        if (pick.id) areaId = pick.id;
+        areaId = pick.id ?? areasRaw[0].area_id;
       }
     } catch { /* area is optional */ }
 
@@ -457,7 +466,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       recipient_phone: phone,
       recipient_address: address,
       recipient_city: cityPick.id,
-      recipient_zone: zonePick.id,
+      recipient_zone: resolvedZoneId,
       recipient_area: areaId,
       delivery_type: data.delivery_type,
       item_type: data.item_type,
@@ -483,7 +492,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         tracking_code: tracking,
         delivery_fee: fee || null,
         status,
-        request_payload: { auto: true, city: cityPick, zone: zonePick, area: areaId } as never,
+        request_payload: { auto: true, city: cityPick, zone: { id: resolvedZoneId, name: resolvedZoneName }, area: areaId } as never,
         response_payload: result as never,
         created_by: userId,
       })
@@ -511,7 +520,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       fee,
       status,
       city: cityPick.name,
-      zone: zonePick.name,
+      zone: resolvedZoneName,
     };
   });
 
