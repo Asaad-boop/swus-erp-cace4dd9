@@ -399,19 +399,12 @@ function ItemThumbPopover({ item }: { item: NonNullable<OrderRow["items"]>[numbe
             {item.variant_label && (
               <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.variant_label}</div>
             )}
-            {item.sku && (
-              <div className="text-[10px] font-mono text-muted-foreground mt-1 truncate">SKU: {item.sku}</div>
-            )}
           </div>
         </div>
-        <div className="grid grid-cols-3 border-t bg-muted/30 text-center">
+        <div className="grid grid-cols-2 border-t bg-muted/30 text-center">
           <div className="px-2 py-2 border-r">
             <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Qty</div>
             <div className="text-sm font-bold tabular-nums">{item.quantity ?? 0}</div>
-          </div>
-          <div className="px-2 py-2 border-r">
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Price</div>
-            <div className="text-sm font-bold tabular-nums">৳{Number(item.unit_price ?? 0).toLocaleString()}</div>
           </div>
           <div className="px-2 py-2">
             <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Total</div>
