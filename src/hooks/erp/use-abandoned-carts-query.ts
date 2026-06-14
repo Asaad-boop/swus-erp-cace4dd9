@@ -15,7 +15,7 @@ export function useAbandonedCartsQuery(args: {
   const fn = useServerFn(listAbandonedCartsFn);
   return useQuery({
     queryKey: ["abandoned-carts", args.brandId, args.search, args.page, args.pageSize],
-    enabled: args.enabled && !!args.brandId,
+    enabled: args.enabled,
     queryFn: () =>
       fn({
         data: {
@@ -32,7 +32,7 @@ export function useAbandonedCartCount(brandId: string | null) {
   const fn = useServerFn(countAbandonedCartsFn);
   return useQuery({
     queryKey: ["abandoned-carts-count", brandId],
-    enabled: !!brandId,
+    enabled: true,
     staleTime: 30_000,
     queryFn: async () => {
       const r = await fn({ data: { brandId } });
