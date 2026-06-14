@@ -351,7 +351,8 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = Number(result?.delivery_fee ?? result?.data?.delivery_fee ?? 0);
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const actualCost = pathaoActualCost(result, fee, data.amount_to_collect, data.recipient_city);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -373,8 +374,8 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (fee > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
+    if (actualCost.total > 0) {
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
     }
 
     await supabase
@@ -383,15 +384,19 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        ...(fee > 0 ? {
-          actual_shipping_cost: fee,
+        pathao_city_id: data.recipient_city,
+        pathao_zone_id: data.recipient_zone,
+        pathao_area_id: data.recipient_area ?? null,
+        ...(actualCost.total > 0 ? {
+          actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
           actual_shipping_recorded_at: new Date().toISOString(),
+          actual_shipping_breakdown: actualCost.breakdown as never,
         } : {}),
       })
       .eq("id", order.id);
 
-    return { shipmentId: shipment.id, consignment, tracking, fee, status };
+    return { shipmentId: shipment.id, consignment, tracking, fee: actualCost.total || fee, status };
   });
 
 export const pathaoTrackFn = createServerFn({ method: "POST" })
@@ -550,7 +555,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
 
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
-    const fee = Number(result?.delivery_fee ?? result?.data?.delivery_fee ?? 0);
+    const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "price", "final_price", "normal_delivery", "same_day_delivery"]) ?? 0;
+    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, cityPick.id);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -572,8 +578,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (fee > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: fee });
+    if (actualCost.total > 0) {
+      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
     }
 
     await supabase
@@ -582,10 +588,16 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        ...(fee > 0 ? {
-          actual_shipping_cost: fee,
+        pathao_city_id: cityPick.id,
+        pathao_city_name: cityPick.name,
+        pathao_zone_id: resolvedZoneId,
+        pathao_zone_name: resolvedZoneName,
+        pathao_area_id: areaId ?? null,
+        ...(actualCost.total > 0 ? {
+          actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
           actual_shipping_recorded_at: new Date().toISOString(),
+          actual_shipping_breakdown: actualCost.breakdown as never,
         } : {}),
       })
       .eq("id", order.id);
@@ -594,7 +606,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       shipmentId: shipment.id,
       consignment,
       tracking,
-      fee,
+      fee: actualCost.total || fee,
       status,
       city: cityPick.name,
       zone: resolvedZoneName,
