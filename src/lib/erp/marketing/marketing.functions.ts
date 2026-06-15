@@ -439,9 +439,9 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: campaign, error } = await admin
+    const { data: campaign, error } = await db
       .from("marketing_campaigns")
       .select("*, marketing_ad_accounts(account_name, external_account_id, currency)")
       .eq("id", data.campaignId)
@@ -451,7 +451,7 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("*")
       .eq("campaign_id", data.campaignId)
@@ -459,7 +459,7 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
       .lte("date", untilStr)
       .order("date", { ascending: true });
 
-    const { data: mappings } = await admin
+    const { data: mappings } = await db
       .from("marketing_campaign_products")
       .select("id, product_id, weight, notes, products(id, title, sku, image, price)")
       .eq("campaign_id", data.campaignId);
@@ -481,8 +481,8 @@ export const saveCampaignProducts = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    await admin.from("marketing_campaign_products").delete().eq("campaign_id", data.campaignId);
+    const db = context.supabase;
+    await db.from("marketing_campaign_products").delete().eq("campaign_id", data.campaignId);
     if (data.products.length > 0) {
       const rows = data.products.map((p) => ({
         campaign_id: data.campaignId,
@@ -490,7 +490,7 @@ export const saveCampaignProducts = createServerFn({ method: "POST" })
         weight: p.weight,
         created_by: context.userId,
       }));
-      const { error } = await admin.from("marketing_campaign_products").insert(rows);
+      const { error } = await db.from("marketing_campaign_products").insert(rows);
       if (error) throw error;
     }
     return { ok: true, count: data.products.length };
