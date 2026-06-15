@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
         const supabaseAdmin = tryGetSupabaseAdmin();
         if (!supabaseAdmin) {
-          return Response.json({ error: "Supabase admin client unavailable" }, { status: 503 });
+          return Response.json({ checked: 0, updated: 0, skipped: true, reason: "Supabase admin client unavailable" });
         }
 
         // Find in-flight orders that have any way to be tracked
