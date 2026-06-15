@@ -83,13 +83,14 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
 
     const { data: acc, error: aErr } = await admin
       .from("marketing_ad_accounts")
-      .select("id, brand_id, external_account_id")
+      .select("id, brand_id, external_account_id, metadata")
       .eq("id", data.adAccountId)
       .single();
     if (aErr || !acc) throw new Error("Ad account not found");
 
-    const { metaListCampaigns } = await import("./meta.server");
-    const campaigns = await metaListCampaigns(acc.external_account_id);
+    const { metaListCampaigns, getAccountToken } = await import("./meta.server");
+    const token = getAccountToken(acc.metadata);
+    const campaigns = await metaListCampaigns(acc.external_account_id, token);
 
     if (campaigns.length === 0) {
       await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
@@ -134,6 +135,11 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
 
 async function runInsightsSync(adAccountId: string, days: number) {
   const admin = await getAdminClient();
+  const { data: acc } = await admin
+    .from("marketing_ad_accounts")
+    .select("id, metadata")
+    .eq("id", adAccountId)
+    .single();
   const { data: campaigns, error: cErr } = await admin
     .from("marketing_campaigns")
     .select("id, external_campaign_id, brand_id")
@@ -141,7 +147,8 @@ async function runInsightsSync(adAccountId: string, days: number) {
   if (cErr) throw cErr;
   if (!campaigns || campaigns.length === 0) return { campaigns: 0, insights: 0, expenses: 0 };
 
-  const { metaCampaignInsights } = await import("./meta.server");
+  const { metaCampaignInsights, getAccountToken } = await import("./meta.server");
+  const token = getAccountToken(acc?.metadata);
   const until = new Date();
   const since = new Date();
   since.setDate(since.getDate() - (days - 1));
@@ -158,7 +165,7 @@ async function runInsightsSync(adAccountId: string, days: number) {
     const batch = campaigns.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (c) => {
       try {
-        const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr);
+        const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr, token);
         if (rows.length === 0) return;
         const insightRows = rows.map((r) => ({
           campaign_id: c.id,
@@ -700,4 +707,178 @@ export const getMarketingLookups = createServerFn({ method: "POST" })
         .order("name"),
     ]);
     return { accounts: accounts ?? [], categories: categories ?? [] };
+  });
+// ============ Get ad account detail (for edit dialog) ============
+export const getAdAccountDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { adAccountId: string }) =>
+    z.object({ adAccountId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    const admin = await getAdminClient();
+    const { data: row, error } = await admin
+      .from("marketing_ad_accounts")
+      .select("id, brand_id, platform_id, external_account_id, account_name, currency, is_active, metadata, last_synced_at")
+      .eq("id", data.adAccountId)
+      .single();
+    if (error || !row) throw new Error("Ad account not found");
+    const meta = (row.metadata ?? {}) as any;
+    return {
+      id: row.id,
+      brand_id: row.brand_id,
+      external_account_id: row.external_account_id,
+      account_name: row.account_name,
+      currency: row.currency,
+      is_active: row.is_active,
+      last_synced_at: row.last_synced_at,
+      app_id: meta.app_id ?? "",
+      app_secret_masked: meta.app_secret ? "•".repeat(Math.min(24, String(meta.app_secret).length)) : "",
+      access_token_masked: meta.access_token ? "•".repeat(24) : "",
+      usd_to_bdt: typeof meta.usd_to_bdt === "number" ? meta.usd_to_bdt : null,
+      has_app_secret: !!meta.app_secret,
+      has_access_token: !!meta.access_token,
+    };
+  });
+
+// ============ Test Meta credentials (no DB write) ============
+export const testMetaAccountCreds = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { externalAccountId: string; accessToken: string }) =>
+    z.object({
+      externalAccountId: z.string().min(1).max(64).regex(/^\d+$/),
+      accessToken: z.string().min(20).max(8192),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    try {
+      const { metaVerifyAccount } = await import("./meta.server");
+      const info = await metaVerifyAccount(data.externalAccountId, data.accessToken);
+      return {
+        ok: true as const,
+        account: {
+          name: info?.name ?? null,
+          currency: info?.currency ?? null,
+          timezone_name: info?.timezone_name ?? null,
+          status: info?.account_status ?? null,
+        },
+      };
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
+
+// ============ Save (create / edit) Meta account with full credentials ============
+export const saveMetaAccountManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    id?: string | null;
+    brandId: string;
+    accountName: string;
+    externalAccountId: string;
+    appId?: string | null;
+    appSecret?: string | null;
+    accessToken?: string | null;
+    usdToBdt?: number | null;
+    isActive: boolean;
+  }) =>
+    z.object({
+      id: z.string().uuid().nullable().optional(),
+      brandId: z.string().uuid(),
+      accountName: z.string().min(1).max(200),
+      externalAccountId: z.string().min(1).max(64).regex(/^\d+$/),
+      appId: z.string().max(64).regex(/^\d*$/).nullable().optional(),
+      appSecret: z.string().max(256).nullable().optional(),
+      accessToken: z.string().max(8192).nullable().optional(),
+      usdToBdt: z.number().positive().max(10000).nullable().optional(),
+      isActive: z.boolean(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    const admin = await getAdminClient();
+
+    const { data: platform, error: pErr } = await admin
+      .from("marketing_platforms").select("id").eq("code", "meta").maybeSingle();
+    if (pErr || !platform) throw new Error("Meta platform not registered");
+
+    // Resolve existing row (when editing) so we can preserve unchanged secrets
+    let existingMeta: Record<string, any> = {};
+    let resolvedInfo: { name?: string | null; currency?: string | null; timezone_name?: string | null; account_status?: number | null } = {};
+
+    if (data.id) {
+      const { data: row, error } = await admin
+        .from("marketing_ad_accounts")
+        .select("metadata")
+        .eq("id", data.id)
+        .single();
+      if (error || !row) throw new Error("Ad account not found");
+      existingMeta = (row.metadata ?? {}) as Record<string, any>;
+    }
+
+    const finalToken =
+      data.accessToken && data.accessToken.trim().length > 0
+        ? data.accessToken.trim()
+        : (existingMeta.access_token ?? null);
+
+    const finalAppSecret =
+      data.appSecret && data.appSecret.trim().length > 0
+        ? data.appSecret.trim()
+        : (existingMeta.app_secret ?? null);
+
+    // Verify credentials against Meta if we have a token
+    if (finalToken) {
+      try {
+        const { metaVerifyAccount } = await import("./meta.server");
+        const info = await metaVerifyAccount(data.externalAccountId, finalToken);
+        resolvedInfo = {
+          name: info?.name ?? null,
+          currency: info?.currency ?? null,
+          timezone_name: info?.timezone_name ?? null,
+          account_status: info?.account_status ?? null,
+        };
+      } catch (e) {
+        throw new Error(`Meta verification failed: ${(e as Error).message}`);
+      }
+    }
+
+    const nextMetadata: Record<string, any> = {
+      ...existingMeta,
+      app_id: data.appId ?? existingMeta.app_id ?? null,
+      app_secret: finalAppSecret,
+      access_token: finalToken,
+      usd_to_bdt: typeof data.usdToBdt === "number" ? data.usdToBdt : existingMeta.usd_to_bdt ?? null,
+      account_status: resolvedInfo.account_status ?? existingMeta.account_status ?? null,
+    };
+
+    const payload: any = {
+      brand_id: data.brandId,
+      platform_id: platform.id,
+      external_account_id: data.externalAccountId,
+      account_name: data.accountName || resolvedInfo.name || null,
+      currency: resolvedInfo.currency ?? null,
+      timezone_name: resolvedInfo.timezone_name ?? null,
+      is_active: data.isActive,
+      metadata: nextMetadata,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (data.id) {
+      const { error } = await admin
+        .from("marketing_ad_accounts")
+        .update(payload)
+        .eq("id", data.id);
+      if (error) throw error;
+      return { id: data.id };
+    } else {
+      payload.created_by = context.userId;
+      const { data: row, error } = await admin
+        .from("marketing_ad_accounts")
+        .upsert(payload, { onConflict: "platform_id,external_account_id" })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return { id: row.id };
+    }
   });

@@ -15,6 +15,17 @@ export function getMetaSystemToken(): string {
   return t;
 }
 
+/**
+ * Resolve the Meta access token for an ad account.
+ * Prefers per-account token stored in `marketing_ad_accounts.metadata.access_token`.
+ * Falls back to the global `META_SYSTEM_USER_TOKEN` env secret.
+ */
+export function getAccountToken(metadata: any): string {
+  const t = metadata?.access_token;
+  if (typeof t === "string" && t.trim().length > 0) return t.trim();
+  return getMetaSystemToken();
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
