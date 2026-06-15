@@ -83,13 +83,14 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
 
     const { data: acc, error: aErr } = await admin
       .from("marketing_ad_accounts")
-      .select("id, brand_id, external_account_id")
+      .select("id, brand_id, external_account_id, metadata")
       .eq("id", data.adAccountId)
       .single();
     if (aErr || !acc) throw new Error("Ad account not found");
 
-    const { metaListCampaigns } = await import("./meta.server");
-    const campaigns = await metaListCampaigns(acc.external_account_id);
+    const { metaListCampaigns, getAccountToken } = await import("./meta.server");
+    const token = getAccountToken(acc.metadata);
+    const campaigns = await metaListCampaigns(acc.external_account_id, token);
 
     if (campaigns.length === 0) {
       await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
@@ -134,6 +135,11 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
 
 async function runInsightsSync(adAccountId: string, days: number) {
   const admin = await getAdminClient();
+  const { data: acc } = await admin
+    .from("marketing_ad_accounts")
+    .select("id, metadata")
+    .eq("id", adAccountId)
+    .single();
   const { data: campaigns, error: cErr } = await admin
     .from("marketing_campaigns")
     .select("id, external_campaign_id, brand_id")
@@ -141,7 +147,8 @@ async function runInsightsSync(adAccountId: string, days: number) {
   if (cErr) throw cErr;
   if (!campaigns || campaigns.length === 0) return { campaigns: 0, insights: 0, expenses: 0 };
 
-  const { metaCampaignInsights } = await import("./meta.server");
+  const { metaCampaignInsights, getAccountToken } = await import("./meta.server");
+  const token = getAccountToken(acc?.metadata);
   const until = new Date();
   const since = new Date();
   since.setDate(since.getDate() - (days - 1));
@@ -158,7 +165,7 @@ async function runInsightsSync(adAccountId: string, days: number) {
     const batch = campaigns.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (c) => {
       try {
-        const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr);
+        const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr, token);
         if (rows.length === 0) return;
         const insightRows = rows.map((r) => ({
           campaign_id: c.id,
