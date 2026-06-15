@@ -26,7 +26,11 @@ function guard(request: Request): Response | null {
 
 async function handler() {
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = tryGetSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return Response.json({ ok: false, error: "Supabase admin client unavailable" }, { status: 503 });
+    }
 
     const { data: accounts, error } = await supabaseAdmin
       .from("marketing_ad_accounts")
@@ -74,7 +78,7 @@ async function handler() {
         }
 
         // Sync last 3 days insights
-        const r = await runInsightsSync(acc.id, 3);
+        const r = await runInsightsSync(acc.id, 3, supabaseAdmin);
         await supabaseAdmin
           .from("marketing_ad_accounts")
           .update({ last_synced_at: new Date().toISOString() })
