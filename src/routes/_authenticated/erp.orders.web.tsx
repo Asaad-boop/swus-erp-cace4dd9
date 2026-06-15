@@ -753,6 +753,7 @@ function WebOrdersPage() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
     </div>
