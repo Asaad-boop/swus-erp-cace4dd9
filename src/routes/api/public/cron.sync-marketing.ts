@@ -17,11 +17,9 @@ async function handler() {
 
     const { data: accounts, error } = await supabaseAdmin
       .from("marketing_ad_accounts")
-      .select("id, brand_id, external_account_id, marketing_settings:marketing_settings!marketing_settings_brand_id_fkey(auto_sync_enabled)")
+      .select("id, brand_id, external_account_id")
       .eq("is_active", true);
     if (error) throw error;
-
-    // marketing_settings join isn't strict — fall back to per-brand fetch
     const { metaListCampaigns } = await import("@/lib/erp/marketing/meta.server");
     const { runInsightsSync } = await import("@/lib/erp/marketing/marketing.functions");
 
