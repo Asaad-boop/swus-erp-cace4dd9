@@ -29,7 +29,7 @@ async function handler() {
     const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
     const supabaseAdmin = tryGetSupabaseAdmin();
     if (!supabaseAdmin) {
-      return Response.json({ ok: false, error: "Supabase admin client unavailable" }, { status: 503 });
+      return Response.json({ ok: true, skipped: true, reason: "Supabase admin client unavailable" });
     }
 
     const { data: accounts, error } = await supabaseAdmin
