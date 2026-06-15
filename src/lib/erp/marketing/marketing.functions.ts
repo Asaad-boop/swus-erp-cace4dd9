@@ -621,9 +621,8 @@ export const saveMarketingSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const isAdmin = (await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })).data;
     if (!isAdmin) throw new Error("Admin only");
-    const admin = await getAdminClient();
     const { brandId, ...rest } = data;
-    const { error } = await admin
+    const { error } = await context.supabase
       .from("marketing_settings")
       .upsert({ brand_id: brandId, ...rest, updated_at: new Date().toISOString() }, { onConflict: "brand_id" });
     if (error) throw error;
@@ -659,8 +658,7 @@ export const setAdAccountActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    const { error } = await admin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
       .eq("id", data.adAccountId);
@@ -692,15 +690,14 @@ export const getMarketingLookups = createServerFn({ method: "POST" })
   .inputValidator((d: { brandId: string }) => z.object({ brandId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
     const [{ data: accounts }, { data: categories }] = await Promise.all([
-      admin
+      context.supabase
         .from("erp_accounts")
         .select("id, name, account_type")
         .eq("brand_id", data.brandId)
         .eq("is_active", true)
         .order("name"),
-      admin
+      context.supabase
         .from("erp_expense_categories")
         .select("id, name, kind")
         .eq("brand_id", data.brandId)
