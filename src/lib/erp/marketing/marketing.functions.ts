@@ -163,7 +163,7 @@ async function runInsightsSync(adAccountId: string, days: number, clientOverride
   const CONCURRENCY = 3;
   for (let i = 0; i < campaigns.length; i += CONCURRENCY) {
     const batch = campaigns.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.map(async (c) => {
+    await Promise.all(batch.map(async (c: any) => {
       try {
         const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr, token);
         if (rows.length === 0) return;
@@ -254,7 +254,7 @@ async function syncCampaignExpenses(
     .select("id, insight_date, transaction_id, amount")
     .eq("campaign_id", campaignId)
     .in("insight_date", dates);
-  const existingMap = new Map((existing ?? []).map((e: any) => [e.insight_date, e]));
+  const existingMap = new Map<string, any>((existing ?? []).map((e: any) => [e.insight_date, e]));
 
   let created = 0;
   for (const r of rows) {
