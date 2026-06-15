@@ -20,7 +20,7 @@ export function ConnectMetaDialog({
   const connectFn = useServerFn(connectMetaAccount);
 
   const discover = useMutation({
-    mutationFn: () => listFn({ data: undefined as any }),
+    mutationFn: () => listFn(),
     onSuccess: (r) => {
       if (!r.ok) toast.error(r.error || "Failed to fetch accounts");
       setDiscovered(r.accounts);
