@@ -58,7 +58,11 @@ async function processPathao(payload: any, expected: string): Promise<Response> 
           return new Response("Acknowledged", { status: 202, headers: { "X-Pathao-Merchant-Webhook-Integration-Secret": expected } });
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const supabaseAdmin = tryGetSupabaseAdmin();
+        if (!supabaseAdmin) {
+          return Response.json({ ok: false, error: "Supabase admin client unavailable" }, { status: 503 });
+        }
 
         // Find shipment → order
         let orderId: string | null = null;
