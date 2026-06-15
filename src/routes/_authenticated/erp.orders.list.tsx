@@ -95,6 +95,12 @@ function OrdersPage() {
     downloadCsv(`orders-${activeBrand?.slug}-${new Date().toISOString().slice(0,10)}.csv`, csv);
   };
 
+  const handleRefresh = () => {
+    qc.invalidateQueries({ queryKey: ["orders"] });
+    qc.invalidateQueries({ queryKey: ["abandoned-carts"] });
+    qc.invalidateQueries({ queryKey: ["abandoned-carts-count"] });
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
   const activeTab = view === "incomplete" ? "incomplete" : tabForStatuses(effective.statuses);
 
@@ -124,7 +130,7 @@ function OrdersPage() {
               variant="ghost"
               size="sm"
               className="h-9 rounded-none border-r"
-              onClick={() => qc.invalidateQueries({ queryKey: ["orders"] })}
+              onClick={handleRefresh}
               title="Refresh"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
@@ -160,7 +166,7 @@ function OrdersPage() {
         {view === "incomplete" ? (
           <IncompleteOrdersTable
             brandId={effective.brandId}
-            search={filter.search}
+            search=""
             page={incompletePage}
             pageSize={50}
             onPageChange={setIncompletePage}
