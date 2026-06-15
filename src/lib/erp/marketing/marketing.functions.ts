@@ -133,7 +133,6 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
     return runInsightsSync(data.adAccountId, data.days ?? 7);
   });
 
-async function runInsightsSync(adAccountId: string, days: number) {
 async function runInsightsSync(adAccountId: string, days: number, clientOverride?: any) {
   const admin = clientOverride ?? await getAdminClient();
   const { data: acc } = await admin
