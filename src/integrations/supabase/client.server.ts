@@ -5,12 +5,22 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+declare global {
+  // Runtime-only secret bridge populated by src/server.ts in the server worker.
+  // eslint-disable-next-line no-var
+  var __LOVABLE_RUNTIME_ENV__: Record<string, string> | undefined;
+}
+
+function getServerEnv(key: string) {
+  return process.env[key] || globalThis.__LOVABLE_RUNTIME_ENV__?.[key];
+}
+
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_URL = getServerEnv('SUPABASE_URL');
   // Fallback to ADMIN_SERVICE_ROLE_KEY for environments where the canonical
   // SUPABASE_SERVICE_ROLE_KEY secret is not injected into the Worker runtime.
   const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.ADMIN_SERVICE_ROLE_KEY;
+    getServerEnv('SUPABASE_SERVICE_ROLE_KEY') || getServerEnv('ADMIN_SERVICE_ROLE_KEY');
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
