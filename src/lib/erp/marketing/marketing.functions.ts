@@ -134,7 +134,8 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
   });
 
 async function runInsightsSync(adAccountId: string, days: number) {
-  const admin = await getAdminClient();
+async function runInsightsSync(adAccountId: string, days: number, clientOverride?: any) {
+  const admin = clientOverride ?? await getAdminClient();
   const { data: acc } = await admin
     .from("marketing_ad_accounts")
     .select("id, metadata")
@@ -192,7 +193,7 @@ async function runInsightsSync(adAccountId: string, days: number) {
         insightCount += insightRows.length;
 
         // Auto-create expense entries
-        const expensesCreated = await syncCampaignExpenses(c.id, c.brand_id, rows);
+        const expensesCreated = await syncCampaignExpenses(c.id, c.brand_id, rows, admin);
         expenseCount += expensesCreated;
 
         await admin.from("marketing_campaigns")
@@ -211,8 +212,9 @@ async function syncCampaignExpenses(
   campaignId: string,
   brandId: string,
   rows: Array<{ date: string; spend: number }>,
+  clientOverride?: any,
 ): Promise<number> {
-  const admin = await getAdminClient();
+  const admin = clientOverride ?? await getAdminClient();
 
   // Load settings
   const { data: settings } = await admin
