@@ -15,20 +15,32 @@ function getServerEnv(key: string) {
   return process.env[key] || globalThis.__LOVABLE_RUNTIME_ENV__?.[key];
 }
 
-function createSupabaseAdminClient() {
+function getSupabaseAdminConfig() {
   const SUPABASE_URL = getServerEnv('SUPABASE_URL');
-  // Fallback to ADMIN_SERVICE_ROLE_KEY for environments where the canonical
-  // SUPABASE_SERVICE_ROLE_KEY secret is not injected into the Worker runtime.
   const SUPABASE_SERVICE_ROLE_KEY =
     getServerEnv('SUPABASE_SERVICE_ROLE_KEY') || getServerEnv('ADMIN_SERVICE_ROLE_KEY');
 
+  return { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY };
+}
+
+export function getSupabaseAdminMissingEnv() {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getSupabaseAdminConfig();
+  return [
+    ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
+    ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
+  ];
+}
+
+export function isSupabaseAdminConfigured() {
+  return getSupabaseAdminMissingEnv().length === 0;
+}
+
+function createSupabaseAdminClient() {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getSupabaseAdminConfig();
+
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
+    const missing = getSupabaseAdminMissingEnv();
+    const message = `Supabase admin client is unavailable. Missing: ${missing.join(', ')}.`;
     throw new Error(message);
   }
 
@@ -42,6 +54,12 @@ function createSupabaseAdminClient() {
 }
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
+
+export function tryGetSupabaseAdmin() {
+  if (!isSupabaseAdminConfigured()) return null;
+  if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
+  return _supabaseAdmin;
+}
 
 // Server-side Supabase client with service role - bypasses RLS
 // SECURITY: Only use this for trusted server-side operations, never expose to client code
