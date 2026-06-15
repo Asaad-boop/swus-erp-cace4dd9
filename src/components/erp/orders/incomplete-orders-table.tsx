@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Phone, ShoppingCart, Trash2, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Loader2, Phone, ShoppingCart, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +47,7 @@ export function IncompleteOrdersTable({
     pageSize,
     enabled: true,
   });
+  const error = null as Error | null;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -108,6 +109,14 @@ export function IncompleteOrdersTable({
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Loading…
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && error && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12 text-destructive">
+                  <AlertCircle className="inline h-5 w-5 mr-2 opacity-80" />
+                  {error.message}
                 </TableCell>
               </TableRow>
             )}
