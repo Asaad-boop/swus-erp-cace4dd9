@@ -30,6 +30,7 @@ import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
+import { Route as AuthenticatedErpMarketingSettingsRouteImport } from './routes/_authenticated/erp.marketing.settings'
 import { Route as AuthenticatedErpMarketingCampaignsRouteImport } from './routes/_authenticated/erp.marketing.campaigns'
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
@@ -150,6 +151,12 @@ const AuthenticatedErpOrdersOrderIdRoute =
     path: '/$orderId',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpMarketingSettingsRoute =
+  AuthenticatedErpMarketingSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
 const AuthenticatedErpMarketingCampaignsRoute =
   AuthenticatedErpMarketingCampaignsRouteImport.update({
     id: '/campaigns',
@@ -183,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
@@ -205,6 +213,7 @@ export interface FileRoutesByTo {
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
@@ -232,6 +241,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/_authenticated/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/_authenticated/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/erp/'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
+    | '/erp/marketing/settings'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
+    | '/erp/marketing/settings'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
@@ -307,6 +319,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/'
     | '/_authenticated/erp/marketing/accounts'
     | '/_authenticated/erp/marketing/campaigns'
+    | '/_authenticated/erp/marketing/settings'
     | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
@@ -477,6 +490,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
+    '/_authenticated/erp/marketing/settings': {
+      id: '/_authenticated/erp/marketing/settings'
+      path: '/settings'
+      fullPath: '/erp/marketing/settings'
+      preLoaderRoute: typeof AuthenticatedErpMarketingSettingsRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
     '/_authenticated/erp/marketing/campaigns': {
       id: '/_authenticated/erp/marketing/campaigns'
       path: '/campaigns'
@@ -519,6 +539,7 @@ const AuthenticatedErpMarketingCampaignsRouteWithChildren =
 interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAccountsRoute: typeof AuthenticatedErpMarketingAccountsRoute
   AuthenticatedErpMarketingCampaignsRoute: typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  AuthenticatedErpMarketingSettingsRoute: typeof AuthenticatedErpMarketingSettingsRoute
   AuthenticatedErpMarketingIndexRoute: typeof AuthenticatedErpMarketingIndexRoute
 }
 
@@ -528,6 +549,8 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
       AuthenticatedErpMarketingAccountsRoute,
     AuthenticatedErpMarketingCampaignsRoute:
       AuthenticatedErpMarketingCampaignsRouteWithChildren,
+    AuthenticatedErpMarketingSettingsRoute:
+      AuthenticatedErpMarketingSettingsRoute,
     AuthenticatedErpMarketingIndexRoute: AuthenticatedErpMarketingIndexRoute,
   }
 
@@ -605,13 +628,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

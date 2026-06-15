@@ -11,6 +11,7 @@ const tabs = [
   { to: "/erp/marketing", label: "Dashboard", exact: true },
   { to: "/erp/marketing/campaigns", label: "Campaigns", exact: false },
   { to: "/erp/marketing/accounts", label: "Ad Accounts", exact: false },
+  { to: "/erp/marketing/settings", label: "Settings", exact: false },
 ];
 
 function MarketingLayout() {

@@ -642,3 +642,62 @@ export const searchProductsForMapping = createServerFn({ method: "POST" })
     if (error) throw error;
     return { products: rows ?? [] };
   });
+
+// ============ Disconnect / reactivate ad account ============
+export const setAdAccountActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { adAccountId: string; isActive: boolean }) =>
+    z.object({ adAccountId: z.string().uuid(), isActive: z.boolean() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    const admin = await getAdminClient();
+    const { error } = await admin
+      .from("marketing_ad_accounts")
+      .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
+      .eq("id", data.adAccountId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+// ============ Meta integration status ============
+export const getMetaIntegrationStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    const tokenSet = !!process.env.META_SYSTEM_USER_TOKEN;
+    if (!tokenSet) {
+      return { tokenSet: false, ok: false, error: "META_SYSTEM_USER_TOKEN secret nai" };
+    }
+    try {
+      const { metaListAccounts } = await import("./meta.server");
+      const accs = await metaListAccounts();
+      return { tokenSet: true, ok: true, accountCount: accs.length };
+    } catch (e) {
+      return { tokenSet: true, ok: false, error: (e as Error).message };
+    }
+  });
+
+// ============ Lookups for settings selects ============
+export const getMarketingLookups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string }) => z.object({ brandId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertMarketingRole(context.supabase, context.userId);
+    const admin = await getAdminClient();
+    const [{ data: accounts }, { data: categories }] = await Promise.all([
+      admin
+        .from("erp_accounts")
+        .select("id, name, account_type")
+        .eq("brand_id", data.brandId)
+        .eq("is_active", true)
+        .order("name"),
+      admin
+        .from("erp_expense_categories")
+        .select("id, name, kind")
+        .eq("brand_id", data.brandId)
+        .eq("is_active", true)
+        .order("name"),
+    ]);
+    return { accounts: accounts ?? [], categories: categories ?? [] };
+  });
