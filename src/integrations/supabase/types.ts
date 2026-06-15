@@ -1225,6 +1225,482 @@ export type Database = {
           },
         ]
       }
+      marketing_ad_accounts: {
+        Row: {
+          account_name: string | null
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          external_account_id: string
+          id: string
+          is_active: boolean
+          last_synced_at: string | null
+          metadata: Json
+          platform_id: string
+          timezone_name: string | null
+          token_expires_at: string | null
+          token_secret_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          external_account_id: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          metadata?: Json
+          platform_id: string
+          timezone_name?: string | null
+          token_expires_at?: string | null
+          token_secret_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          external_account_id?: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          metadata?: Json
+          platform_id?: string
+          timezone_name?: string | null
+          token_expires_at?: string | null
+          token_secret_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_ad_accounts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_ad_accounts_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_platforms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_ads: {
+        Row: {
+          adset_id: string
+          created_at: string
+          external_ad_id: string
+          id: string
+          name: string | null
+          raw: Json
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          adset_id: string
+          created_at?: string
+          external_ad_id: string
+          id?: string
+          name?: string | null
+          raw?: Json
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adset_id?: string
+          created_at?: string
+          external_ad_id?: string
+          id?: string
+          name?: string | null
+          raw?: Json
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_ads_adset_id_fkey"
+            columns: ["adset_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_adsets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_adsets: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          external_adset_id: string
+          id: string
+          name: string | null
+          raw: Json
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          external_adset_id: string
+          id?: string
+          name?: string | null
+          raw?: Json
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          external_adset_id?: string
+          id?: string
+          name?: string | null
+          raw?: Json
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_adsets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_campaign_insights: {
+        Row: {
+          campaign_id: string
+          clicks: number
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number
+          landing_page_views: number
+          outbound_clicks: number
+          purchase_roas: number | null
+          purchase_value: number
+          purchases: number
+          raw: Json
+          reach: number
+          spend: number
+          synced_at: string
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number
+          landing_page_views?: number
+          outbound_clicks?: number
+          purchase_roas?: number | null
+          purchase_value?: number
+          purchases?: number
+          raw?: Json
+          reach?: number
+          spend?: number
+          synced_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number
+          landing_page_views?: number
+          outbound_clicks?: number
+          purchase_roas?: number | null
+          purchase_value?: number
+          purchases?: number
+          raw?: Json
+          reach?: number
+          spend?: number
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaign_insights_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_campaign_products: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          weight: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          weight?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaign_products_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_campaigns: {
+        Row: {
+          ad_account_id: string
+          brand_id: string
+          buying_type: string | null
+          created_at: string
+          daily_budget: number | null
+          external_campaign_id: string
+          id: string
+          last_insight_sync_at: string | null
+          lifetime_budget: number | null
+          name: string
+          objective: string | null
+          raw: Json
+          start_time: string | null
+          status: string | null
+          stop_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id: string
+          brand_id: string
+          buying_type?: string | null
+          created_at?: string
+          daily_budget?: number | null
+          external_campaign_id: string
+          id?: string
+          last_insight_sync_at?: string | null
+          lifetime_budget?: number | null
+          name: string
+          objective?: string | null
+          raw?: Json
+          start_time?: string | null
+          status?: string | null
+          stop_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string
+          brand_id?: string
+          buying_type?: string | null
+          created_at?: string
+          daily_budget?: number | null
+          external_campaign_id?: string
+          id?: string
+          last_insight_sync_at?: string | null
+          lifetime_budget?: number | null
+          name?: string
+          objective?: string | null
+          raw?: Json
+          start_time?: string | null
+          status?: string | null
+          stop_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaigns_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_campaigns_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_expense_links: {
+        Row: {
+          account_id: string | null
+          amount: number
+          campaign_id: string
+          created_at: string
+          id: string
+          insight_date: string
+          transaction_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          campaign_id: string
+          created_at?: string
+          id?: string
+          insight_date: string
+          transaction_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          insight_date?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_expense_links_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_expense_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_expense_links_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_platforms: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      marketing_settings: {
+        Row: {
+          attribution_mode: string
+          auto_create_expenses: boolean
+          auto_sync_enabled: boolean
+          brand_id: string
+          created_at: string
+          default_expense_account_id: string | null
+          default_expense_category_id: string | null
+          id: string
+          sync_interval_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          attribution_mode?: string
+          auto_create_expenses?: boolean
+          auto_sync_enabled?: boolean
+          brand_id: string
+          created_at?: string
+          default_expense_account_id?: string | null
+          default_expense_category_id?: string | null
+          id?: string
+          sync_interval_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          attribution_mode?: string
+          auto_create_expenses?: boolean
+          auto_sync_enabled?: boolean
+          brand_id?: string
+          created_at?: string
+          default_expense_account_id?: string | null
+          default_expense_category_id?: string | null
+          id?: string
+          sync_interval_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_settings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_settings_default_expense_account_id_fkey"
+            columns: ["default_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_settings_default_expense_category_id_fkey"
+            columns: ["default_expense_category_id"]
+            isOneToOne: false
+            referencedRelation: "erp_expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           cost_price: number | null
