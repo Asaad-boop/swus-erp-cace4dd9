@@ -17,16 +17,22 @@ import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
+import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
 import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
+import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
+import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
+import { Route as AuthenticatedErpMarketingCampaignsRouteImport } from './routes/_authenticated/erp.marketing.campaigns'
+import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
+import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,6 +75,12 @@ const AuthenticatedErpOrdersRoute = AuthenticatedErpOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedErpMarketingRoute =
+  AuthenticatedErpMarketingRouteImport.update({
+    id: '/marketing',
+    path: '/marketing',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
 const AuthenticatedErpInventoryRoute =
   AuthenticatedErpInventoryRouteImport.update({
     id: '/inventory',
@@ -91,11 +103,23 @@ const AuthenticatedErpOrdersIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpMarketingIndexRoute =
+  AuthenticatedErpMarketingIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
 const ApiPublicWebhookPathaoRoute = ApiPublicWebhookPathaoRouteImport.update({
   id: '/api/public/webhook/pathao',
   path: '/api/public/webhook/pathao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronSyncMarketingRoute =
+  ApiPublicCronSyncMarketingRouteImport.update({
+    id: '/api/public/cron/sync-marketing',
+    path: '/api/public/cron/sync-marketing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronSyncCourierRoute =
   ApiPublicCronSyncCourierRouteImport.update({
     id: '/api/public/cron/sync-courier',
@@ -126,6 +150,24 @@ const AuthenticatedErpOrdersOrderIdRoute =
     path: '/$orderId',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpMarketingCampaignsRoute =
+  AuthenticatedErpMarketingCampaignsRouteImport.update({
+    id: '/campaigns',
+    path: '/campaigns',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
+const AuthenticatedErpMarketingAccountsRoute =
+  AuthenticatedErpMarketingAccountsRouteImport.update({
+    id: '/accounts',
+    path: '/accounts',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
+const AuthenticatedErpMarketingCampaignsCampaignIdRoute =
+  AuthenticatedErpMarketingCampaignsCampaignIdRouteImport.update({
+    id: '/$campaignId',
+    path: '/$campaignId',
+    getParentRoute: () => AuthenticatedErpMarketingCampaignsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -134,17 +176,23 @@ export interface FileRoutesByFullPath {
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
+  '/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
+  '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -155,13 +203,18 @@ export interface FileRoutesByTo {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -172,17 +225,23 @@ export interface FileRoutesById {
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
+  '/_authenticated/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/_authenticated/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -193,17 +252,23 @@ export interface FileRouteTypes {
     | '/erp/courier'
     | '/erp/finance'
     | '/erp/inventory'
+    | '/erp/marketing'
     | '/erp/orders'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/'
+    | '/erp/marketing/accounts'
+    | '/erp/marketing/campaigns'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
+    | '/erp/marketing/'
     | '/erp/orders/'
+    | '/erp/marketing/campaigns/$campaignId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -214,13 +279,18 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp'
+    | '/erp/marketing/accounts'
+    | '/erp/marketing/campaigns'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
+    | '/erp/marketing'
     | '/erp/orders'
+    | '/erp/marketing/campaigns/$campaignId'
   id:
     | '__root__'
     | '/'
@@ -230,17 +300,23 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/courier'
     | '/_authenticated/erp/finance'
     | '/_authenticated/erp/inventory'
+    | '/_authenticated/erp/marketing'
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
+    | '/_authenticated/erp/marketing/accounts'
+    | '/_authenticated/erp/marketing/campaigns'
     | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
+    | '/_authenticated/erp/marketing/'
     | '/_authenticated/erp/orders/'
+    | '/_authenticated/erp/marketing/campaigns/$campaignId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -248,6 +324,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
+  ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
   ApiPublicWebhookPathaoRoute: typeof ApiPublicWebhookPathaoRoute
 }
 
@@ -309,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
+    '/_authenticated/erp/marketing': {
+      id: '/_authenticated/erp/marketing'
+      path: '/marketing'
+      fullPath: '/erp/marketing'
+      preLoaderRoute: typeof AuthenticatedErpMarketingRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
     '/_authenticated/erp/inventory': {
       id: '/_authenticated/erp/inventory'
       path: '/inventory'
@@ -337,11 +421,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
+    '/_authenticated/erp/marketing/': {
+      id: '/_authenticated/erp/marketing/'
+      path: '/'
+      fullPath: '/erp/marketing/'
+      preLoaderRoute: typeof AuthenticatedErpMarketingIndexRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
     '/api/public/webhook/pathao': {
       id: '/api/public/webhook/pathao'
       path: '/api/public/webhook/pathao'
       fullPath: '/api/public/webhook/pathao'
       preLoaderRoute: typeof ApiPublicWebhookPathaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/sync-marketing': {
+      id: '/api/public/cron/sync-marketing'
+      path: '/api/public/cron/sync-marketing'
+      fullPath: '/api/public/cron/sync-marketing'
+      preLoaderRoute: typeof ApiPublicCronSyncMarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/sync-courier': {
@@ -379,8 +477,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
+    '/_authenticated/erp/marketing/campaigns': {
+      id: '/_authenticated/erp/marketing/campaigns'
+      path: '/campaigns'
+      fullPath: '/erp/marketing/campaigns'
+      preLoaderRoute: typeof AuthenticatedErpMarketingCampaignsRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
+    '/_authenticated/erp/marketing/accounts': {
+      id: '/_authenticated/erp/marketing/accounts'
+      path: '/accounts'
+      fullPath: '/erp/marketing/accounts'
+      preLoaderRoute: typeof AuthenticatedErpMarketingAccountsRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
+    '/_authenticated/erp/marketing/campaigns/$campaignId': {
+      id: '/_authenticated/erp/marketing/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/erp/marketing/campaigns/$campaignId'
+      preLoaderRoute: typeof AuthenticatedErpMarketingCampaignsCampaignIdRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingCampaignsRoute
+    }
   }
 }
+
+interface AuthenticatedErpMarketingCampaignsRouteChildren {
+  AuthenticatedErpMarketingCampaignsCampaignIdRoute: typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+}
+
+const AuthenticatedErpMarketingCampaignsRouteChildren: AuthenticatedErpMarketingCampaignsRouteChildren =
+  {
+    AuthenticatedErpMarketingCampaignsCampaignIdRoute:
+      AuthenticatedErpMarketingCampaignsCampaignIdRoute,
+  }
+
+const AuthenticatedErpMarketingCampaignsRouteWithChildren =
+  AuthenticatedErpMarketingCampaignsRoute._addFileChildren(
+    AuthenticatedErpMarketingCampaignsRouteChildren,
+  )
+
+interface AuthenticatedErpMarketingRouteChildren {
+  AuthenticatedErpMarketingAccountsRoute: typeof AuthenticatedErpMarketingAccountsRoute
+  AuthenticatedErpMarketingCampaignsRoute: typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  AuthenticatedErpMarketingIndexRoute: typeof AuthenticatedErpMarketingIndexRoute
+}
+
+const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChildren =
+  {
+    AuthenticatedErpMarketingAccountsRoute:
+      AuthenticatedErpMarketingAccountsRoute,
+    AuthenticatedErpMarketingCampaignsRoute:
+      AuthenticatedErpMarketingCampaignsRouteWithChildren,
+    AuthenticatedErpMarketingIndexRoute: AuthenticatedErpMarketingIndexRoute,
+  }
+
+const AuthenticatedErpMarketingRouteWithChildren =
+  AuthenticatedErpMarketingRoute._addFileChildren(
+    AuthenticatedErpMarketingRouteChildren,
+  )
 
 interface AuthenticatedErpOrdersRouteChildren {
   AuthenticatedErpOrdersOrderIdRoute: typeof AuthenticatedErpOrdersOrderIdRoute
@@ -408,6 +562,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
   AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRoute
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
+  AuthenticatedErpMarketingRoute: typeof AuthenticatedErpMarketingRouteWithChildren
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
@@ -418,6 +573,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
   AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRoute,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
+  AuthenticatedErpMarketingRoute: AuthenticatedErpMarketingRouteWithChildren,
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
@@ -443,18 +599,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
+  ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,
   ApiPublicWebhookPathaoRoute: ApiPublicWebhookPathaoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

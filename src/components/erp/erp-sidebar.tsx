@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
@@ -11,6 +11,7 @@ const nav: NavItem[] = [
   { to: "/erp/inventory", label: "Inventory", icon: Boxes },
   { to: "/erp/finance", label: "Finance", icon: Wallet },
   { to: "/erp/courier", label: "Courier", icon: Truck },
+  { to: "/erp/marketing", label: "Marketing", icon: Megaphone },
   { to: "/erp/suppliers", label: "Suppliers", icon: Users },
   { to: "/erp/settings", label: "Settings", icon: Settings },
 ];
