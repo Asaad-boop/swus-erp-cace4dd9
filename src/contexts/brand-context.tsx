@@ -41,7 +41,11 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!activeBrandId && brands.length > 0) {
+    if (brands.length === 0) return;
+
+    const savedBrandExists = activeBrandId ? brands.some((b) => b.id === activeBrandId) : false;
+
+    if (!activeBrandId || !savedBrandExists) {
       const defaultId = brands.find((b) => b.slug === "hobby-shop")?.id ?? brands[0].id;
       setActiveBrandIdState(defaultId);
       if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, defaultId);
@@ -53,12 +57,15 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, id);
   };
 
-  const value = useMemo<BrandContextValue>(() => ({
-    brands,
-    activeBrand: brands.find((b) => b.id === activeBrandId) ?? null,
-    setActiveBrandId,
-    isLoading,
-  }), [brands, activeBrandId, isLoading]);
+  const value = useMemo<BrandContextValue>(
+    () => ({
+      brands,
+      activeBrand: brands.find((b) => b.id === activeBrandId) ?? null,
+      setActiveBrandId,
+      isLoading,
+    }),
+    [brands, activeBrandId, isLoading],
+  );
 
   return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>;
 }
