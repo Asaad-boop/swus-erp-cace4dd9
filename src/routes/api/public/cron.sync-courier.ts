@@ -8,16 +8,19 @@ import {
 
 /**
  * Auto-sync courier status for in-flight orders.
- * Called by pg_cron. Auth via Supabase anon key in `apikey` header.
+ * Called by pg_cron. Auth: header `x-cron-secret` must equal env CRON_SECRET.
  * Body (optional): { brandId?: string, limit?: number }
  */
 export const Route = createFileRoute("/api/public/cron/sync-courier")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = request.headers.get("apikey") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-        const expected = process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY;
-        if (!expected || apiKey !== expected) {
+        const expected = process.env.CRON_SECRET;
+        if (!expected) {
+          return new Response("Cron not configured", { status: 503 });
+        }
+        const provided = request.headers.get("x-cron-secret");
+        if (!provided || provided !== expected) {
           return new Response("Unauthorized", { status: 401 });
         }
 

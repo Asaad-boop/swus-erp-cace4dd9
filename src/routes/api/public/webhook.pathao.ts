@@ -8,17 +8,19 @@ import {
 /**
  * Pathao webhook receiver.
  * Configure in Pathao dashboard: https://swus-erp.lovable.app/api/public/webhook/pathao
- * Signature: header `X-PATHAO-Signature` must match env PATHAO_WEBHOOK_SECRET
- * (Pathao's documented default static value: f3992ecc-59da-4cbe-a049-a13da2018d51).
+ * Signature: header `X-PATHAO-Signature` must match env PATHAO_WEBHOOK_SECRET.
+ * The secret MUST be configured server-side; there is no fallback default.
  */
-const DEFAULT_PATHAO_SIGNATURE = "f3992ecc-59da-4cbe-a049-a13da2018d51";
-
 export const Route = createFileRoute("/api/public/webhook/pathao")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const sig = request.headers.get("x-pathao-signature");
-        const expected = process.env.PATHAO_WEBHOOK_SECRET ?? DEFAULT_PATHAO_SIGNATURE;
+        const expected = process.env.PATHAO_WEBHOOK_SECRET;
+        if (!expected) {
+          console.error("[pathao webhook] PATHAO_WEBHOOK_SECRET is not configured");
+          return new Response("Webhook not configured", { status: 503 });
+        }
         if (!sig || sig !== expected) {
           return new Response("Invalid signature", { status: 401 });
         }
