@@ -5,6 +5,12 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+declare global {
+  // Runtime-only secret bridge populated by src/server.ts in the server worker.
+  // eslint-disable-next-line no-var
+  var __LOVABLE_RUNTIME_ENV__: Record<string, string> | undefined;
+}
+
 function getServerEnv(key: string) {
   return process.env[key] || globalThis.__LOVABLE_RUNTIME_ENV__?.[key];
 }
