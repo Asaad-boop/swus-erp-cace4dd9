@@ -11,6 +11,7 @@ export type AbandonedCartItem = {
   image?: string | null;
   price?: number;
   unit_price?: number;
+  qty?: number;
   quantity?: number;
 };
 
@@ -173,7 +174,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
 
     const subtotal = items.reduce((s, it) => {
       const price = Number(it.unit_price ?? it.price ?? 0);
-      const qty = Number(it.quantity ?? 1);
+      const qty = Number(it.quantity ?? it.qty ?? 1);
       return s + price * qty;
     }, 0);
     const total = subtotal; // shipping/discount = 0 by default; staff can adjust later
@@ -183,7 +184,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       .insert({
         brand_id: data.brandId,
         source: "website" as never,
-        status: "confirmed" as never,
+          status: "confirmed" as never,
         confirmation_status: "pending" as never,
         subtotal,
         total,
@@ -199,7 +200,8 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
         guest_name: cart.customer_name,
         guest_phone: cart.customer_phone,
         payment_method: "cod",
-        customer_note: `Recovered from incomplete checkout (last step: ${cart.last_step ?? "unknown"})`,
+          customer_note: `Recovered from incomplete checkout (last step: ${cart.last_step ?? "unknown"})`,
+          confirmed_by: context.userId,
       })
       .select("id, invoice_no")
       .single();
@@ -209,7 +211,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       .filter((it) => it.product_id || it.id)
       .map((it) => {
         const price = Number(it.unit_price ?? it.price ?? 0);
-        const qty = Number(it.quantity ?? 1);
+          const qty = Number(it.quantity ?? it.qty ?? 1);
         return {
           order_id: order.id,
           product_id: (it.product_id ?? it.id)!,
