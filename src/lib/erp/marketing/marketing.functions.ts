@@ -330,9 +330,9 @@ export const listCampaigns = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: campaigns, error } = await admin
+    const { data: campaigns, error } = await db
       .from("marketing_campaigns")
       .select("id, name, status, objective, daily_budget, last_insight_sync_at, ad_account_id, marketing_ad_accounts(account_name, currency)")
       .eq("brand_id", data.brandId)
@@ -345,7 +345,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("campaign_id, spend, purchase_value, purchases, clicks, impressions, date")
       .in("campaign_id", ids)
@@ -363,7 +363,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
       agg.set(i.campaign_id, a);
     }
 
-    const { data: maps } = await admin
+    const { data: maps } = await db
       .from("marketing_campaign_products")
       .select("campaign_id, product_id, weight")
       .in("campaign_id", ids);
@@ -378,7 +378,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
     const allProductIds = Array.from(new Set((maps ?? []).map((m: any) => m.product_id)));
     const productRevenue = new Map<string, number>();
     if (allProductIds.length > 0) {
-      const { data: itemRows } = await admin
+      const { data: itemRows } = await db
         .from("order_items")
         .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", allProductIds)
