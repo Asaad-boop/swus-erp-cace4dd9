@@ -119,7 +119,7 @@ export function IncompleteOrdersTable({
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && rows.length === 0 && (
+            {!isLoading && !error && rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   <ShoppingCart className="inline h-5 w-5 mr-2 opacity-60" />
