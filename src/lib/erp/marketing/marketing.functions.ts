@@ -41,11 +41,11 @@ export const connectMetaAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
     const { metaVerifyAccount } = await import("./meta.server");
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
     const info = await metaVerifyAccount(data.externalAccountId);
 
-    const { data: platform, error: pErr } = await admin
+    const { data: platform, error: pErr } = await db
       .from("marketing_platforms").select("id").eq("code", "meta").maybeSingle();
     if (pErr || !platform) throw new Error("Meta platform not registered");
 
@@ -62,7 +62,7 @@ export const connectMetaAccount = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     };
 
-    const { data: row, error } = await admin
+    const { data: row, error } = await db
       .from("marketing_ad_accounts")
       .upsert(payload, { onConflict: "platform_id,external_account_id" })
       .select("id")
@@ -79,9 +79,9 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: acc, error: aErr } = await admin
+    const { data: acc, error: aErr } = await db
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, metadata")
       .eq("id", data.adAccountId)
@@ -93,7 +93,7 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
     const campaigns = await metaListCampaigns(acc.external_account_id, token);
 
     if (campaigns.length === 0) {
-      await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
+      await db.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
       return { synced: 0 };
     }
 
@@ -113,12 +113,12 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     }));
 
-    const { error: upErr } = await admin
+    const { error: upErr } = await db
       .from("marketing_campaigns")
       .upsert(rows, { onConflict: "ad_account_id,external_campaign_id" });
     if (upErr) throw upErr;
 
-    await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
+    await db.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
     return { synced: rows.length };
   });
 
@@ -130,7 +130,7 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    return runInsightsSync(data.adAccountId, data.days ?? 7);
+    return runInsightsSync(data.adAccountId, data.days ?? 7, context.supabase);
   });
 
 async function runInsightsSync(adAccountId: string, days: number, clientOverride?: any) {
