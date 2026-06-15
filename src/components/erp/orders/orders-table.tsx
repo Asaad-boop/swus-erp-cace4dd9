@@ -654,7 +654,7 @@ function rateTone(rate: number | null): { text: string; bg: string; stroke: stri
   return { text: "text-red-700 dark:text-red-300", bg: "bg-red-500/15", stroke: "stroke-red-500", ring: "ring-red-500/30" };
 }
 
-function CourierRateBadge({ phone, brandId }: { phone: string; brandId: string | null }) {
+export function CourierRateBadge({ phone, brandId }: { phone: string; brandId: string | null }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   // Fetch eagerly so the % is visible at a glance. Server caches results for 24h.

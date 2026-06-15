@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
+import { CourierRateBadge } from "@/components/erp/orders/orders-table";
 import { cn } from "@/lib/utils";
 import { useAbandonedCartsQuery } from "@/hooks/erp/use-abandoned-carts-query";
 import {
@@ -218,6 +219,7 @@ export function IncompleteOrdersTable({
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Phone className="h-3 w-3 shrink-0" />
                             <span className="tabular-nums truncate">{r.customer_phone}</span>
+                            <CourierRateBadge phone={r.customer_phone} brandId={r.brand_id ?? brandId} />
                             <PhoneActions phone={r.customer_phone} className="ml-auto" />
                           </div>
                         )}
