@@ -117,7 +117,19 @@ export const deleteAbandonedCartFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to delete incomplete checkouts");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("abandoned_carts")
       .delete()
       .eq("id", data.id);
@@ -134,9 +146,20 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to confirm incomplete checkouts");
+    }
 
-    const { data: cart, error: cartErr } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: cart, error: cartErr } = await supabaseAdmin
       .from("abandoned_carts")
       .select("*")
       .eq("id", data.id)
@@ -155,7 +178,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
     }, 0);
     const total = subtotal; // shipping/discount = 0 by default; staff can adjust later
 
-    const { data: order, error: oErr } = await supabase
+    const { data: order, error: oErr } = await supabaseAdmin
       .from("orders")
       .insert({
         brand_id: data.brandId,
@@ -202,11 +225,11 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       });
 
     if (itemRows.length) {
-      const { error: iErr } = await supabase.from("order_items").insert(itemRows);
+      const { error: iErr } = await supabaseAdmin.from("order_items").insert(itemRows);
       if (iErr) throw new Error(iErr.message);
     }
 
-    await supabase.rpc("mark_abandoned_cart_converted", {
+    await supabaseAdmin.rpc("mark_abandoned_cart_converted", {
       _id: data.id,
       _order_id: order.id,
     });
