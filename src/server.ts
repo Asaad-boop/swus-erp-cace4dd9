@@ -12,19 +12,34 @@ let serverEntryPromise: Promise<ServerEntry> | undefined;
 const RUNTIME_ENV_KEYS = [
   "SUPABASE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "ADMIN_SERVICE_ROLE_KEY",
 ] as const;
 
+declare global {
+  // Runtime-only secret bridge for the server bundle. This is never exposed to
+  // browser code; it only exists inside the server fetch handler runtime.
+  // eslint-disable-next-line no-var
+  var __LOVABLE_RUNTIME_ENV__: Record<string, string> | undefined;
+}
+
 function attachRuntimeEnv(env: unknown) {
   if (!env || typeof env !== "object") return;
   const runtimeEnv = env as Record<string, unknown>;
+  globalThis.__LOVABLE_RUNTIME_ENV__ ??= {};
 
   for (const key of RUNTIME_ENV_KEYS) {
     const value = runtimeEnv[key];
-    if (typeof value === "string" && value.length > 0 && !process.env[key]) {
-      process.env[key] = value;
+    if (typeof value === "string" && value.length > 0) {
+      globalThis.__LOVABLE_RUNTIME_ENV__[key] = value;
+      if (!process.env[key]) process.env[key] = value;
     }
+  }
+
+  if (!globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY) {
+    const anonKey = globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_ANON_KEY;
+    if (anonKey) globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY = anonKey;
   }
 }
 
