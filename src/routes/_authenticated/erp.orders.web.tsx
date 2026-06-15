@@ -493,6 +493,18 @@ function WebOrdersPage() {
         onClear={() => setTagFilter(new Set())}
       />
 
+      {activeTab === "incomplete" ? (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <IncompleteOrdersTable
+            brandId={activeBrand?.id ?? null}
+            search={search}
+            page={incompletePage}
+            pageSize={50}
+            onPageChange={setIncompletePage}
+            onOpenOrder={setOpenId}
+          />
+        </div>
+      ) : (
       <div className="rounded-xl border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
