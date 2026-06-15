@@ -45,10 +45,18 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    const { data: canView, error: roleError } = await supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _permission: "orders_view",
+    });
+    if (roleError) throw new Error(roleError.message);
+    if (!canView) throw new Error("Not authorized to view incomplete checkouts");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const from = data.page * data.pageSize;
     const to = from + data.pageSize - 1;
 
-    let q = supabase
+    let q = supabaseAdmin
       .from("abandoned_carts")
       .select("*", { count: "exact" })
       .eq("is_converted", false)
@@ -77,8 +85,15 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
     z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    let q = supabase
+    const { data: canView, error: roleError } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _permission: "orders_view",
+    });
+    if (roleError) throw new Error(roleError.message);
+    if (!canView) throw new Error("Not authorized to view incomplete checkouts");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
       .from("abandoned_carts")
       .select("id", { count: "exact", head: true })
       .eq("is_converted", false)
