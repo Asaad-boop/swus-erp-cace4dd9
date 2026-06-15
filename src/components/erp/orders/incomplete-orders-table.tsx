@@ -40,14 +40,13 @@ export function IncompleteOrdersTable({
   const qc = useQueryClient();
   const convertAbandonedCart = useServerFn(convertAbandonedCartFn);
   const deleteAbandonedCart = useServerFn(deleteAbandonedCartFn);
-  const { data, isLoading, isFetching } = useAbandonedCartsQuery({
+  const { data, isLoading, isFetching, error } = useAbandonedCartsQuery({
     brandId,
     search,
     page,
     pageSize,
     enabled: true,
   });
-  const error = null as Error | null;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
