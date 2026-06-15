@@ -182,19 +182,31 @@ export function IncompleteOrdersTable({
             )}
             {rows.map((r) => {
               const items = Array.isArray(r.cart_items) ? r.cart_items : [];
-              const addr = [r.shipping_address, r.shipping_thana, r.shipping_city, r.shipping_district]
-                .filter(Boolean).join(", ");
+              const addr = [
+                r.shipping_address,
+                r.shipping_thana,
+                r.shipping_city,
+                r.shipping_district,
+              ]
+                .filter(Boolean)
+                .join(", ");
               const busy = pendingId === r.id;
               return (
                 <TableRow key={r.id} className="hover:bg-muted/30">
                   <TableCell className="text-xs text-muted-foreground tabular-nums">
                     {new Date(r.updated_at).toLocaleString(undefined, {
-                      day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </TableCell>
                   <TableCell className="font-medium">{r.customer_name ?? "—"}</TableCell>
                   <TableCell className="tabular-nums">{r.customer_phone ?? "—"}</TableCell>
-                  <TableCell className="max-w-[280px] text-xs text-muted-foreground truncate" title={addr}>
+                  <TableCell
+                    className="max-w-[280px] text-xs text-muted-foreground truncate"
+                    title={addr}
+                  >
                     {addr || "—"}
                   </TableCell>
                   <TableCell className="text-center tabular-nums">{items.length}</TableCell>
@@ -206,13 +218,23 @@ export function IncompleteOrdersTable({
                       <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
                         {r.last_step}
                       </Badge>
-                    ) : "—"}
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex gap-1">
                       {r.customer_phone && (
-                        <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Call">
-                          <a href={`tel:${r.customer_phone}`}><Phone className="h-3.5 w-3.5" /></a>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Call"
+                        >
+                          <a href={`tel:${r.customer_phone}`}>
+                            <Phone className="h-3.5 w-3.5" />
+                          </a>
                         </Button>
                       )}
                       <Button
