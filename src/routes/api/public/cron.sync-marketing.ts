@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
 function guard(request: Request): Response | null {
   const expected = process.env.CRON_SECRET;
   if (!expected) {
-    return new Response("Cron not configured", { status: 503 });
+    return Response.json({ ok: true, skipped: true, reason: "Cron not configured" });
   }
   const provided = request.headers.get("x-cron-secret");
   if (!provided || provided !== expected) {
@@ -91,6 +91,6 @@ async function handler() {
 
     return Response.json({ ok: true, results });
   } catch (e) {
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    return Response.json({ ok: false, error: (e as Error).message });
   }
 }
