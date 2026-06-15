@@ -36,7 +36,7 @@ type Props = {
   orders: Pick<OrderRow, "id" | "invoice_no">[];
 };
 
-const CONCURRENCY = 12;
+const CONCURRENCY = 3;
 const ROW_HEIGHT = 40;
 const VIEWPORT_H = 380;
 const OVERSCAN = 6;
