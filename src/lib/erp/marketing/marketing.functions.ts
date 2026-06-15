@@ -41,11 +41,11 @@ export const connectMetaAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
     const { metaVerifyAccount } = await import("./meta.server");
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
     const info = await metaVerifyAccount(data.externalAccountId);
 
-    const { data: platform, error: pErr } = await admin
+    const { data: platform, error: pErr } = await db
       .from("marketing_platforms").select("id").eq("code", "meta").maybeSingle();
     if (pErr || !platform) throw new Error("Meta platform not registered");
 
@@ -62,7 +62,7 @@ export const connectMetaAccount = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     };
 
-    const { data: row, error } = await admin
+    const { data: row, error } = await db
       .from("marketing_ad_accounts")
       .upsert(payload, { onConflict: "platform_id,external_account_id" })
       .select("id")
@@ -79,9 +79,9 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: acc, error: aErr } = await admin
+    const { data: acc, error: aErr } = await db
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, metadata")
       .eq("id", data.adAccountId)
@@ -93,7 +93,7 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
     const campaigns = await metaListCampaigns(acc.external_account_id, token);
 
     if (campaigns.length === 0) {
-      await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
+      await db.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
       return { synced: 0 };
     }
 
@@ -113,12 +113,12 @@ export const syncMetaCampaigns = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     }));
 
-    const { error: upErr } = await admin
+    const { error: upErr } = await db
       .from("marketing_campaigns")
       .upsert(rows, { onConflict: "ad_account_id,external_campaign_id" });
     if (upErr) throw upErr;
 
-    await admin.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
+    await db.from("marketing_ad_accounts").update({ last_synced_at: new Date().toISOString() }).eq("id", acc.id);
     return { synced: rows.length };
   });
 
@@ -130,11 +130,11 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    return runInsightsSync(data.adAccountId, data.days ?? 7);
+    return runInsightsSync(data.adAccountId, data.days ?? 7, context.supabase);
   });
 
-async function runInsightsSync(adAccountId: string, days: number) {
-  const admin = await getAdminClient();
+async function runInsightsSync(adAccountId: string, days: number, clientOverride?: any) {
+  const admin = clientOverride ?? await getAdminClient();
   const { data: acc } = await admin
     .from("marketing_ad_accounts")
     .select("id, metadata")
@@ -163,7 +163,7 @@ async function runInsightsSync(adAccountId: string, days: number) {
   const CONCURRENCY = 3;
   for (let i = 0; i < campaigns.length; i += CONCURRENCY) {
     const batch = campaigns.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.map(async (c) => {
+    await Promise.all(batch.map(async (c: any) => {
       try {
         const rows = await metaCampaignInsights(c.external_campaign_id, sinceStr, untilStr, token);
         if (rows.length === 0) return;
@@ -192,7 +192,7 @@ async function runInsightsSync(adAccountId: string, days: number) {
         insightCount += insightRows.length;
 
         // Auto-create expense entries
-        const expensesCreated = await syncCampaignExpenses(c.id, c.brand_id, rows);
+        const expensesCreated = await syncCampaignExpenses(c.id, c.brand_id, rows, admin);
         expenseCount += expensesCreated;
 
         await admin.from("marketing_campaigns")
@@ -211,8 +211,9 @@ async function syncCampaignExpenses(
   campaignId: string,
   brandId: string,
   rows: Array<{ date: string; spend: number }>,
+  clientOverride?: any,
 ): Promise<number> {
-  const admin = await getAdminClient();
+  const admin = clientOverride ?? await getAdminClient();
 
   // Load settings
   const { data: settings } = await admin
@@ -253,7 +254,7 @@ async function syncCampaignExpenses(
     .select("id, insight_date, transaction_id, amount")
     .eq("campaign_id", campaignId)
     .in("insight_date", dates);
-  const existingMap = new Map((existing ?? []).map((e: any) => [e.insight_date, e]));
+  const existingMap = new Map<string, any>((existing ?? []).map((e: any) => [e.insight_date, e]));
 
   let created = 0;
   for (const r of rows) {
@@ -329,9 +330,9 @@ export const listCampaigns = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: campaigns, error } = await admin
+    const { data: campaigns, error } = await db
       .from("marketing_campaigns")
       .select("id, name, status, objective, daily_budget, last_insight_sync_at, ad_account_id, marketing_ad_accounts(account_name, currency)")
       .eq("brand_id", data.brandId)
@@ -344,7 +345,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("campaign_id, spend, purchase_value, purchases, clicks, impressions, date")
       .in("campaign_id", ids)
@@ -362,7 +363,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
       agg.set(i.campaign_id, a);
     }
 
-    const { data: maps } = await admin
+    const { data: maps } = await db
       .from("marketing_campaign_products")
       .select("campaign_id, product_id, weight")
       .in("campaign_id", ids);
@@ -377,7 +378,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
     const allProductIds = Array.from(new Set((maps ?? []).map((m: any) => m.product_id)));
     const productRevenue = new Map<string, number>();
     if (allProductIds.length > 0) {
-      const { data: itemRows } = await admin
+      const { data: itemRows } = await db
         .from("order_items")
         .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", allProductIds)
@@ -438,9 +439,9 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
-    const { data: campaign, error } = await admin
+    const { data: campaign, error } = await db
       .from("marketing_campaigns")
       .select("*, marketing_ad_accounts(account_name, external_account_id, currency)")
       .eq("id", data.campaignId)
@@ -450,7 +451,7 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("*")
       .eq("campaign_id", data.campaignId)
@@ -458,7 +459,7 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
       .lte("date", untilStr)
       .order("date", { ascending: true });
 
-    const { data: mappings } = await admin
+    const { data: mappings } = await db
       .from("marketing_campaign_products")
       .select("id, product_id, weight, notes, products(id, title, sku, image, price)")
       .eq("campaign_id", data.campaignId);
@@ -480,8 +481,8 @@ export const saveCampaignProducts = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    await admin.from("marketing_campaign_products").delete().eq("campaign_id", data.campaignId);
+    const db = context.supabase;
+    await db.from("marketing_campaign_products").delete().eq("campaign_id", data.campaignId);
     if (data.products.length > 0) {
       const rows = data.products.map((p) => ({
         campaign_id: data.campaignId,
@@ -489,7 +490,7 @@ export const saveCampaignProducts = createServerFn({ method: "POST" })
         weight: p.weight,
         created_by: context.userId,
       }));
-      const { error } = await admin.from("marketing_campaign_products").insert(rows);
+      const { error } = await db.from("marketing_campaign_products").insert(rows);
       if (error) throw error;
     }
     return { ok: true, count: data.products.length };
@@ -507,12 +508,12 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: campaigns } = await admin
+    const { data: campaigns } = await db
       .from("marketing_campaigns")
       .select("id, status")
       .eq("brand_id", data.brandId);
@@ -527,7 +528,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("campaign_id, date, spend, purchase_value")
       .in("campaign_id", campIds)
@@ -547,7 +548,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
     }
 
     // Actual revenue (across mapped products)
-    const { data: maps } = await admin
+    const { data: maps } = await db
       .from("marketing_campaign_products")
       .select("campaign_id, product_id, weight")
       .in("campaign_id", campIds);
@@ -555,7 +556,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
     const productIds = Array.from(new Set((maps ?? []).map((m: any) => m.product_id)));
     let actualRevenue = 0;
     if (productIds.length > 0) {
-      const { data: itemRows } = await admin
+      const { data: itemRows } = await db
         .from("order_items")
         .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", productIds)
@@ -620,9 +621,8 @@ export const saveMarketingSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const isAdmin = (await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })).data;
     if (!isAdmin) throw new Error("Admin only");
-    const admin = await getAdminClient();
     const { brandId, ...rest } = data;
-    const { error } = await admin
+    const { error } = await context.supabase
       .from("marketing_settings")
       .upsert({ brand_id: brandId, ...rest, updated_at: new Date().toISOString() }, { onConflict: "brand_id" });
     if (error) throw error;
@@ -658,8 +658,7 @@ export const setAdAccountActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    const { error } = await admin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
       .eq("id", data.adAccountId);
@@ -691,15 +690,14 @@ export const getMarketingLookups = createServerFn({ method: "POST" })
   .inputValidator((d: { brandId: string }) => z.object({ brandId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
     const [{ data: accounts }, { data: categories }] = await Promise.all([
-      admin
+      context.supabase
         .from("erp_accounts")
         .select("id, name, account_type")
         .eq("brand_id", data.brandId)
         .eq("is_active", true)
         .order("name"),
-      admin
+      context.supabase
         .from("erp_expense_categories")
         .select("id, name, kind")
         .eq("brand_id", data.brandId)
@@ -716,8 +714,7 @@ export const getAdAccountDetail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    const { data: row, error } = await admin
+    const { data: row, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, platform_id, external_account_id, account_name, currency, is_active, metadata, last_synced_at")
       .eq("id", data.adAccountId)
@@ -797,9 +794,8 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
 
-    const { data: platform, error: pErr } = await admin
+    const { data: platform, error: pErr } = await context.supabase
       .from("marketing_platforms").select("id").eq("code", "meta").maybeSingle();
     if (pErr || !platform) throw new Error("Meta platform not registered");
 
@@ -808,7 +804,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
     let resolvedInfo: { name?: string | null; currency?: string | null; timezone_name?: string | null; account_status?: number | null } = {};
 
     if (data.id) {
-      const { data: row, error } = await admin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .select("metadata")
         .eq("id", data.id)
@@ -865,7 +861,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
     };
 
     if (data.id) {
-      const { error } = await admin
+      const { error } = await context.supabase
         .from("marketing_ad_accounts")
         .update(payload)
         .eq("id", data.id);
@@ -873,7 +869,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
       return { id: data.id };
     } else {
       payload.created_by = context.userId;
-      const { data: row, error } = await admin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .upsert(payload, { onConflict: "platform_id,external_account_id" })
         .select("id")
