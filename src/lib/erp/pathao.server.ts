@@ -169,8 +169,8 @@ export async function loadPathaoCreds(supabase: any, brandId?: string | null): P
   let client: any = supabase;
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      client = supabaseAdmin;
+      const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+      client = tryGetSupabaseAdmin() ?? client;
     } catch {
       // fall back to caller's client
     }
