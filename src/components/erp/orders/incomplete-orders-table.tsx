@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Phone, ShoppingCart, Trash2, CheckCircle2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Loader2, Phone, ShoppingCart, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useAbandonedCartsQuery } from "@/hooks/erp/use-abandoned-carts-query";
-import { type AbandonedCartItem, type AbandonedCartRow } from "@/lib/erp/abandoned-carts.functions";
+import {
+  convertAbandonedCartFn,
+  deleteAbandonedCartFn,
+  type AbandonedCartRow,
+} from "@/lib/erp/abandoned-carts.functions";
 
 type Props = {
   brandId: string | null;
@@ -34,7 +38,9 @@ export function IncompleteOrdersTable({
   onOpenOrder,
 }: Props) {
   const qc = useQueryClient();
-  const { data, isLoading, isFetching } = useAbandonedCartsQuery({
+  const convertAbandonedCart = useServerFn(convertAbandonedCartFn);
+  const deleteAbandonedCart = useServerFn(deleteAbandonedCartFn);
+  const { data, isLoading, isFetching, error } = useAbandonedCartsQuery({
     brandId,
     search,
     page,
@@ -52,74 +58,9 @@ export function IncompleteOrdersTable({
       setPendingId(cart.id);
       const targetBrandId = cart.brand_id ?? brandId;
       if (!targetBrandId) throw new Error("Brand select koro");
-
-      const items = (cart.cart_items ?? []) as AbandonedCartItem[];
-      if (!items.length) throw new Error("Cart has no items");
-
-      const subtotal = items.reduce((sum, item) => {
-        const price = Number(item.unit_price ?? item.price ?? 0);
-        const qty = Number(item.quantity ?? 1);
-        return sum + price * qty;
-      }, 0);
-
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          brand_id: targetBrandId,
-          source: "website" as never,
-          status: "confirmed" as never,
-          confirmation_status: "pending" as never,
-          subtotal,
-          total: subtotal,
-          shipping_fee: 0,
-          discount_amount: 0,
-          is_guest_order: true,
-          shipping_name: cart.customer_name,
-          shipping_phone: cart.customer_phone,
-          shipping_address: cart.shipping_address,
-          shipping_city: cart.shipping_city,
-          shipping_district: cart.shipping_district,
-          shipping_thana: cart.shipping_thana,
-          guest_name: cart.customer_name,
-          guest_phone: cart.customer_phone,
-          payment_method: "cod",
-          customer_note: `Recovered from incomplete checkout (last step: ${cart.last_step ?? "unknown"})`,
-        })
-        .select("id, invoice_no")
-        .single();
-      if (orderError) throw orderError;
-
-      const itemRows = items
-        .filter((item) => item.product_id || item.id)
-        .map((item) => {
-          const price = Number(item.unit_price ?? item.price ?? 0);
-          const qty = Number(item.quantity ?? 1);
-          return {
-            order_id: order.id,
-            product_id: (item.product_id ?? item.id)!,
-            variant_id: item.variant_id ?? null,
-            variant_label: item.variant_label ?? null,
-            name: item.name ?? "Item",
-            image: item.image ?? null,
-            price,
-            unit_price: price,
-            quantity: qty,
-            line_total: price * qty,
-          };
-        });
-
-      if (itemRows.length) {
-        const { error: itemsError } = await supabase.from("order_items").insert(itemRows);
-        if (itemsError) throw itemsError;
-      }
-
-      const { error: markError } = await supabase.rpc("mark_abandoned_cart_converted", {
-        _id: cart.id,
-        _order_id: order.id,
+      return convertAbandonedCart({
+        data: { id: cart.id, brandId: targetBrandId },
       });
-      if (markError) throw markError;
-
-      return { orderId: order.id, invoiceNo: order.invoice_no };
     },
     onSuccess: (res) => {
       toast.success(`Order created${res.invoiceNo ? " · " + res.invoiceNo : ""}`);
@@ -135,9 +76,7 @@ export function IncompleteOrdersTable({
   const delMut = useMutation({
     mutationFn: async (id: string) => {
       setPendingId(id);
-      const { error } = await supabase.from("abandoned_carts").delete().eq("id", id);
-      if (error) throw error;
-      return { ok: true };
+      return deleteAbandonedCart({ data: { id } });
     },
     onSuccess: () => {
       toast.success("Deleted");
@@ -172,7 +111,15 @@ export function IncompleteOrdersTable({
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && rows.length === 0 && (
+            {!isLoading && error && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12 text-destructive">
+                  <AlertCircle className="inline h-5 w-5 mr-2 opacity-80" />
+                  {error.message}
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !error && rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   <ShoppingCart className="inline h-5 w-5 mr-2 opacity-60" />

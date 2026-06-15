@@ -11,6 +11,7 @@ export type AbandonedCartItem = {
   image?: string | null;
   price?: number;
   unit_price?: number;
+  qty?: number;
   quantity?: number;
 };
 
@@ -45,10 +46,22 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    const [admin, customerService, operations] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to view incomplete checkouts");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const from = data.page * data.pageSize;
     const to = from + data.pageSize - 1;
 
-    let q = supabase
+    let q = supabaseAdmin
       .from("abandoned_carts")
       .select("*", { count: "exact" })
       .eq("is_converted", false)
@@ -77,8 +90,19 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
     z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    let q = supabase
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to view incomplete checkouts");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
       .from("abandoned_carts")
       .select("id", { count: "exact", head: true })
       .eq("is_converted", false)
@@ -94,7 +118,19 @@ export const deleteAbandonedCartFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to delete incomplete checkouts");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("abandoned_carts")
       .delete()
       .eq("id", data.id);
@@ -111,9 +147,20 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
+    if (roleError) throw new Error(roleError.message);
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to confirm incomplete checkouts");
+    }
 
-    const { data: cart, error: cartErr } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: cart, error: cartErr } = await supabaseAdmin
       .from("abandoned_carts")
       .select("*")
       .eq("id", data.id)
@@ -127,17 +174,17 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
 
     const subtotal = items.reduce((s, it) => {
       const price = Number(it.unit_price ?? it.price ?? 0);
-      const qty = Number(it.quantity ?? 1);
+      const qty = Number(it.quantity ?? it.qty ?? 1);
       return s + price * qty;
     }, 0);
     const total = subtotal; // shipping/discount = 0 by default; staff can adjust later
 
-    const { data: order, error: oErr } = await supabase
+    const { data: order, error: oErr } = await supabaseAdmin
       .from("orders")
       .insert({
         brand_id: data.brandId,
         source: "website" as never,
-        status: "confirmed" as never,
+          status: "confirmed" as never,
         confirmation_status: "pending" as never,
         subtotal,
         total,
@@ -153,7 +200,8 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
         guest_name: cart.customer_name,
         guest_phone: cart.customer_phone,
         payment_method: "cod",
-        customer_note: `Recovered from incomplete checkout (last step: ${cart.last_step ?? "unknown"})`,
+          customer_note: `Recovered from incomplete checkout (last step: ${cart.last_step ?? "unknown"})`,
+          confirmed_by: context.userId,
       })
       .select("id, invoice_no")
       .single();
@@ -163,7 +211,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       .filter((it) => it.product_id || it.id)
       .map((it) => {
         const price = Number(it.unit_price ?? it.price ?? 0);
-        const qty = Number(it.quantity ?? 1);
+          const qty = Number(it.quantity ?? it.qty ?? 1);
         return {
           order_id: order.id,
           product_id: (it.product_id ?? it.id)!,
@@ -179,11 +227,11 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       });
 
     if (itemRows.length) {
-      const { error: iErr } = await supabase.from("order_items").insert(itemRows);
+      const { error: iErr } = await supabaseAdmin.from("order_items").insert(itemRows);
       if (iErr) throw new Error(iErr.message);
     }
 
-    await supabase.rpc("mark_abandoned_cart_converted", {
+    await supabaseAdmin.rpc("mark_abandoned_cart_converted", {
       _id: data.id,
       _order_id: order.id,
     });
