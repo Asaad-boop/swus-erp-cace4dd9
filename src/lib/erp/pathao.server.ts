@@ -11,6 +11,7 @@ export type PathaoCreds = {
 };
 
 const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
+const tokenInflight = new Map<string, Promise<{ access_token: string; expires_at: number }>>();
 const FETCH_TIMEOUT_MS = 12_000;
 
 async function fetchWithTimeout(
@@ -70,6 +71,9 @@ async function issueToken(creds: PathaoCreds) {
   });
   if (!res.ok) {
     const txt = await res.text();
+    if (res.status === 429) {
+      throw new Error("Pathao rate limit hoyeche. 1-2 minute pore abar try koro.");
+    }
     throw new Error(`Pathao auth failed (${res.status}): ${txt.slice(0, 240)}`);
   }
   const j: any = await res.json();
@@ -83,7 +87,11 @@ async function getToken(creds: PathaoCreds): Promise<string> {
   const key = `${creds.base_url}::${creds.client_id}::${creds.username}`;
   const c = tokenCache.get(key);
   if (c && c.expires_at > Date.now()) return c.access_token;
-  const t = await issueToken(creds);
+  const existing = tokenInflight.get(key);
+  if (existing) return (await existing).access_token;
+  const pending = issueToken(creds);
+  tokenInflight.set(key, pending);
+  const t = await pending.finally(() => tokenInflight.delete(key));
   tokenCache.set(key, t);
   return t.access_token;
 }
@@ -110,6 +118,9 @@ export function createPathaoClient(creds: PathaoCreds) {
     try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
     if (!res.ok) {
       const msg = json?.message || json?.error || text || `Pathao error ${res.status}`;
+      if (res.status === 429) {
+        throw new Error("Pathao rate limit hoyeche. 1-2 minute pore abar try koro.");
+      }
       throw new Error(`Pathao ${path} failed (${res.status}): ${typeof msg === "string" ? msg : JSON.stringify(msg).slice(0, 240)}`);
     }
     return (json?.data ?? json) as T;
