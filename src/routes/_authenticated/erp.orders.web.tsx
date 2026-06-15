@@ -462,7 +462,10 @@ function WebOrdersPage() {
       <div className="border-b flex flex-wrap gap-1">
         {STATUS_TABS.map((t) => {
           const active = activeTab === t.key;
-          const count = counts?.[t.key] ?? 0;
+          const count =
+            t.key === "incomplete"
+              ? incompleteCount ?? 0
+              : counts?.[t.key] ?? 0;
           return (
             <button
               key={t.key}
