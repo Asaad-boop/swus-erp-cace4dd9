@@ -2,14 +2,27 @@ import { createFileRoute } from "@tanstack/react-router";
 
 // Public cron endpoint — called every 30 min by pg_cron.
 // Syncs campaigns + insights for all auto-sync-enabled brands.
+// Auth: header `x-cron-secret` must equal env CRON_SECRET (server-only secret).
 export const Route = createFileRoute("/api/public/cron/sync-marketing")({
   server: {
     handlers: {
-      GET: async () => handler(),
-      POST: async () => handler(),
+      GET: async ({ request }) => guard(request) ?? handler(),
+      POST: async ({ request }) => guard(request) ?? handler(),
     },
   },
 });
+
+function guard(request: Request): Response | null {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    return new Response("Cron not configured", { status: 503 });
+  }
+  const provided = request.headers.get("x-cron-secret");
+  if (!provided || provided !== expected) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  return null;
+}
 
 async function handler() {
   try {
