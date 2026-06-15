@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
       POST: async ({ request }) => {
         const expected = process.env.CRON_SECRET;
         if (!expected) {
-          return new Response("Cron not configured", { status: 503 });
+          return Response.json({ checked: 0, updated: 0, skipped: true, reason: "Cron not configured" });
         }
         const provided = request.headers.get("x-cron-secret");
         if (!provided || provided !== expected) {
@@ -32,7 +32,11 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         }
         const limit = Math.min(Math.max(body.limit ?? 200, 1), 500);
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const supabaseAdmin = tryGetSupabaseAdmin();
+        if (!supabaseAdmin) {
+          return Response.json({ checked: 0, updated: 0, skipped: true, reason: "Supabase admin client unavailable" });
+        }
 
         // Find in-flight orders that have any way to be tracked
         let q = supabaseAdmin
@@ -43,7 +47,7 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
           .limit(limit);
         if (body.brandId) q = q.eq("brand_id", body.brandId);
         const { data: orders, error: oErr } = await q;
-        if (oErr) return Response.json({ error: oErr.message }, { status: 500 });
+        if (oErr) return Response.json({ checked: 0, updated: 0, error: oErr.message });
         if (!orders || orders.length === 0) return Response.json({ checked: 0, updated: 0 });
 
         const orderIds = orders.map((o) => o.id);

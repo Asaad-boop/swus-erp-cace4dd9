@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
 function guard(request: Request): Response | null {
   const expected = process.env.CRON_SECRET;
   if (!expected) {
-    return new Response("Cron not configured", { status: 503 });
+    return Response.json({ ok: true, skipped: true, reason: "Cron not configured" });
   }
   const provided = request.headers.get("x-cron-secret");
   if (!provided || provided !== expected) {
@@ -26,7 +26,11 @@ function guard(request: Request): Response | null {
 
 async function handler() {
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = tryGetSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return Response.json({ ok: true, skipped: true, reason: "Supabase admin client unavailable" });
+    }
 
     const { data: accounts, error } = await supabaseAdmin
       .from("marketing_ad_accounts")
@@ -74,7 +78,7 @@ async function handler() {
         }
 
         // Sync last 3 days insights
-        const r = await runInsightsSync(acc.id, 3);
+        const r = await runInsightsSync(acc.id, 3, supabaseAdmin);
         await supabaseAdmin
           .from("marketing_ad_accounts")
           .update({ last_synced_at: new Date().toISOString() })
@@ -87,6 +91,6 @@ async function handler() {
 
     return Response.json({ ok: true, results });
   } catch (e) {
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    return Response.json({ ok: false, error: (e as Error).message });
   }
 }

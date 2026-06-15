@@ -11,8 +11,8 @@ async function assertMarketingRole(supabase: any, userId: string) {
 }
 
 async function getAdminClient() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return tryGetSupabaseAdmin();
 }
 
 // ============ META: list available accounts (for connect dialog) ============
@@ -135,6 +135,7 @@ export const syncMetaInsights = createServerFn({ method: "POST" })
 
 async function runInsightsSync(adAccountId: string, days: number, clientOverride?: any) {
   const admin = clientOverride ?? await getAdminClient();
+  if (!admin) return { campaigns: 0, insights: 0, expenses: 0, skipped: "admin_client_unavailable" };
   const { data: acc } = await admin
     .from("marketing_ad_accounts")
     .select("id, metadata")
@@ -214,6 +215,7 @@ async function syncCampaignExpenses(
   clientOverride?: any,
 ): Promise<number> {
   const admin = clientOverride ?? await getAdminClient();
+  if (!admin) return 0;
 
   // Load settings
   const { data: settings } = await admin
