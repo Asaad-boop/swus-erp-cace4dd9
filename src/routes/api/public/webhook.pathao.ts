@@ -30,6 +30,22 @@ export const Route = createFileRoute("/api/public/webhook/pathao")({
           return new Response("Invalid JSON", { status: 400 });
         }
 
+        try {
+          return await processPathao(payload, expected);
+        } catch (e: any) {
+          console.error("[pathao webhook] error:", e?.message ?? e, e?.stack);
+          return Response.json({ ok: false, error: String(e?.message ?? e) }, { status: 200 });
+        }
+      },
+
+      GET: async () => {
+        return new Response("Pathao webhook OK", { status: 200 });
+      },
+    },
+  },
+});
+
+async function processPathao(payload: any, expected: string): Promise<Response> {
         // Pathao sends: { event, consignment_id, order_status, merchant_order_id, updated_at, ... }
         const consignmentId: string | null = payload?.consignment_id ?? payload?.data?.consignment_id ?? null;
         const merchantOrderId: string | null = payload?.merchant_order_id ?? payload?.data?.merchant_order_id ?? null;
@@ -64,10 +80,14 @@ export const Route = createFileRoute("/api/public/webhook/pathao")({
         }
 
         if (!orderId && merchantOrderId) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(merchantOrderId);
+          const filter = isUuid
+            ? `invoice_no.eq.${merchantOrderId},id.eq.${merchantOrderId}`
+            : `invoice_no.eq.${merchantOrderId}`;
           const { data: o } = await supabaseAdmin
             .from("orders")
             .select("id, status, brand_id")
-            .or(`invoice_no.eq.${merchantOrderId},id.eq.${merchantOrderId}`)
+            .or(filter)
             .maybeSingle();
           if (o) {
             orderId = o.id;
@@ -113,12 +133,4 @@ export const Route = createFileRoute("/api/public/webhook/pathao")({
         });
 
         return Response.json({ ok: true, matched: true, action: "updated", from: currentStatus, to: mapped });
-      },
-
-      GET: async () => {
-        // Pathao verifies endpoint with a GET ping
-        return new Response("Pathao webhook OK", { status: 200 });
-      },
-    },
-  },
-});
+}
