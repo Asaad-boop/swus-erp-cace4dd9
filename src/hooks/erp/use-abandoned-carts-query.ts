@@ -27,7 +27,9 @@ export function useAbandonedCartsQuery(args: {
       if (args.brandId) q = q.eq("brand_id", args.brandId);
       if (args.search.trim()) {
         const s = args.search.trim();
-        q = q.or(`customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,customer_email.ilike.%${s}%`);
+        q = q.or(
+          `customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,customer_email.ilike.%${s}%`,
+        );
       }
 
       const { data, error, count } = await q.range(from, to);
