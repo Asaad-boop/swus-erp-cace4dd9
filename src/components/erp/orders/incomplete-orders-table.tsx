@@ -5,7 +5,12 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useAbandonedCartsQuery } from "@/hooks/erp/use-abandoned-carts-query";
@@ -21,11 +26,20 @@ type Props = {
 };
 
 export function IncompleteOrdersTable({
-  brandId, search, page, pageSize, onPageChange, onOpenOrder,
+  brandId,
+  search,
+  page,
+  pageSize,
+  onPageChange,
+  onOpenOrder,
 }: Props) {
   const qc = useQueryClient();
   const { data, isLoading, isFetching } = useAbandonedCartsQuery({
-    brandId, search, page, pageSize, enabled: true,
+    brandId,
+    search,
+    page,
+    pageSize,
+    enabled: true,
   });
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
