@@ -714,8 +714,7 @@ export const getAdAccountDetail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
-    const { data: row, error } = await admin
+    const { data: row, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, platform_id, external_account_id, account_name, currency, is_active, metadata, last_synced_at")
       .eq("id", data.adAccountId)
@@ -795,9 +794,8 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
 
-    const { data: platform, error: pErr } = await admin
+    const { data: platform, error: pErr } = await context.supabase
       .from("marketing_platforms").select("id").eq("code", "meta").maybeSingle();
     if (pErr || !platform) throw new Error("Meta platform not registered");
 
@@ -806,7 +804,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
     let resolvedInfo: { name?: string | null; currency?: string | null; timezone_name?: string | null; account_status?: number | null } = {};
 
     if (data.id) {
-      const { data: row, error } = await admin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .select("metadata")
         .eq("id", data.id)
@@ -863,7 +861,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
     };
 
     if (data.id) {
-      const { error } = await admin
+      const { error } = await context.supabase
         .from("marketing_ad_accounts")
         .update(payload)
         .eq("id", data.id);
@@ -871,7 +869,7 @@ export const saveMetaAccountManual = createServerFn({ method: "POST" })
       return { id: data.id };
     } else {
       payload.created_by = context.userId;
-      const { data: row, error } = await admin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .upsert(payload, { onConflict: "platform_id,external_account_id" })
         .select("id")
