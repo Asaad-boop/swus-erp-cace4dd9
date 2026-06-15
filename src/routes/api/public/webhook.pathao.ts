@@ -18,8 +18,7 @@ export const Route = createFileRoute("/api/public/webhook/pathao")({
         const sig = request.headers.get("x-pathao-signature");
         const expected = process.env.PATHAO_WEBHOOK_SECRET;
         if (!expected) {
-          console.error("[pathao webhook] PATHAO_WEBHOOK_SECRET is not configured");
-          return new Response("Webhook not configured", { status: 503 });
+          return Response.json({ ok: true, skipped: true, reason: "Webhook not configured" });
         }
         if (!sig || sig !== expected) {
           return new Response("Invalid signature", { status: 401 });
@@ -128,7 +127,7 @@ async function processPathao(payload: any, expected: string): Promise<Response> 
         }
 
         const { error: uErr } = await supabaseAdmin.from("orders").update({ status: mapped }).eq("id", orderId);
-        if (uErr) return Response.json({ error: uErr.message }, { status: 500 });
+        if (uErr) return Response.json({ ok: false, error: uErr.message });
 
         await supabaseAdmin.from("order_status_history").insert({
           order_id: orderId,
