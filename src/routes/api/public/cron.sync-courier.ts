@@ -32,7 +32,11 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         }
         const limit = Math.min(Math.max(body.limit ?? 200, 1), 500);
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const supabaseAdmin = tryGetSupabaseAdmin();
+        if (!supabaseAdmin) {
+          return Response.json({ error: "Supabase admin client unavailable" }, { status: 503 });
+        }
 
         // Find in-flight orders that have any way to be tracked
         let q = supabaseAdmin
