@@ -61,7 +61,7 @@ async function processPathao(payload: any, expected: string): Promise<Response> 
         const { tryGetSupabaseAdmin } = await import("@/integrations/supabase/client.server");
         const supabaseAdmin = tryGetSupabaseAdmin();
         if (!supabaseAdmin) {
-          return Response.json({ ok: false, error: "Supabase admin client unavailable" }, { status: 503 });
+          return Response.json({ ok: true, skipped: true, reason: "Supabase admin client unavailable" });
         }
 
         // Find shipment → order
