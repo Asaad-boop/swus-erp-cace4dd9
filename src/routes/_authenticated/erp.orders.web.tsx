@@ -20,6 +20,8 @@ import { AutoTagChips } from "@/components/erp/orders/auto-tag-chips";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
+import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders-table";
+import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
@@ -212,10 +214,12 @@ function WebOrdersPage() {
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
+  const [incompletePage, setIncompletePage] = useState(0);
+  const { data: incompleteCount } = useAbandonedCartCount(activeBrand?.id ?? null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["web-orders", activeBrand?.id, activeTab, search],
-    enabled: !!activeBrand?.id,
+    enabled: !!activeBrand?.id && activeTab !== "incomplete",
     queryFn: async () => {
       let q = supabase
         .from("orders")
