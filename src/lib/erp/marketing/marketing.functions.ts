@@ -508,12 +508,12 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMarketingRole(context.supabase, context.userId);
-    const admin = await getAdminClient();
+    const db = context.supabase;
 
     const sinceStr = data.since ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
     const untilStr = data.until ?? new Date().toISOString().slice(0, 10);
 
-    const { data: campaigns } = await admin
+    const { data: campaigns } = await db
       .from("marketing_campaigns")
       .select("id, status")
       .eq("brand_id", data.brandId);
@@ -528,7 +528,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: insights } = await admin
+    const { data: insights } = await db
       .from("marketing_campaign_insights")
       .select("campaign_id, date, spend, purchase_value")
       .in("campaign_id", campIds)
@@ -548,7 +548,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
     }
 
     // Actual revenue (across mapped products)
-    const { data: maps } = await admin
+    const { data: maps } = await db
       .from("marketing_campaign_products")
       .select("campaign_id, product_id, weight")
       .in("campaign_id", campIds);
@@ -556,7 +556,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
     const productIds = Array.from(new Set((maps ?? []).map((m: any) => m.product_id)));
     let actualRevenue = 0;
     if (productIds.length > 0) {
-      const { data: itemRows } = await admin
+      const { data: itemRows } = await db
         .from("order_items")
         .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", productIds)
