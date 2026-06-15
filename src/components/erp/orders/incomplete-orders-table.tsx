@@ -244,9 +244,11 @@ export function IncompleteOrdersTable({
                         onClick={() => convertMut.mutate(r)}
                         title="Confirm as order"
                       >
-                        {busy && convertMut.isPending
-                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        {busy && convertMut.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
                         Confirm
                       </Button>
                       <Button
@@ -276,8 +278,22 @@ export function IncompleteOrdersTable({
           {isFetching && " · syncing"}
         </span>
         <div className="flex gap-1.5">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => onPageChange(page - 1)}>Prev</Button>
-          <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => onPageChange(page + 1)}>Next</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => onPageChange(page - 1)}
+          >
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page + 1 >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>
