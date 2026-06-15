@@ -372,7 +372,7 @@ export const listCampaigns = createServerFn({ method: "POST" })
     if (allProductIds.length > 0) {
       const { data: itemRows } = await admin
         .from("order_items")
-        .select("product_id, quantity, price, orders!inner(status, created_at, brand_id)")
+        .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", allProductIds)
         .gte("orders.created_at", `${sinceStr}T00:00:00Z`)
         .lte("orders.created_at", `${untilStr}T23:59:59Z`)
@@ -380,7 +380,8 @@ export const listCampaigns = createServerFn({ method: "POST" })
         .in("orders.status", ["delivered", "partial_delivered", "paid"]);
       for (const it of (itemRows ?? []) as any[]) {
         const cur = productRevenue.get(it.product_id) ?? 0;
-        productRevenue.set(it.product_id, cur + Number(it.price || 0) * Number(it.quantity || 0));
+        const rev = Number(it.line_total ?? 0) || Number(it.price || 0) * Number(it.quantity || 0);
+        productRevenue.set(it.product_id, cur + rev);
       }
     }
 
@@ -452,7 +453,7 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
 
     const { data: mappings } = await admin
       .from("marketing_campaign_products")
-      .select("id, product_id, weight, notes, products(id, name, sku, image_url, price)")
+      .select("id, product_id, weight, notes, products(id, title, sku, image, price)")
       .eq("campaign_id", data.campaignId);
 
     return { campaign, insights: insights ?? [], mappings: mappings ?? [], range: { since: sinceStr, until: untilStr } };
@@ -549,7 +550,7 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
     if (productIds.length > 0) {
       const { data: itemRows } = await admin
         .from("order_items")
-        .select("product_id, quantity, price, orders!inner(status, created_at, brand_id)")
+        .select("product_id, quantity, price, line_total, orders!inner(status, created_at, brand_id)")
         .in("product_id", productIds)
         .gte("orders.created_at", `${sinceStr}T00:00:00Z`)
         .lte("orders.created_at", `${untilStr}T23:59:59Z`)
@@ -557,14 +558,10 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
         .in("orders.status", ["delivered", "partial_delivered", "paid"]);
       const productRev = new Map<string, number>();
       for (const it of (itemRows ?? []) as any[]) {
-        productRev.set(it.product_id, (productRev.get(it.product_id) ?? 0) + Number(it.price || 0) * Number(it.quantity || 0));
+        const rev = Number(it.line_total ?? 0) || Number(it.price || 0) * Number(it.quantity || 0);
+        productRev.set(it.product_id, (productRev.get(it.product_id) ?? 0) + rev);
       }
-      // Sum revenue per product weighted by share across all campaigns it's in
-      const productCampaigns = new Map<string, number>();
-      for (const m of maps ?? []) {
-        productCampaigns.set(m.product_id, (productCampaigns.get(m.product_id) ?? 0) + Number(m.weight || 0));
-      }
-      for (const [pid, rev] of productRev) {
+      for (const [, rev] of productRev) {
         actualRevenue += rev; // Total revenue from any mapped product
       }
     }
@@ -635,11 +632,11 @@ export const searchProductsForMapping = createServerFn({ method: "POST" })
     await assertMarketingRole(context.supabase, context.userId);
     let q = context.supabase
       .from("products")
-      .select("id, name, sku, image_url, price")
+      .select("id, title, sku, image, price")
       .eq("brand_id", data.brandId)
       .limit(30);
     if (data.q && data.q.trim()) {
-      q = q.or(`name.ilike.%${data.q.trim()}%,sku.ilike.%${data.q.trim()}%`);
+      q = q.or(`title.ilike.%${data.q.trim()}%,sku.ilike.%${data.q.trim()}%`);
     }
     const { data: rows, error } = await q;
     if (error) throw error;
