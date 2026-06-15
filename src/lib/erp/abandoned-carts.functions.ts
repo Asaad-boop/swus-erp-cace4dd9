@@ -57,11 +57,10 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to view incomplete checkouts");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const from = data.page * data.pageSize;
     const to = from + data.pageSize - 1;
 
-    let q = supabaseAdmin
+    let q = supabase
       .from("abandoned_carts")
       .select("*", { count: "exact" })
       .eq("is_converted", false)
@@ -101,8 +100,7 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to view incomplete checkouts");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let q = supabaseAdmin
+    let q = context.supabase
       .from("abandoned_carts")
       .select("id", { count: "exact", head: true })
       .eq("is_converted", false)
@@ -129,8 +127,7 @@ export const deleteAbandonedCartFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to delete incomplete checkouts");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("abandoned_carts")
       .delete()
       .eq("id", data.id);
@@ -158,7 +155,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to confirm incomplete checkouts");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase;
 
     const { data: cart, error: cartErr } = await supabaseAdmin
       .from("abandoned_carts")
