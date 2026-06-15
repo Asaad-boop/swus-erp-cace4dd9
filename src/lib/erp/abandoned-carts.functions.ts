@@ -45,12 +45,16 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: canView, error: roleError } = await supabase.rpc("has_permission", {
-      _user_id: context.userId,
-      _permission: "orders_view",
-    });
+    const [admin, customerService, operations] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
     if (roleError) throw new Error(roleError.message);
-    if (!canView) throw new Error("Not authorized to view incomplete checkouts");
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to view incomplete checkouts");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const from = data.page * data.pageSize;
@@ -85,12 +89,16 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
     z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: canView, error: roleError } = await context.supabase.rpc("has_permission", {
-      _user_id: context.userId,
-      _permission: "orders_view",
-    });
+    const [admin, customerService, operations] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+    ]);
+    const roleError = admin.error ?? customerService.error ?? operations.error;
     if (roleError) throw new Error(roleError.message);
-    if (!canView) throw new Error("Not authorized to view incomplete checkouts");
+    if (!admin.data && !customerService.data && !operations.data) {
+      throw new Error("Not authorized to view incomplete checkouts");
+    }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
