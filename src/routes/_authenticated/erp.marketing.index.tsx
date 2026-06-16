@@ -70,7 +70,6 @@ import {
   Package,
   ExternalLink,
   RotateCcw,
-  Settings2,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -803,13 +802,6 @@ function RowActionsMenu({
 
 function BreakevenPopover({ row }: { row: PerfRow }) {
   const isBE = row.is_breakeven;
-  // Targets the campaign needs to hit
-  const maxCppBdt =
-    row.delivered_orders > 0 || row.meta_purchases > 0
-      ? row.total_spend_bdt > 0 && row.delivered_revenue_bdt > 0
-        ? null
-        : null
-      : null;
   // Calculate Min ROAS required = (cogs + op + spend) / spend
   const minRoasRequired =
     row.total_spend_bdt > 0
