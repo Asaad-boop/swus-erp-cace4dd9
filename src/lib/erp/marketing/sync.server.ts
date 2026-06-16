@@ -263,14 +263,16 @@ export async function runInsightsSync(
           };
         });
 
+        // Replace the window to keep things idempotent and remove stale rows when Meta returns 0.
+        const { error: delErr } = await supabase
+          .from("mkt_insights_daily")
+          .delete()
+          .eq("account_id", acc.id)
+          .gte("date", since)
+          .lte("date", until);
+        if (delErr) throw delErr;
+
         if (rows.length) {
-          // Replace the window to keep things idempotent without needing a unique constraint.
-          await supabase
-            .from("mkt_insights_daily")
-            .delete()
-            .eq("account_id", acc.id)
-            .gte("date", since)
-            .lte("date", until);
           const { error } = await supabase.from("mkt_insights_daily").insert(rows);
           if (error) throw error;
         }
