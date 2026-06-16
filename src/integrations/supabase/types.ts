@@ -4372,6 +4372,10 @@ export type Database = {
         Args: { _entry: Json; _log_field: string; _order_id: string }
         Returns: undefined
       }
+      backfill_order_profit_snapshots: {
+        Args: { p_brand_id: string }
+        Returns: number
+      }
       create_bill: {
         Args: {
           _amount: number
@@ -4409,6 +4413,35 @@ export type Database = {
       get_balance_sheet: {
         Args: { _as_of: string; _brand_id: string }
         Returns: Json
+      }
+      get_brand_profitability_rollup: {
+        Args: {
+          p_brand_id: string
+          p_date_basis?: string
+          p_date_from?: string
+          p_date_to?: string
+        }
+        Returns: {
+          cogs: number
+          confirmed_qty: number
+          courier_cost: number
+          current_stock: number
+          delivered_qty: number
+          exchange_loss: number
+          gross_profit: number
+          image: string
+          marketing_content: number
+          meta_ads: number
+          name: string
+          net_profit: number
+          product_id: string
+          profit_per_unit: number
+          return_loss: number
+          returned_qty: number
+          revenue: number
+          roi_percent: number
+          sku: string
+        }[]
       }
       get_customer_stats: { Args: { p_user_id: string }; Returns: Json }
       get_finance_dashboard: {
