@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
   Package, Truck, Plane, Warehouse, CheckCircle2, AlertTriangle,
-  Plus, ArrowRight, Wallet, TrendingUp, Container,
+  Plus, ArrowRight, Wallet, TrendingUp, Container, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
@@ -12,43 +12,47 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getImportsDashboardStats, listPurchaseOrders } from "@/lib/erp/imports/imports.functions";
 import { PO_STATUS_LABEL, fmtBdt, type ImpPoStatus, type ImpCartonStatus } from "@/lib/erp/imports/types";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/")({
   head: () => ({ meta: [{ title: "Imports Dashboard — ERP" }] }),
   component: ImportsDashboard,
 });
 
-const PRESETS = [
-  { key: "7d", label: "Last 7 days", days: 7 },
-  { key: "30d", label: "Last 30 days", days: 30 },
-  { key: "90d", label: "Last 90 days", days: 90 },
-  { key: "all", label: "All time", days: null as number | null },
-];
-
-function isoDaysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
+function diffDaysInclusive(from: string, to: string) {
+  const a = new Date(from + "T00:00:00");
+  const b = new Date(to + "T00:00:00");
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+}
+function shiftIso(iso: string, deltaDays: number) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
   return d.toISOString().slice(0, 10);
 }
 
 function ImportsDashboard() {
   const { activeBrand } = useBrand();
   const brandId = activeBrand?.id ?? null;
-  const [preset, setPreset] = useState("30d");
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
 
   const statsFn = useServerFn(getImportsDashboardStats);
   const listFn = useServerFn(listPurchaseOrders);
 
-  const range = useMemo(() => {
-    const p = PRESETS.find((x) => x.key === preset);
-    if (!p || p.days === null) return {};
-    return { from: isoDaysAgo(p.days) };
-  }, [preset]);
+  const prevRange = useMemo(() => {
+    const span = diffDaysInclusive(range.from, range.to);
+    return { from: shiftIso(range.from, -span), to: shiftIso(range.from, -1) };
+  }, [range.from, range.to]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["imp-dashboard", brandId, preset],
+    queryKey: ["imp-dashboard", brandId, range.from, range.to],
     enabled: !!brandId,
-    queryFn: () => statsFn({ data: { brandId: brandId!, ...range } }),
+    queryFn: () => statsFn({ data: { brandId: brandId!, from: range.from, to: range.to } }),
+  });
+
+  const { data: prevData } = useQuery({
+    queryKey: ["imp-dashboard-prev", brandId, prevRange.from, prevRange.to],
+    enabled: !!brandId,
+    queryFn: () => statsFn({ data: { brandId: brandId!, from: prevRange.from, to: prevRange.to } }),
   });
 
   const { data: recent = [] } = useQuery({
@@ -60,6 +64,7 @@ function ImportsDashboard() {
 
   const pos = (data?.pos ?? []) as any[];
   const cartons = (data?.cartons ?? []) as any[];
+  const prevPos = (prevData?.pos ?? []) as any[];
 
   const kpis = useMemo(() => {
     const totalSpend = pos.reduce((s, p) => s + Number(p.grand_total_bdt || 0), 0);
@@ -68,6 +73,18 @@ function ImportsDashboard() {
     const inFlight = pos.filter((p) => ["ordered", "at_china_warehouse", "in_transit", "arrived_bd", "partially_received"].includes(p.status)).length;
     return { totalSpend, totalPaid, totalDue, inFlight, poCount: pos.length };
   }, [pos]);
+
+  const prevKpis = useMemo(() => {
+    const totalSpend = prevPos.reduce((s, p) => s + Number(p.grand_total_bdt || 0), 0);
+    const totalPaid = prevPos.reduce((s, p) => s + Number(p.paid_bdt || 0), 0);
+    const totalDue = prevPos.reduce((s, p) => s + Number(p.due_bdt || 0), 0);
+    return { totalSpend, totalPaid, totalDue, poCount: prevPos.length };
+  }, [prevPos]);
+
+  const pctDelta = (cur: number, prev: number) => {
+    if (!prev) return null;
+    return ((cur - prev) / prev) * 100;
+  };
 
   const pipeline = useMemo(() => {
     const stages: { key: ImpCartonStatus; label: string; icon: any; tone: string }[] = [
@@ -101,19 +118,7 @@ function ImportsDashboard() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border border-border bg-card p-1">
-          {PRESETS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPreset(p.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                preset === p.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
         <Link to="/erp/imports/orders/new">
           <Button><Plus className="h-4 w-4 mr-1" />New Purchase Order</Button>
         </Link>
@@ -121,11 +126,11 @@ function ImportsDashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <KpiCard label="Total Spend" value={fmtBdt(kpis.totalSpend)} icon={TrendingUp} tone="text-blue-600" />
-        <KpiCard label="Paid" value={fmtBdt(kpis.totalPaid)} icon={Wallet} tone="text-emerald-600" />
-        <KpiCard label="Outstanding Due" value={fmtBdt(kpis.totalDue)} icon={AlertTriangle} tone="text-orange-600" />
+        <KpiCard label="Total Spend" value={fmtBdt(kpis.totalSpend)} icon={TrendingUp} tone="text-blue-600" delta={pctDelta(kpis.totalSpend, prevKpis.totalSpend)} />
+        <KpiCard label="Paid" value={fmtBdt(kpis.totalPaid)} icon={Wallet} tone="text-emerald-600" delta={pctDelta(kpis.totalPaid, prevKpis.totalPaid)} />
+        <KpiCard label="Outstanding Due" value={fmtBdt(kpis.totalDue)} icon={AlertTriangle} tone="text-orange-600" delta={pctDelta(kpis.totalDue, prevKpis.totalDue)} deltaInverse />
         <KpiCard label="Active POs" value={String(kpis.inFlight)} icon={Container} tone="text-violet-600" />
-        <KpiCard label="Total POs" value={String(kpis.poCount)} icon={Package} tone="text-slate-600" />
+        <KpiCard label="Total POs" value={String(kpis.poCount)} icon={Package} tone="text-slate-600" delta={pctDelta(kpis.poCount, prevKpis.poCount)} />
       </div>
 
       {/* Pipeline */}
@@ -175,7 +180,7 @@ function ImportsDashboard() {
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {p.supplier?.name ?? "—"} · {p.agent?.name ?? "No agent"}
+                      {p.agent?.name ?? "No agent"}{p.supplier?.name ? ` · ${p.supplier.name}` : ""}
                     </div>
                   </div>
                   <div className="text-right">
@@ -218,7 +223,12 @@ function ImportsDashboard() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone: string }) {
+function KpiCard({ label, value, icon: Icon, tone, delta, deltaInverse }: { label: string; value: string; icon: any; tone: string; delta?: number | null; deltaInverse?: boolean }) {
+  const hasDelta = delta !== undefined && delta !== null && isFinite(delta);
+  const isUp = hasDelta && delta! > 0;
+  const isFlat = hasDelta && Math.abs(delta!) < 0.05;
+  // For "due", a decrease is good; flip color signal
+  const good = deltaInverse ? !isUp : isUp;
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between mb-2">
@@ -226,6 +236,12 @@ function KpiCard({ label, value, icon: Icon, tone }: { label: string; value: str
         <Icon className={`h-4 w-4 ${tone}`} />
       </div>
       <div className="text-xl font-bold tabular-nums">{value}</div>
+      {hasDelta && !isFlat && (
+        <div className={`mt-1 inline-flex items-center gap-0.5 text-[11px] font-medium ${good ? "text-emerald-600" : "text-red-600"}`}>
+          {isUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+          {Math.abs(delta!).toFixed(1)}% vs prev
+        </div>
+      )}
     </Card>
   );
 }
