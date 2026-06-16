@@ -67,9 +67,177 @@ function OverviewPage() {
     queryKey: ["finance_dashboard", brandId, from, to],
     enabled: scope === "all" || !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_finance_dashboard" as never, { _brand_id: brandId, _from: from, _to: to } as never);
-      if (error) throw error;
-      return data as unknown as DashboardData;
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const brandEq = <T extends { eq: (col: string, v: string) => T }>(q: T) => (brandId ? q.eq("brand_id", brandId) : q);
+
+      // Today sales
+      const todayOrdersQ = supabase
+        .from("orders")
+        .select("total", { count: "exact" })
+        .in("status", ["delivered", "partial_delivered", "confirmed", "paid"])
+        .gte("created_at", `${todayIso}T00:00:00`)
+        .lte("created_at", `${todayIso}T23:59:59.999`);
+      // Range delivered
+      const rangeOrdersQ = supabase
+        .from("orders")
+        .select("total,created_at", { count: "exact" })
+        .in("status", ["delivered", "partial_delivered", "paid"])
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59.999`);
+      // Refund / loss
+      const refundOrdersQ = supabase
+        .from("orders")
+        .select("total")
+        .in("status", ["returned", "refunded"])
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59.999`);
+      // Accounts
+      const accountsQ = supabase
+        .from("erp_accounts")
+        .select("id,name,account_type,current_balance")
+        .eq("is_active", true)
+        .order("current_balance", { ascending: false });
+      // Transactions in range
+      const txnQ = supabase
+        .from("erp_transactions")
+        .select("id,txn_type,amount,category_id,transaction_date,description,account_id")
+        .gte("transaction_date", from)
+        .lte("transaction_date", to);
+      // Recent 10 txns (no date filter)
+      const recentQ = supabase
+        .from("erp_transactions")
+        .select("id,txn_type,amount,transaction_date,description,category_id,account_id")
+        .order("transaction_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(10);
+      // 12 months series
+      const twelveStart = new Date();
+      twelveStart.setMonth(twelveStart.getMonth() - 11, 1);
+      const twelveStartIso = twelveStart.toISOString().slice(0, 10);
+      const monthlyOrdersQ = supabase
+        .from("orders")
+        .select("total,created_at")
+        .in("status", ["delivered", "partial_delivered", "paid"])
+        .gte("created_at", `${twelveStartIso}T00:00:00`);
+      const monthlyTxnQ = supabase
+        .from("erp_transactions")
+        .select("amount,transaction_date,txn_type")
+        .eq("txn_type", "expense")
+        .gte("transaction_date", twelveStartIso);
+      // Categories lookup
+      const catsQ = supabase.from("erp_expense_categories").select("id,name");
+
+      const [todayRes, rangeRes, refundRes, accRes, txnRes, recentRes, monOrdRes, monTxnRes, catsRes] = await Promise.all([
+        brandEq(todayOrdersQ),
+        brandEq(rangeOrdersQ),
+        brandEq(refundOrdersQ),
+        brandEq(accountsQ),
+        brandEq(txnQ),
+        brandEq(recentQ),
+        brandEq(monthlyOrdersQ),
+        brandEq(monthlyTxnQ),
+        brandEq(catsQ),
+      ]);
+      for (const r of [todayRes, rangeRes, refundRes, accRes, txnRes, recentRes, monOrdRes, monTxnRes, catsRes]) {
+        if (r.error) throw r.error;
+      }
+
+      const sum = (rows: { total?: number | null; amount?: number | null }[] | null, key: "total" | "amount" = "total") =>
+        (rows ?? []).reduce((a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0), 0);
+
+      const today_sales = sum(todayRes.data as { total: number }[], "total");
+      const today_orders = todayRes.count ?? (todayRes.data?.length ?? 0);
+      const range_sales = sum(rangeRes.data as { total: number }[], "total");
+      const range_orders = rangeRes.count ?? (rangeRes.data?.length ?? 0);
+      const refund_loss = sum(refundRes.data as { total: number }[], "total");
+
+      const accounts = (accRes.data ?? []).map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.account_type,
+        balance: Number(a.current_balance ?? 0),
+      }));
+      const accMap = new Map(accounts.map((a) => [a.id, a]));
+      const cash = accounts.filter((a) => a.type === "cash").reduce((s, a) => s + a.balance, 0);
+      const bank = accounts.filter((a) => a.type === "bank").reduce((s, a) => s + a.balance, 0);
+      const mfs = accounts.filter((a) => ["bkash", "nagad", "rocket", "mfs"].includes(a.type)).reduce((s, a) => s + a.balance, 0);
+
+      const txns = (txnRes.data ?? []) as { txn_type: string; amount: number; category_id: string | null }[];
+      const expense_total = txns.filter((t) => t.txn_type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+      const other_income = txns.filter((t) => t.txn_type === "income").reduce((s, t) => s + Number(t.amount), 0);
+
+      const catMap = new Map((catsRes.data ?? []).map((c) => [c.id as string, c.name as string]));
+      const expense_by_category: Record<string, number> = {};
+      for (const t of txns) {
+        if (t.txn_type !== "expense") continue;
+        const name = (t.category_id && catMap.get(t.category_id)) || "Uncategorized";
+        expense_by_category[name] = (expense_by_category[name] ?? 0) + Number(t.amount);
+      }
+
+      // Monthly series
+      const months: { month: string; revenue: number; expense: number }[] = [];
+      const now = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({ month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, revenue: 0, expense: 0 });
+      }
+      const monthIdx = new Map(months.map((m, i) => [m.month, i]));
+      for (const o of (monOrdRes.data ?? []) as { total: number; created_at: string }[]) {
+        const k = o.created_at.slice(0, 7);
+        const i = monthIdx.get(k);
+        if (i != null) months[i].revenue += Number(o.total);
+      }
+      for (const t of (monTxnRes.data ?? []) as { amount: number; transaction_date: string }[]) {
+        const k = t.transaction_date.slice(0, 7);
+        const i = monthIdx.get(k);
+        if (i != null) months[i].expense += Number(t.amount);
+      }
+
+      // Courier COD receivable
+      let courier_cod_receivable = 0;
+      {
+        const codQ = supabase
+          .from("orders")
+          .select("total,id,courier_shipments!inner(id)")
+          .in("status", ["shipped", "delivered", "partial_delivered"]);
+        const { data: codRows, error: codErr } = await brandEq(codQ);
+        if (!codErr) courier_cod_receivable = sum(codRows as { total: number }[], "total");
+      }
+
+      // Supplier payable
+      let supplier_payable = 0;
+      {
+        const billQ = supabase.from("erp_bills").select("amount,paid_amount").in("status", ["open", "partial", "overdue"]);
+        const { data: bills, error: billErr } = await brandEq(billQ);
+        if (!billErr) supplier_payable = (bills ?? []).reduce((s, b) => s + (Number(b.amount) - Number(b.paid_amount ?? 0)), 0);
+      }
+
+      const recent_transactions = ((recentRes.data ?? []) as { id: string; txn_type: string; amount: number; transaction_date: string; description: string | null; category_id: string | null; account_id: string | null }[]).map((t) => ({
+        id: t.id,
+        date: t.transaction_date,
+        type: t.txn_type,
+        amount: Number(t.amount),
+        description: t.description,
+        account: t.account_id ? accMap.get(t.account_id)?.name ?? null : null,
+        category: t.category_id ? catMap.get(t.category_id) ?? null : null,
+      }));
+
+      const dashboard: DashboardData = {
+        today_sales, today_orders,
+        range_sales, range_orders,
+        cash, bank, mfs,
+        courier_cod_receivable,
+        ar_due: courier_cod_receivable,
+        supplier_payable,
+        expense_total, other_income,
+        net_profit: range_sales + other_income - expense_total,
+        refund_loss,
+        expense_by_category,
+        monthly_series: months,
+        accounts,
+        recent_transactions,
+      };
+      return dashboard;
     },
   });
 
