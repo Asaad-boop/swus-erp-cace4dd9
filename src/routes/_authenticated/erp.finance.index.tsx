@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Wallet, Scale, AlertTriangle, FileText, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Scale, AlertTriangle, FileText, ArrowRight, Banknote, Smartphone, Truck, Users, RotateCcw, Receipt, PiggyBank, Activity } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,34 +38,38 @@ function rangeFor(preset: Preset, customFrom?: string, customTo?: string) {
   }
 }
 
+type DashboardData = {
+  today_sales: number; today_orders: number;
+  range_sales: number; range_orders: number;
+  cash: number; bank: number; mfs: number;
+  courier_cod_receivable: number; ar_due: number;
+  supplier_payable: number;
+  expense_total: number; other_income: number;
+  net_profit: number; refund_loss: number;
+  expense_by_category: Record<string, number>;
+  monthly_series: { month: string; revenue: number; expense: number }[];
+  accounts: { id: string; name: string; type: string; balance: number }[];
+  recent_transactions: { id: string; date: string; type: string; amount: number; description: string | null; account: string | null; category: string | null }[];
+};
+
+const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8b5cf6", "#ef4444", "#84cc16", "#f97316", "#14b8a6"];
+
 function OverviewPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { activeBrand, brands } = useBrand();
+  const [scope, setScope] = useState<"active" | "all">("active");
+  const brandId = scope === "all" ? null : (activeBrand?.id ?? null);
   const [preset, setPreset] = useState<Preset>("this_month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const { from, to } = useMemo(() => rangeFor(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
-  // Cash & bank balances from simple accounts
-  const cashQ = useQuery({
-    queryKey: ["erp_accounts_overview", brandId],
-    enabled: !!brandId,
+  const dashQ = useQuery({
+    queryKey: ["finance_dashboard", brandId, from, to],
+    enabled: scope === "all" || !!brandId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_accounts").select("id, name, account_type, current_balance")
-        .eq("brand_id", brandId!).eq("is_active", true);
+      const { data, error } = await supabase.rpc("get_finance_dashboard" as never, { _brand_id: brandId, _from: from, _to: to } as never);
       if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const pl = useQuery({
-    queryKey: ["erp_pl_overview", brandId, from, to],
-    enabled: !!brandId,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("erp_profit_loss", { _brand_id: brandId!, _from: from, _to: to });
-      if (error) throw error;
-      return data as { revenue: number; other_income: number; expense_total: number; profit: number; expense_by_category: Record<string, number>; delivered_orders: number };
+      return data as unknown as DashboardData;
     },
   });
 
@@ -77,18 +82,24 @@ function OverviewPage() {
     },
   });
 
-  const totalCash = (cashQ.data ?? []).filter((a) => ["cash", "mfs"].includes(a.account_type)).reduce((s, a) => s + Number(a.current_balance || 0), 0);
-  const totalBank = (cashQ.data ?? []).filter((a) => a.account_type === "bank").reduce((s, a) => s + Number(a.current_balance || 0), 0);
-  const revenue = pl.data?.revenue ?? 0;
-  const expense = pl.data?.expense_total ?? 0;
-  const profit = pl.data?.profit ?? 0;
+  const d = dashQ.data;
+  const expense = d?.expense_total ?? 0;
+  const profit = d?.net_profit ?? 0;
 
   const topExpenses = useMemo(() => {
-    const obj = pl.data?.expense_by_category ?? {};
-    return Object.entries(obj).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, 5);
-  }, [pl.data]);
+    const obj = d?.expense_by_category ?? {};
+    return Object.entries(obj).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, 10);
+  }, [d]);
 
-  if (!brandId) {
+  const monthly = useMemo(() => (d?.monthly_series ?? []).map((m) => ({
+    month: m.month.slice(5),
+    Revenue: Number(m.revenue),
+    Expense: Number(m.expense),
+  })), [d]);
+
+  const donutData = topExpenses.slice(0, 6).map(([name, value]) => ({ name, value: Number(value) }));
+
+  if (scope === "active" && !brandId) {
     return <div className="p-6 text-muted-foreground">Select a brand to view finance.</div>;
   }
 
@@ -96,10 +107,20 @@ function OverviewPage() {
     <div className="p-4 md:p-6 space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Finance Overview</h1>
-          <p className="text-sm text-muted-foreground">{activeBrand?.name} · {from} → {to}</p>
+          <h1 className="text-2xl font-bold tracking-tight">Finance Dashboard</h1>
+          <p className="text-sm text-muted-foreground">{scope === "all" ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
+          <div className="min-w-[140px]">
+            <Label className="text-xs">Brand</Label>
+            <Select value={scope} onValueChange={(v) => setScope(v as "active" | "all")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">{activeBrand?.name ?? "Active brand"}</SelectItem>
+                <SelectItem value="all">All brands</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="min-w-[160px]">
             <Label className="text-xs">Period</Label>
             <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
@@ -131,17 +152,71 @@ function OverviewPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Cash / MFS" value={fmtBdt(totalCash)} icon={<Wallet className="h-4 w-4" />} accent="text-foreground" />
-        <Kpi label="Bank" value={fmtBdt(totalBank)} icon={<Wallet className="h-4 w-4" />} accent="text-foreground" />
-        <Kpi label="Revenue" value={fmtBdt(revenue)} sub={`${pl.data?.delivered_orders ?? 0} delivered`} icon={<TrendingUp className="h-4 w-4" />} accent="text-emerald-600" />
-        <Kpi label="Expense" value={fmtBdt(expense)} icon={<TrendingDown className="h-4 w-4" />} accent="text-red-600" />
-        <Kpi label="Net Profit" value={fmtBdt(profit)} icon={<Scale className="h-4 w-4" />} accent={profit >= 0 ? "text-emerald-600" : "text-red-600"} />
-        <Kpi label="Other Income" value={fmtBdt(pl.data?.other_income ?? 0)} icon={<TrendingUp className="h-4 w-4" />} />
-        <Kpi label="Margin" value={revenue ? `${((profit / revenue) * 100).toFixed(1)}%` : "—"} icon={<Scale className="h-4 w-4" />} accent={profit >= 0 ? "text-emerald-600" : "text-red-600"} />
-        <Kpi label="Active Accounts" value={String((cashQ.data ?? []).length)} icon={<Wallet className="h-4 w-4" />} />
+      {/* Primary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Kpi label="Today Sales" value={fmtBdt(d?.today_sales ?? 0)} sub={`${d?.today_orders ?? 0} orders`} icon={<TrendingUp className="h-4 w-4" />} accent="text-emerald-600" />
+        <Kpi label="Net Profit" value={fmtBdt(profit)} sub={d?.range_sales ? `${((profit / d.range_sales) * 100).toFixed(1)}% margin` : "—"} icon={<Scale className="h-4 w-4" />} accent={profit >= 0 ? "text-emerald-600" : "text-red-600"} />
+        <Kpi label="Range Revenue" value={fmtBdt(d?.range_sales ?? 0)} sub={`${d?.range_orders ?? 0} delivered`} icon={<Receipt className="h-4 w-4" />} />
+        <Kpi label="Total Expense" value={fmtBdt(expense)} icon={<TrendingDown className="h-4 w-4" />} accent="text-red-600" />
+        <Kpi label="Refund / Loss" value={fmtBdt(d?.refund_loss ?? 0)} icon={<RotateCcw className="h-4 w-4" />} accent="text-amber-600" />
       </div>
 
+      {/* Wallet KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Kpi label="Cash in Hand" value={fmtBdt(d?.cash ?? 0)} icon={<Banknote className="h-4 w-4" />} />
+        <Kpi label="Bank Balance" value={fmtBdt(d?.bank ?? 0)} icon={<PiggyBank className="h-4 w-4" />} />
+        <Kpi label="bKash / Nagad" value={fmtBdt(d?.mfs ?? 0)} icon={<Smartphone className="h-4 w-4" />} />
+        <Kpi label="Courier COD Due" value={fmtBdt(d?.courier_cod_receivable ?? 0)} icon={<Truck className="h-4 w-4" />} accent="text-blue-600" />
+        <Kpi label="Supplier Payable" value={fmtBdt(d?.supplier_payable ?? 0)} icon={<Users className="h-4 w-4" />} accent="text-orange-600" />
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Revenue vs Expense — last 12 months</CardTitle></CardHeader>
+          <CardContent>
+            {monthly.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No data.</p>
+            ) : (
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <BarChart data={monthly}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => fmtBdt(v)} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Expense breakdown</CardTitle></CardHeader>
+          <CardContent>
+            {donutData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No expenses.</p>
+            ) : (
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
+                      {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => fmtBdt(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detail row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -177,32 +252,59 @@ function OverviewPage() {
           <CardContent className="space-y-2">
             <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/journal"><FileText className="h-4 w-4 mr-2" />New Journal Entry</Link></Button>
             <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/simple"><Wallet className="h-4 w-4 mr-2" />Quick Income / Expense</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/accounts"><BookOpenIcon /> Chart of Accounts</Link></Button>
+            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/accounts"><FileText className="h-4 w-4 mr-2" />Chart of Accounts</Link></Button>
+            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/payables"><Users className="h-4 w-4 mr-2" />Supplier Payables</Link></Button>
+            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/reconciliation"><Activity className="h-4 w-4 mr-2" />Bank Reconciliation</Link></Button>
             <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/reports"><Scale className="h-4 w-4 mr-2" />Financial Reports</Link></Button>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Account balances</CardTitle></CardHeader>
-        <CardContent>
-          {(cashQ.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No accounts. <Link to="/erp/finance/simple" className="text-primary underline">Create one</Link>.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {(cashQ.data ?? []).map((a) => (
-                <div key={a.id} className="flex justify-between items-center border rounded-md px-3 py-2">
-                  <div>
-                    <div className="text-sm font-medium">{a.name}</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider">{a.account_type}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Account balances</CardTitle></CardHeader>
+          <CardContent>
+            {(d?.accounts ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No accounts. <Link to="/erp/finance/simple" className="text-primary underline">Create one</Link>.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {(d?.accounts ?? []).slice(0, 8).map((a) => (
+                  <div key={a.id} className="flex justify-between items-center border rounded-md px-3 py-2">
+                    <div>
+                      <div className="text-sm font-medium">{a.name}</div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">{a.type}</div>
+                    </div>
+                    <div className="font-mono font-semibold">{fmtBdt(a.balance)}</div>
                   </div>
-                  <div className="font-mono font-semibold">{fmtBdt(a.current_balance)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Recent transactions</CardTitle></CardHeader>
+          <CardContent>
+            {(d?.recent_transactions ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No transactions yet.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {(d?.recent_transactions ?? []).map((t) => (
+                  <div key={t.id} className="flex justify-between items-center border rounded-md px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{t.description || t.category || t.type}</div>
+                      <div className="text-xs text-muted-foreground">{t.date} · {t.account ?? "—"}</div>
+                    </div>
+                    <div className={`font-mono text-sm font-semibold ${t.type === "income" ? "text-emerald-600" : t.type === "expense" ? "text-red-600" : ""}`}>
+                      {t.type === "expense" ? "−" : t.type === "income" ? "+" : ""}{fmtBdt(t.amount)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -216,13 +318,9 @@ function Kpi({ label, value, sub, icon, accent }: { label: string; value: string
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold ${accent ?? ""}`}>{value}</div>
+        <div className={`text-xl font-bold ${accent ?? ""}`}>{value}</div>
         {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
       </CardContent>
     </Card>
   );
-}
-
-function BookOpenIcon() {
-  return <FileText className="h-4 w-4 mr-2" />;
 }
