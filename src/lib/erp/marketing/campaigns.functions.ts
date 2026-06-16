@@ -260,3 +260,126 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
       adsets: adsetRows,
     };
   });
+
+// ---- Campaign ↔ Product linking ----
+
+async function assertMktRole(supabase: any, userId: string) {
+  const [{ data: admin }, { data: ops }] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "operations" }),
+  ]);
+  if (!admin && !ops) throw new Error("Not authorized");
+}
+
+export const listCampaignProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { campaignId: string }) =>
+    z.object({ campaignId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("mkt_campaign_products")
+      .select("id, weight, note, product_id, products(id, title, sku, price, image, is_active)")
+      .eq("campaign_id", data.campaignId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const searchBrandProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; query?: string; limit?: number }) =>
+    z
+      .object({
+        brandId: z.string().uuid(),
+        query: z.string().optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("products")
+      .select("id, title, sku, price, image, is_active")
+      .eq("brand_id", data.brandId)
+      .order("title", { ascending: true })
+      .limit(data.limit ?? 25);
+    if (data.query && data.query.trim()) {
+      const term = `%${data.query.trim()}%`;
+      q = q.or(`title.ilike.${term},sku.ilike.${term}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const linkCampaignProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { campaignId: string; productId: string; weight?: number; note?: string | null }) =>
+    z
+      .object({
+        campaignId: z.string().uuid(),
+        productId: z.string().uuid(),
+        weight: z.coerce.number().min(0).max(100).optional(),
+        note: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+    // brand_id auto-fill from campaign
+    const { data: camp, error: cErr } = await context.supabase
+      .from("mkt_campaigns")
+      .select("brand_id")
+      .eq("id", data.campaignId)
+      .single();
+    if (cErr || !camp) throw new Error("Campaign not found");
+    const { error } = await context.supabase.from("mkt_campaign_products").upsert(
+      {
+        brand_id: camp.brand_id,
+        campaign_id: data.campaignId,
+        product_id: data.productId,
+        weight: data.weight ?? 1,
+        note: data.note ?? null,
+      },
+      { onConflict: "campaign_id,product_id" },
+    );
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const updateCampaignProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { linkId: string; weight: number; note?: string | null }) =>
+    z
+      .object({
+        linkId: z.string().uuid(),
+        weight: z.coerce.number().min(0).max(100),
+        note: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("mkt_campaign_products")
+      .update({ weight: data.weight, note: data.note ?? null })
+      .eq("id", data.linkId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const unlinkCampaignProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { linkId: string }) =>
+    z.object({ linkId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("mkt_campaign_products")
+      .delete()
+      .eq("id", data.linkId);
+    if (error) throw error;
+    return { ok: true };
+  });
