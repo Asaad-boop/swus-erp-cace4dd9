@@ -80,10 +80,10 @@ export const getAdsetRow = createServerFn({ method: "POST" })
 
 export const explorerAttribution = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brand_id: string; from: string; to: string; source?: string | null; campaign_id?: string | null; limit?: number }) =>
+  .inputValidator((d: { brand_id: string; from: string; to: string; source?: string; campaign_id?: string; limit?: number }) =>
     rangeSchema.extend({
-      source: z.string().nullable().optional(),
-      campaign_id: z.string().uuid().nullable().optional(),
+      source: z.string().optional(),
+      campaign_id: z.string().uuid().optional(),
       limit: z.number().int().min(1).max(500).optional(),
     }).parse(d))
   .handler(async ({ data, context }) => {
