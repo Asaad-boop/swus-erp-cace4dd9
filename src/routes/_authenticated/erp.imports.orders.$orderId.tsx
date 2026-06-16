@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 import {
   getPurchaseOrderDetail, updateCartonStage, markArrivedInBd,
   releaseCarton, postCartonToInventory, recordImportPayment, listWarehouses,
@@ -305,7 +306,13 @@ function PoDetailPage() {
         <ArrivedDialog poId={po.id} agent={po.agent} onClose={() => setArrivedOpen(false)} brandId={brandId} />
       )}
       {paymentOpen && brandId && (
-        <PaymentDialog poId={po.id} brandId={brandId} onClose={() => setPaymentOpen(false)} />
+        <PaymentDialog
+          poId={po.id}
+          brandId={brandId}
+          grandTotal={Number(po.grand_total_bdt) || 0}
+          dueAmount={Number(po.due_bdt) || 0}
+          onClose={() => setPaymentOpen(false)}
+        />
       )}
     </div>
   );
@@ -791,7 +798,7 @@ function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent:
   );
 }
 
-function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: string; onClose: () => void }) {
+function PaymentDialog({ poId, brandId, grandTotal, dueAmount, onClose }: { poId: string; brandId: string; grandTotal: number; dueAmount: number; onClose: () => void }) {
   const fn = useServerFn(recordImportPayment);
   const qc = useQueryClient();
   const { data: wallets = [] } = useAccounts(brandId);
@@ -825,10 +832,13 @@ function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: stri
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Amount (BDT)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-            <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          </div>
+          <AmountPercentInput
+            total={dueAmount > 0 ? dueAmount : grandTotal}
+            amount={amount}
+            onChange={setAmount}
+            label={`Amount (BDT) — ${dueAmount > 0 ? `due ${fmtBdt(dueAmount)}` : `total ${fmtBdt(grandTotal)}`}`}
+          />
+          <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div>
             <Label>Wallet</Label>
             <Select value={walletId} onValueChange={setWalletId}>

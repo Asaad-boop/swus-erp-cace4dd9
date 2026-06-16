@@ -44,6 +44,22 @@ export function useInventoryQuery(filter: InventoryFilter) {
       if (filter.stockState === "low") {
         rows = rows.filter((r) => r.stock > 0 && r.stock <= (r.low_stock_threshold ?? 5));
       }
+
+      // Fetch incoming quantities from imports view
+      if (rows.length > 0 && filter.brandId) {
+        const ids = rows.map((r) => r.id);
+        const { data: inc } = await supabase
+          .from("v_product_incoming")
+          .select("product_id,incoming")
+          .eq("brand_id", filter.brandId)
+          .in("product_id", ids);
+        const map = new Map<string, number>();
+        for (const r of (inc ?? []) as Array<{ product_id: string; incoming: number }>) {
+          map.set(r.product_id, Number(r.incoming) || 0);
+        }
+        rows = rows.map((r) => ({ ...r, incoming: map.get(r.id) ?? 0 }));
+      }
+
       return { rows, total: count ?? rows.length };
     },
   });

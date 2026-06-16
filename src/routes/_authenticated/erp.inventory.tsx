@@ -186,7 +186,14 @@ function InventoryPage() {
                       <TableCell className="text-right">
                         <InlineNumberEdit value={Number(r.cost_price ?? 0)} onSave={(v) => updateInventoryField(r.id, { cost_price: v })} prefix="৳" />
                       </TableCell>
-                      <TableCell className="text-right font-mono">{r.stock}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        <div className="flex flex-col items-end leading-tight">
+                          <span>{r.stock}</span>
+                          {Number(r.incoming) > 0 && (
+                            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-normal">+{r.incoming} incoming</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <InlineNumberEdit value={r.low_stock_threshold ?? 5} onSave={(v) => updateInventoryField(r.id, { low_stock_threshold: v })} />
                       </TableCell>
