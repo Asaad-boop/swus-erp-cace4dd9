@@ -2267,7 +2267,10 @@ export type Database = {
           address: string | null
           brand_id: string
           contact_person: string | null
+          country: string
           created_at: string
+          credit_limit_bdt: number
+          currency: string
           current_due: number
           email: string | null
           id: string
@@ -2275,14 +2278,20 @@ export type Database = {
           name: string
           notes: string | null
           opening_balance: number
+          payment_terms_days: number
           phone: string | null
+          source_link: string | null
+          supplier_type: string
           updated_at: string
         }
         Insert: {
           address?: string | null
           brand_id: string
           contact_person?: string | null
+          country?: string
           created_at?: string
+          credit_limit_bdt?: number
+          currency?: string
           current_due?: number
           email?: string | null
           id?: string
@@ -2290,14 +2299,20 @@ export type Database = {
           name: string
           notes?: string | null
           opening_balance?: number
+          payment_terms_days?: number
           phone?: string | null
+          source_link?: string | null
+          supplier_type?: string
           updated_at?: string
         }
         Update: {
           address?: string | null
           brand_id?: string
           contact_person?: string | null
+          country?: string
           created_at?: string
+          credit_limit_bdt?: number
+          currency?: string
           current_due?: number
           email?: string | null
           id?: string
@@ -2305,7 +2320,10 @@ export type Database = {
           name?: string
           notes?: string | null
           opening_balance?: number
+          payment_terms_days?: number
           phone?: string | null
+          source_link?: string | null
+          supplier_type?: string
           updated_at?: string
         }
         Relationships: [
@@ -2545,6 +2563,554 @@ export type Database = {
           sections?: Json
         }
         Relationships: []
+      }
+      imp_cargo_agents: {
+        Row: {
+          address: string | null
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          default_currency: string
+          default_fx_rate: number
+          default_shipping_rate_per_kg_bdt: number
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          default_currency?: string
+          default_fx_rate?: number
+          default_shipping_rate_per_kg_bdt?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          default_currency?: string
+          default_fx_rate?: number
+          default_shipping_rate_per_kg_bdt?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_agents_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_carton_items: {
+        Row: {
+          carton_id: string
+          created_at: string
+          id: string
+          po_item_id: string
+          product_id: string | null
+          quantity_damaged: number
+          quantity_expected: number
+          quantity_missing: number
+          quantity_ok: number
+          sku_snapshot: string | null
+          supplier_cost_portion_bdt: number
+          variant_id: string | null
+        }
+        Insert: {
+          carton_id: string
+          created_at?: string
+          id?: string
+          po_item_id: string
+          product_id?: string | null
+          quantity_damaged?: number
+          quantity_expected: number
+          quantity_missing?: number
+          quantity_ok?: number
+          sku_snapshot?: string | null
+          supplier_cost_portion_bdt?: number
+          variant_id?: string | null
+        }
+        Update: {
+          carton_id?: string
+          created_at?: string
+          id?: string
+          po_item_id?: string
+          product_id?: string | null
+          quantity_damaged?: number
+          quantity_expected?: number
+          quantity_missing?: number
+          quantity_ok?: number
+          sku_snapshot?: string | null
+          supplier_cost_portion_bdt?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_carton_items_carton_id_fkey"
+            columns: ["carton_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cartons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_carton_items_po_item_id_fkey"
+            columns: ["po_item_id"]
+            isOneToOne: false
+            referencedRelation: "imp_po_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_carton_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_carton_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_cartons: {
+        Row: {
+          barcode: string
+          carton_number: number
+          created_at: string
+          expected_quantity: number
+          id: string
+          local_courier_bdt: number
+          notes: string | null
+          po_id: string
+          posted_at: string | null
+          qc_at: string | null
+          received_at: string | null
+          released_at: string | null
+          shipping_charge_bdt: number
+          status: Database["public"]["Enums"]["imp_carton_status"]
+          supplier_cost_bdt: number
+          total_landed_bdt: number
+          updated_at: string
+          warehouse_id: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          barcode: string
+          carton_number: number
+          created_at?: string
+          expected_quantity?: number
+          id?: string
+          local_courier_bdt?: number
+          notes?: string | null
+          po_id: string
+          posted_at?: string | null
+          qc_at?: string | null
+          received_at?: string | null
+          released_at?: string | null
+          shipping_charge_bdt?: number
+          status?: Database["public"]["Enums"]["imp_carton_status"]
+          supplier_cost_bdt?: number
+          total_landed_bdt?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          barcode?: string
+          carton_number?: number
+          created_at?: string
+          expected_quantity?: number
+          id?: string
+          local_courier_bdt?: number
+          notes?: string | null
+          po_id?: string
+          posted_at?: string | null
+          qc_at?: string | null
+          received_at?: string | null
+          released_at?: string | null
+          shipping_charge_bdt?: number
+          status?: Database["public"]["Enums"]["imp_carton_status"]
+          supplier_cost_bdt?: number
+          total_landed_bdt?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cartons_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "imp_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cartons_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_payments: {
+        Row: {
+          amount_bdt: number
+          brand_id: string
+          carton_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          idempotency_key: string
+          is_reversed: boolean
+          journal_entry_id: string | null
+          notes: string | null
+          payment_date: string
+          payment_type: Database["public"]["Enums"]["imp_payment_type"]
+          po_id: string
+          reference: string | null
+          reversed_at: string | null
+          reverses_id: string | null
+          wallet_id: string
+        }
+        Insert: {
+          amount_bdt: number
+          brand_id: string
+          carton_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key: string
+          is_reversed?: boolean
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_type: Database["public"]["Enums"]["imp_payment_type"]
+          po_id: string
+          reference?: string | null
+          reversed_at?: string | null
+          reverses_id?: string | null
+          wallet_id: string
+        }
+        Update: {
+          amount_bdt?: number
+          brand_id?: string
+          carton_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key?: string
+          is_reversed?: boolean
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_type?: Database["public"]["Enums"]["imp_payment_type"]
+          po_id?: string
+          reference?: string | null
+          reversed_at?: string | null
+          reverses_id?: string | null
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_payments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_payments_carton_id_fkey"
+            columns: ["carton_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cartons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_payments_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "imp_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_payments_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "imp_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_payments_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_po_items: {
+        Row: {
+          created_at: string
+          id: string
+          image_snapshot: string | null
+          name_snapshot: string
+          po_id: string
+          product_id: string | null
+          quantity: number
+          sku_snapshot: string | null
+          subtotal_bdt: number
+          unit_cost_bdt: number
+          unit_cost_foreign: number
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_snapshot?: string | null
+          name_snapshot: string
+          po_id: string
+          product_id?: string | null
+          quantity: number
+          sku_snapshot?: string | null
+          subtotal_bdt?: number
+          unit_cost_bdt?: number
+          unit_cost_foreign?: number
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_snapshot?: string | null
+          name_snapshot?: string
+          po_id?: string
+          product_id?: string | null
+          quantity?: number
+          sku_snapshot?: string | null
+          subtotal_bdt?: number
+          unit_cost_bdt?: number
+          unit_cost_foreign?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_po_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "imp_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_po_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_po_sequences: {
+        Row: {
+          brand_id: string
+          last_number: number
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          last_number?: number
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          last_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_po_sequences_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_purchase_orders: {
+        Row: {
+          brand_id: string
+          cargo_agent_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          due_bdt: number
+          fx_rate: number
+          grand_total_bdt: number
+          id: string
+          local_courier_total_bdt: number
+          notes: string | null
+          order_date: string
+          paid_bdt: number
+          po_number: string
+          product_subtotal_bdt: number
+          shipping_total_bdt: number
+          status: Database["public"]["Enums"]["imp_po_status"]
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          cargo_agent_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_bdt?: number
+          fx_rate?: number
+          grand_total_bdt?: number
+          id?: string
+          local_courier_total_bdt?: number
+          notes?: string | null
+          order_date?: string
+          paid_bdt?: number
+          po_number: string
+          product_subtotal_bdt?: number
+          shipping_total_bdt?: number
+          status?: Database["public"]["Enums"]["imp_po_status"]
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          cargo_agent_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_bdt?: number
+          fx_rate?: number
+          grand_total_bdt?: number
+          id?: string
+          local_courier_total_bdt?: number
+          notes?: string | null
+          order_date?: string
+          paid_bdt?: number
+          po_number?: string
+          product_subtotal_bdt?: number
+          shipping_total_bdt?: number
+          status?: Database["public"]["Enums"]["imp_po_status"]
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_purchase_orders_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_status_history: {
+        Row: {
+          action: string | null
+          after_data: Json | null
+          before_data: Json | null
+          brand_id: string
+          changed_by: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          new_status: string | null
+          notes: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          brand_id: string
+          changed_by?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          brand_id?: string
+          changed_by?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_status_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       low_stock_alerts: {
         Row: {
@@ -4414,36 +4980,57 @@ export type Database = {
           created_at: string
           delta: number
           id: string
+          idempotency_key: string | null
           note: string | null
           product_id: string
           reason: string
+          reference_id: string | null
+          reference_type: string | null
           stock_after: number
           stock_before: number
+          total_cost_bdt: number | null
+          unit_cost_bdt: number | null
           user_id: string
+          variant_id: string | null
+          warehouse_id: string | null
         }
         Insert: {
           brand_id?: string | null
           created_at?: string
           delta: number
           id?: string
+          idempotency_key?: string | null
           note?: string | null
           product_id: string
           reason?: string
+          reference_id?: string | null
+          reference_type?: string | null
           stock_after: number
           stock_before: number
+          total_cost_bdt?: number | null
+          unit_cost_bdt?: number | null
           user_id: string
+          variant_id?: string | null
+          warehouse_id?: string | null
         }
         Update: {
           brand_id?: string | null
           created_at?: string
           delta?: number
           id?: string
+          idempotency_key?: string | null
           note?: string | null
           product_id?: string
           reason?: string
+          reference_id?: string | null
+          reference_type?: string | null
           stock_after?: number
           stock_before?: number
+          total_cost_bdt?: number | null
+          unit_cost_bdt?: number | null
           user_id?: string
+          variant_id?: string | null
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -4458,6 +5045,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -4482,6 +5083,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      warehouses: {
+        Row: {
+          address: string | null
+          brand_id: string
+          code: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          brand_id: string
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          brand_id?: string
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouses_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -4970,6 +5615,17 @@ export type Database = {
         Returns: boolean
       }
       heartbeat_order_lock: { Args: { _order_id: string }; Returns: undefined }
+      imp_get_or_create_account: {
+        Args: {
+          _brand: string
+          _code: string
+          _name: string
+          _normal: string
+          _type: string
+        }
+        Returns: string
+      }
+      imp_next_po_number: { Args: { _brand: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_guest_order: { Args: { _order_id: string }; Returns: boolean }
       is_recent_guest_order: { Args: { _order_id: string }; Returns: boolean }
@@ -5358,6 +6014,30 @@ export type Database = {
         | "advance_pending"
       coupon_type: "percentage" | "fixed"
       discount_type: "flat" | "percent"
+      imp_carton_status:
+        | "ordered"
+        | "at_china_warehouse"
+        | "in_transit"
+        | "arrived_bd"
+        | "released"
+        | "in_stock"
+        | "cancelled"
+      imp_payment_type:
+        | "supplier_advance"
+        | "supplier_payment"
+        | "shipping"
+        | "carton_release"
+        | "supplier_balance"
+        | "local_courier"
+        | "adjustment"
+      imp_po_status:
+        | "ordered"
+        | "at_china_warehouse"
+        | "in_transit"
+        | "arrived_bd"
+        | "partially_received"
+        | "completed"
+        | "cancelled"
       mkt_account_status: "active" | "paused" | "error" | "disconnected"
       mkt_attribution_source:
         | "utm"
@@ -5571,6 +6251,33 @@ export const Constants = {
       ],
       coupon_type: ["percentage", "fixed"],
       discount_type: ["flat", "percent"],
+      imp_carton_status: [
+        "ordered",
+        "at_china_warehouse",
+        "in_transit",
+        "arrived_bd",
+        "released",
+        "in_stock",
+        "cancelled",
+      ],
+      imp_payment_type: [
+        "supplier_advance",
+        "supplier_payment",
+        "shipping",
+        "carton_release",
+        "supplier_balance",
+        "local_courier",
+        "adjustment",
+      ],
+      imp_po_status: [
+        "ordered",
+        "at_china_warehouse",
+        "in_transit",
+        "arrived_bd",
+        "partially_received",
+        "completed",
+        "cancelled",
+      ],
       mkt_account_status: ["active", "paused", "error", "disconnected"],
       mkt_attribution_source: [
         "utm",
