@@ -128,8 +128,7 @@ export const metaTestConnection = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
@@ -151,8 +150,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
@@ -187,7 +185,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: c,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_campaigns")
           .upsert(rows, { onConflict: "ad_account_id,external_campaign_id" });
         if (e) errors.push(`campaigns: ${e.message}`);
@@ -201,7 +199,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
       const adsets = await metaListAdsets(ext, token);
       if (adsets.length) {
         // map external campaign id -> internal id
-        const { data: campRows } = await supabaseAdmin
+        const { data: campRows } = await context.supabase
           .from("marketing_campaigns")
           .select("id, external_campaign_id")
           .eq("ad_account_id", acc.id);
@@ -224,7 +222,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: a,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_adsets")
           .upsert(rows, { onConflict: "ad_account_id,external_adset_id" });
         if (e) errors.push(`adsets: ${e.message}`);
@@ -237,11 +235,11 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
     try {
       const ads = await metaListAds(ext, token);
       if (ads.length) {
-        const { data: campRows } = await supabaseAdmin
+        const { data: campRows } = await context.supabase
           .from("marketing_campaigns")
           .select("id, external_campaign_id")
           .eq("ad_account_id", acc.id);
-        const { data: asetRows } = await supabaseAdmin
+        const { data: asetRows } = await context.supabase
           .from("marketing_adsets")
           .select("id, external_adset_id")
           .eq("ad_account_id", acc.id);
@@ -265,7 +263,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: a,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_ads")
           .upsert(rows, { onConflict: "ad_account_id,external_ad_id" });
         if (e) errors.push(`ads: ${e.message}`);
@@ -275,7 +273,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
       errors.push(`ads fetch: ${e?.message}`);
     }
 
-    await supabaseAdmin
+    await context.supabase
       .from("marketing_ad_accounts")
       .update({
         last_synced_at: new Date().toISOString(),
