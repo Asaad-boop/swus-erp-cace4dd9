@@ -12,56 +12,6 @@ async function assertMktRole(supabase: any, userId: string) {
   if (!admin && !ops) throw new Error("Not authorized");
 }
 
-function actId(externalId: string): string {
-  return externalId.startsWith("act_") ? externalId : `act_${externalId}`;
-}
-
-async function logSync(
-  supabase: any,
-  args: {
-    brand_id: string | null;
-    account_id: string | null;
-    kind: "structure" | "insights" | "attribution" | "finance_post";
-    run: () => Promise<{ rows: number; meta?: any }>;
-  },
-) {
-  const started_at = new Date().toISOString();
-  const { data: logRow } = await supabase
-    .from("mkt_sync_log")
-    .insert({
-      brand_id: args.brand_id,
-      account_id: args.account_id,
-      kind: args.kind,
-      status: "running",
-      started_at,
-    })
-    .select("id")
-    .single();
-  try {
-    const { rows, meta } = await args.run();
-    await supabase
-      .from("mkt_sync_log")
-      .update({
-        status: "success",
-        finished_at: new Date().toISOString(),
-        rows_processed: rows,
-        meta: meta ?? null,
-      })
-      .eq("id", logRow!.id);
-    return { ok: true, rows };
-  } catch (e: any) {
-    await supabase
-      .from("mkt_sync_log")
-      .update({
-        status: "error",
-        finished_at: new Date().toISOString(),
-        error: String(e?.message ?? e),
-      })
-      .eq("id", logRow!.id);
-    throw e;
-  }
-}
-
 // ---- 1. List Meta ad accounts available under the token ----
 
 export const listAvailableMetaAccounts = createServerFn({ method: "POST" })
@@ -181,10 +131,6 @@ export const syncAdAccountStructure = createServerFn({ method: "POST" })
   });
 
 // ---- 6. Sync insights (daily metrics per ad) ----
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
 
 export const syncAdAccountInsights = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
