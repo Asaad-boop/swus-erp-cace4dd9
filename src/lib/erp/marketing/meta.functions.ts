@@ -46,15 +46,16 @@ export const metaListMyAdAccounts = createServerFn({ method: "POST" })
 // ----- Save / connect an ad account with a token -----
 export const metaConnectAdAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    brand_id: string;
-    external_account_id: string;
-    account_name?: string;
-    currency?: string;
-    timezone_name?: string;
-    token: string;
-    token_expires_at?: string | null;
-  }) =>
+  .inputValidator(
+    (d: {
+      brand_id: string;
+      external_account_id: string;
+      account_name?: string;
+      currency?: string;
+      timezone_name?: string;
+      token: string;
+      token_expires_at?: string | null;
+    }) =>
     z
       .object({
         brand_id: z.string().uuid(),
