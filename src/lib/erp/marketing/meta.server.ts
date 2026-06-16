@@ -221,6 +221,7 @@ export async function getDailyInsights(
       action_attribution_windows: JSON.stringify(["7d_click", "1d_view"]),
     },
     token,
+    200,
   );
 }
 
@@ -252,7 +253,9 @@ export function extractMetaConversions(insight: MetaInsight) {
   const PURCHASE_PRIORITY = [
     "omni_purchase",
     "offsite_conversion.fb_pixel_purchase",
+    "onsite_web_app_purchase",
     "onsite_web_purchase",
+    "web_in_store_purchase",
     "purchase",
   ];
   const purchases = pickFirst(insight.actions, PURCHASE_PRIORITY);

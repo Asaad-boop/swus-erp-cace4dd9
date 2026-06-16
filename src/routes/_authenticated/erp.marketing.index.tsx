@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -35,6 +36,7 @@ import {
   type PerfRow,
   type DecisionBucket,
 } from "@/lib/erp/marketing/performance.functions";
+import { syncBrandInsightsRange } from "@/lib/erp/marketing/meta.functions";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import {
   Activity,
@@ -125,16 +127,32 @@ function PerformanceDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<"meta" | "actual">("actual");
   const [bucketFilter, setBucketFilter] = useState<DecisionBucket | "all">("all");
+  const [isSyncingMeta, setIsSyncingMeta] = useState(false);
 
   const r = useMemo(() => ({ from: dateRange.from, to: dateRange.to }), [dateRange.from, dateRange.to]);
 
   const fn = useServerFn(getPerformanceDashboard);
+  const syncRangeFn = useServerFn(syncBrandInsightsRange);
   const q = useQuery({
     queryKey: ["mkt-performance", brandId, r.from, r.to],
     queryFn: () => fn({ data: { brandId: brandId!, ...r } }),
     enabled: !!brandId,
     staleTime: 30_000,
   });
+
+  async function refreshMetaRange() {
+    if (!brandId) return;
+    setIsSyncingMeta(true);
+    try {
+      const res = await syncRangeFn({ data: { brandId, since: r.from, until: r.to } });
+      toast.success(`Meta synced • ${res.rows} rows`);
+      await q.refetch();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Meta sync failed");
+    } finally {
+      setIsSyncingMeta(false);
+    }
+  }
 
   if (!brandId) {
     return (
@@ -179,12 +197,13 @@ function PerformanceDashboard() {
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <Button
               variant="outline"
-              size="icon"
-              onClick={() => q.refetch()}
-              disabled={q.isFetching}
-              title="Refresh"
+              onClick={refreshMetaRange}
+              disabled={q.isFetching || isSyncingMeta}
+              title="Sync selected Meta range"
+              className="gap-2"
             >
-              <RefreshCw className={cn("h-4 w-4", q.isFetching && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", (q.isFetching || isSyncingMeta) && "animate-spin")} />
+              Sync Meta
             </Button>
           </div>
         </div>

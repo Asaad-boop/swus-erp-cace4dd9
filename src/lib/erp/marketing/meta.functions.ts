@@ -261,8 +261,40 @@ export const syncAdAccountInsights = createServerFn({ method: "POST" })
     return runInsightsSync(context.supabase, data.accountId, {
       since: data.since,
       until: data.until,
-      days: data.days ?? 3,
+      days: data.days ?? 90,
     });
+  });
+
+export const syncBrandInsightsRange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; since: string; until: string }) =>
+    z
+      .object({
+        brandId: z.string().uuid(),
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+    const { data: accounts, error } = await context.supabase
+      .from("mkt_ad_accounts")
+      .select("id,name")
+      .eq("brand_id", data.brandId)
+      .eq("status", "active");
+    if (error) throw error;
+
+    const results = [] as Array<{ accountId: string; name: string; rows: number }>;
+    for (const acc of accounts ?? []) {
+      const r = await runInsightsSync(context.supabase, acc.id, {
+        since: data.since,
+        until: data.until,
+        days: 90,
+      });
+      results.push({ accountId: acc.id, name: acc.name, rows: r.rows });
+    }
+    return { accounts: results.length, rows: results.reduce((n, r) => n + r.rows, 0), results };
   });
 
 // ---- 7. Read sync log ----

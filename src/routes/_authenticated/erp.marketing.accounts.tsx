@@ -157,7 +157,7 @@ function AdAccountsPage() {
     setBusyId(acc.id);
     try {
       const s = await syncStructureFn({ data: { accountId: acc.id } });
-      const i = await syncInsightsFn({ data: { accountId: acc.id, days: 3 } });
+      const i = await syncInsightsFn({ data: { accountId: acc.id, days: 90 } });
       toast.success(`Synced • structure ${s.rows} • insights ${i.rows}`);
       qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
     } catch (e: any) {
