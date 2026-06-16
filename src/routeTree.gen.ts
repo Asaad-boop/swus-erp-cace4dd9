@@ -24,6 +24,7 @@ import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authentic
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
 import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
+import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
@@ -127,6 +128,12 @@ const ApiPublicWebhookPathaoRoute = ApiPublicWebhookPathaoRouteImport.update({
   path: '/api/public/webhook/pathao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronSyncMarketingRoute =
+  ApiPublicCronSyncMarketingRouteImport.update({
+    id: '/api/public/cron/sync-marketing',
+    path: '/api/public/cron/sync-marketing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronSyncCourierRoute =
   ApiPublicCronSyncCourierRouteImport.update({
     id: '/api/public/cron/sync-courier',
@@ -294,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
@@ -329,6 +337,7 @@ export interface FileRoutesByTo {
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
@@ -369,6 +378,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
+  '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
     | '/erp/orders/web'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
     | '/erp/finance/'
     | '/erp/orders/'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/erp/orders/web'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
     | '/erp/finance'
     | '/erp/orders'
@@ -483,6 +495,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/web'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
+    | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/orders/'
@@ -494,6 +507,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiPublicCronRunRecurringRoute: typeof ApiPublicCronRunRecurringRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
+  ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
   ApiPublicWebhookPathaoRoute: typeof ApiPublicWebhookPathaoRoute
 }
 
@@ -602,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/webhook/pathao'
       fullPath: '/api/public/webhook/pathao'
       preLoaderRoute: typeof ApiPublicWebhookPathaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/sync-marketing': {
+      id: '/api/public/cron/sync-marketing'
+      path: '/api/public/cron/sync-marketing'
+      fullPath: '/api/public/cron/sync-marketing'
+      preLoaderRoute: typeof ApiPublicCronSyncMarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/sync-courier': {
@@ -876,6 +897,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiPublicCronRunRecurringRoute: ApiPublicCronRunRecurringRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
+  ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,
   ApiPublicWebhookPathaoRoute: ApiPublicWebhookPathaoRoute,
 }
 export const routeTree = rootRouteImport
