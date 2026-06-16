@@ -70,6 +70,35 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
     const ext = data.external_account_id.startsWith("act_")
       ? data.external_account_id
       : `act_${data.external_account_id.replace(/\D/g, "")}`;
+    const numericExt = ext.replace(/^act_/, "");
+
+    const { data: existing } = await supabaseAdmin
+      .from("marketing_ad_accounts")
+      .select("id")
+      .eq("brand_id", data.brand_id)
+      .eq("platform_id", platform.id)
+      .in("external_account_id", [ext, numericExt])
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { data: row, error } = await supabaseAdmin
+        .from("marketing_ad_accounts")
+        .update({
+          external_account_id: ext,
+          account_name: data.account_name ?? null,
+          currency: data.currency ?? "BDT",
+          timezone_name: data.timezone_name ?? null,
+          access_token_secret_ref: data.token,
+          token_expires_at: data.token_expires_at ?? null,
+          is_active: true,
+          last_sync_error: null,
+        })
+        .eq("id", existing.id)
+        .select("id, external_account_id, account_name")
+        .single();
+      if (error) throw error;
+      return row;
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("marketing_ad_accounts")
@@ -372,12 +401,15 @@ export const getMetaAccountsForBrand = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabaseAdmin
       .from("marketing_ad_accounts")
       .select(
-        "id, external_account_id, account_name, currency, timezone_name, is_active, last_synced_at, last_sync_error, token_expires_at",
+        "id, external_account_id, account_name, currency, timezone_name, is_active, last_synced_at, last_sync_error, token_expires_at, access_token_secret_ref",
       )
       .eq("brand_id", data.brand_id)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return rows ?? [];
+    return (rows ?? []).map(({ access_token_secret_ref, ...row }: any) => ({
+      ...row,
+      has_token: Boolean(access_token_secret_ref),
+    }));
   });
 
 export const setMetaAccountActive = createServerFn({ method: "POST" })
