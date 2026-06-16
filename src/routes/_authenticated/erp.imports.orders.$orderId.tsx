@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
-  ArrowLeft, Package, Truck, Warehouse, Plane, CheckCircle2, AlertTriangle,
-  Wallet, ClipboardCheck, ChevronDown, ChevronRight, Loader2,
+  ArrowLeft, Package, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
+  AlertTriangle, Wallet, ClipboardCheck, ChevronDown, Loader2, ShoppingCart,
+  PackageCheck, Receipt, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
@@ -15,9 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import {
   getPurchaseOrderDetail, updateCartonStage, markArrivedInBd,
   releaseCarton, postCartonToInventory, recordImportPayment, listWarehouses,
@@ -32,6 +36,17 @@ export const Route = createFileRoute("/_authenticated/erp/imports/orders/$orderI
   component: PoDetailPage,
 });
 
+/* ============== Pipeline stages config (matches video) ============== */
+
+const PIPELINE_STAGES: { key: ImpCartonStatus; label: string; icon: any; bg: string; ring: string; text: string }[] = [
+  { key: "ordered",            label: "ORDERED",    icon: ShoppingCart,  bg: "bg-blue-500",    ring: "ring-blue-200 dark:ring-blue-900",    text: "text-blue-600" },
+  { key: "at_china_warehouse", label: "CHINA WH",   icon: WarehouseIcon, bg: "bg-cyan-500",    ring: "ring-cyan-200 dark:ring-cyan-900",    text: "text-cyan-600" },
+  { key: "in_transit",         label: "IN TRANSIT", icon: Plane,         bg: "bg-indigo-500",  ring: "ring-indigo-200 dark:ring-indigo-900","text": "text-indigo-600" } as any,
+  { key: "arrived_bd",         label: "ARRIVED BD", icon: Truck,         bg: "bg-orange-500",  ring: "ring-orange-200 dark:ring-orange-900","text": "text-orange-600" } as any,
+  { key: "released",           label: "RELEASED",   icon: PackageCheck,  bg: "bg-violet-500",  ring: "ring-violet-200 dark:ring-violet-900","text": "text-violet-600" } as any,
+  { key: "in_stock",           label: "IN STOCK",   icon: CheckCircle2,  bg: "bg-emerald-500", ring: "ring-emerald-200 dark:ring-emerald-900","text": "text-emerald-600" } as any,
+];
+
 function PoDetailPage() {
   const { orderId } = Route.useParams();
   const { activeBrand } = useBrand();
@@ -45,18 +60,25 @@ function PoDetailPage() {
     queryFn: () => detailFn({ data: { poId: orderId } }),
   });
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [arrivedOpen, setArrivedOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [releaseCartonId, setReleaseCartonId] = useState<string | null>(null);
-  const [qcCartonId, setQcCartonId] = useState<string | null>(null);
 
   const stageMut = useMutation({
     mutationFn: (vars: { carton_id: string; new_stage: ImpCartonStatus }) =>
       stageFn({ data: { ...vars, idempotency_key: newIdemKey("stage") } as any }),
-    onSuccess: () => { toast.success("Stage updated"); qc.invalidateQueries({ queryKey: ["imp-po", orderId] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["imp-po", orderId] }); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
+
+  const bulkMarkAll = async (stage: ImpCartonStatus, cartons: any[]) => {
+    const targets = cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
+    if (targets.length === 0) { toast.info("No cartons to update at this stage"); return; }
+    try {
+      await Promise.all(targets.map((c) => stageFn({ data: { carton_id: c.id, new_stage: stage, idempotency_key: newIdemKey("stage") } as any })));
+      toast.success(`Marked ${targets.length} cartons as ${CARTON_STATUS_LABEL[stage].label}`);
+      qc.invalidateQueries({ queryKey: ["imp-po", orderId] });
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+  };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!data?.po) return <div className="p-6 text-sm text-muted-foreground">Purchase order not found.</div>;
@@ -65,79 +87,133 @@ function PoDetailPage() {
   const items: any[] = data.items;
   const cartons: any[] = data.cartons;
   const payments: any[] = data.payments;
-  const history: any[] = data.history;
 
   const totalCartons = cartons.length;
-  const inStockCartons = cartons.filter((c) => c.status === "in_stock").length;
   const totalPieces = cartons.reduce((s, c) => s + Number(c.expected_quantity || 0), 0);
+  const deliveredCartons = cartons.filter((c) => c.status === "in_stock").length;
+  const deliveredPieces = cartons.filter((c) => c.status === "in_stock")
+    .reduce((s, c) => s + Number(c.expected_quantity || 0), 0);
+  const deliveredPct = totalPieces > 0 ? Math.round((deliveredPieces / totalPieces) * 100) : 0;
+
+  const paidPct = Number(po.grand_total_bdt) > 0 ? Math.round((Number(po.paid_bdt) / Number(po.grand_total_bdt)) * 100) : 0;
+
+  // pipeline counts
+  const stageCounts = PIPELINE_STAGES.map((s) => {
+    const list = cartons.filter((c) => c.status === s.key);
+    return { ...s, count: list.length, pieces: list.reduce((sum, c) => sum + Number(c.expected_quantity || 0), 0) };
+  });
+
+  // 4 summary boxes below pipeline (matches video)
+  const deliveredBox = { c: deliveredCartons, p: deliveredPieces };
+  const arrivedReleasedBox = cartons.filter((c) => ["arrived_bd", "released"].includes(c.status));
+  const inTransitBox = cartons.filter((c) => ["at_china_warehouse", "in_transit"].includes(c.status));
+  const remainingBox = cartons.filter((c) => c.status !== "in_stock" && c.status !== "cancelled");
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      <div className="flex items-center gap-3 flex-wrap">
-        <Link to="/erp/imports/orders"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button></Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xl font-bold font-mono">{po.po_number}</h2>
-            <Badge variant="secondary" className={PO_STATUS_LABEL[po.status as ImpPoStatus]?.tone}>
-              {PO_STATUS_LABEL[po.status as ImpPoStatus]?.label ?? po.status}
-            </Badge>
+      {/* Header */}
+      <Card className="p-5 bg-gradient-to-br from-primary/5 via-card to-card border-primary/10">
+        <div className="flex items-start gap-3 flex-wrap">
+          <Link to="/erp/imports/orders"><Button variant="ghost" size="sm" className="-ml-2"><ArrowLeft className="h-4 w-4 mr-1" />Purchase Orders</Button></Link>
+        </div>
+        <div className="mt-2 flex items-start gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-medium tracking-wider text-muted-foreground">IMPORTS / ORDER</div>
+            <div className="flex items-center gap-3 flex-wrap mt-1">
+              <h1 className="text-2xl font-bold font-mono">{po.po_number}</h1>
+              <Badge variant="secondary" className={PO_STATUS_LABEL[po.status as ImpPoStatus]?.tone}>
+                {PO_STATUS_LABEL[po.status as ImpPoStatus]?.label ?? po.status}
+              </Badge>
+            </div>
+            <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+              <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary" />{po.supplier?.name ?? "—"}</span>
+              <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" />{po.agent?.name ?? "No agent"}</span>
+              <span>📅 {po.order_date}</span>
+              <span>$ FX {Number(po.fx_rate)} · {po.currency}</span>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {po.order_date} · {po.supplier?.name ?? "—"} · {po.agent?.name ?? "No agent"}
-          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setPaymentOpen(true)}><Wallet className="h-4 w-4 mr-1" />Record Payment</Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {po.status !== "arrived_bd" && po.status !== "completed" && po.status !== "cancelled" && (
-            <Button variant="outline" onClick={() => setArrivedOpen(true)}><Plane className="h-4 w-4 mr-1" />Mark Arrived BD</Button>
-          )}
-          <Button variant="outline" onClick={() => setPaymentOpen(true)}><Wallet className="h-4 w-4 mr-1" />Record Payment</Button>
-        </div>
-      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <SummaryStat label="Grand Total" value={fmtBdt(po.grand_total_bdt)} />
-        <SummaryStat label="Paid" value={fmtBdt(po.paid_bdt)} tone="text-emerald-600" />
-        <SummaryStat label="Due" value={fmtBdt(po.due_bdt)} tone="text-orange-600" />
-        <SummaryStat label="Cartons" value={`${inStockCartons} / ${totalCartons}`} hint="in stock" />
-        <SummaryStat label="Pieces" value={totalPieces.toLocaleString()} />
-      </div>
-
-      {/* Cost breakdown */}
-      <Card className="p-4">
-        <h3 className="font-semibold mb-3 text-sm">Cost Breakdown</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <div><div className="text-xs text-muted-foreground">Product Subtotal</div><div className="font-semibold tabular-nums">{fmtBdt(po.product_subtotal_bdt)}</div></div>
-          <div><div className="text-xs text-muted-foreground">Shipping</div><div className="font-semibold tabular-nums">{fmtBdt(po.shipping_total_bdt)}</div></div>
-          <div><div className="text-xs text-muted-foreground">Local Courier</div><div className="font-semibold tabular-nums">{fmtBdt(po.local_courier_total_bdt)}</div></div>
-          <div><div className="text-xs text-muted-foreground">FX Rate</div><div className="font-semibold tabular-nums">{po.fx_rate} {po.currency}/BDT</div></div>
+        {/* 4 KPI cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <KpiTile icon="$" label="Grand Total" value={fmtBdt(po.grand_total_bdt)} />
+          <KpiTile icon={<PackageCheck className="h-4 w-4 text-emerald-600" />} label="Paid" value={fmtBdt(po.paid_bdt)} valueClass="text-emerald-600" />
+          <KpiTile icon={<AlertTriangle className="h-4 w-4 text-orange-600" />} label="Due" value={fmtBdt(po.due_bdt)} valueClass="text-orange-600" />
+          <KpiTile
+            icon={<CheckCircle2 className="h-4 w-4 text-blue-600" />}
+            label="Delivered"
+            value={`${deliveredCartons} / ${totalCartons}`}
+            hint={`${deliveredPieces} / ${totalPieces} pcs · ${deliveredPct}%`}
+          />
         </div>
       </Card>
 
-      {/* Items */}
+      {/* Order Pipeline */}
+      <Card className="p-5">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h3 className="font-semibold">Order Pipeline</h3>
+            <p className="text-xs text-muted-foreground">Track the journey of this purchase order from China to your warehouse.</p>
+          </div>
+          <div className="text-right text-xs">
+            <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Delivered</span>{" "}
+            <span className="font-medium">{deliveredCartons}/{totalCartons} cartons · {deliveredPieces}/{totalPieces} pcs</span>
+          </div>
+        </div>
+        <PipelineStrip stages={stageCounts} activeStatus={po.status as ImpPoStatus} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <SummaryBox tone="emerald" label="DELIVERED" cartons={deliveredBox.c} pieces={deliveredBox.p} />
+          <SummaryBox tone="orange" label="ARRIVED / RELEASED" cartons={arrivedReleasedBox.length} pieces={arrivedReleasedBox.reduce((s, c) => s + Number(c.expected_quantity || 0), 0)} />
+          <SummaryBox tone="indigo" label="IN TRANSIT" cartons={inTransitBox.length} pieces={inTransitBox.reduce((s, c) => s + Number(c.expected_quantity || 0), 0)} />
+          <SummaryBox tone="slate" label="REMAINING" cartons={remainingBox.length} pieces={remainingBox.reduce((s, c) => s + Number(c.expected_quantity || 0), 0)} />
+        </div>
+      </Card>
+
+      {/* Payment Progress */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <h3 className="font-semibold inline-flex items-center gap-2"><Wallet className="h-4 w-4" />Payment Progress</h3>
+          <div className="text-sm">
+            <span className="text-emerald-600 font-semibold tabular-nums">{fmtBdt(po.paid_bdt)}</span>
+            <span className="text-muted-foreground"> / {fmtBdt(po.grand_total_bdt)}</span>
+            <span className="ml-2 text-xs text-muted-foreground">({paidPct}%)</span>
+          </div>
+        </div>
+        <Progress value={paidPct} className="h-2 [&>div]:bg-emerald-500" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs">
+          <Mini label="SUBTOTAL" value={fmtBdt(po.product_subtotal_bdt)} />
+          <Mini label="SHIPPING CN→BD" value={fmtBdt(po.shipping_total_bdt)} />
+          <Mini label="LOCAL COURIER" value={fmtBdt(po.local_courier_total_bdt)} />
+          <Mini label="OUTSTANDING DUE" value={fmtBdt(po.due_bdt)} valueClass="text-orange-600" />
+        </div>
+      </Card>
+
+      {/* Products */}
       <Card className="overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold"><Package className="h-4 w-4 inline mr-2" />Items ({items.length})</h3>
+          <h3 className="font-semibold">Products</h3>
+          <Badge variant="outline" className="text-[11px]">{items.length} items</Badge>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
               <TableHead>SKU</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead className="text-right">Qty</TableHead>
-              <TableHead className="text-right">Unit ({po.currency})</TableHead>
-              <TableHead className="text-right">Unit (BDT)</TableHead>
+              <TableHead className="text-right">Unit {po.currency}</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((it) => (
               <TableRow key={it.id}>
-                <TableCell className="font-medium">{it.name_snapshot}</TableCell>
                 <TableCell className="font-mono text-xs">{it.sku_snapshot ?? "—"}</TableCell>
+                <TableCell className="font-medium">{it.name_snapshot}</TableCell>
                 <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
                 <TableCell className="text-right tabular-nums">{Number(it.unit_cost_foreign).toFixed(2)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmtBdt(it.unit_cost_bdt)}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtBdt(it.subtotal_bdt)}</TableCell>
               </TableRow>
             ))}
@@ -145,67 +221,56 @@ function PoDetailPage() {
         </Table>
       </Card>
 
+      {/* "Goods arrived in BD?" alert — only when PO has not yet been received in BD */}
+      {!["arrived_bd", "completed", "cancelled"].includes(po.status) && (
+        <Card className="p-4 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900/40">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
+              <Truck className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm">Goods arrived in BD?</div>
+              <p className="text-xs text-muted-foreground">Enter shipping bill (weight × rate) — auto-distributes to cartons</p>
+            </div>
+            <Button onClick={() => setArrivedOpen(true)}><Truck className="h-4 w-4 mr-1" />Receive at BD</Button>
+          </div>
+        </Card>
+      )}
+
       {/* Cartons */}
       <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h3 className="font-semibold"><Truck className="h-4 w-4 inline mr-2" />Cartons ({cartons.length})</h3>
+        <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-3">
+          <h3 className="font-semibold inline-flex items-center gap-2">Cartons <Badge variant="outline" className="text-[11px]">{cartons.length}</Badge></h3>
+          {cartons.some((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)) && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Bulk mark {cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length}:</span>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("ordered", cartons)}>Ordered</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("at_china_warehouse", cartons)}>At China WH</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("in_transit", cartons)}>In Transit</Button>
+            </div>
+          )}
         </div>
         <div className="divide-y divide-border">
-          {cartons.map((c) => {
-            const exp = expanded[c.id];
-            return (
-              <div key={c.id} className="p-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button onClick={() => setExpanded((s) => ({ ...s, [c.id]: !s[c.id] }))} className="p-1 rounded hover:bg-accent">
-                    {exp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </button>
-                  <div className="font-mono text-sm font-semibold px-2 py-1 rounded bg-primary/10 text-primary">CTN-{c.carton_number}</div>
-                  <Badge variant="secondary" className={CARTON_STATUS_LABEL[c.status as ImpCartonStatus]?.tone}>
-                    {CARTON_STATUS_LABEL[c.status as ImpCartonStatus]?.label}
-                  </Badge>
-                  <div className="text-xs text-muted-foreground">{c.expected_quantity} pcs · {c.weight_kg ?? 0} kg</div>
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="text-right text-xs">
-                      <div className="text-muted-foreground">Landed</div>
-                      <div className="font-semibold tabular-nums">{fmtBdt(c.total_landed_bdt)}</div>
-                    </div>
-                    <CartonActions
-                      carton={c}
-                      onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
-                      onRelease={() => setReleaseCartonId(c.id)}
-                      onQc={() => setQcCartonId(c.id)}
-                    />
-                  </div>
-                </div>
-                {exp && (
-                  <div className="mt-3 pl-8 grid md:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <div className="font-semibold text-muted-foreground mb-1">Contents</div>
-                      {(c.items ?? []).map((ci: any) => (
-                        <div key={ci.id} className="flex justify-between py-0.5">
-                          <span className="truncate">{ci.sku_snapshot ?? items.find((it) => it.id === ci.po_item_id)?.name_snapshot ?? "Item"}</span>
-                          <span className="tabular-nums">{ci.quantity_expected} pcs</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Supplier cost</span><span className="tabular-nums">{fmtBdt(c.supplier_cost_bdt)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="tabular-nums">{fmtBdt(c.shipping_charge_bdt)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Local courier</span><span className="tabular-nums">{fmtBdt(c.local_courier_bdt)}</span></div>
-                      <div className="flex justify-between font-semibold"><span>Total landed</span><span className="tabular-nums">{fmtBdt(c.total_landed_bdt)}</span></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {cartons.map((c) => (
+            <CartonRow
+              key={c.id}
+              carton={c}
+              poId={po.id}
+              poNumber={po.po_number}
+              poItems={items}
+              brandId={brandId}
+              poDue={Number(po.due_bdt)}
+              onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
+            />
+          ))}
         </div>
       </Card>
 
       {/* Payments */}
       <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h3 className="font-semibold"><Wallet className="h-4 w-4 inline mr-2" />Payments ({payments.length})</h3>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <h3 className="font-semibold inline-flex items-center gap-2"><Receipt className="h-4 w-4" />Payments</h3>
+          <Badge variant="outline" className="text-[11px]">{payments.length}</Badge>
         </div>
         {payments.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">No payments recorded.</div>
@@ -224,38 +289,16 @@ function PoDetailPage() {
               {payments.map((p) => (
                 <TableRow key={p.id} className={p.is_reversed ? "opacity-50 line-through" : ""}>
                   <TableCell className="text-sm">{p.payment_date}</TableCell>
-                  <TableCell className="text-xs capitalize">{p.payment_type.replace("_", " ")}</TableCell>
+                  <TableCell><Badge variant="secondary" className="text-[10px] capitalize">{p.payment_type.replace(/_/g, " ")}</Badge></TableCell>
                   <TableCell className="text-sm">{p.wallet?.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{p.reference ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">{fmtBdt(p.amount_bdt)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.reference ?? "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold text-emerald-600">{fmtBdt(p.amount_bdt)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </Card>
-
-      {/* History */}
-      {history.length > 0 && (
-        <Card className="p-4">
-          <h3 className="font-semibold mb-3 text-sm">Activity</h3>
-          <div className="space-y-2 text-xs">
-            {history.slice(0, 20).map((h) => (
-              <div key={h.id} className="flex gap-3 items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <span className="font-medium">{h.action}</span>
-                  {h.previous_status && h.new_status && (
-                    <span className="text-muted-foreground"> · {h.previous_status} → {h.new_status}</span>
-                  )}
-                  {h.notes && <span className="text-muted-foreground"> · {h.notes}</span>}
-                </div>
-                <div className="text-muted-foreground">{new Date(h.created_at).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Dialogs */}
       {arrivedOpen && brandId && (
@@ -264,79 +307,494 @@ function PoDetailPage() {
       {paymentOpen && brandId && (
         <PaymentDialog poId={po.id} brandId={brandId} onClose={() => setPaymentOpen(false)} />
       )}
-      {releaseCartonId && brandId && (
-        <ReleaseDialog
-          cartonId={releaseCartonId}
-          carton={cartons.find((c) => c.id === releaseCartonId)}
-          brandId={brandId}
-          onClose={() => setReleaseCartonId(null)}
-        />
-      )}
-      {qcCartonId && brandId && (
-        <QcDialog
-          carton={cartons.find((c) => c.id === qcCartonId)}
-          brandId={brandId}
-          poItems={items}
-          onClose={() => setQcCartonId(null)}
-        />
+    </div>
+  );
+}
+
+/* ============== Header + KPI tiles ============== */
+
+function KpiTile({ icon, label, value, valueClass, hint }: { icon: React.ReactNode; label: string; value: string; valueClass?: string; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-3">
+      <div className="flex items-center gap-2 text-[11px] font-medium tracking-wider text-muted-foreground">
+        <span className="h-5 w-5 inline-flex items-center justify-center rounded-md bg-muted">{typeof icon === "string" ? icon : icon}</span>
+        {label}
+      </div>
+      <div className={cn("text-xl font-bold tabular-nums mt-1", valueClass)}>{value}</div>
+      {hint && <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function Mini({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={cn("font-bold tabular-nums text-sm mt-0.5", valueClass)}>{value}</div>
+    </div>
+  );
+}
+
+function SummaryBox({ tone, label, cartons, pieces }: { tone: "emerald" | "orange" | "indigo" | "slate"; label: string; cartons: number; pieces: number }) {
+  const toneMap = {
+    emerald: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+    orange:  "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/40 text-orange-700 dark:text-orange-300",
+    indigo:  "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300",
+    slate:   "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300",
+  };
+  return (
+    <div className={cn("rounded-lg border p-3", toneMap[tone])}>
+      <div className="text-[10px] tracking-wider font-semibold opacity-80">{label}</div>
+      <div className="text-xl font-bold tabular-nums mt-1">{cartons} <span className="text-[11px] font-medium opacity-70">cartons</span></div>
+      <div className="text-[11px] opacity-70 mt-0.5">{pieces} pcs</div>
+    </div>
+  );
+}
+
+/* ============== Pipeline horizontal strip ============== */
+
+function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: ImpPoStatus }) {
+  const activeIdx = useMemo(() => {
+    const map: Partial<Record<ImpPoStatus, number>> = {
+      ordered: 0, at_china_warehouse: 1, in_transit: 2, arrived_bd: 3, partially_received: 4, completed: 5,
+    };
+    return map[activeStatus] ?? 0;
+  }, [activeStatus]);
+
+  return (
+    <div className="relative">
+      <div className="absolute left-8 right-8 top-6 h-0.5 bg-gradient-to-r from-primary/40 via-primary/40 to-primary/40" />
+      <div className="grid grid-cols-6 gap-2 relative">
+        {stages.map((s, i) => {
+          const isActive = i <= activeIdx;
+          const isCurrent = i === activeIdx;
+          const Icon = s.icon;
+          return (
+            <div key={s.key} className="flex flex-col items-center text-center">
+              <div className={cn(
+                "h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all",
+                isActive ? `${s.bg} text-white border-transparent shadow-md` : "bg-background border-border text-muted-foreground",
+                isCurrent && `ring-4 ${s.ring}`,
+              )}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className={cn("mt-2 text-[10px] tracking-wider font-semibold", isActive ? s.text : "text-muted-foreground")}>{s.label}</div>
+              <div className={cn("text-base font-bold tabular-nums", isActive ? "" : "text-muted-foreground/60")}>{s.count}</div>
+              <div className="text-[10px] text-muted-foreground">{s.pieces} pcs</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
+
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, onStage }: {
+  carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number;
+  onStage: (s: ImpCartonStatus) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const status = carton.status as ImpCartonStatus;
+  const meta = CARTON_STATUS_LABEL[status];
+
+  // expand by default if action is required (arrived_bd or released)
+  const needsAction = status === "arrived_bd" || status === "released";
+
+  return (
+    <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10")}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent/40 text-left"
+      >
+        <Badge variant="secondary" className={cn("font-medium", meta?.tone)}>{meta?.label}</Badge>
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-sm font-semibold">{poNumber}-C{carton.carton_number}</div>
+          <div className="text-[11px] text-muted-foreground">{carton.expected_quantity} pcs · landed {fmtBdt(carton.total_landed_bdt)}</div>
+        </div>
+        <div className="hidden md:block text-right text-xs">
+          <div>Product: <span className="tabular-nums font-medium">{fmtBdt(carton.supplier_cost_bdt)}</span></div>
+          <div className="text-muted-foreground">Ship: <span className="tabular-nums font-medium">{fmtBdt(carton.shipping_charge_bdt)}</span></div>
+        </div>
+        {["ordered", "at_china_warehouse", "in_transit"].includes(status) && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Select value={status} onValueChange={(v) => onStage(v as ImpCartonStatus)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="at_china_warehouse">At China WH</SelectItem>
+                <SelectItem value="in_transit">In Transit</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
+          {status === "arrived_bd" && brandId && (
+            <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} />
+          )}
+          {status === "released" && brandId && (
+            <InlineQcForm carton={carton} brandId={brandId} poItems={poItems} poId={poId} poDue={poDue} />
+          )}
+          {!needsAction && (
+            <div className="text-xs text-muted-foreground py-2">
+              {status === "in_stock" && carton.posted_at ? `Posted to inventory on ${carton.posted_at}` : "No action required at this stage."}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function SummaryStat({ label, value, tone, hint }: { label: string; value: string; tone?: string; hint?: string }) {
+/* ============== Inline Release form (STEP 1) ============== */
+
+function InlineReleaseForm({ carton, brandId, poId }: { carton: any; brandId: string; poId: string }) {
+  const fn = useServerFn(releaseCarton);
+  const qc = useQueryClient();
+  const { data: wallets = [] } = useAccounts(brandId);
+  const [amount, setAmount] = useState<number>(Number(carton.total_landed_bdt ?? 0));
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+  const [withoutPay, setWithoutPay] = useState(false);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const payload: any = { carton_id: carton.id, idempotency_key: newIdemKey("rel") };
+      if (withoutPay) payload.release_without_payment = true;
+      else {
+        if (amount <= 0) throw new Error("Pay amount required");
+        if (!walletId) throw new Error("Pick a wallet");
+        payload.payment = { amount, wallet_id: walletId, payment_date: new Date().toISOString().slice(0, 10), reference: ref || undefined, idempotency_key: newIdemKey("pay") };
+      }
+      return await fn({ data: payload });
+    },
+    onSuccess: () => { toast.success("Carton released"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
   return (
-    <Card className="p-4">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className={`text-lg font-bold tabular-nums mt-1 ${tone ?? ""}`}>{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-    </Card>
+    <div className="space-y-3 py-3">
+      <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">STEP 1 — RELEASE (PAY &amp; CONFIRM)</div>
+      <div className="text-xs text-muted-foreground">
+        Supplier: <span className="tabular-nums">{fmtBdt(carton.supplier_cost_bdt)}</span> · Shipping: <span className="tabular-nums">{fmtBdt(carton.shipping_charge_bdt)}</span> · Total landed: <span className="font-medium tabular-nums">{fmtBdt(carton.total_landed_bdt)}</span>
+      </div>
+      <div className="grid md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Pay amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} disabled={withoutPay} /></div>
+        <div>
+          <Label className="text-xs">Wallet</Label>
+          <Select value={walletId} onValueChange={setWalletId} disabled={withoutPay}>
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" disabled={withoutPay} /></div>
+      </div>
+      <label className="inline-flex items-center gap-2 text-xs">
+        <Checkbox checked={withoutPay} onCheckedChange={(v) => setWithoutPay(!!v)} />
+        Release without payment (carry as PO due)
+      </label>
+      <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
+        {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Send className="h-4 w-4 mr-1" />Release carton
+      </Button>
+    </div>
   );
 }
 
-function CartonActions({ carton, onStage, onRelease, onQc }: { carton: any; onStage: (s: ImpCartonStatus) => void; onRelease: () => void; onQc: () => void }) {
-  const status = carton.status as ImpCartonStatus;
-  if (status === "ordered") return <Button size="sm" variant="outline" onClick={() => onStage("at_china_warehouse")}>→ At China WH</Button>;
-  if (status === "at_china_warehouse") return <Button size="sm" variant="outline" onClick={() => onStage("in_transit")}>→ In Transit</Button>;
-  if (status === "arrived_bd") return <Button size="sm" variant="outline" onClick={onRelease}>Release</Button>;
-  if (status === "released") return <Button size="sm" onClick={onQc}><ClipboardCheck className="h-3.5 w-3.5 mr-1" />QC & Post</Button>;
-  return null;
-}
+/* ============== Inline QC form (STEP 2 — full accounting preview) ============== */
 
-/* -------------- Dialogs -------------- */
-
-function useInvalidateOrder() {
+function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; brandId: string; poItems: any[]; poId: string; poDue: number }) {
+  const fn = useServerFn(postCartonToInventory);
+  const whFn = useServerFn(listWarehouses);
   const qc = useQueryClient();
-  return (orderId: string) => qc.invalidateQueries({ queryKey: ["imp-po", orderId] });
-}
-
-function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent: any; onClose: () => void; brandId: string }) {
-  const fn = useServerFn(markArrivedInBd);
-  const invalidate = useInvalidateOrder();
+  const { data: warehouses = [] } = useQuery({ queryKey: ["imp-wh", brandId], queryFn: () => whFn({ data: { brandId } }) });
   const { data: wallets = [] } = useAccounts(brandId);
-  const [weight, setWeight] = useState<number>(0);
-  const [rate, setRate] = useState<number>(Number(agent?.default_shipping_rate_per_kg_bdt ?? 0));
-  const [payNow, setPayNow] = useState(false);
-  const [walletId, setWalletId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
-  const total = weight * rate;
+  const [rows, setRows] = useState<Record<string, { ok: number; damaged: number; missing: number }>>(() => {
+    const init: any = {};
+    (carton?.items ?? []).forEach((it: any) => {
+      init[it.id] = { ok: it.quantity_expected, damaged: 0, missing: 0 };
+    });
+    return init;
+  });
+  const [warehouseId, setWarehouseId] = useState("");
+  const [courierBdt, setCourierBdt] = useState<number>(0);
+  const [courierWalletId, setCourierWalletId] = useState("");
+  const [qcNotes, setQcNotes] = useState("");
+
+  const [duePayAmount, setDuePayAmount] = useState<number>(Math.max(0, Number(poDue)));
+  const [duePayWalletId, setDuePayWalletId] = useState("");
+  const [overrideDue, setOverrideDue] = useState(false);
+
+  const totalExpected = (carton.items ?? []).reduce((s: number, it: any) => s + Number(it.quantity_expected || 0), 0);
+  const totalDamaged = Object.values(rows).reduce((s, r) => s + Number(r.damaged || 0), 0);
+  const totalMissing = Object.values(rows).reduce((s, r) => s + Number(r.missing || 0), 0);
+  const totalOk = Object.values(rows).reduce((s, r) => s + Number(r.ok || 0), 0);
+
+  const productCost = Number(carton.supplier_cost_bdt || 0);
+  const shipCost = Number(carton.shipping_charge_bdt || 0);
+  const courierCost = Number(courierBdt || 0);
+  const totalLanded = productCost + shipCost + courierCost;
+  const perPieceTotal = totalExpected > 0 ? totalLanded / totalExpected : 0;
+  const lossCount = totalDamaged + totalMissing;
+  const lossValue = lossCount * perPieceTotal;
+  const okValueAbs = totalOk * perPieceTotal;
+  const finalInventoryCost = totalLanded; // loss absorbed in ok
+  const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
+
+  const dueRemaining = Math.max(0, Number(poDue) - duePayAmount);
+  const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
+    const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+    const sum = r.ok + r.damaged + r.missing;
+    if (sum !== it.quantity_expected) return [`Row sum ${sum} ≠ expected ${it.quantity_expected}`];
+    return [];
+  }), [rows, carton]);
+
+  const validationErrors: string[] = [];
+  if (!warehouseId) validationErrors.push("Pick warehouse");
+  if (courierBdt > 0 && !courierWalletId) validationErrors.push("Pick local courier wallet");
+  if (poDue > 0 && duePayAmount > 0 && !duePayWalletId) validationErrors.push("Pick a wallet for the due payment");
+  if (poDue > 0 && duePayAmount < poDue && !overrideDue) validationErrors.push("Approve with unpaid due override OR pay full due");
+
+  const selectedCourierWallet = wallets.find((w) => w.id === courierWalletId);
+  const selectedDueWallet = wallets.find((w) => w.id === duePayWalletId);
 
   const mut = useMutation({
     mutationFn: async () => {
       const payload: any = {
-        po_id: poId, total_weight_kg: weight, rate_per_kg_bdt: rate,
-        idempotency_key: newIdemKey("arr"),
+        carton_id: carton.id,
+        warehouse_id: warehouseId,
+        qc: Object.entries(rows).map(([carton_item_id, v]) => ({ carton_item_id, quantity_ok: v.ok, quantity_damaged: v.damaged, quantity_missing: v.missing })),
+        idempotency_key: newIdemKey("post"),
+        notes: qcNotes || undefined,
       };
-      if (payNow && walletId && total > 0) {
-        payload.shipping_payment = {
-          amount: total, wallet_id: walletId, payment_date: date,
-          idempotency_key: newIdemKey("pay"),
-        };
+      if (courierBdt > 0 && courierWalletId) {
+        payload.local_courier_payment = { amount: courierBdt, wallet_id: courierWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("crp") };
+      }
+      if (duePayAmount > 0 && duePayWalletId) {
+        payload.supplier_due_payment = { amount: duePayAmount, wallet_id: duePayWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("due") };
+      }
+      if (overrideDue) payload.due_override_reason = "Approved with unpaid due via inline QC";
+      return await fn({ data: payload });
+    },
+    onSuccess: () => { toast.success(`Posted ${totalOk} pcs to inventory`); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  return (
+    <div className="space-y-4 py-3">
+      <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">STEP 2 — QC &amp; POST TO INVENTORY</div>
+
+      {/* Landed Cost Breakdown */}
+      <Card className="p-3 bg-muted/30">
+        <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">LANDED COST BREAKDOWN</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <Mini label="Product" value={fmtBdt(productCost)} />
+          <Mini label="Shipping (CN→BD)" value={fmtBdt(shipCost)} />
+          <Mini label="Local courier" value={fmtBdt(courierCost)} />
+          <Mini label="Total landed" value={fmtBdt(totalLanded)} />
+          <Mini label={`Per piece (${totalExpected})`} value={fmtBdt(perPieceTotal)} valueClass="text-primary" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-xs">
+          <Mini label="OK pieces" value={String(totalOk)} />
+          <Mini label="Per OK piece" value={fmtBdt(perOkPiece)} valueClass="text-primary" />
+          <Mini label={`Loss (${lossCount} pcs)`} value={fmtBdt(lossValue)} valueClass="text-orange-600" />
+          <Mini label="Final inventory cost" value={fmtBdt(finalInventoryCost)} valueClass="text-emerald-600" />
+        </div>
+      </Card>
+
+      {/* SKU rows */}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>SKU</TableHead>
+              <TableHead className="text-right">Expected</TableHead>
+              <TableHead className="text-right w-24">Damaged</TableHead>
+              <TableHead className="text-right w-24">Missing</TableHead>
+              <TableHead className="text-right w-20">OK</TableHead>
+              <TableHead className="text-right">OK unit ৳</TableHead>
+              <TableHead className="text-right">OK value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(carton.items ?? []).map((it: any) => {
+              const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+              const itemUnit = totalOk > 0 ? perOkPiece : 0;
+              return (
+                <TableRow key={it.id}>
+                  <TableCell className="font-mono text-xs">{it.sku_snapshot ?? "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">{it.quantity_expected}</TableCell>
+                  <TableCell><Input type="number" min={0} value={r.damaged} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, damaged: Number(e.target.value) } }))} /></TableCell>
+                  <TableCell><Input type="number" min={0} value={r.missing} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, missing: Number(e.target.value) } }))} /></TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{r.ok}</TableCell>
+                  <TableCell className="text-right tabular-nums text-xs">{fmtBdt(itemUnit)}</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold text-emerald-600">{fmtBdt(r.ok * itemUnit)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      {/* Recompute OK = expected - damaged - missing on each render */}
+      <RowsAutoCompute rows={rows} setRows={setRows} carton={carton} />
+
+      {rowErrors.length > 0 && (
+        <div className="text-xs text-orange-600 flex items-start gap-2 p-2 rounded-md bg-orange-50 dark:bg-orange-950/30">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <div>{rowErrors.join(" · ")}</div>
+        </div>
+      )}
+
+      {/* Warehouse + local courier */}
+      <div className="grid md:grid-cols-3 gap-3">
+        <div>
+          <Label className="text-xs">Warehouse *</Label>
+          <Select value={warehouseId} onValueChange={setWarehouseId}>
+            <SelectTrigger><SelectValue placeholder="Pick" /></SelectTrigger>
+            <SelectContent>{(warehouses as any[]).map((w) => <SelectItem key={w.id} value={w.id}>{w.name}{w.is_default ? " (default)" : ""}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Local courier ৳ (optional)</Label><Input type="number" step="0.01" value={courierBdt} onChange={(e) => setCourierBdt(Number(e.target.value))} /></div>
+        <div>
+          <Label className="text-xs">Local courier wallet</Label>
+          <Select value={courierWalletId} onValueChange={setCourierWalletId} disabled={courierBdt <= 0}>
+            <SelectTrigger><SelectValue placeholder="Wallet" /></SelectTrigger>
+            <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs">QC notes</Label>
+        <Textarea value={qcNotes} onChange={(e) => setQcNotes(e.target.value)} placeholder="Optional" className="min-h-[60px]" />
+      </div>
+
+      {/* Unpaid due panel */}
+      {poDue > 0 && (
+        <Card className="p-3 border-orange-200 bg-orange-50/40 dark:bg-orange-950/20 dark:border-orange-900/40">
+          <div className="text-xs flex items-center gap-2 text-orange-700 dark:text-orange-300 mb-2">
+            <AlertTriangle className="h-4 w-4" /> Purchase order has unpaid due of <span className="font-semibold">{fmtBdt(poDue)}</span>. Record the payment now to keep accounting in sync.
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div><Label className="text-xs">Pay amount (BDT)</Label><Input type="number" step="0.01" value={duePayAmount} onChange={(e) => setDuePayAmount(Number(e.target.value))} /></div>
+            <div>
+              <Label className="text-xs">Pay from wallet</Label>
+              <Select value={duePayWalletId} onValueChange={setDuePayWalletId} disabled={duePayAmount <= 0}>
+                <SelectTrigger><SelectValue placeholder="Pick wallet" /></SelectTrigger>
+                <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-2 text-xs">
+            <span className="text-orange-700 dark:text-orange-400">Remaining after payment: <span className="font-semibold">{fmtBdt(dueRemaining)}</span></span>
+            <label className="inline-flex items-center gap-2">
+              <Checkbox checked={overrideDue} onCheckedChange={(v) => setOverrideDue(!!v)} />
+              Approve with unpaid due (override)
+            </label>
+          </div>
+        </Card>
+      )}
+
+      {/* Accounting preview */}
+      <Card className="p-3 bg-muted/30">
+        <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">ACCOUNTING PREVIEW</div>
+        <div className="space-y-1.5 text-xs">
+          <Row left={`Inventory in (${totalOk} OK pcs @ ${fmtBdt(perOkPiece)})`} right={`+${fmtBdt(finalInventoryCost - lossValue)}`} rightClass="text-emerald-600 font-semibold" />
+          {lossCount > 0 && (
+            <Row left={`Loss expense (${lossCount} pcs damaged/missing)`} right={`${fmtBdt(lossValue)} absorbed in OK unit cost`} rightClass="text-orange-600" />
+          )}
+          {courierCost > 0 && selectedCourierWallet && (
+            <Row left={`Local courier paid from ${selectedCourierWallet.name}`} right={`-${fmtBdt(courierCost)}`} rightClass="text-red-600" />
+          )}
+          {duePayAmount > 0 && selectedDueWallet && (
+            <Row left={`PO due payment from ${selectedDueWallet.name}`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
+          )}
+          {duePayAmount > 0 && !selectedDueWallet && (
+            <Row left={`PO due payment from —`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
+          )}
+          <Row left="PO due remaining after this approval" right={fmtBdt(dueRemaining)} rightClass={dueRemaining > 0 ? "text-orange-600 font-semibold" : "text-emerald-600 font-semibold"} />
+          {(courierCost > 0 && selectedCourierWallet) || (duePayAmount > 0 && selectedDueWallet) ? (
+            <div className="pt-2 border-t border-border/60 mt-2">
+              <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-1">WALLET OUTFLOW SUMMARY</div>
+              {selectedCourierWallet && courierCost > 0 && (
+                <Row left={selectedCourierWallet.name} right={`-${fmtBdt(courierCost)} (bal ${fmtBdt(selectedCourierWallet.current_balance)} → ${fmtBdt(Number(selectedCourierWallet.current_balance) - courierCost)})`} rightClass="text-xs" />
+              )}
+              {selectedDueWallet && duePayAmount > 0 && (
+                <Row left={selectedDueWallet.name} right={`-${fmtBdt(duePayAmount)} (bal ${fmtBdt(selectedDueWallet.current_balance)} → ${fmtBdt(Number(selectedDueWallet.current_balance) - duePayAmount)})`} rightClass="text-xs" />
+              )}
+            </div>
+          ) : null}
+        </div>
+      </Card>
+
+      <Button
+        size="lg"
+        disabled={mut.isPending || rowErrors.length > 0 || validationErrors.length > 0}
+        onClick={() => mut.mutate()}
+      >
+        {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        <ClipboardCheck className="h-4 w-4 mr-1" />Approve &amp; post {totalOk} pcs to inventory
+      </Button>
+      {validationErrors.length > 0 && <div className="text-[11px] text-orange-600">{validationErrors.join(" · ")}</div>}
+    </div>
+  );
+}
+
+function Row({ left, right, rightClass }: { left: string; right: string; rightClass?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{left}</span>
+      <span className={cn("tabular-nums", rightClass)}>{right}</span>
+    </div>
+  );
+}
+
+/* helper component to auto-update OK = expected - damaged - missing */
+function RowsAutoCompute({ rows, setRows, carton }: { rows: any; setRows: any; carton: any }) {
+  useMemo(() => {
+    let changed = false;
+    const next = { ...rows };
+    (carton.items ?? []).forEach((it: any) => {
+      const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+      const newOk = Math.max(0, Number(it.quantity_expected) - Number(r.damaged || 0) - Number(r.missing || 0));
+      if (r.ok !== newOk) { next[it.id] = { ...r, ok: newOk }; changed = true; }
+    });
+    if (changed) setRows(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(Object.fromEntries(Object.entries(rows).map(([k, v]: any) => [k, { d: v.damaged, m: v.missing }])))]);
+  return null;
+}
+
+/* ============== Dialogs ============== */
+
+function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent: any; onClose: () => void; brandId: string }) {
+  const fn = useServerFn(markArrivedInBd);
+  const qc = useQueryClient();
+  const { data: wallets = [] } = useAccounts(brandId);
+  const [weight, setWeight] = useState<number>(0);
+  const [rate, setRate] = useState<number>(Number(agent?.default_shipping_rate_per_kg_bdt ?? 0));
+  const [payNow, setPayNow] = useState(false);
+  const [amount, setAmount] = useState<number>(0);
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+
+  const total = weight * rate;
+  useMemo(() => { if (payNow && amount === 0) setAmount(total); /* eslint-disable-next-line */ }, [total, payNow]);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const payload: any = { po_id: poId, total_weight_kg: weight, rate_per_kg_bdt: rate, idempotency_key: newIdemKey("arr") };
+      if (payNow && walletId && amount > 0) {
+        payload.shipping_payment = { amount, wallet_id: walletId, payment_date: new Date().toISOString().slice(0, 10), reference: ref || undefined, idempotency_key: newIdemKey("pay") };
       }
       return await fn({ data: payload });
     },
-    onSuccess: () => { toast.success("Marked as arrived in BD"); invalidate(poId); onClose(); },
+    onSuccess: () => { toast.success("Marked as arrived in BD"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
@@ -344,41 +802,36 @@ function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent:
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Mark Arrived in Bangladesh</DialogTitle>
-          <DialogDescription>Enter actual shipped weight and rate. Shipping is prorated across cartons by weight.</DialogDescription>
+          <DialogTitle>Receive at BD Warehouse</DialogTitle>
+          <DialogDescription>Enter actual shipped weight and rate. Shipping is auto-distributed across cartons by weight.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Total weight (kg)</Label><Input type="number" step="0.1" value={weight} onChange={(e) => setWeight(Number(e.target.value))} /></div>
-            <div><Label>Rate (BDT/kg)</Label><Input type="number" step="0.01" value={rate} onChange={(e) => setRate(Number(e.target.value))} /></div>
+            <div><Label>Total weight (kg) *</Label><Input type="number" step="0.1" value={weight} onChange={(e) => setWeight(Number(e.target.value))} /></div>
+            <div><Label>Rate ৳/kg *</Label><Input type="number" step="0.01" value={rate} onChange={(e) => setRate(Number(e.target.value))} /></div>
           </div>
-          <div className="p-3 rounded-md bg-muted/50 text-sm flex justify-between">
-            <span className="text-muted-foreground">Total shipping cost</span>
-            <span className="font-bold tabular-nums">{fmtBdt(total)}</span>
+          <div className="flex items-center justify-between text-sm p-2 rounded bg-muted/40">
+            <span className="text-muted-foreground">Shipping total:</span><span className="font-semibold tabular-nums">{fmtBdt(total)}</span>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={payNow} onChange={(e) => setPayNow(e.target.checked)} className="rounded" />
-            Pay shipping now
-          </label>
-          {payNow && (
+          <div className="border-t border-border pt-3">
+            <div className="text-[11px] tracking-wider font-semibold text-muted-foreground mb-2">PAY SHIPPING NOW (OPTIONAL)</div>
             <div className="grid grid-cols-2 gap-3">
+              <div><Label>Amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => { setAmount(Number(e.target.value)); setPayNow(true); }} /></div>
               <div>
-                <Label>Wallet</Label>
-                <Select value={walletId} onValueChange={setWalletId}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}
-                  </SelectContent>
+                <Label>From Wallet</Label>
+                <Select value={walletId} onValueChange={(v) => { setWalletId(v); setPayNow(true); }}>
+                  <SelectTrigger><SelectValue placeholder="Wallet" /></SelectTrigger>
+                  <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
             </div>
-          )}
+            <div className="mt-2"><Label>Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" /></div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button disabled={weight <= 0 || rate <= 0 || mut.isPending} onClick={() => mut.mutate()}>
-            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Confirm Arrival
+            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save &amp; Distribute
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -388,7 +841,7 @@ function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent:
 
 function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: string; onClose: () => void }) {
   const fn = useServerFn(recordImportPayment);
-  const invalidate = useInvalidateOrder();
+  const qc = useQueryClient();
   const { data: wallets = [] } = useAccounts(brandId);
   const [amount, setAmount] = useState<number>(0);
   const [walletId, setWalletId] = useState("");
@@ -397,12 +850,8 @@ function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: stri
   const [ref, setRef] = useState("");
 
   const mut = useMutation({
-    mutationFn: () => fn({ data: {
-      brand_id: brandId, po_id: poId, payment_type: type as any,
-      amount_bdt: amount, wallet_id: walletId, payment_date: date, reference: ref || undefined,
-      idempotency_key: newIdemKey("pay"),
-    } }),
-    onSuccess: () => { toast.success("Payment recorded"); invalidate(poId); onClose(); },
+    mutationFn: () => fn({ data: { brand_id: brandId, po_id: poId, payment_type: type as any, amount_bdt: amount, wallet_id: walletId, payment_date: date, reference: ref || undefined, idempotency_key: newIdemKey("pay") } }),
+    onSuccess: () => { toast.success("Payment recorded"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
@@ -432,9 +881,7 @@ function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: stri
             <Label>Wallet</Label>
             <Select value={walletId} onValueChange={setWalletId}>
               <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>
-                {wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}
-              </SelectContent>
+              <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label>Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" /></div>
@@ -442,157 +889,7 @@ function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: stri
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button disabled={amount <= 0 || !walletId || mut.isPending} onClick={() => mut.mutate()}>
-            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Record Payment
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ReleaseDialog({ cartonId, carton, brandId, onClose }: { cartonId: string; carton: any; brandId: string; onClose: () => void }) {
-  const fn = useServerFn(releaseCarton);
-  const invalidate = useInvalidateOrder();
-  const { data: wallets = [] } = useAccounts(brandId);
-  const [payNow, setPayNow] = useState(true);
-  const [amount, setAmount] = useState<number>(Number(carton?.local_courier_bdt ?? 0));
-  const [walletId, setWalletId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [releaseWithoutPay, setReleaseWithoutPay] = useState(false);
-
-  const mut = useMutation({
-    mutationFn: async () => {
-      const payload: any = { carton_id: cartonId, idempotency_key: newIdemKey("rel") };
-      if (releaseWithoutPay) payload.release_without_payment = true;
-      else if (payNow && amount > 0 && walletId) {
-        payload.payment = { amount, wallet_id: walletId, payment_date: date, idempotency_key: newIdemKey("pay") };
-      }
-      return await fn({ data: payload });
-    },
-    onSuccess: () => { toast.success("Carton released"); invalidate(carton?.po_id); onClose(); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed"),
-  });
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Release Carton CTN-{carton?.carton_number}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={releaseWithoutPay} onChange={(e) => setReleaseWithoutPay(e.target.checked)} className="rounded" />
-            Release without payment (admin)
-          </label>
-          {!releaseWithoutPay && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Amount (BDT)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-                <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-              </div>
-              <div>
-                <Label>Wallet</Label>
-                <Select value={walletId} onValueChange={setWalletId}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button disabled={mut.isPending || (!releaseWithoutPay && (amount <= 0 || !walletId))} onClick={() => mut.mutate()}>
-            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Release
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function QcDialog({ carton, brandId, poItems, onClose }: { carton: any; brandId: string; poItems: any[]; onClose: () => void }) {
-  const fn = useServerFn(postCartonToInventory);
-  const whFn = useServerFn(listWarehouses);
-  const invalidate = useInvalidateOrder();
-  const { data: warehouses = [] } = useQuery({ queryKey: ["imp-wh", brandId], queryFn: () => whFn({ data: { brandId } }) });
-  const [qc, setQc] = useState<Record<string, { ok: number; damaged: number; missing: number }>>(() => {
-    const init: any = {};
-    (carton?.items ?? []).forEach((it: any) => {
-      init[it.id] = { ok: it.quantity_expected, damaged: 0, missing: 0 };
-    });
-    return init;
-  });
-  const [warehouseId, setWarehouseId] = useState<string>("");
-
-  const errors = useMemo(() => {
-    return (carton?.items ?? []).flatMap((it: any) => {
-      const q = qc[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
-      const sum = q.ok + q.damaged + q.missing;
-      if (sum !== it.quantity_expected) return [`${it.sku_snapshot ?? "Item"}: sum ${sum} ≠ expected ${it.quantity_expected}`];
-      return [];
-    });
-  }, [qc, carton]);
-
-  const mut = useMutation({
-    mutationFn: () => fn({ data: {
-      carton_id: carton.id,
-      warehouse_id: warehouseId || undefined,
-      qc: Object.entries(qc).map(([carton_item_id, v]) => ({ carton_item_id, quantity_ok: v.ok, quantity_damaged: v.damaged, quantity_missing: v.missing })),
-      idempotency_key: newIdemKey("post"),
-    } as any }),
-    onSuccess: () => { toast.success("Posted to inventory"); invalidate(carton?.po_id); onClose(); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed"),
-  });
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>QC & Post to Inventory — CTN-{carton?.carton_number}</DialogTitle>
-          <DialogDescription>Confirm OK / damaged / missing quantities. Sum must equal expected qty.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-          <div>
-            <Label>Warehouse</Label>
-            <Select value={warehouseId} onValueChange={setWarehouseId}>
-              <SelectTrigger><SelectValue placeholder="Default warehouse" /></SelectTrigger>
-              <SelectContent>
-                {(warehouses as any[]).map((w) => <SelectItem key={w.id} value={w.id}>{w.name}{w.is_default ? " (default)" : ""}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            {(carton?.items ?? []).map((it: any) => {
-              const q = qc[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
-              const item = poItems.find((p) => p.id === it.po_item_id);
-              return (
-                <div key={it.id} className="grid grid-cols-12 gap-2 items-end p-2 rounded-md border border-border">
-                  <div className="col-span-12 md:col-span-4">
-                    <div className="text-sm font-medium truncate">{item?.name_snapshot ?? it.sku_snapshot ?? "Item"}</div>
-                    <div className="text-xs text-muted-foreground">Expected: {it.quantity_expected}</div>
-                  </div>
-                  <div className="col-span-4 md:col-span-2"><Label className="text-xs">OK</Label><Input type="number" min={0} value={q.ok} onChange={(e) => setQc((s) => ({ ...s, [it.id]: { ...q, ok: Number(e.target.value) } }))} /></div>
-                  <div className="col-span-4 md:col-span-2"><Label className="text-xs">Damaged</Label><Input type="number" min={0} value={q.damaged} onChange={(e) => setQc((s) => ({ ...s, [it.id]: { ...q, damaged: Number(e.target.value) } }))} /></div>
-                  <div className="col-span-4 md:col-span-2"><Label className="text-xs">Missing</Label><Input type="number" min={0} value={q.missing} onChange={(e) => setQc((s) => ({ ...s, [it.id]: { ...q, missing: Number(e.target.value) } }))} /></div>
-                  <div className="col-span-12 md:col-span-2 text-right text-xs">
-                    Sum: <span className={q.ok + q.damaged + q.missing === it.quantity_expected ? "text-emerald-600 font-semibold" : "text-red-600 font-semibold"}>{q.ok + q.damaged + q.missing}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {errors.length > 0 && (
-            <div className="text-xs text-orange-600 flex items-start gap-2 p-2 rounded-md bg-orange-50 dark:bg-orange-950/30">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-              <div>{errors.join(" · ")}</div>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button disabled={errors.length > 0 || mut.isPending} onClick={() => mut.mutate()}>
-            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Post to Inventory
+            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Record
           </Button>
         </DialogFooter>
       </DialogContent>
