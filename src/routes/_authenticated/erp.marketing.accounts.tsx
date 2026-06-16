@@ -448,12 +448,14 @@ function AccountEditor({
   onOpenChange,
   brandId,
   editing,
+  wallets,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   brandId: string;
   editing: AccountRow | null;
+  wallets: WalletOption[];
   onSaved: () => void;
 }) {
   const isEdit = !!editing;
@@ -469,6 +471,8 @@ function AccountEditor({
     adAccountId: "",
     usdToBdtRate: "110",
     active: true,
+    autoPostToFinance: true,
+    financeWalletId: "" as string,
   });
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -483,6 +487,8 @@ function AccountEditor({
         adAccountId: editing?.external_id ?? "",
         usdToBdtRate: editing ? String(editing.usd_to_bdt_rate) : "110",
         active: editing ? editing.status === "active" : true,
+        autoPostToFinance: editing ? !!editing.auto_post_to_finance : true,
+        financeWalletId: editing?.finance_wallet_id ?? "",
       });
     }
   }, [open, editing]);
@@ -540,6 +546,8 @@ function AccountEditor({
             adAccountId: form.adAccountId.trim(),
             usdToBdtRate: Number(form.usdToBdtRate),
             active: form.active,
+            autoPostToFinance: form.autoPostToFinance,
+            financeWalletId: form.financeWalletId || null,
           },
         });
         toast.success("Account updated");
@@ -554,6 +562,8 @@ function AccountEditor({
             adAccountId: form.adAccountId.trim(),
             usdToBdtRate: Number(form.usdToBdtRate),
             active: form.active,
+            autoPostToFinance: form.autoPostToFinance,
+            financeWalletId: form.financeWalletId || null,
           },
         });
         toast.success("Account added");
@@ -667,6 +677,42 @@ function AccountEditor({
               checked={form.active}
               onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))}
             />
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">Auto-post to Finance</div>
+                <div className="text-xs text-muted-foreground">
+                  Sync er por daily spend BDT te convert kore expense add hobe
+                </div>
+              </div>
+              <Switch
+                checked={form.autoPostToFinance}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, autoPostToFinance: v }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Finance Wallet (kothay theke charge)</Label>
+              <Select
+                value={form.financeWalletId || "__auto__"}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, financeWalletId: v === "__auto__" ? "" : v }))
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select wallet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__auto__">Auto (1st active wallet)</SelectItem>
+                  {wallets.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.name} <span className="text-muted-foreground">({w.wallet_type})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-4">
