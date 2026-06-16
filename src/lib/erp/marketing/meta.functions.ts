@@ -9,9 +9,10 @@ declare global {
 }
 
 function getMetaToken(savedToken?: string | null) {
+  const envToken = typeof process !== "undefined" ? process.env.META_SYSTEM_USER_TOKEN : undefined;
   return (
     savedToken ||
-    process.env.META_SYSTEM_USER_TOKEN ||
+    envToken ||
     globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN ||
     null
   );
