@@ -387,10 +387,10 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
     if (ids.length) {
       const { data: prods } = await supabase
         .from("products")
-        .select("id, name, sku")
+        .select("id, title, sku")
         .in("id", ids);
       for (const p of prods ?? []) {
-        productInfo.set(p.id, { name: p.name, sku: (p as any).sku ?? null });
+        productInfo.set(p.id, { name: (p as any).title, sku: (p as any).sku ?? null });
       }
     }
 
