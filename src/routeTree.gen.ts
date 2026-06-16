@@ -41,6 +41,7 @@ import { Route as AuthenticatedErpFinanceRecurringRouteImport } from './routes/_
 import { Route as AuthenticatedErpFinanceReceivablesRouteImport } from './routes/_authenticated/erp.finance.receivables'
 import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
+import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 
@@ -226,6 +227,12 @@ const AuthenticatedErpFinanceJournalRoute =
     path: '/journal',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceBudgetsRoute =
+  AuthenticatedErpFinanceBudgetsRouteImport.update({
+    id: '/budgets',
+    path: '/budgets',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceAccountsRoute =
   AuthenticatedErpFinanceAccountsRouteImport.update({
     id: '/accounts',
@@ -252,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/_authenticated/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp/'
     | '/erp/finance/accounts'
+    | '/erp/finance/budgets'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp'
     | '/erp/finance/accounts'
+    | '/erp/finance/budgets'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
@@ -424,6 +436,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
     | '/_authenticated/erp/finance/accounts'
+    | '/_authenticated/erp/finance/budgets'
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/payables'
     | '/_authenticated/erp/finance/receivables'
@@ -682,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceJournalRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/budgets': {
+      id: '/_authenticated/erp/finance/budgets'
+      path: '/budgets'
+      fullPath: '/erp/finance/budgets'
+      preLoaderRoute: typeof AuthenticatedErpFinanceBudgetsRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/accounts': {
       id: '/_authenticated/erp/finance/accounts'
       path: '/accounts'
@@ -701,6 +721,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
+  AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
   AuthenticatedErpFinanceReceivablesRoute: typeof AuthenticatedErpFinanceReceivablesRoute
@@ -714,6 +735,7 @@ interface AuthenticatedErpFinanceRouteChildren {
 const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren =
   {
     AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
+    AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
     AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
     AuthenticatedErpFinanceReceivablesRoute:
