@@ -60,7 +60,7 @@ function RecurringPage() {
 
   const toggleMut = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase.from("erp_recurring_rules" as never).update({ is_active }).eq("id", id);
+      const { error } = await supabase.from("erp_recurring_rules" as never).update({ is_active } as never).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
