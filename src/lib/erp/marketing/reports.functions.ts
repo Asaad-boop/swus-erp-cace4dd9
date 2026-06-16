@@ -90,7 +90,8 @@ export const explorerAttribution = createServerFn({ method: "POST" })
     await assertStaff(context.supabase, context.userId);
     const { data: rows, error } = await context.supabase.rpc("mkt_attribution_explorer", {
       p_brand_id: data.brand_id, p_from: data.from, p_to: data.to,
-      p_source: data.source ?? null, p_campaign_id: data.campaign_id ?? null,
+      p_source: (data.source ?? null) as any,
+      p_campaign_id: (data.campaign_id ?? null) as any,
       p_limit: data.limit ?? 200,
     });
     if (error) throw new Error(error.message);
