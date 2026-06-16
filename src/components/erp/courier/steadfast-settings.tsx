@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBrand } from "@/contexts/brand-context";
+import { supabase } from "@/integrations/supabase/client";
 import {
   steadfastGetSettingsFn,
   steadfastSaveSettingsFn,
@@ -22,6 +23,7 @@ type FormState = {
   api_key: string;
   secret_key: string;
   is_active: boolean;
+  wallet_id: string | null;
 };
 
 const EMPTY: FormState = {
@@ -29,6 +31,7 @@ const EMPTY: FormState = {
   api_key: "",
   secret_key: "",
   is_active: true,
+  wallet_id: null,
 };
 
 export function SteadfastSettings() {
@@ -57,10 +60,26 @@ export function SteadfastSettings() {
             api_key: s.api_key ?? "",
             secret_key: s.secret_key ?? "",
             is_active: !!s.is_active,
+            wallet_id: (s as any).wallet_id ?? null,
           }
         : EMPTY,
     );
   }, [data?.settings, brandId]);
+
+  const { data: wallets } = useQuery({
+    queryKey: ["erp-wallets-picker", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_accounts")
+        .select("id,name,wallet_type")
+        .eq("brand_id", brandId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const save = useMutation({
     mutationFn: async () => saveFn({ data: { brand_id: brandId, ...form } }),
@@ -120,6 +139,20 @@ export function SteadfastSettings() {
           </Field>
           <Field label="Secret Key">
             <Input type={showSecrets ? "text" : "password"} value={form.secret_key} onChange={(e) => setForm({ ...form, secret_key: e.target.value })} />
+          </Field>
+          <Field label="COD wallet" hint="Delivered order er taka ei wallet e auto credit hobe (courier charge bad)">
+            <Select
+              value={form.wallet_id ?? "__none"}
+              onValueChange={(v) => setForm({ ...form, wallet_id: v === "__none" ? null : v })}
+            >
+              <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">— No mapping (fallback to first wallet) —</SelectItem>
+                {(wallets ?? []).map((w: any) => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}{w.wallet_type ? ` · ${w.wallet_type}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
