@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp } from "lucide-react";
+import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp, Banknote } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ const phases = [
   { n: 3, name: "Meta API Sync (cron)", done: true },
   { n: 4, name: "Website UTM / fbclid tracker", done: true },
   { n: 5, name: "Profit Snapshot Engine (rollup + hourly cron)", done: true },
-  { n: 6, name: "Accounting Integration (auto-post Meta spend)", done: false },
+  { n: 6, name: "Accounting Integration (auto-post Meta spend)", done: true },
   { n: 7, name: "Full UI (Campaigns, Adsets, Ads, Attribution, Product×Campaign, etc.)", done: false },
   { n: 8, name: "Polish — health alerts, data-quality checks", done: false },
 ];
@@ -105,6 +105,11 @@ function MarketingDashboard() {
           <Button asChild size="sm" variant="outline">
             <Link to="/erp/marketing/install">
               <Code2 className="h-4 w-4 mr-1" /> Tracker
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/erp/marketing/accounting">
+              <Banknote className="h-4 w-4 mr-1" /> Accounting
             </Link>
           </Button>
         </div>
