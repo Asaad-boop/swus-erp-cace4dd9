@@ -662,32 +662,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
         <Textarea value={qcNotes} onChange={(e) => setQcNotes(e.target.value)} placeholder="Optional" className="min-h-[60px]" />
       </div>
 
-      {/* Unpaid due panel */}
-      {poDue > 0 && (
-        <Card className="p-3 border-orange-200 bg-orange-50/40 dark:bg-orange-950/20 dark:border-orange-900/40">
-          <div className="text-xs flex items-center gap-2 text-orange-700 dark:text-orange-300 mb-2">
-            <AlertTriangle className="h-4 w-4" /> Purchase order has unpaid due of <span className="font-semibold">{fmtBdt(poDue)}</span>. Record the payment now to keep accounting in sync.
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div><Label className="text-xs">Pay amount (BDT)</Label><Input type="number" step="0.01" value={duePayAmount} onChange={(e) => setDuePayAmount(Number(e.target.value))} /></div>
-            <div>
-              <Label className="text-xs">Pay from wallet</Label>
-              <Select value={duePayWalletId} onValueChange={setDuePayWalletId} disabled={duePayAmount <= 0}>
-                <SelectTrigger><SelectValue placeholder="Pick wallet" /></SelectTrigger>
-                <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-2 text-xs">
-            <span className="text-orange-700 dark:text-orange-400">Remaining after payment: <span className="font-semibold">{fmtBdt(dueRemaining)}</span></span>
-            <label className="inline-flex items-center gap-2">
-              <Checkbox checked={overrideDue} onCheckedChange={(v) => setOverrideDue(!!v)} />
-              Approve with unpaid due (override)
-            </label>
-          </div>
-        </Card>
-      )}
-
       {/* Accounting preview */}
       <Card className="p-3 bg-muted/30">
         <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">ACCOUNTING PREVIEW</div>
@@ -699,21 +673,11 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
           {courierCost > 0 && selectedCourierWallet && (
             <Row left={`Local courier paid from ${selectedCourierWallet.name}`} right={`-${fmtBdt(courierCost)}`} rightClass="text-red-600" />
           )}
-          {duePayAmount > 0 && selectedDueWallet && (
-            <Row left={`PO due payment from ${selectedDueWallet.name}`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
-          )}
-          {duePayAmount > 0 && !selectedDueWallet && (
-            <Row left={`PO due payment from —`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
-          )}
-          <Row left="PO due remaining after this approval" right={fmtBdt(dueRemaining)} rightClass={dueRemaining > 0 ? "text-orange-600 font-semibold" : "text-emerald-600 font-semibold"} />
-          {(courierCost > 0 && selectedCourierWallet) || (duePayAmount > 0 && selectedDueWallet) ? (
+          {courierCost > 0 && selectedCourierWallet ? (
             <div className="pt-2 border-t border-border/60 mt-2">
               <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-1">WALLET OUTFLOW SUMMARY</div>
               {selectedCourierWallet && courierCost > 0 && (
                 <Row left={selectedCourierWallet.name} right={`-${fmtBdt(courierCost)} (bal ${fmtBdt(selectedCourierWallet.current_balance)} → ${fmtBdt(Number(selectedCourierWallet.current_balance) - courierCost)})`} rightClass="text-xs" />
-              )}
-              {selectedDueWallet && duePayAmount > 0 && (
-                <Row left={selectedDueWallet.name} right={`-${fmtBdt(duePayAmount)} (bal ${fmtBdt(selectedDueWallet.current_balance)} → ${fmtBdt(Number(selectedDueWallet.current_balance) - duePayAmount)})`} rightClass="text-xs" />
               )}
             </div>
           ) : null}
