@@ -35,6 +35,7 @@ import {
   type PerfRow,
   type DecisionBucket,
 } from "@/lib/erp/marketing/performance.functions";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import {
   Activity,
   Eye,
@@ -56,19 +57,6 @@ export const Route = createFileRoute("/_authenticated/erp/marketing/")({
 });
 
 // ─────────────────────────── helpers ───────────────────────────
-
-function range(days: number) {
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
-  return { from, to };
-}
-const RANGES: { key: string; label: string; days: number }[] = [
-  { key: "today", label: "Today", days: 1 },
-  { key: "7d", label: "Last 7 days", days: 7 },
-  { key: "14d", label: "Last 14 days", days: 14 },
-  { key: "30d", label: "Last 30 days", days: 30 },
-  { key: "90d", label: "Last 90 days", days: 90 },
-];
 
 function fmtUSD(n: number) {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -132,14 +120,13 @@ const DECISIONS: Record<
 function PerformanceDashboard() {
   const { activeBrand } = useBrand();
   const brandId = activeBrand?.id ?? null;
-  const [rangeKey, setRangeKey] = useState("7d");
+  const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<"meta" | "actual">("actual");
   const [bucketFilter, setBucketFilter] = useState<DecisionBucket | "all">("all");
 
-  const days = RANGES.find((r) => r.key === rangeKey)?.days ?? 7;
-  const r = useMemo(() => range(days), [days]);
+  const r = useMemo(() => ({ from: dateRange.from, to: dateRange.to }), [dateRange.from, dateRange.to]);
 
   const fn = useServerFn(getPerformanceDashboard);
   const q = useQuery({
@@ -189,18 +176,7 @@ function PerformanceDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={rangeKey} onValueChange={setRangeKey}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RANGES.map((r) => (
-                  <SelectItem key={r.key} value={r.key}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
             <Button
               variant="outline"
               size="icon"
