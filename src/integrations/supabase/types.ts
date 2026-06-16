@@ -2559,11 +2559,13 @@ export type Database = {
           access_token: string | null
           app_id: string | null
           app_secret: string | null
+          auto_post_to_finance: boolean
           brand_id: string
           business_id: string | null
           created_at: string
           currency: string | null
           external_id: string
+          finance_wallet_id: string | null
           id: string
           last_error: string | null
           last_insights_sync_at: string | null
@@ -2578,11 +2580,13 @@ export type Database = {
           access_token?: string | null
           app_id?: string | null
           app_secret?: string | null
+          auto_post_to_finance?: boolean
           brand_id: string
           business_id?: string | null
           created_at?: string
           currency?: string | null
           external_id: string
+          finance_wallet_id?: string | null
           id?: string
           last_error?: string | null
           last_insights_sync_at?: string | null
@@ -2597,11 +2601,13 @@ export type Database = {
           access_token?: string | null
           app_id?: string | null
           app_secret?: string | null
+          auto_post_to_finance?: boolean
           brand_id?: string
           business_id?: string | null
           created_at?: string
           currency?: string | null
           external_id?: string
+          finance_wallet_id?: string | null
           id?: string
           last_error?: string | null
           last_insights_sync_at?: string | null
@@ -2618,6 +2624,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ad_accounts_finance_wallet_id_fkey"
+            columns: ["finance_wallet_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -3023,8 +3036,10 @@ export type Database = {
           currency: string
           date: string
           id: string
+          mkt_ad_account_id: string | null
           note: string | null
           product_id: string | null
+          source: string
           transaction_id: string | null
           updated_at: string
           vendor: string | null
@@ -3041,8 +3056,10 @@ export type Database = {
           currency?: string
           date?: string
           id?: string
+          mkt_ad_account_id?: string | null
           note?: string | null
           product_id?: string | null
+          source?: string
           transaction_id?: string | null
           updated_at?: string
           vendor?: string | null
@@ -3059,8 +3076,10 @@ export type Database = {
           currency?: string
           date?: string
           id?: string
+          mkt_ad_account_id?: string | null
           note?: string | null
           product_id?: string | null
+          source?: string
           transaction_id?: string | null
           updated_at?: string
           vendor?: string | null
@@ -3085,6 +3104,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_mkt_ad_account_id_fkey"
+            columns: ["mkt_ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -5306,6 +5332,7 @@ export type Database = {
         | "agency"
         | "boost"
         | "other"
+        | "meta_ads"
       mkt_sync_kind: "structure" | "insights" | "attribution" | "finance_post"
       mkt_sync_status: "running" | "success" | "error"
       order_priority: "low" | "normal" | "high" | "urgent"
@@ -5519,6 +5546,7 @@ export const Constants = {
         "agency",
         "boost",
         "other",
+        "meta_ads",
       ],
       mkt_sync_kind: ["structure", "insights", "attribution", "finance_post"],
       mkt_sync_status: ["running", "success", "error"],

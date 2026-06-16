@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { runStructureSync, runInsightsSync } from "./sync.server";
+import { runStructureSync, runInsightsSync, postMetaSpendToFinance } from "./sync.server";
 
 /** Admin or operations only — sync writes ad data. */
 async function assertMktRole(supabase: any, userId: string) {
@@ -23,7 +23,7 @@ export const listConnectedAdAccounts = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("mkt_ad_accounts")
       .select(
-        "id,brand_id,external_id,name,currency,timezone,status,business_id,app_id,usd_to_bdt_rate,last_structure_sync_at,last_insights_sync_at,last_error,created_at,updated_at",
+        "id,brand_id,external_id,name,currency,timezone,status,business_id,app_id,usd_to_bdt_rate,auto_post_to_finance,finance_wallet_id,last_structure_sync_at,last_insights_sync_at,last_error,created_at,updated_at",
       )
       .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false });
@@ -64,6 +64,8 @@ const accountInput = z.object({
     .regex(/^\d+$/, "Ad Account ID numeric hote hobe (without act_ prefix)"),
   usdToBdtRate: z.coerce.number().positive().default(110),
   active: z.boolean().default(true),
+  autoPostToFinance: z.boolean().optional().default(true),
+  financeWalletId: z.string().uuid().optional().nullable(),
 });
 
 export const createAdAccount = createServerFn({ method: "POST" })
@@ -83,6 +85,8 @@ export const createAdAccount = createServerFn({ method: "POST" })
         access_token: data.accessToken,
         usd_to_bdt_rate: data.usdToBdtRate,
         status: data.active ? "active" : "paused",
+        auto_post_to_finance: data.autoPostToFinance,
+        finance_wallet_id: data.financeWalletId ?? null,
         last_error: null,
       },
       { onConflict: "brand_id,external_id" },
@@ -105,6 +109,8 @@ export const updateAdAccount = createServerFn({ method: "POST" })
         adAccountId: z.string().trim().regex(/^\d+$/),
         usdToBdtRate: z.coerce.number().positive(),
         active: z.boolean(),
+        autoPostToFinance: z.boolean().optional(),
+        financeWalletId: z.string().uuid().optional().nullable(),
       })
       .parse(d),
   )
@@ -117,6 +123,12 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       usd_to_bdt_rate: data.usdToBdtRate,
       status: data.active ? "active" : "paused",
     };
+    if (typeof data.autoPostToFinance === "boolean") {
+      patch.auto_post_to_finance = data.autoPostToFinance;
+    }
+    if (data.financeWalletId !== undefined) {
+      patch.finance_wallet_id = data.financeWalletId ?? null;
+    }
     if (data.appSecret && data.appSecret.trim().length > 0) {
       patch.app_secret = data.appSecret.trim();
     }
@@ -130,6 +142,31 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       .eq("id", data.accountId);
     if (error) throw error;
     return { ok: true };
+  });
+
+// ---- Manually re-post Meta spend to finance for a window ----
+export const repostMetaSpendToFinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { accountId: string; since: string; until: string }) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+    const { data: acc, error } = await context.supabase
+      .from("mkt_ad_accounts")
+      .select(
+        "id, brand_id, name, currency, usd_to_bdt_rate, auto_post_to_finance, finance_wallet_id",
+      )
+      .eq("id", data.accountId)
+      .single();
+    if (error || !acc) throw new Error("Ad account not found");
+    return postMetaSpendToFinance(context.supabase, acc, data.since, data.until);
   });
 
 export const deleteAdAccount = createServerFn({ method: "POST" })
