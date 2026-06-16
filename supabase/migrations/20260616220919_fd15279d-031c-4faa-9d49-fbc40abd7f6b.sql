@@ -1,0 +1,1 @@
+ALTER TABLE public.imp_purchase_orders ALTER COLUMN supplier_id DROP NOT NULL;
