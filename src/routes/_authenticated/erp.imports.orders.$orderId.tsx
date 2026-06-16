@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Package, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
   AlertTriangle, Wallet, ClipboardCheck, ChevronDown, Loader2, ShoppingCart,
@@ -756,7 +756,7 @@ function Row({ left, right, rightClass }: { left: string; right: string; rightCl
 
 /* helper component to auto-update OK = expected - damaged - missing */
 function RowsAutoCompute({ rows, setRows, carton }: { rows: any; setRows: any; carton: any }) {
-  useMemo(() => {
+  useEffect(() => {
     let changed = false;
     const next = { ...rows };
     (carton.items ?? []).forEach((it: any) => {
