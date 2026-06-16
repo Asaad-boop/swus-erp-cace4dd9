@@ -523,6 +523,13 @@ function ProductProfitabilityPage() {
           </Card>
         </>
       )}
+      {brandId && productId && r && (
+        <>
+          <ReturnCaseDialog open={returnOpen} onClose={() => setReturnOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
+          <ExchangeCaseDialog open={exchangeOpen} onClose={() => setExchangeOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
+          <ProductExpenseAllocationDialog open={allocOpen} onClose={() => setAllocOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
+        </>
+      )}
     </div>
   );
 }
