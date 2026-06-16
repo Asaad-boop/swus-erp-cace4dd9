@@ -228,14 +228,25 @@ function ProductProfitabilityPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-sm overflow-hidden">
+        <div className="border-b bg-muted/30 px-4 py-2 flex items-center gap-2">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filters</span>
+          {productId && (
+            <Badge variant="secondary" className="ml-auto text-[10px] font-normal">
+              {dateFrom} → {dateTo} · by {dateBasis}
+            </Badge>
+          )}
+        </div>
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="md:col-span-4">
-              <Label className="text-xs text-muted-foreground">Product</Label>
+            <div className="md:col-span-5">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <Box className="h-3 w-3" /> PRODUCT
+              </Label>
               <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal h-10 mt-1">
+                  <Button variant="outline" className="w-full justify-start font-normal h-10">
                     <Package className="h-4 w-4 mr-2 text-muted-foreground" />
                     <span className="truncate">{r?.product?.name ?? (productId ? "Loading…" : "Select product")}</span>
                     {r?.product?.sku && <span className="text-muted-foreground ml-2 text-xs">· {r.product.sku}</span>}
@@ -277,29 +288,63 @@ function ProductProfitabilityPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">From</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-10 mt-1" />
+            <div className="md:col-span-4">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <CalendarIcon className="h-3 w-3" /> DATE RANGE
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start font-normal h-10">
+                    <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span className="truncate">
+                      {format(isoToDate(dateFrom), "dd MMM yyyy")} — {format(isoToDate(dateTo), "dd MMM yyyy")}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="flex">
+                    <div className="border-r p-2 w-[160px] flex flex-col gap-0.5 bg-muted/20">
+                      {DATE_PRESETS.map((p) => (
+                        <Button
+                          key={p.key}
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start h-8 text-xs font-normal"
+                          onClick={() => { const [a,b] = p.range(); setDateFrom(a); setDateTo(b); }}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="p-2">
+                      <Calendar
+                        mode="range"
+                        numberOfMonths={2}
+                        defaultMonth={isoToDate(dateFrom)}
+                        selected={{ from: isoToDate(dateFrom), to: isoToDate(dateTo) }}
+                        onSelect={(range) => {
+                          if (range?.from) setDateFrom(dateToIso(range.from));
+                          if (range?.to) setDateTo(dateToIso(range.to));
+                        }}
+                        className={cn("p-0 pointer-events-auto")}
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">To</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-10 mt-1" />
-            </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Date Basis</Label>
+            <div className="md:col-span-3">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <BarChart3 className="h-3 w-3" /> DATE BASIS
+              </Label>
               <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as typeof dateBasis)}>
-                <SelectTrigger className="h-10 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="created">Order created</SelectItem>
                   <SelectItem value="confirmed">Confirmed at</SelectItem>
                   <SelectItem value="delivered">Delivered at</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="md:col-span-2 flex gap-1.5">
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(7)); setDateTo(todayIso()); }}>7d</Button>
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(30)); setDateTo(todayIso()); }}>30d</Button>
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(90)); setDateTo(todayIso()); }}>90d</Button>
             </div>
           </div>
         </CardContent>
