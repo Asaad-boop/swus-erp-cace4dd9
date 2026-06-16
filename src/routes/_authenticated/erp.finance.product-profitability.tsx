@@ -595,29 +595,7 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="marketing" className="mt-3">
-                  <div className="flex justify-end mb-2">
-                    <Button size="sm" variant="outline" onClick={() => setAllocOpen(true)} disabled={!brandId || !productId}>
-                      <Plus className="h-3 w-3 mr-1" /> Allocate Expense
-                    </Button>
-                  </div>
-                  <div className="rounded border overflow-x-auto">
-                    <Table>
-                      <TableHeader><TableRow>
-                        <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Note</TableHead>
-                      </TableRow></TableHeader>
-                      <TableBody>
-                        {r.marketing.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No marketing allocations <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
-                        {r.marketing.map((m, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="whitespace-nowrap text-xs">{m.created_at?.slice(0, 10)}</TableCell>
-                            <TableCell><Badge variant="outline">{m.expense_type}</Badge></TableCell>
-                            <TableCell className="text-right">{fmtBdt(m.amount)}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{m.note ?? "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <MarketingTab marketing={r.marketing} onAllocate={() => setAllocOpen(true)} canAllocate={!!brandId && !!productId} />
                 </TabsContent>
               </Tabs>
             </CardContent>
