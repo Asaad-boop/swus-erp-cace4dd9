@@ -72,12 +72,18 @@ export const listAvailableCargoAgents = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("imp_cargo_agents")
-      .select("id, name, brand_id, user_id, brands:brand_id(name)")
-      .order("name");
-    if (error) throw error;
-    return data ?? [];
+    const [agentsRes, brandsRes] = await Promise.all([
+      supabaseAdmin.from("imp_cargo_agents").select("id, name, brand_id, user_id").order("name"),
+      supabaseAdmin.from("brands").select("id, name"),
+    ]);
+    if (agentsRes.error) throw agentsRes.error;
+    if (brandsRes.error) throw brandsRes.error;
+    const brandMap: Record<string, string> = {};
+    (brandsRes.data ?? []).forEach((b: any) => { brandMap[b.id] = b.name; });
+    return (agentsRes.data ?? []).map((a: any) => ({
+      ...a,
+      brands: a.brand_id ? { name: brandMap[a.brand_id] ?? null } : null,
+    }));
   });
 
 /* ============= CREATE ============= */
