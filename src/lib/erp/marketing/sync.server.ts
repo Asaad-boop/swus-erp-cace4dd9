@@ -286,7 +286,18 @@ export async function runInsightsSync(
           })
           .eq("id", acc.id);
 
-        return { rows: rows.length, meta: { since, until } };
+        // Auto-post Meta spend to finance (BDT). Failure here doesn't fail the sync.
+        let financePosted: any = null;
+        try {
+          financePosted = await postMetaSpendToFinance(supabase, acc, since, until);
+        } catch (postErr: any) {
+          financePosted = { error: String(postErr?.message ?? postErr) };
+        }
+
+        return {
+          rows: rows.length,
+          meta: { since, until, finance: financePosted },
+        };
       },
     });
   } catch (e: any) {
@@ -296,4 +307,184 @@ export async function runInsightsSync(
       .eq("id", acc.id);
     throw e;
   }
+}
+
+/**
+ * Auto-post Meta ad spend as marketing expense in finance (BDT).
+ * - Aggregates daily spend per (account, date) from mkt_insights_daily.
+ * - Converts to BDT using account.usd_to_bdt_rate (skips conversion if account currency is BDT).
+ * - Upserts a mkt_manual_expenses row (source='meta_auto') per (brand, account, date).
+ * - Maintains a linked erp_transactions expense row against the configured wallet
+ *   (or first active wallet for the brand if none configured).
+ * Idempotent — re-running for the same window updates existing rows.
+ */
+export async function postMetaSpendToFinance(
+  supabase: any,
+  acc: {
+    id: string;
+    brand_id: string;
+    name: string;
+    currency: string | null;
+    usd_to_bdt_rate: number | string;
+    auto_post_to_finance?: boolean;
+    finance_wallet_id?: string | null;
+  },
+  since: string,
+  until: string,
+) {
+  if (acc.auto_post_to_finance === false) {
+    return { skipped: "auto_post_disabled" };
+  }
+
+  // Pick wallet: configured one, else first active wallet for brand
+  let walletId = acc.finance_wallet_id ?? null;
+  if (!walletId) {
+    const { data: w } = await supabase
+      .from("erp_accounts")
+      .select("id")
+      .eq("brand_id", acc.brand_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    walletId = w?.id ?? null;
+  }
+
+  // Aggregate daily spend (USD) for this account in window
+  const { data: insRows, error: insErr } = await supabase
+    .from("mkt_insights_daily")
+    .select("date, spend")
+    .eq("account_id", acc.id)
+    .gte("date", since)
+    .lte("date", until);
+  if (insErr) throw insErr;
+
+  const dailyUsd = new Map<string, number>();
+  for (const r of insRows ?? []) {
+    dailyUsd.set(r.date, (dailyUsd.get(r.date) ?? 0) + (Number(r.spend) || 0));
+  }
+
+  const fx = Number(acc.usd_to_bdt_rate) || 110;
+  const isBdtAcc = (acc.currency ?? "").toUpperCase() === "BDT";
+
+  // Existing auto-posted rows in window
+  const { data: existing, error: exErr } = await supabase
+    .from("mkt_manual_expenses")
+    .select("id, date, transaction_id, amount")
+    .eq("brand_id", acc.brand_id)
+    .eq("mkt_ad_account_id", acc.id)
+    .eq("source", "meta_auto")
+    .gte("date", since)
+    .lte("date", until);
+  if (exErr) throw exErr;
+  const existingByDate = new Map<string, any>(
+    (existing ?? []).map((r: any) => [r.date, r]),
+  );
+
+  let inserted = 0;
+  let updated = 0;
+  let removed = 0;
+  let totalBdt = 0;
+
+  for (const [date, usd] of dailyUsd) {
+    const bdt = +(isBdtAcc ? usd : usd * fx).toFixed(2);
+    const ex = existingByDate.get(date);
+    existingByDate.delete(date);
+
+    if (bdt <= 0) {
+      // No spend — remove any prior posting for this date
+      if (ex) {
+        await supabase.from("mkt_manual_expenses").delete().eq("id", ex.id);
+        if (ex.transaction_id) {
+          await supabase.from("erp_transactions").delete().eq("id", ex.transaction_id);
+        }
+        removed++;
+      }
+      continue;
+    }
+
+    totalBdt += bdt;
+    const description = `Meta Ads — ${acc.name} (${date})`;
+
+    let txId: string | null = ex?.transaction_id ?? null;
+    if (walletId) {
+      if (txId) {
+        const { error } = await supabase
+          .from("erp_transactions")
+          .update({
+            amount: bdt,
+            account_id: walletId,
+            transaction_date: date,
+            description,
+          })
+          .eq("id", txId);
+        if (error) throw error;
+      } else {
+        const { data: txIns, error } = await supabase
+          .from("erp_transactions")
+          .insert({
+            brand_id: acc.brand_id,
+            txn_type: "expense",
+            account_id: walletId,
+            amount: bdt,
+            transaction_date: date,
+            description,
+            reference_type: "meta_spend",
+            reference_id: acc.id,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        txId = txIns!.id;
+      }
+    }
+
+    if (ex) {
+      const { error } = await supabase
+        .from("mkt_manual_expenses")
+        .update({
+          amount: bdt,
+          currency: "BDT",
+          transaction_id: txId,
+        })
+        .eq("id", ex.id);
+      if (error) throw error;
+      updated++;
+    } else {
+      const { error } = await supabase.from("mkt_manual_expenses").insert({
+        brand_id: acc.brand_id,
+        mkt_ad_account_id: acc.id,
+        source: "meta_auto",
+        date,
+        amount: bdt,
+        currency: "BDT",
+        vendor: "Meta",
+        category: "meta_ads",
+        account_id: walletId,
+        transaction_id: txId,
+        note: `Auto-synced from Meta Ads — ${acc.name}`,
+      });
+      if (error) throw error;
+      inserted++;
+    }
+  }
+
+  // Any existing rows in window with no insight day anymore → remove (Meta returned 0)
+  for (const ex of existingByDate.values()) {
+    await supabase.from("mkt_manual_expenses").delete().eq("id", ex.id);
+    if (ex.transaction_id) {
+      await supabase.from("erp_transactions").delete().eq("id", ex.transaction_id);
+    }
+    removed++;
+  }
+
+  return {
+    inserted,
+    updated,
+    removed,
+    total_bdt: +totalBdt.toFixed(2),
+    fx,
+    wallet_id: walletId,
+    wallet_missing: !walletId,
+  };
 }
