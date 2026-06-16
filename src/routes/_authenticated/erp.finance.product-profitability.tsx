@@ -5,7 +5,7 @@ import {
   AlertTriangle, Download, Package, Search, TrendingUp, TrendingDown,
   PackageCheck, RotateCcw, Repeat2, Truck, Megaphone, FileText,
 } from "lucide-react";
-import { CalendarIcon, Percent, Coins, Wallet, Receipt, BarChart3, Filter, Box } from "lucide-react";
+import { CalendarIcon, Wallet, Receipt, BarChart3, Filter, Box } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
