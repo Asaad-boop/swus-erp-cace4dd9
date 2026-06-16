@@ -261,6 +261,8 @@ function PoDetailPage() {
               poItems={items}
               brandId={brandId}
               poDue={Number(po.due_bdt)}
+              poPaid={Number(po.paid_bdt ?? 0)}
+              poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
             />
           ))}
@@ -398,8 +400,8 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, onStage }: {
-  carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number;
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage }: {
+  carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
   onStage: (s: ImpCartonStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -442,7 +444,7 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, onStage }:
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
           {status === "arrived_bd" && brandId && (
-            <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} />
+            <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} poPaid={poPaid} poSupplierTotal={poSupplierTotal} />
           )}
           {status === "released" && brandId && (
             <InlineQcForm carton={carton} brandId={brandId} poItems={poItems} poId={poId} poDue={poDue} />
@@ -460,11 +462,17 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, onStage }:
 
 /* ============== Inline Release form (STEP 1) ============== */
 
-function InlineReleaseForm({ carton, brandId, poId }: { carton: any; brandId: string; poId: string }) {
+function InlineReleaseForm({ carton, brandId, poId, poPaid, poSupplierTotal }: { carton: any; brandId: string; poId: string; poPaid: number; poSupplierTotal: number }) {
   const fn = useServerFn(releaseCarton);
   const qc = useQueryClient();
   const { data: wallets = [] } = useAccounts(brandId);
-  const [amount, setAmount] = useState<number>(Number(carton.total_landed_bdt ?? 0));
+  // Prorate PO advance against this carton's supplier share — user pays only the remaining due + this carton's shipping
+  const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
+  const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
+  const advanceShare = poSupplierTotal > 0 ? (poPaid * supplierCost) / poSupplierTotal : 0;
+  const supplierDueShare = Math.max(0, supplierCost - advanceShare);
+  const defaultPay = Math.round((supplierDueShare + shippingCost) * 100) / 100;
+  const [amount, setAmount] = useState<number>(defaultPay);
   const [walletId, setWalletId] = useState("");
   const [ref, setRef] = useState("");
   const [withoutPay, setWithoutPay] = useState(false);
@@ -488,7 +496,10 @@ function InlineReleaseForm({ carton, brandId, poId }: { carton: any; brandId: st
     <div className="space-y-3 py-3">
       <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">STEP 1 — RELEASE (PAY &amp; CONFIRM)</div>
       <div className="text-xs text-muted-foreground">
-        Supplier: <span className="tabular-nums">{fmtBdt(carton.supplier_cost_bdt)}</span> · Shipping: <span className="tabular-nums">{fmtBdt(carton.shipping_charge_bdt)}</span> · Total landed: <span className="font-medium tabular-nums">{fmtBdt(carton.total_landed_bdt)}</span>
+        Supplier: <span className="tabular-nums">{fmtBdt(supplierCost)}</span>
+        {advanceShare > 0 && <> − Advance share: <span className="tabular-nums text-green-600">{fmtBdt(advanceShare)}</span> = Due: <span className="tabular-nums font-medium">{fmtBdt(supplierDueShare)}</span></>}
+        {" · "}Shipping: <span className="tabular-nums">{fmtBdt(shippingCost)}</span>
+        {" · "}<span className="font-semibold">To pay: <span className="tabular-nums">{fmtBdt(defaultPay)}</span></span>
       </div>
       <div className="grid md:grid-cols-3 gap-3">
         <div><Label className="text-xs">Pay amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} disabled={withoutPay} /></div>
