@@ -526,10 +526,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const [courierWalletId, setCourierWalletId] = useState("");
   const [qcNotes, setQcNotes] = useState("");
 
-  const [duePayAmount, setDuePayAmount] = useState<number>(Math.max(0, Number(poDue)));
-  const [duePayWalletId, setDuePayWalletId] = useState("");
-  const [overrideDue, setOverrideDue] = useState(false);
-
   const totalExpected = (carton.items ?? []).reduce((s: number, it: any) => s + Number(it.quantity_expected || 0), 0);
   const totalDamaged = Object.values(rows).reduce((s, r) => s + Number(r.damaged || 0), 0);
   const totalMissing = Object.values(rows).reduce((s, r) => s + Number(r.missing || 0), 0);
@@ -546,7 +542,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const finalInventoryCost = totalLanded; // loss absorbed in ok
   const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
 
-  const dueRemaining = Math.max(0, Number(poDue) - duePayAmount);
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
     const sum = r.ok + r.damaged + r.missing;
@@ -557,11 +552,8 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const validationErrors: string[] = [];
   if (!warehouseId) validationErrors.push("Pick warehouse");
   if (courierBdt > 0 && !courierWalletId) validationErrors.push("Pick local courier wallet");
-  if (poDue > 0 && duePayAmount > 0 && !duePayWalletId) validationErrors.push("Pick a wallet for the due payment");
-  if (poDue > 0 && duePayAmount < poDue && !overrideDue) validationErrors.push("Approve with unpaid due override OR pay full due");
 
   const selectedCourierWallet = wallets.find((w) => w.id === courierWalletId);
-  const selectedDueWallet = wallets.find((w) => w.id === duePayWalletId);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -575,10 +567,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
       if (courierBdt > 0 && courierWalletId) {
         payload.local_courier_payment = { amount: courierBdt, wallet_id: courierWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("crp") };
       }
-      if (duePayAmount > 0 && duePayWalletId) {
-        payload.supplier_due_payment = { amount: duePayAmount, wallet_id: duePayWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("due") };
-      }
-      if (overrideDue) payload.due_override_reason = "Approved with unpaid due via inline QC";
       return await fn({ data: payload });
     },
     onSuccess: () => { toast.success(`Posted ${totalOk} pcs to inventory`); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
@@ -674,32 +662,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
         <Textarea value={qcNotes} onChange={(e) => setQcNotes(e.target.value)} placeholder="Optional" className="min-h-[60px]" />
       </div>
 
-      {/* Unpaid due panel */}
-      {poDue > 0 && (
-        <Card className="p-3 border-orange-200 bg-orange-50/40 dark:bg-orange-950/20 dark:border-orange-900/40">
-          <div className="text-xs flex items-center gap-2 text-orange-700 dark:text-orange-300 mb-2">
-            <AlertTriangle className="h-4 w-4" /> Purchase order has unpaid due of <span className="font-semibold">{fmtBdt(poDue)}</span>. Record the payment now to keep accounting in sync.
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div><Label className="text-xs">Pay amount (BDT)</Label><Input type="number" step="0.01" value={duePayAmount} onChange={(e) => setDuePayAmount(Number(e.target.value))} /></div>
-            <div>
-              <Label className="text-xs">Pay from wallet</Label>
-              <Select value={duePayWalletId} onValueChange={setDuePayWalletId} disabled={duePayAmount <= 0}>
-                <SelectTrigger><SelectValue placeholder="Pick wallet" /></SelectTrigger>
-                <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-2 text-xs">
-            <span className="text-orange-700 dark:text-orange-400">Remaining after payment: <span className="font-semibold">{fmtBdt(dueRemaining)}</span></span>
-            <label className="inline-flex items-center gap-2">
-              <Checkbox checked={overrideDue} onCheckedChange={(v) => setOverrideDue(!!v)} />
-              Approve with unpaid due (override)
-            </label>
-          </div>
-        </Card>
-      )}
-
       {/* Accounting preview */}
       <Card className="p-3 bg-muted/30">
         <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">ACCOUNTING PREVIEW</div>
@@ -711,21 +673,11 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
           {courierCost > 0 && selectedCourierWallet && (
             <Row left={`Local courier paid from ${selectedCourierWallet.name}`} right={`-${fmtBdt(courierCost)}`} rightClass="text-red-600" />
           )}
-          {duePayAmount > 0 && selectedDueWallet && (
-            <Row left={`PO due payment from ${selectedDueWallet.name}`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
-          )}
-          {duePayAmount > 0 && !selectedDueWallet && (
-            <Row left={`PO due payment from —`} right={`-${fmtBdt(duePayAmount)}`} rightClass="text-red-600" />
-          )}
-          <Row left="PO due remaining after this approval" right={fmtBdt(dueRemaining)} rightClass={dueRemaining > 0 ? "text-orange-600 font-semibold" : "text-emerald-600 font-semibold"} />
-          {(courierCost > 0 && selectedCourierWallet) || (duePayAmount > 0 && selectedDueWallet) ? (
+          {courierCost > 0 && selectedCourierWallet ? (
             <div className="pt-2 border-t border-border/60 mt-2">
               <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-1">WALLET OUTFLOW SUMMARY</div>
               {selectedCourierWallet && courierCost > 0 && (
                 <Row left={selectedCourierWallet.name} right={`-${fmtBdt(courierCost)} (bal ${fmtBdt(selectedCourierWallet.current_balance)} → ${fmtBdt(Number(selectedCourierWallet.current_balance) - courierCost)})`} rightClass="text-xs" />
-              )}
-              {selectedDueWallet && duePayAmount > 0 && (
-                <Row left={selectedDueWallet.name} right={`-${fmtBdt(duePayAmount)} (bal ${fmtBdt(selectedDueWallet.current_balance)} → ${fmtBdt(Number(selectedDueWallet.current_balance) - duePayAmount)})`} rightClass="text-xs" />
               )}
             </div>
           ) : null}
