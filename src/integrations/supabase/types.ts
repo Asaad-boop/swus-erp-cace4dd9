@@ -4229,6 +4229,70 @@ export type Database = {
           },
         ]
       }
+      marketing_spend_postings: {
+        Row: {
+          ad_account_id: string | null
+          amount: number
+          brand_id: string
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          posting_date: string
+          status: string
+          txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          amount?: number
+          brand_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          posting_date: string
+          status?: string
+          txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          amount?: number
+          brand_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          posting_date?: string
+          status?: string
+          txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_spend_postings_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_spend_postings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_spend_postings_txn_id_fkey"
+            columns: ["txn_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_tracker_sites: {
         Row: {
           allowed_origins: string[]
@@ -5868,6 +5932,14 @@ export type Database = {
           p_session_id: string
           p_site_key: string
         }
+        Returns: Json
+      }
+      mkt_post_meta_spend_day: {
+        Args: { p_brand_id: string; p_day: string; p_force?: boolean }
+        Returns: Json
+      }
+      mkt_post_meta_spend_window: {
+        Args: { p_brand_id: string; p_days?: number; p_force?: boolean }
         Returns: Json
       }
       mkt_rebuild_window: {
