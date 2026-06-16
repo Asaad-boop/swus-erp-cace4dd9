@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Cron endpoint — pulls last 90 days of Meta insights for every active ad account,
+ * Cron endpoint — pulls last 3 days of Meta insights for every active ad account,
  * plus a structure refresh once per call. Public route, no auth required.
  * Schedule with pg_cron.
  */
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
             out.structure = { ok: false, error: String(e?.message ?? e) };
           }
           try {
-            const r = await runInsightsSync(supabaseAdmin, acc.id, { days: 90 });
+            const r = await runInsightsSync(supabaseAdmin, acc.id, { days: 3 });
             out.insights = { ok: true, rows: r.rows };
           } catch (e: any) {
             out.insights = { ok: false, error: String(e?.message ?? e) };
