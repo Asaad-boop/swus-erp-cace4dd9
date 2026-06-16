@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 import {
   getPurchaseOrderDetail, updateCartonStage, markArrivedInBd,
   releaseCarton, postCartonToInventory, recordImportPayment, listWarehouses,
