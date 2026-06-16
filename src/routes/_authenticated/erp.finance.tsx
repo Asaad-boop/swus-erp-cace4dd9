@@ -10,6 +10,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance")({
 const NAV = [
   { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/erp/finance/accounts", label: "Chart of Accounts", icon: BookOpen },
+  { to: "/erp/finance/wallets", label: "Wallets", icon: Wallet },
   { to: "/erp/finance/journal", label: "Journal", icon: FileText },
   { to: "/erp/finance/receivables", label: "Receivables", icon: Receipt },
   { to: "/erp/finance/payables", label: "Payables", icon: Banknote },
@@ -19,7 +20,7 @@ const NAV = [
   { to: "/erp/finance/taxes", label: "Taxes", icon: Percent },
   { to: "/erp/finance/fx", label: "FX Rates", icon: Globe },
   { to: "/erp/finance/audit", label: "Audit", icon: ShieldCheck },
-  { to: "/erp/finance/simple", label: "Quick Entry", icon: Wallet },
+  { to: "/erp/finance/simple", label: "Quick Entry", icon: Receipt },
   { to: "/erp/finance/reports", label: "Reports", icon: BarChart3 },
   { to: "/erp/finance/settings", label: "Settings", icon: Settings },
 ];

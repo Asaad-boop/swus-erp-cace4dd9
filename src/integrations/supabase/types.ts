@@ -772,6 +772,7 @@ export type Database = {
           notes: string | null
           opening_balance: number
           updated_at: string
+          wallet_type: string
         }
         Insert: {
           account_number?: string | null
@@ -785,6 +786,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number
           updated_at?: string
+          wallet_type?: string
         }
         Update: {
           account_number?: string | null
@@ -798,6 +800,7 @@ export type Database = {
           notes?: string | null
           opening_balance?: number
           updated_at?: string
+          wallet_type?: string
         }
         Relationships: [
           {
