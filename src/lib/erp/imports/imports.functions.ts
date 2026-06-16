@@ -48,7 +48,7 @@ export const listPurchaseOrders = createServerFn({ method: "POST" })
       .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false })
       .limit(500);
-    if (data.status && data.status !== "all") q = q.eq("status", data.status);
+    if (data.status && data.status !== "all") q = q.eq("status", data.status as any);
     if (data.from) q = q.gte("order_date", data.from);
     if (data.to) q = q.lte("order_date", data.to);
     if (data.q) q = q.or(`po_number.ilike.%${data.q}%`);
@@ -400,7 +400,7 @@ export const updateCartonStage = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("imp_update_carton_stage", {
       _carton: data.carton_id,
       _new_stage: data.new_stage,
-      _notes: data.notes ?? null,
+      _notes: data.notes ?? undefined,
     });
     if (error) throw error;
     return { ok: true };
