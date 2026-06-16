@@ -10,6 +10,7 @@ const tabs = [
   { to: "/erp/marketing", label: "Overview", exact: true },
   { to: "/erp/marketing/accounts", label: "Ad Accounts" },
   { to: "/erp/marketing/campaigns", label: "Campaigns" },
+  { to: "/erp/marketing/rollup", label: "Profit Rollup" },
   { to: "/erp/marketing/expenses", label: "Manual Expenses" },
   { to: "/erp/marketing/attribution", label: "Attribution" },
   { to: "/erp/marketing/sync", label: "Sync Log" },
