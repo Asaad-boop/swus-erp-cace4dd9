@@ -661,3 +661,252 @@ function Row({ label, v, bold }: { label: string; v: number; bold?: boolean }) {
     </div>
   );
 }
+
+function PnLStatement({ r }: { r: Report }) {
+  const rev = r.revenue;
+  const c = r.cost;
+  const totalRevenue = rev.gross + rev.delivery_collected;
+  const totalCosts = c.cogs + c.courier_out + c.courier_return + c.packaging + c.return_loss + c.exchange_loss + c.damage_loss + c.meta_ads + c.marketing_content + rev.discount + rev.refund;
+  const netMargin = totalRevenue > 0 ? (r.profit.net / totalRevenue) * 100 : 0;
+
+  const expenseGroups: Array<{ key: string; label: string; color: string; items: Array<{ label: string; v: number }> }> = [
+    {
+      key: "product", label: "Product Costs", color: "bg-blue-500",
+      items: [
+        { label: "COGS (unit cost × delivered)", v: c.cogs },
+        { label: "Packaging", v: c.packaging },
+      ],
+    },
+    {
+      key: "logistics", label: "Logistics", color: "bg-amber-500",
+      items: [
+        { label: "Courier — outbound", v: c.courier_out },
+        { label: "Courier — return", v: c.courier_return },
+      ],
+    },
+    {
+      key: "losses", label: "Losses & Refunds", color: "bg-red-500",
+      items: [
+        { label: "Refund (delivered)", v: rev.refund },
+        { label: "Return loss", v: c.return_loss },
+        { label: "Exchange loss", v: c.exchange_loss },
+        { label: "Damage loss", v: c.damage_loss },
+      ],
+    },
+    {
+      key: "marketing", label: "Marketing", color: "bg-violet-500",
+      items: [
+        { label: "Meta ads (allocated)", v: c.meta_ads },
+        { label: "Content / other", v: c.marketing_content },
+      ],
+    },
+    {
+      key: "discounts", label: "Discounts", color: "bg-pink-500",
+      items: [
+        { label: "Discount given", v: rev.discount },
+      ],
+    },
+  ];
+
+  const groupsWithTotals = expenseGroups
+    .map((g) => ({ ...g, total: g.items.reduce((s, i) => s + (i.v || 0), 0) }))
+    .filter((g) => g.total > 0 || g.items.some((i) => i.v > 0));
+  const maxGroup = Math.max(1, ...groupsWithTotals.map((g) => g.total));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+      {/* Revenue card */}
+      <Card className="lg:col-span-2 border-emerald-500/20 overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-500/10 to-transparent px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                <Wallet className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Revenue</div>
+                <div className="text-xl font-bold text-emerald-600 tabular-nums">{fmtBdt(totalRevenue)}</div>
+              </div>
+            </div>
+            <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-emerald-500/20">INCOME</Badge>
+          </div>
+        </div>
+        <CardContent className="pt-3 text-sm space-y-0">
+          <Row label="Gross product revenue" v={rev.gross} />
+          <Row label="Delivery collected" v={rev.delivery_collected} />
+          <Separator className="my-2" />
+          <Row label="Net payable (after discount & refund)" v={rev.net_payable} bold />
+        </CardContent>
+      </Card>
+
+      {/* Expenses grouped */}
+      <Card className="lg:col-span-3 border-red-500/20 overflow-hidden">
+        <div className="bg-gradient-to-br from-red-500/10 to-transparent px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-red-500/15 text-red-600 flex items-center justify-center">
+                <Receipt className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Expenses</div>
+                <div className="text-xl font-bold text-red-600 tabular-nums">{fmtBdt(totalCosts)}</div>
+              </div>
+            </div>
+            <Badge className="bg-red-500/15 text-red-700 hover:bg-red-500/15 border-red-500/20">EXPENSE</Badge>
+          </div>
+        </div>
+        <CardContent className="pt-3 space-y-3">
+          {groupsWithTotals.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-4">No expenses in range</div>
+          )}
+          {groupsWithTotals.map((g) => {
+            const pctOfTotal = totalCosts > 0 ? (g.total / totalCosts) * 100 : 0;
+            const barPct = (g.total / maxGroup) * 100;
+            return (
+              <div key={g.key} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={cn("h-2 w-2 rounded-full", g.color)} />
+                    <span className="text-sm font-medium">{g.label}</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{pctOfTotal.toFixed(1)}%</span>
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums">{fmtBdt(g.total)}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all", g.color)} style={{ width: `${barPct}%` }} />
+                </div>
+                <div className="pl-4 space-y-0.5 text-xs">
+                  {g.items.filter((i) => i.v > 0).map((i, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-muted-foreground py-0.5">
+                      <span>{i.label}</span>
+                      <span className="tabular-nums">{fmtBdt(i.v)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Bottom-line summary */}
+      <Card className={cn("lg:col-span-5 overflow-hidden border-2", r.profit.net >= 0 ? "border-emerald-500/30" : "border-red-500/30")}>
+        <div className={cn("px-5 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 bg-gradient-to-r", r.profit.net >= 0 ? "from-emerald-500/10 via-background to-blue-500/5" : "from-red-500/10 via-background to-amber-500/5")}>
+          <PnLPill label="Revenue" value={fmtBdt(totalRevenue)} tone="emerald" icon={Wallet} />
+          <PnLOp op="−" />
+          <PnLPill label="Expenses" value={fmtBdt(totalCosts)} tone="red" icon={Receipt} />
+          <PnLOp op="=" />
+          <PnLPill
+            label={r.profit.net >= 0 ? "Net Profit" : "Net Loss"}
+            value={fmtBdt(Math.abs(r.profit.net))}
+            sub={`Margin ${netMargin.toFixed(1)}%`}
+            tone={r.profit.net >= 0 ? "emerald" : "red"}
+            icon={r.profit.net >= 0 ? TrendingUp : TrendingDown}
+            big
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PnLOp({ op }: { op: string }) {
+  return <div className="hidden md:flex items-center justify-center text-2xl font-light text-muted-foreground">{op}</div>;
+}
+
+function PnLPill({ label, value, sub, tone, icon: Icon, big }: { label: string; value: string; sub?: string; tone: "emerald" | "red"; icon: typeof Package; big?: boolean }) {
+  const text = tone === "emerald" ? "text-emerald-600" : "text-red-600";
+  const bg = tone === "emerald" ? "bg-emerald-500/15" : "bg-red-500/15";
+  return (
+    <div className="flex items-center gap-3">
+      <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", bg, text)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">{label}</div>
+        <div className={cn("tabular-nums tracking-tight", big ? "text-2xl font-bold" : "text-lg font-semibold", text)}>{value}</div>
+        {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Report["marketing"]; onAllocate: () => void; canAllocate: boolean }) {
+  const total = marketing.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+  const byType = useMemo(() => {
+    const m = new Map<string, { total: number; count: number }>();
+    for (const x of marketing) {
+      const t = x.expense_type || "other";
+      const cur = m.get(t) || { total: 0, count: 0 };
+      cur.total += Number(x.amount) || 0;
+      cur.count += 1;
+      m.set(t, cur);
+    }
+    return Array.from(m.entries()).map(([type, v]) => ({ type, ...v })).sort((a, b) => b.total - a.total);
+  }, [marketing]);
+
+  const sorted = useMemo(
+    () => [...marketing].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")),
+    [marketing],
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="secondary" className="font-normal">Total: <span className="font-semibold ml-1 tabular-nums">{fmtBdt(total)}</span></Badge>
+          {byType.map((g) => (
+            <Badge key={g.type} variant="outline" className="font-normal gap-1.5">
+              <span className="capitalize">{g.type}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="tabular-nums">{fmtBdt(g.total)}</span>
+              <span className="text-[10px] text-muted-foreground">({g.count})</span>
+            </Badge>
+          ))}
+        </div>
+        <Button size="sm" variant="outline" onClick={onAllocate} disabled={!canAllocate}>
+          <Plus className="h-3 w-3 mr-1" /> Allocate Expense
+        </Button>
+      </div>
+
+      {byType.length > 0 && (
+        <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+          {byType.map((g) => {
+            const pct = total > 0 ? (g.total / total) * 100 : 0;
+            return (
+              <div key={g.type} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="capitalize font-medium flex items-center gap-1.5"><Megaphone className="h-3 w-3 text-violet-500" /> {g.type}</span>
+                  <span className="tabular-nums text-muted-foreground">{fmtBdt(g.total)} <span className="ml-1 text-[10px]">({pct.toFixed(0)}%)</span></span>
+                </div>
+                <Progress value={pct} className="h-1.5" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="rounded border overflow-x-auto">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead className="w-28">Date</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Note</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {sorted.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No marketing allocations <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
+            {sorted.map((m, i) => (
+              <TableRow key={i}>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">{m.created_at?.slice(0, 10)}</TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{m.expense_type}</Badge></TableCell>
+                <TableCell className="text-right tabular-nums font-medium">{fmtBdt(m.amount)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-md truncate">{m.note ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
