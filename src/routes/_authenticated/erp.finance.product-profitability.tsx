@@ -26,7 +26,9 @@ import { cn } from "@/lib/utils";
 import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
 import { ExchangeCaseDialog } from "@/components/erp/finance/exchange-case-dialog";
 import { ProductExpenseAllocationDialog } from "@/components/erp/finance/product-expense-allocation-dialog";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCcw } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/product-profitability")({
   head: () => ({ meta: [{ title: "Product Profitability — Finance" }] }),
@@ -80,6 +82,20 @@ function ProductProfitabilityPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [allocOpen, setAllocOpen] = useState(false);
+  const qc = useQueryClient();
+  const backfillMut = useMutation({
+    mutationFn: async () => {
+      if (!brandId) throw new Error("No brand");
+      const { data, error } = await supabase.rpc("backfill_order_profit_snapshots" as any, { p_brand_id: brandId });
+      if (error) throw error;
+      return data as unknown as number;
+    },
+    onSuccess: (n) => {
+      toast.success(`Re-snapshotted ${n} orders`);
+      qc.invalidateQueries({ queryKey: ["pp-report"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // product list (search)
   const productsQ = useQuery({
