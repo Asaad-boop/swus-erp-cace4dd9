@@ -69,8 +69,25 @@ export function getMetaToken(): string {
     process.env.META_SYSTEM_USER_TOKEN ||
     process.env.META_ACCESS_TOKEN ||
     (globalThis as any).__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN;
-  if (!t) throw new Error("META_SYSTEM_USER_TOKEN secret missing");
+  if (!t) throw new Error("No access token");
   return t;
+}
+
+/** Verify an ad-account credential set by hitting the account info endpoint. */
+export async function verifyAdAccount(actId: string, token: string) {
+  const path = `/${actId.startsWith("act_") ? actId : `act_${actId}`}`;
+  return metaGet<{
+    id: string;
+    name: string;
+    currency: string;
+    timezone_name: string;
+    account_status: number;
+    business?: { id: string; name: string };
+  }>(
+    path,
+    { fields: "id,name,currency,timezone_name,account_status,business{id,name}" },
+    token,
+  );
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}) {
@@ -127,7 +144,7 @@ async function metaGetAll<T>(
   return out;
 }
 
-export async function listMyAdAccounts(token = getMetaToken()): Promise<MetaAccount[]> {
+export async function listMyAdAccounts(token: string = getMetaToken()): Promise<MetaAccount[]> {
   return metaGetAll<MetaAccount>(
     "/me/adaccounts",
     {
