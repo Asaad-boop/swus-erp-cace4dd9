@@ -5295,6 +5295,29 @@ export type Database = {
           },
         ]
       }
+      v_product_incoming: {
+        Row: {
+          brand_id: string | null
+          incoming: number | null
+          product_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _advance_date: {
@@ -5680,6 +5703,10 @@ export type Database = {
       imp_mark_arrived: { Args: { _payload: Json }; Returns: Json }
       imp_next_po_number: { Args: { _brand: string }; Returns: string }
       imp_post_to_inventory: { Args: { _payload: Json }; Returns: Json }
+      imp_quick_create_product: {
+        Args: { _brand: string; _image?: string; _sku?: string; _title: string }
+        Returns: Json
+      }
       imp_record_payment_rpc: { Args: { _payload: Json }; Returns: Json }
       imp_release_carton: { Args: { _payload: Json }; Returns: Json }
       imp_update_carton_stage: {
