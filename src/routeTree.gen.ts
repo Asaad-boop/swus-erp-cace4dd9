@@ -61,6 +61,7 @@ import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './r
 import { Route as AuthenticatedErpImportsOrdersIndexRouteImport } from './routes/_authenticated/erp.imports.orders.index'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_authenticated/erp.imports.orders.new'
+import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -362,6 +363,12 @@ const AuthenticatedErpImportsOrdersNewRoute =
     path: '/orders/new',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpImportsOrdersOrderIdRoute =
+  AuthenticatedErpImportsOrdersOrderIdRouteImport.update({
+    id: '/orders/$orderId',
+    path: '/orders/$orderId',
+    getParentRoute: () => AuthenticatedErpImportsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -411,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/erp/imports/orders/': typeof AuthenticatedErpImportsOrdersIndexRoute
@@ -459,6 +467,7 @@ export interface FileRoutesByTo {
   '/erp/imports': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/erp/imports/orders': typeof AuthenticatedErpImportsOrdersIndexRoute
@@ -514,6 +523,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/_authenticated/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/_authenticated/erp/imports/orders/': typeof AuthenticatedErpImportsOrdersIndexRoute
@@ -569,6 +579,7 @@ export interface FileRouteTypes {
     | '/erp/imports/'
     | '/erp/marketing/'
     | '/erp/orders/'
+    | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
     | '/erp/imports/orders/'
@@ -617,6 +628,7 @@ export interface FileRouteTypes {
     | '/erp/imports'
     | '/erp/marketing'
     | '/erp/orders'
+    | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
     | '/erp/imports/orders'
@@ -671,6 +683,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/imports/'
     | '/_authenticated/erp/marketing/'
     | '/_authenticated/erp/orders/'
+    | '/_authenticated/erp/imports/orders/$orderId'
     | '/_authenticated/erp/imports/orders/new'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
     | '/_authenticated/erp/imports/orders/'
@@ -1055,6 +1068,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsOrdersNewRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/imports/orders/$orderId': {
+      id: '/_authenticated/erp/imports/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/erp/imports/orders/$orderId'
+      preLoaderRoute: typeof AuthenticatedErpImportsOrdersOrderIdRouteImport
+      parentRoute: typeof AuthenticatedErpImportsRoute
+    }
   }
 }
 
@@ -1111,6 +1131,7 @@ const AuthenticatedErpFinanceRouteWithChildren =
 
 interface AuthenticatedErpImportsRouteChildren {
   AuthenticatedErpImportsIndexRoute: typeof AuthenticatedErpImportsIndexRoute
+  AuthenticatedErpImportsOrdersOrderIdRoute: typeof AuthenticatedErpImportsOrdersOrderIdRoute
   AuthenticatedErpImportsOrdersNewRoute: typeof AuthenticatedErpImportsOrdersNewRoute
   AuthenticatedErpImportsOrdersIndexRoute: typeof AuthenticatedErpImportsOrdersIndexRoute
 }
@@ -1118,6 +1139,8 @@ interface AuthenticatedErpImportsRouteChildren {
 const AuthenticatedErpImportsRouteChildren: AuthenticatedErpImportsRouteChildren =
   {
     AuthenticatedErpImportsIndexRoute: AuthenticatedErpImportsIndexRoute,
+    AuthenticatedErpImportsOrdersOrderIdRoute:
+      AuthenticatedErpImportsOrdersOrderIdRoute,
     AuthenticatedErpImportsOrdersNewRoute:
       AuthenticatedErpImportsOrdersNewRoute,
     AuthenticatedErpImportsOrdersIndexRoute:
