@@ -29,6 +29,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
 import {
@@ -52,7 +66,13 @@ import {
   Search,
   RefreshCw,
   ArrowUpRight,
+  MoreHorizontal,
+  Package,
+  ExternalLink,
+  RotateCcw,
+  Settings2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/")({
   component: PerformanceDashboard,
@@ -128,11 +148,13 @@ function PerformanceDashboard() {
   const [view, setView] = useState<"meta" | "actual">("actual");
   const [bucketFilter, setBucketFilter] = useState<DecisionBucket | "all">("all");
   const [isSyncingMeta, setIsSyncingMeta] = useState(false);
+  const [manageProductsFor, setManageProductsFor] = useState<PerfRow | null>(null);
 
   const r = useMemo(() => ({ from: dateRange.from, to: dateRange.to }), [dateRange.from, dateRange.to]);
 
   const fn = useServerFn(getPerformanceDashboard);
   const syncRangeFn = useServerFn(syncBrandInsightsRange);
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["mkt-performance", brandId, r.from, r.to],
     queryFn: () => fn({ data: { brandId: brandId!, ...r } }),
@@ -152,6 +174,19 @@ function PerformanceDashboard() {
     } finally {
       setIsSyncingMeta(false);
     }
+  }
+
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setBucketFilter("all");
+    setDateRange(buildPreset("7d"));
+    toast.success("Filters reset");
+  }
+
+  async function refreshData() {
+    await qc.invalidateQueries({ queryKey: ["mkt-performance", brandId] });
+    toast.success("Data refreshed");
   }
 
   if (!brandId) {
@@ -205,6 +240,25 @@ function PerformanceDashboard() {
               <RefreshCw className={cn("h-4 w-4", (q.isFetching || isSyncingMeta) && "animate-spin")} />
               Sync Meta
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" title="More actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={refreshData} className="gap-2">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Refresh data
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={resetFilters} className="gap-2">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset filters
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -409,7 +463,19 @@ function PerformanceDashboard() {
                   </TableRow>
                 )}
                 {filtered.map((row) =>
-                  view === "meta" ? <MetaRow key={row.campaign_id} row={row} /> : <ActualRow key={row.campaign_id} row={row} />,
+                  view === "meta" ? (
+                    <MetaRow
+                      key={row.campaign_id}
+                      row={row}
+                      onManageProducts={() => setManageProductsFor(row)}
+                    />
+                  ) : (
+                    <ActualRow
+                      key={row.campaign_id}
+                      row={row}
+                      onManageProducts={() => setManageProductsFor(row)}
+                    />
+                  ),
                 )}
               </TableBody>
             </Table>
@@ -420,6 +486,19 @@ function PerformanceDashboard() {
           Spend BDT = USD × per-account FX rate. Decision rules: True ROAS ≥3 → Scale, 2-3 → Monitor, 1-2 → Optimize, &lt;1 → Kill. Min ৳330 spend chai evaluate korte.
         </p>
       </div>
+
+      {manageProductsFor && brandId && (
+        <ManageCampaignProductsDialog
+          open={!!manageProductsFor}
+          onOpenChange={(o) => {
+            if (!o) setManageProductsFor(null);
+          }}
+          campaignId={manageProductsFor.campaign_id}
+          campaignName={manageProductsFor.name}
+          brandId={brandId}
+          status={manageProductsFor.effective_status ?? manageProductsFor.status}
+        />
+      )}
     </TooltipProvider>
   );
 }
