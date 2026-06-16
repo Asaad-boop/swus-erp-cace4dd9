@@ -328,10 +328,12 @@ function PayBillDialog({ row, coa, onClose, onSaved }: {
       if (!cashAcct) throw new Error("Pick a cash/bank account");
       if (!(amt > 0)) throw new Error("Amount must be > 0");
       if (amt > row.outstanding + 0.01) throw new Error("Exceeds outstanding");
-      const { error } = await supabase.rpc("record_bill_payment", {
-        _bill_id: row.bill_id, _amount: amt, _cash_account_id: cashAcct,
-        _payment_date: date, _reference_no: ref || undefined, _notes: notes || undefined,
-      });
+      const args: Record<string, unknown> = {
+        _bill_id: row.bill_id, _amount: amt, _cash_account_id: cashAcct, _payment_date: date,
+      };
+      if (ref) args._reference_no = ref;
+      if (notes) args._notes = notes;
+      const { error } = await supabase.rpc("record_bill_payment", args as never);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Payment recorded"); onSaved(); onClose(); },
