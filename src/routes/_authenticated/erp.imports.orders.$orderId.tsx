@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Package, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
+  ArrowLeft, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
   AlertTriangle, Wallet, ClipboardCheck, ChevronDown, Loader2, ShoppingCart,
   PackageCheck, Receipt, Send,
 } from "lucide-react";
