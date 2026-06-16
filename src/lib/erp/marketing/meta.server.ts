@@ -73,21 +73,34 @@ export function getMetaToken(): string {
   return t;
 }
 
-/** Verify an ad-account credential set by hitting the account info endpoint. */
+/** Verify an ad-account credential set by hitting the account info endpoint.
+ *  Only requests fields readable with `ads_read`. Business info needs
+ *  `business_management` scope; we try it but fall back silently. */
 export async function verifyAdAccount(actId: string, token: string) {
   const path = `/${actId.startsWith("act_") ? actId : `act_${actId}`}`;
-  return metaGet<{
+  const base = await metaGet<{
     id: string;
     name: string;
     currency: string;
     timezone_name: string;
     account_status: number;
-    business?: { id: string; name: string };
   }>(
     path,
-    { fields: "id,name,currency,timezone_name,account_status,business{id,name}" },
+    { fields: "id,name,currency,timezone_name,account_status" },
     token,
   );
+  let business: { id: string; name: string } | null = null;
+  try {
+    const b = await metaGet<{ business?: { id: string; name: string } }>(
+      path,
+      { fields: "business{id,name}" },
+      token,
+    );
+    business = b.business ?? null;
+  } catch {
+    // missing business_management scope — non-fatal
+  }
+  return { ...base, business };
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}) {
