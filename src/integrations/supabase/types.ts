@@ -1053,6 +1053,50 @@ export type Database = {
           },
         ]
       }
+      erp_budgets: {
+        Row: {
+          account_id: string
+          amount: number
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_chart_accounts: {
         Row: {
           account_type: string
@@ -1413,6 +1457,114 @@ export type Database = {
           },
         ]
       }
+      erp_recurring_rules: {
+        Row: {
+          amount: number
+          auto_post: boolean
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          interval_n: number
+          is_active: boolean
+          last_run_at: string | null
+          lines: Json
+          name: string
+          next_run_date: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          auto_post?: boolean
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency: string
+          id?: string
+          interval_n?: number
+          is_active?: boolean
+          last_run_at?: string | null
+          lines: Json
+          name: string
+          next_run_date: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          auto_post?: boolean
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_n?: number
+          is_active?: boolean
+          last_run_at?: string | null
+          lines?: Json
+          name?: string
+          next_run_date?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      erp_recurring_runs: {
+        Row: {
+          brand_id: string
+          created_at: string
+          error: string | null
+          id: string
+          journal_entry_id: string | null
+          rule_id: string
+          run_date: string
+          status: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          rule_id: string
+          run_date: string
+          status?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          rule_id?: string
+          run_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_recurring_runs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_recurring_runs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "erp_recurring_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_settings: {
         Row: {
           brand_id: string
@@ -1456,6 +1608,123 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: true
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_statement_imports: {
+        Row: {
+          account_id: string
+          brand_id: string
+          created_by: string | null
+          id: string
+          imported_at: string
+          matched_lines: number
+          period_end: string | null
+          period_start: string | null
+          source: string
+          total_lines: number
+        }
+        Insert: {
+          account_id: string
+          brand_id: string
+          created_by?: string | null
+          id?: string
+          imported_at?: string
+          matched_lines?: number
+          period_end?: string | null
+          period_start?: string | null
+          source: string
+          total_lines?: number
+        }
+        Update: {
+          account_id?: string
+          brand_id?: string
+          created_by?: string | null
+          id?: string
+          imported_at?: string
+          matched_lines?: number
+          period_end?: string | null
+          period_start?: string | null
+          source?: string
+          total_lines?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_statement_imports_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_statement_lines: {
+        Row: {
+          account_id: string
+          brand_id: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          import_id: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_line_id: string | null
+          reference_no: string | null
+          txn_date: string
+        }
+        Insert: {
+          account_id: string
+          brand_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          import_id: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_line_id?: string | null
+          reference_no?: string | null
+          txn_date: string
+        }
+        Update: {
+          account_id?: string
+          brand_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          import_id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_line_id?: string | null
+          reference_no?: string | null
+          txn_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_statement_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_statement_lines_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "erp_statement_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_statement_lines_matched_line_id_fkey"
+            columns: ["matched_line_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -3429,6 +3698,10 @@ export type Database = {
       }
     }
     Functions: {
+      _advance_date: {
+        Args: { _d: string; _freq: string; _n: number }
+        Returns: string
+      }
       acquire_order_lock: {
         Args: { _force?: boolean; _order_id: string }
         Returns: {
@@ -3567,6 +3840,10 @@ export type Database = {
         Args: { _id: string; _order_id: string }
         Returns: undefined
       }
+      match_statement_line: {
+        Args: { _journal_line_id: string; _line_id: string }
+        Returns: undefined
+      }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
       reapply_invoice_prefix: { Args: { _brand_id: string }; Returns: number }
       recalc_product_rating: {
@@ -3618,6 +3895,7 @@ export type Database = {
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
       reserve_stock: { Args: { _order_id: string }; Returns: undefined }
+      run_recurring_rules: { Args: { _brand_id?: string }; Returns: Json }
       seed_default_coa: { Args: { _brand_id: string }; Returns: number }
       set_product_stock: {
         Args: {
@@ -3637,6 +3915,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unmatch_statement_line: { Args: { _line_id: string }; Returns: undefined }
       update_product_inventory_fields: {
         Args: {
           _barcode?: string
