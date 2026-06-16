@@ -16,7 +16,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
 import { Route as AgentAgentIndexRouteImport } from './routes/_agent.agent.index'
-import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
@@ -103,11 +102,6 @@ const AgentAgentIndexRoute = AgentAgentIndexRouteImport.update({
   id: '/agent/',
   path: '/agent/',
   getParentRoute: () => AgentRoute,
-} as any)
-const AuthenticatedErpUsersRoute = AuthenticatedErpUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AuthenticatedErpRoute,
 } as any)
 const AuthenticatedErpSuppliersRoute =
   AuthenticatedErpSuppliersRouteImport.update({
@@ -432,7 +426,6 @@ export interface FileRoutesByFullPath {
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
-  '/erp/users': typeof AuthenticatedErpUsersRoute
   '/agent/': typeof AgentAgentIndexRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
@@ -488,7 +481,6 @@ export interface FileRoutesByTo {
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
-  '/erp/users': typeof AuthenticatedErpUsersRoute
   '/agent': typeof AgentAgentIndexRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
@@ -552,7 +544,6 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
-  '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
   '/_agent/agent/': typeof AgentAgentIndexRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_agent/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
@@ -615,7 +606,6 @@ export interface FileRouteTypes {
     | '/erp/orders'
     | '/erp/settings'
     | '/erp/suppliers'
-    | '/erp/users'
     | '/agent/'
     | '/erp/'
     | '/agent/orders/$orderId'
@@ -671,7 +661,6 @@ export interface FileRouteTypes {
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
-    | '/erp/users'
     | '/agent'
     | '/erp'
     | '/agent/orders/$orderId'
@@ -734,7 +723,6 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
-    | '/_authenticated/erp/users'
     | '/_agent/agent/'
     | '/_authenticated/erp/'
     | '/_agent/agent/orders/$orderId'
@@ -846,13 +834,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/agent/'
       preLoaderRoute: typeof AgentAgentIndexRouteImport
       parentRoute: typeof AgentRoute
-    }
-    '/_authenticated/erp/users': {
-      id: '/_authenticated/erp/users'
-      path: '/users'
-      fullPath: '/erp/users'
-      preLoaderRoute: typeof AuthenticatedErpUsersRouteImport
-      parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/suppliers': {
       id: '/_authenticated/erp/suppliers'
@@ -1370,7 +1351,6 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
-  AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
 }
 
@@ -1383,7 +1363,6 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
-  AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
 }
 
