@@ -25,6 +25,7 @@ type Row = {
   revenue: number; cogs: number; courier_cost: number;
   return_loss: number; exchange_loss: number; meta_ads: number; marketing_content: number;
   gross_profit: number; net_profit: number; profit_per_unit: number; roi_percent: number;
+  brand_id?: string; brand_name?: string;
 };
 
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -39,8 +40,7 @@ function downloadCsv(name: string, rows: (string | number | null)[][]) {
 type SortKey = "net_profit" | "revenue" | "delivered_qty" | "roi_percent" | "return_loss";
 
 function BrandProfitabilityPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const [dateFrom, setDateFrom] = useState(daysAgo(30));
   const [dateTo, setDateTo] = useState(today());
   const [dateBasis, setDateBasis] = useState<"created" | "confirmed" | "delivered">("delivered");
@@ -49,14 +49,18 @@ function BrandProfitabilityPage() {
   const [search, setSearch] = useState("");
 
   const q = useQuery({
-    queryKey: ["brand-profitability", brandId, dateFrom, dateTo, dateBasis],
-    enabled: !!brandId,
+    queryKey: ["brand-profitability", brandIds.join(","), dateFrom, dateTo, dateBasis],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_brand_profitability_rollup" as any, {
-        p_brand_id: brandId!, p_date_from: dateFrom, p_date_to: dateTo, p_date_basis: dateBasis,
-      });
-      if (error) throw error;
-      return (data ?? []) as unknown as Row[];
+      const brandMap = new Map(brands.map((b) => [b.id, b.name]));
+      const results = await Promise.all(brandIds.map(async (bid) => {
+        const { data, error } = await supabase.rpc("get_brand_profitability_rollup" as any, {
+          p_brand_id: bid, p_date_from: dateFrom, p_date_to: dateTo, p_date_basis: dateBasis,
+        });
+        if (error) throw error;
+        return ((data ?? []) as unknown as Row[]).map((r) => ({ ...r, brand_id: bid, brand_name: brandMap.get(bid) ?? "" }));
+      }));
+      return results.flat();
     },
   });
 
@@ -97,14 +101,14 @@ function BrandProfitabilityPage() {
     ]);
   }
 
-  if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand to view profitability.</div>;
+  if (brandIds.length === 0) return <div className="p-6 text-sm text-muted-foreground">Loading brands…</div>;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2"><Layers3 className="h-6 w-6" /> Brand Profitability</h1>
-          <p className="text-sm text-muted-foreground">All-product P&L rollup for {activeBrand?.name}.</p>
+          <p className="text-sm text-muted-foreground">All-product P&L rollup for {isAllBrands ? `all brands (${brands.length})` : activeBrand?.name}.</p>
         </div>
       </div>
 
@@ -207,6 +211,7 @@ function BrandProfitabilityPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
+                    {isAllBrands && <TableHead>Brand</TableHead>}
                     <TableHead className="text-right">Stock</TableHead>
                     <TableHead className="text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort("delivered_qty")}>Delivered{sortKey === "delivered_qty" && (sortDir === "desc" ? " ↓" : " ↑")}</TableHead>
                     <TableHead className="text-right">Returned</TableHead>
@@ -234,6 +239,7 @@ function BrandProfitabilityPage() {
                             </div>
                           </div>
                         </TableCell>
+                        {isAllBrands && <TableCell><Badge variant="outline" className="text-xs">{r.brand_name}</Badge></TableCell>}
                         <TableCell className="text-right text-xs">{r.current_stock ?? 0}</TableCell>
                         <TableCell className="text-right">{r.delivered_qty}</TableCell>
                         <TableCell className="text-right">{r.returned_qty > 0 ? <span className="text-amber-600">{r.returned_qty}</span> : 0}</TableCell>
@@ -253,7 +259,7 @@ function BrandProfitabilityPage() {
                     );
                   })}
                   {filtered.length === 0 && (
-                    <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">No matches.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={isAllBrands ? 13 : 12} className="text-center text-muted-foreground py-6">No matches.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
