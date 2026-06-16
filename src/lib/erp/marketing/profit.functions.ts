@@ -28,7 +28,7 @@ export const rebuildProfitWindow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertOps(context.supabase, context.userId);
     const { data: out, error } = await context.supabase.rpc("mkt_rebuild_window", {
-      p_brand_id: data.brand_id ?? null,
+      p_brand_id: data.brand_id ?? (null as any),
       p_days: data.days ?? 7,
       p_trigger: "manual",
     });
