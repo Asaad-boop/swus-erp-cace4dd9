@@ -24,6 +24,7 @@ import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authentic
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
 import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
+import { Route as ApiPublicMktTrackerDotjsRouteImport } from './routes/api/public/mkt.tracker[.]js'
 import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.track'
 import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
@@ -129,6 +130,12 @@ const ApiPublicWebhookPathaoRoute = ApiPublicWebhookPathaoRouteImport.update({
   path: '/api/public/webhook/pathao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMktTrackerDotjsRoute =
+  ApiPublicMktTrackerDotjsRouteImport.update({
+    id: '/api/public/mkt/tracker.js',
+    path: '/api/public/mkt/tracker.js',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMktTrackRoute = ApiPublicMktTrackRouteImport.update({
   id: '/api/public/mkt/track',
   path: '/api/public/mkt/track',
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
+  '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
@@ -346,6 +354,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
+  '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
@@ -388,6 +397,7 @@ export interface FileRoutesById {
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
+  '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/mkt/track'
+    | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/erp/finance/'
     | '/erp/orders/'
@@ -467,6 +478,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/mkt/track'
+    | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/erp/finance'
     | '/erp/orders'
@@ -508,6 +520,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/mkt/track'
+    | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/orders/'
@@ -521,6 +534,7 @@ export interface RootRouteChildren {
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
   ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
   ApiPublicMktTrackRoute: typeof ApiPublicMktTrackRoute
+  ApiPublicMktTrackerDotjsRoute: typeof ApiPublicMktTrackerDotjsRoute
   ApiPublicWebhookPathaoRoute: typeof ApiPublicWebhookPathaoRoute
 }
 
@@ -629,6 +643,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/webhook/pathao'
       fullPath: '/api/public/webhook/pathao'
       preLoaderRoute: typeof ApiPublicWebhookPathaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/mkt/tracker.js': {
+      id: '/api/public/mkt/tracker.js'
+      path: '/api/public/mkt/tracker.js'
+      fullPath: '/api/public/mkt/tracker.js'
+      preLoaderRoute: typeof ApiPublicMktTrackerDotjsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/mkt/track': {
@@ -919,6 +940,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
   ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,
   ApiPublicMktTrackRoute: ApiPublicMktTrackRoute,
+  ApiPublicMktTrackerDotjsRoute: ApiPublicMktTrackerDotjsRoute,
   ApiPublicWebhookPathaoRoute: ApiPublicWebhookPathaoRoute,
 }
 export const routeTree = rootRouteImport
