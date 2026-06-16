@@ -206,11 +206,11 @@ function JournalEntryDialog({ open, onClose, brandId, coa, onSaved }: {
           account_id: l.account_id,
           debit: Number(l.debit) || 0,
           credit: Number(l.credit) || 0,
-          description: l.description || null,
+          description: l.description || "",
         }));
       if (cleanLines.length < 2) throw new Error("At least 2 lines required");
       const { error } = await supabase.rpc("create_journal_entry", {
-        _brand_id: brandId, _entry_date: date, _description: desc || null, _lines: cleanLines as unknown as object,
+        _brand_id: brandId, _entry_date: date, _description: desc || "", _lines: cleanLines,
       });
       if (error) throw error;
     },
