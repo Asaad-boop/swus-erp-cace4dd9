@@ -1,16 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format, subDays } from "date-fns";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, Package, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getCampaignDetail } from "@/lib/erp/marketing/campaigns.functions";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  getCampaignDetail,
+  listCampaignProducts,
+  linkCampaignProduct,
+  unlinkCampaignProduct,
+  updateCampaignProduct,
+  searchBrandProducts,
+} from "@/lib/erp/marketing/campaigns.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/$campaignId")({
   component: CampaignDetailPage,
@@ -50,6 +62,7 @@ function CampaignDetailPage() {
   const c: any = d.campaign;
   const t: any = d.totals;
   const maxSpend = Math.max(...d.series.map((s) => s.spend), 1);
+  const brandId: string | null = c.brand_id ?? null;
 
   return (
     <div className="space-y-5">
@@ -138,6 +151,8 @@ function CampaignDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <LinkedProductsCard campaignId={campaignId} brandId={brandId} />
     </div>
   );
 }
@@ -151,5 +166,228 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
         {hint ? <div className="text-xs text-muted-foreground mt-1">{hint}</div> : null}
       </CardContent>
     </Card>
+  );
+}
+
+function LinkedProductsCard({ campaignId, brandId }: { campaignId: string; brandId: string | null }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listCampaignProducts);
+  const linkFn = useServerFn(linkCampaignProduct);
+  const unlinkFn = useServerFn(unlinkCampaignProduct);
+  const updateFn = useServerFn(updateCampaignProduct);
+
+  const q = useQuery({
+    queryKey: ["mkt", "campaign-products", campaignId],
+    queryFn: () => listFn({ data: { campaignId } }),
+  });
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const unlinkMut = useMutation({
+    mutationFn: (linkId: string) => unlinkFn({ data: { linkId } }),
+    onSuccess: () => {
+      toast.success("Unlinked");
+      qc.invalidateQueries({ queryKey: ["mkt", "campaign-products", campaignId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const weightMut = useMutation({
+    mutationFn: (v: { linkId: string; weight: number }) =>
+      updateFn({ data: { linkId: v.linkId, weight: v.weight } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mkt", "campaign-products", campaignId] }),
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const rows = (q.data ?? []) as any[];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Package className="h-4 w-4" /> Linked Products ({rows.length})
+        </CardTitle>
+        <Button size="sm" onClick={() => setPickerOpen(true)} className="gap-1.5" disabled={!brandId}>
+          <Plus className="h-3.5 w-3.5" /> Add Product
+        </Button>
+      </CardHeader>
+      <CardContent className="p-0">
+        {q.isLoading ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Kono product link kora nei. Attribution fallback + product profit allocation er jonno products link korun.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="w-32">Weight</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {r.products?.image ? (
+                        <img src={r.products.image} alt="" className="h-8 w-8 rounded object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="font-medium">{r.products?.title ?? "—"}</div>
+                      {r.products && !r.products.is_active ? (
+                        <Badge variant="outline" className="text-xs">Inactive</Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{r.products?.sku ?? "—"}</TableCell>
+                  <TableCell className="text-right">{r.products?.price ? `BDT ${Number(r.products.price).toLocaleString()}` : "—"}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min={0}
+                      max={100}
+                      defaultValue={r.weight}
+                      className="h-8 w-20"
+                      onBlur={(e) => {
+                        const w = Number(e.target.value);
+                        if (w !== Number(r.weight)) weightMut.mutate({ linkId: r.id, weight: w });
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { if (confirm("Unlink this product?")) unlinkMut.mutate(r.id); }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      {brandId ? (
+        <ProductPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          brandId={brandId}
+          excludeIds={rows.map((r) => r.product_id)}
+          onPick={async (productId) => {
+            try {
+              await linkFn({ data: { campaignId, productId } });
+              toast.success("Product linked");
+              qc.invalidateQueries({ queryKey: ["mkt", "campaign-products", campaignId] });
+              setPickerOpen(false);
+            } catch (e: any) {
+              toast.error(e?.message ?? "Failed");
+            }
+          }}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+function ProductPicker({
+  open, onOpenChange, brandId, excludeIds, onPick,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  brandId: string;
+  excludeIds: string[];
+  onPick: (productId: string) => void;
+}) {
+  const searchFn = useServerFn(searchBrandProducts);
+  const [query, setQuery] = useState("");
+
+  const q = useQuery({
+    queryKey: ["mkt", "brand-products", brandId, query],
+    queryFn: () => searchFn({ data: { brandId, query, limit: 30 } }),
+    enabled: open,
+  });
+
+  const taken = new Set(excludeIds);
+  const rows = ((q.data ?? []) as any[]).filter((p) => !taken.has(p.id));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Link a Product</DialogTitle>
+          <DialogDescription>
+            Brand er product gulo theke select korun. Linked products attribution fallback ar product profit allocation e use hobe.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by title or SKU…"
+            className="pl-9"
+          />
+        </div>
+        <div className="max-h-[55vh] overflow-y-auto rounded-md border">
+          {q.isLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No products found.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {p.image ? (
+                          <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
+                        ) : (
+                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="font-medium">{p.title}</div>
+                        {!p.is_active ? <Badge variant="outline" className="text-xs">Inactive</Badge> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">{p.sku ?? "—"}</TableCell>
+                    <TableCell className="text-right">{p.price ? `BDT ${Number(p.price).toLocaleString()}` : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" onClick={() => onPick(p.id)}>Link</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
