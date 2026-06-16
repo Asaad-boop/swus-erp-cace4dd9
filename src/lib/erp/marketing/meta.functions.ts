@@ -142,10 +142,11 @@ export const metaTestConnection = createServerFn({ method: "POST" })
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved for this account");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
     const { metaMe } = await import("./meta.server");
     try {
-      const me = await metaMe(acc.access_token_secret_ref);
+      const me = await metaMe(token);
       return { ok: true, me };
     } catch (e: any) {
       return { ok: false, error: e?.message || "Token invalid" };
@@ -164,10 +165,10 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
 
     const { metaListCampaigns, metaListAdsets, metaListAds } = await import("./meta.server");
-    const token = acc.access_token_secret_ref;
     const ext = acc.external_account_id;
 
     let campaignsCount = 0,
@@ -306,7 +307,8 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
 
     const { metaListInsights, extractPurchaseStats } = await import("./meta.server");
 
@@ -331,7 +333,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
 
     for (const level of ["campaign", "adset", "ad"] as const) {
       try {
-        const rows = await metaListInsights(acc.external_account_id, acc.access_token_secret_ref, level, data.from, data.to);
+        const rows = await metaListInsights(acc.external_account_id, token, level, data.from, data.to);
         if (!rows.length) continue;
         const upserts = rows.map((r: any) => {
           const { purchases, value } = extractPurchaseStats(r);
