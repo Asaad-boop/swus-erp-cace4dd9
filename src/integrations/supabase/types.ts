@@ -1693,48 +1693,60 @@ export type Database = {
       }
       erp_product_expense_allocations: {
         Row: {
+          allocation_date: string | null
           allocation_method: string
           amount: number
           brand_id: string
+          campaign_id: string | null
           created_at: string
           created_by: string | null
           expense_transaction_id: string | null
           expense_type: string
           id: string
           journal_entry_id: string | null
+          mkt_ad_account_id: string | null
           note: string | null
           product_id: string
           sku: string | null
+          source: string
           variant_id: string | null
         }
         Insert: {
+          allocation_date?: string | null
           allocation_method?: string
           amount?: number
           brand_id: string
+          campaign_id?: string | null
           created_at?: string
           created_by?: string | null
           expense_transaction_id?: string | null
           expense_type: string
           id?: string
           journal_entry_id?: string | null
+          mkt_ad_account_id?: string | null
           note?: string | null
           product_id: string
           sku?: string | null
+          source?: string
           variant_id?: string | null
         }
         Update: {
+          allocation_date?: string | null
           allocation_method?: string
           amount?: number
           brand_id?: string
+          campaign_id?: string | null
           created_at?: string
           created_by?: string | null
           expense_transaction_id?: string | null
           expense_type?: string
           id?: string
           journal_entry_id?: string | null
+          mkt_ad_account_id?: string | null
           note?: string | null
           product_id?: string
           sku?: string | null
+          source?: string
           variant_id?: string | null
         }
         Relationships: [
@@ -1743,6 +1755,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -1757,6 +1776,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_mkt_ad_account_id_fkey"
+            columns: ["mkt_ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -5172,6 +5198,10 @@ export type Database = {
       rebuild_marketing_profit_snapshots: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: number
+      }
+      rebuild_meta_product_allocations_for_campaign: {
+        Args: { p_campaign_id: string; p_since?: string; p_until?: string }
+        Returns: undefined
       }
       rebuild_order_attribution: {
         Args: { p_order_id: string }
