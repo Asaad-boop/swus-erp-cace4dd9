@@ -3963,6 +3963,10 @@ export type Database = {
         Returns: Json
       }
       get_customer_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_finance_dashboard: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: Json
+      }
       get_fx_rate: {
         Args: { p_brand: string; p_date: string; p_from: string; p_to: string }
         Returns: number
