@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Archive, Pencil, Sparkles } from "lucide-react";
+import { Plus, Search, Archive, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
@@ -75,6 +75,28 @@ function AccountsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMut = useMutation({
+    mutationFn: async (acc: COA) => {
+      // Check usage in journal lines
+      const { count } = await supabase.from("erp_journal_lines")
+        .select("id", { count: "exact", head: true })
+        .eq("account_id", acc.id);
+      if ((count ?? 0) > 0) {
+        const { error } = await supabase.from("erp_chart_accounts").update({ is_archived: true }).eq("id", acc.id);
+        if (error) throw error;
+        return "archived" as const;
+      }
+      const { error } = await supabase.from("erp_chart_accounts").delete().eq("id", acc.id);
+      if (error) throw error;
+      return "deleted" as const;
+    },
+    onSuccess: (kind) => {
+      toast.success(kind === "archived" ? "Has entries — archived instead" : "Deleted");
+      qc.invalidateQueries({ queryKey: ["erp_chart_accounts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const filtered = useMemo(() => {
     const rows = q.data ?? [];
     if (!search.trim()) return rows;
@@ -138,12 +160,22 @@ function AccountsPage() {
               {grouped[t].map((a) => {
                 const isParent = !a.parent_id;
                 return (
-                  <div key={a.id} className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 group ${isParent ? "font-semibold" : "pl-6"} ${a.is_archived ? "opacity-50" : ""}`}>
+                  <div key={a.id} className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 ${isParent ? "font-semibold" : "pl-6"} ${a.is_archived ? "opacity-50" : ""}`}>
                     <span className="text-xs text-muted-foreground font-mono w-12">{a.code}</span>
                     <span className="flex-1 text-sm truncate">{a.name}</span>
                     {a.opening_balance > 0 && <span className="text-xs text-muted-foreground font-mono">{fmtBdt(a.opening_balance)}</span>}
-                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => setEditing(a)}>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(a)} title="Edit">
                       <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-red-600 hover:text-red-700"
+                      title="Delete"
+                      disabled={deleteMut.isPending}
+                      onClick={() => { if (confirm(`Delete "${a.name}"? If it has journal entries, it will be archived instead.`)) deleteMut.mutate(a); }}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 );
