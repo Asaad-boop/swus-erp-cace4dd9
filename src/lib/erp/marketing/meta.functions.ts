@@ -261,7 +261,7 @@ export const syncAdAccountInsights = createServerFn({ method: "POST" })
     return runInsightsSync(context.supabase, data.accountId, {
       since: data.since,
       until: data.until,
-      days: data.days ?? 3,
+      days: data.days ?? 90,
     });
   });
 
