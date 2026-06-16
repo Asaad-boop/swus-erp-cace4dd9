@@ -454,33 +454,8 @@ function ProductProfitabilityPage() {
             </Card>
           </div>
 
-          {/* Revenue + Cost summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600" /> Revenue</CardTitle></CardHeader>
-              <CardContent className="text-sm">
-                <Row label="Gross product revenue" v={r.revenue.gross} />
-                <Row label="Delivery collected" v={r.revenue.delivery_collected} />
-                <Row label="Discount given" v={-r.revenue.discount} />
-                <Row label="Refund (delivered)" v={-r.revenue.refund} />
-                <Row label="Net payable" v={r.revenue.net_payable} bold />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-600" /> Costs</CardTitle></CardHeader>
-              <CardContent className="text-sm">
-                <Row label="COGS (unit cost × delivered)" v={r.cost.cogs} />
-                <Row label="Courier (out)" v={r.cost.courier_out} />
-                <Row label="Courier (return)" v={r.cost.courier_return} />
-                <Row label="Packaging" v={r.cost.packaging} />
-                <Row label="Return loss" v={r.cost.return_loss} />
-                <Row label="Exchange loss" v={r.cost.exchange_loss} />
-                <Row label="Damage loss" v={r.cost.damage_loss} />
-                <Row label="Meta ads" v={r.cost.meta_ads} />
-                <Row label="Marketing / content" v={r.cost.marketing_content} />
-              </CardContent>
-            </Card>
-          </div>
+          {/* P&L Statement */}
+          <PnLStatement r={r} />
 
           {/* Tabs: Sources / Items / Returns / Exchanges / Marketing */}
           <Card className="border-border/60 shadow-sm">
