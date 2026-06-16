@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  createImportPurchaseOrder, listCargoAgents, listImportSuppliers, listWarehouses,
+  createImportPo, listCargoAgents, listImportSuppliers, listWarehouses,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 
@@ -48,7 +48,7 @@ function NewPoPage() {
   const suppliersFn = useServerFn(listImportSuppliers);
   const agentsFn = useServerFn(listCargoAgents);
   const whFn = useServerFn(listWarehouses);
-  const createFn = useServerFn(createImportPurchaseOrder);
+  const createFn = useServerFn(createImportPo);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
