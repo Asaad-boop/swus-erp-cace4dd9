@@ -5,6 +5,8 @@ import {
   AlertTriangle, Download, Package, Search, TrendingUp, TrendingDown,
   PackageCheck, RotateCcw, Repeat2, Truck, Megaphone, FileText,
 } from "lucide-react";
+import { CalendarIcon, Wallet, Receipt, BarChart3, Filter, Box } from "lucide-react";
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
@@ -21,6 +23,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
 import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
@@ -56,6 +61,20 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function daysAgoIso(d: number) { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10); }
+function isoToDate(s: string) { const [y,m,d] = s.split("-").map(Number); return new Date(y, (m||1)-1, d||1); }
+function dateToIso(d: Date) { return format(d, "yyyy-MM-dd"); }
+
+const DATE_PRESETS: Array<{ key: string; label: string; range: () => [string, string] }> = [
+  { key: "today",    label: "Today",         range: () => [todayIso(), todayIso()] },
+  { key: "yest",     label: "Yesterday",     range: () => [daysAgoIso(1), daysAgoIso(1)] },
+  { key: "7d",       label: "Last 7 days",   range: () => [daysAgoIso(6), todayIso()] },
+  { key: "30d",      label: "Last 30 days",  range: () => [daysAgoIso(29), todayIso()] },
+  { key: "mtd",      label: "Month to date", range: () => [dateToIso(startOfMonth(new Date())), todayIso()] },
+  { key: "lastm",    label: "Last month",    range: () => { const d = subMonths(new Date(), 1); return [dateToIso(startOfMonth(d)), dateToIso(endOfMonth(d))]; } },
+  { key: "90d",      label: "Last 90 days",  range: () => [daysAgoIso(89), todayIso()] },
+  { key: "ytd",      label: "Year to date",  range: () => [dateToIso(startOfYear(new Date())), todayIso()] },
+  { key: "all",      label: "All time",      range: () => ["2020-01-01", todayIso()] },
+];
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
@@ -209,14 +228,25 @@ function ProductProfitabilityPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-sm overflow-hidden">
+        <div className="border-b bg-muted/30 px-4 py-2 flex items-center gap-2">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filters</span>
+          {productId && (
+            <Badge variant="secondary" className="ml-auto text-[10px] font-normal">
+              {dateFrom} → {dateTo} · by {dateBasis}
+            </Badge>
+          )}
+        </div>
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="md:col-span-4">
-              <Label className="text-xs text-muted-foreground">Product</Label>
+            <div className="md:col-span-5">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <Box className="h-3 w-3" /> PRODUCT
+              </Label>
               <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal h-10 mt-1">
+                  <Button variant="outline" className="w-full justify-start font-normal h-10">
                     <Package className="h-4 w-4 mr-2 text-muted-foreground" />
                     <span className="truncate">{r?.product?.name ?? (productId ? "Loading…" : "Select product")}</span>
                     {r?.product?.sku && <span className="text-muted-foreground ml-2 text-xs">· {r.product.sku}</span>}
@@ -258,29 +288,63 @@ function ProductProfitabilityPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">From</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-10 mt-1" />
+            <div className="md:col-span-4">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <CalendarIcon className="h-3 w-3" /> DATE RANGE
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start font-normal h-10">
+                    <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span className="truncate">
+                      {format(isoToDate(dateFrom), "dd MMM yyyy")} — {format(isoToDate(dateTo), "dd MMM yyyy")}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="flex">
+                    <div className="border-r p-2 w-[160px] flex flex-col gap-0.5 bg-muted/20">
+                      {DATE_PRESETS.map((p) => (
+                        <Button
+                          key={p.key}
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start h-8 text-xs font-normal"
+                          onClick={() => { const [a,b] = p.range(); setDateFrom(a); setDateTo(b); }}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="p-2">
+                      <Calendar
+                        mode="range"
+                        numberOfMonths={2}
+                        defaultMonth={isoToDate(dateFrom)}
+                        selected={{ from: isoToDate(dateFrom), to: isoToDate(dateTo) }}
+                        onSelect={(range) => {
+                          if (range?.from) setDateFrom(dateToIso(range.from));
+                          if (range?.to) setDateTo(dateToIso(range.to));
+                        }}
+                        className={cn("p-0 pointer-events-auto")}
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">To</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-10 mt-1" />
-            </div>
-            <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Date Basis</Label>
+            <div className="md:col-span-3">
+              <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <BarChart3 className="h-3 w-3" /> DATE BASIS
+              </Label>
               <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as typeof dateBasis)}>
-                <SelectTrigger className="h-10 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="created">Order created</SelectItem>
                   <SelectItem value="confirmed">Confirmed at</SelectItem>
                   <SelectItem value="delivered">Delivered at</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="md:col-span-2 flex gap-1.5">
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(7)); setDateTo(todayIso()); }}>7d</Button>
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(30)); setDateTo(todayIso()); }}>30d</Button>
-              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(90)); setDateTo(todayIso()); }}>90d</Button>
             </div>
           </div>
         </CardContent>
@@ -390,33 +454,8 @@ function ProductProfitabilityPage() {
             </Card>
           </div>
 
-          {/* Revenue + Cost summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600" /> Revenue</CardTitle></CardHeader>
-              <CardContent className="text-sm">
-                <Row label="Gross product revenue" v={r.revenue.gross} />
-                <Row label="Delivery collected" v={r.revenue.delivery_collected} />
-                <Row label="Discount given" v={-r.revenue.discount} />
-                <Row label="Refund (delivered)" v={-r.revenue.refund} />
-                <Row label="Net payable" v={r.revenue.net_payable} bold />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-600" /> Costs</CardTitle></CardHeader>
-              <CardContent className="text-sm">
-                <Row label="COGS (unit cost × delivered)" v={r.cost.cogs} />
-                <Row label="Courier (out)" v={r.cost.courier_out} />
-                <Row label="Courier (return)" v={r.cost.courier_return} />
-                <Row label="Packaging" v={r.cost.packaging} />
-                <Row label="Return loss" v={r.cost.return_loss} />
-                <Row label="Exchange loss" v={r.cost.exchange_loss} />
-                <Row label="Damage loss" v={r.cost.damage_loss} />
-                <Row label="Meta ads" v={r.cost.meta_ads} />
-                <Row label="Marketing / content" v={r.cost.marketing_content} />
-              </CardContent>
-            </Card>
-          </div>
+          {/* P&L Statement */}
+          <PnLStatement r={r} />
 
           {/* Tabs: Sources / Items / Returns / Exchanges / Marketing */}
           <Card className="border-border/60 shadow-sm">
@@ -556,29 +595,7 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="marketing" className="mt-3">
-                  <div className="flex justify-end mb-2">
-                    <Button size="sm" variant="outline" onClick={() => setAllocOpen(true)} disabled={!brandId || !productId}>
-                      <Plus className="h-3 w-3 mr-1" /> Allocate Expense
-                    </Button>
-                  </div>
-                  <div className="rounded border overflow-x-auto">
-                    <Table>
-                      <TableHeader><TableRow>
-                        <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Note</TableHead>
-                      </TableRow></TableHeader>
-                      <TableBody>
-                        {r.marketing.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No marketing allocations <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
-                        {r.marketing.map((m, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="whitespace-nowrap text-xs">{m.created_at?.slice(0, 10)}</TableCell>
-                            <TableCell><Badge variant="outline">{m.expense_type}</Badge></TableCell>
-                            <TableCell className="text-right">{fmtBdt(m.amount)}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{m.note ?? "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <MarketingTab marketing={r.marketing} onAllocate={() => setAllocOpen(true)} canAllocate={!!brandId && !!productId} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -641,6 +658,255 @@ function Row({ label, v, bold }: { label: string; v: number; bold?: boolean }) {
     <div className={cn("flex items-center justify-between py-1 border-b last:border-0", bold && "font-semibold pt-2")}>
       <span className="text-muted-foreground">{label}</span>
       <span className={cn("tabular-nums", v < 0 && "text-red-600")}>{fmtBdt(v)}</span>
+    </div>
+  );
+}
+
+function PnLStatement({ r }: { r: Report }) {
+  const rev = r.revenue;
+  const c = r.cost;
+  const totalRevenue = rev.gross + rev.delivery_collected;
+  const totalCosts = c.cogs + c.courier_out + c.courier_return + c.packaging + c.return_loss + c.exchange_loss + c.damage_loss + c.meta_ads + c.marketing_content + rev.discount + rev.refund;
+  const netMargin = totalRevenue > 0 ? (r.profit.net / totalRevenue) * 100 : 0;
+
+  const expenseGroups: Array<{ key: string; label: string; color: string; items: Array<{ label: string; v: number }> }> = [
+    {
+      key: "product", label: "Product Costs", color: "bg-blue-500",
+      items: [
+        { label: "COGS (unit cost × delivered)", v: c.cogs },
+        { label: "Packaging", v: c.packaging },
+      ],
+    },
+    {
+      key: "logistics", label: "Logistics", color: "bg-amber-500",
+      items: [
+        { label: "Courier — outbound", v: c.courier_out },
+        { label: "Courier — return", v: c.courier_return },
+      ],
+    },
+    {
+      key: "losses", label: "Losses & Refunds", color: "bg-red-500",
+      items: [
+        { label: "Refund (delivered)", v: rev.refund },
+        { label: "Return loss", v: c.return_loss },
+        { label: "Exchange loss", v: c.exchange_loss },
+        { label: "Damage loss", v: c.damage_loss },
+      ],
+    },
+    {
+      key: "marketing", label: "Marketing", color: "bg-violet-500",
+      items: [
+        { label: "Meta ads (allocated)", v: c.meta_ads },
+        { label: "Content / other", v: c.marketing_content },
+      ],
+    },
+    {
+      key: "discounts", label: "Discounts", color: "bg-pink-500",
+      items: [
+        { label: "Discount given", v: rev.discount },
+      ],
+    },
+  ];
+
+  const groupsWithTotals = expenseGroups
+    .map((g) => ({ ...g, total: g.items.reduce((s, i) => s + (i.v || 0), 0) }))
+    .filter((g) => g.total > 0 || g.items.some((i) => i.v > 0));
+  const maxGroup = Math.max(1, ...groupsWithTotals.map((g) => g.total));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+      {/* Revenue card */}
+      <Card className="lg:col-span-2 border-emerald-500/20 overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-500/10 to-transparent px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                <Wallet className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Revenue</div>
+                <div className="text-xl font-bold text-emerald-600 tabular-nums">{fmtBdt(totalRevenue)}</div>
+              </div>
+            </div>
+            <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-emerald-500/20">INCOME</Badge>
+          </div>
+        </div>
+        <CardContent className="pt-3 text-sm space-y-0">
+          <Row label="Gross product revenue" v={rev.gross} />
+          <Row label="Delivery collected" v={rev.delivery_collected} />
+          <Separator className="my-2" />
+          <Row label="Net payable (after discount & refund)" v={rev.net_payable} bold />
+        </CardContent>
+      </Card>
+
+      {/* Expenses grouped */}
+      <Card className="lg:col-span-3 border-red-500/20 overflow-hidden">
+        <div className="bg-gradient-to-br from-red-500/10 to-transparent px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-red-500/15 text-red-600 flex items-center justify-center">
+                <Receipt className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Expenses</div>
+                <div className="text-xl font-bold text-red-600 tabular-nums">{fmtBdt(totalCosts)}</div>
+              </div>
+            </div>
+            <Badge className="bg-red-500/15 text-red-700 hover:bg-red-500/15 border-red-500/20">EXPENSE</Badge>
+          </div>
+        </div>
+        <CardContent className="pt-3 space-y-3">
+          {groupsWithTotals.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-4">No expenses in range</div>
+          )}
+          {groupsWithTotals.map((g) => {
+            const pctOfTotal = totalCosts > 0 ? (g.total / totalCosts) * 100 : 0;
+            const barPct = (g.total / maxGroup) * 100;
+            return (
+              <div key={g.key} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={cn("h-2 w-2 rounded-full", g.color)} />
+                    <span className="text-sm font-medium">{g.label}</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{pctOfTotal.toFixed(1)}%</span>
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums">{fmtBdt(g.total)}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all", g.color)} style={{ width: `${barPct}%` }} />
+                </div>
+                <div className="pl-4 space-y-0.5 text-xs">
+                  {g.items.filter((i) => i.v > 0).map((i, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-muted-foreground py-0.5">
+                      <span>{i.label}</span>
+                      <span className="tabular-nums">{fmtBdt(i.v)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Bottom-line summary */}
+      <Card className={cn("lg:col-span-5 overflow-hidden border-2", r.profit.net >= 0 ? "border-emerald-500/30" : "border-red-500/30")}>
+        <div className={cn("px-5 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 bg-gradient-to-r", r.profit.net >= 0 ? "from-emerald-500/10 via-background to-blue-500/5" : "from-red-500/10 via-background to-amber-500/5")}>
+          <PnLPill label="Revenue" value={fmtBdt(totalRevenue)} tone="emerald" icon={Wallet} />
+          <PnLOp op="−" />
+          <PnLPill label="Expenses" value={fmtBdt(totalCosts)} tone="red" icon={Receipt} />
+          <PnLOp op="=" />
+          <PnLPill
+            label={r.profit.net >= 0 ? "Net Profit" : "Net Loss"}
+            value={fmtBdt(Math.abs(r.profit.net))}
+            sub={`Margin ${netMargin.toFixed(1)}%`}
+            tone={r.profit.net >= 0 ? "emerald" : "red"}
+            icon={r.profit.net >= 0 ? TrendingUp : TrendingDown}
+            big
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PnLOp({ op }: { op: string }) {
+  return <div className="hidden md:flex items-center justify-center text-2xl font-light text-muted-foreground">{op}</div>;
+}
+
+function PnLPill({ label, value, sub, tone, icon: Icon, big }: { label: string; value: string; sub?: string; tone: "emerald" | "red"; icon: typeof Package; big?: boolean }) {
+  const text = tone === "emerald" ? "text-emerald-600" : "text-red-600";
+  const bg = tone === "emerald" ? "bg-emerald-500/15" : "bg-red-500/15";
+  return (
+    <div className="flex items-center gap-3">
+      <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", bg, text)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">{label}</div>
+        <div className={cn("tabular-nums tracking-tight", big ? "text-2xl font-bold" : "text-lg font-semibold", text)}>{value}</div>
+        {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Report["marketing"]; onAllocate: () => void; canAllocate: boolean }) {
+  const total = marketing.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+  const byType = useMemo(() => {
+    const m = new Map<string, { total: number; count: number }>();
+    for (const x of marketing) {
+      const t = x.expense_type || "other";
+      const cur = m.get(t) || { total: 0, count: 0 };
+      cur.total += Number(x.amount) || 0;
+      cur.count += 1;
+      m.set(t, cur);
+    }
+    return Array.from(m.entries()).map(([type, v]) => ({ type, ...v })).sort((a, b) => b.total - a.total);
+  }, [marketing]);
+
+  const sorted = useMemo(
+    () => [...marketing].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")),
+    [marketing],
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="secondary" className="font-normal">Total: <span className="font-semibold ml-1 tabular-nums">{fmtBdt(total)}</span></Badge>
+          {byType.map((g) => (
+            <Badge key={g.type} variant="outline" className="font-normal gap-1.5">
+              <span className="capitalize">{g.type}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="tabular-nums">{fmtBdt(g.total)}</span>
+              <span className="text-[10px] text-muted-foreground">({g.count})</span>
+            </Badge>
+          ))}
+        </div>
+        <Button size="sm" variant="outline" onClick={onAllocate} disabled={!canAllocate}>
+          <Plus className="h-3 w-3 mr-1" /> Allocate Expense
+        </Button>
+      </div>
+
+      {byType.length > 0 && (
+        <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+          {byType.map((g) => {
+            const pct = total > 0 ? (g.total / total) * 100 : 0;
+            return (
+              <div key={g.type} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="capitalize font-medium flex items-center gap-1.5"><Megaphone className="h-3 w-3 text-violet-500" /> {g.type}</span>
+                  <span className="tabular-nums text-muted-foreground">{fmtBdt(g.total)} <span className="ml-1 text-[10px]">({pct.toFixed(0)}%)</span></span>
+                </div>
+                <Progress value={pct} className="h-1.5" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="rounded border overflow-x-auto">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead className="w-28">Date</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Note</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {sorted.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No marketing allocations <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
+            {sorted.map((m, i) => (
+              <TableRow key={i}>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">{m.created_at?.slice(0, 10)}</TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{m.expense_type}</Badge></TableCell>
+                <TableCell className="text-right tabular-nums font-medium">{fmtBdt(m.amount)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-md truncate">{m.note ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
