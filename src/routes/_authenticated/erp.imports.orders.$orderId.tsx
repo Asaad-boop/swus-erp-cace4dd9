@@ -797,7 +797,7 @@ function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent:
   );
 }
 
-function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: string; onClose: () => void }) {
+function PaymentDialog({ poId, brandId, grandTotal, dueAmount, onClose }: { poId: string; brandId: string; grandTotal: number; dueAmount: number; onClose: () => void }) {
   const fn = useServerFn(recordImportPayment);
   const qc = useQueryClient();
   const { data: wallets = [] } = useAccounts(brandId);
@@ -831,10 +831,13 @@ function PaymentDialog({ poId, brandId, onClose }: { poId: string; brandId: stri
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Amount (BDT)</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-            <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          </div>
+          <AmountPercentInput
+            total={dueAmount > 0 ? dueAmount : grandTotal}
+            amount={amount}
+            onChange={setAmount}
+            label={`Amount (BDT) — ${dueAmount > 0 ? `due ${fmtBdt(dueAmount)}` : `total ${fmtBdt(grandTotal)}`}`}
+          />
+          <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div>
             <Label>Wallet</Label>
             <Select value={walletId} onValueChange={setWalletId}>
