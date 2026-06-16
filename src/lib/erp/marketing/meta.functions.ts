@@ -292,8 +292,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
@@ -303,15 +302,15 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
 
     const { metaListInsights, extractPurchaseStats } = await import("./meta.server");
 
-    const { data: campRows } = await supabaseAdmin
+    const { data: campRows } = await context.supabase
       .from("marketing_campaigns")
       .select("id, external_campaign_id")
       .eq("ad_account_id", acc.id);
-    const { data: asetRows } = await supabaseAdmin
+    const { data: asetRows } = await context.supabase
       .from("marketing_adsets")
       .select("id, external_adset_id")
       .eq("ad_account_id", acc.id);
-    const { data: adRows } = await supabaseAdmin
+    const { data: adRows } = await context.supabase
       .from("marketing_ads")
       .select("id, external_ad_id")
       .eq("ad_account_id", acc.id);
@@ -358,7 +357,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
         });
         // The unique index is on a COALESCE() expression so PostgREST can't target it.
         // Strategy: delete the (account, level, date-range) slice first, then bulk insert.
-        const delRes = await supabaseAdmin
+        const delRes = await context.supabase
           .from("marketing_insights_daily")
           .delete()
           .eq("ad_account_id", acc.id)
@@ -369,7 +368,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
           errors.push(`${level} delete: ${delRes.error.message}`);
           continue;
         }
-        const insRes = await supabaseAdmin.from("marketing_insights_daily").insert(upserts);
+        const insRes = await context.supabase.from("marketing_insights_daily").insert(upserts);
         if (insRes.error) errors.push(`${level} insert: ${insRes.error.message}`);
         else totals[level] = upserts.length;
       } catch (e: any) {
@@ -377,7 +376,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin
+    await context.supabase
       .from("marketing_ad_accounts")
       .update({
         last_synced_at: new Date().toISOString(),
