@@ -441,3 +441,28 @@ export const disconnectMetaAccount = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+export const getMarketingSetupStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brand_id: string }) => z.object({ brand_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [accounts, campaigns, adsets, ads, insights] = await Promise.all([
+      supabaseAdmin.from("marketing_ad_accounts").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      supabaseAdmin.from("marketing_campaigns").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      supabaseAdmin.from("marketing_adsets").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      supabaseAdmin.from("marketing_ads").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      supabaseAdmin.from("marketing_insights_daily").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+    ]);
+    for (const r of [accounts, campaigns, adsets, ads, insights]) {
+      if (r.error) throw new Error(r.error.message);
+    }
+    return {
+      accounts: accounts.count ?? 0,
+      campaigns: campaigns.count ?? 0,
+      adsets: adsets.count ?? 0,
+      ads: ads.count ?? 0,
+      insights: insights.count ?? 0,
+    };
+  });
