@@ -13,12 +13,15 @@ export type Brand = {
 type BrandContextValue = {
   brands: Brand[];
   activeBrand: Brand | null;
-  setActiveBrandId: (id: string) => void;
+  setActiveBrandId: (id: string | "all") => void;
+  isAllBrands: boolean;
+  brandIds: string[]; // all active brand ids when isAllBrands, else [activeBrand.id]
   isLoading: boolean;
 };
 
 const BrandContext = createContext<BrandContextValue | null>(null);
 const STORAGE_KEY = "erp.activeBrandId";
+const ALL = "all";
 
 export function BrandProvider({ children }: { children: ReactNode }) {
   const { data: brands = [], isLoading } = useQuery({
@@ -37,33 +40,32 @@ export function BrandProvider({ children }: { children: ReactNode }) {
 
   const [activeBrandId, setActiveBrandIdState] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(STORAGE_KEY) ?? ALL;
   });
 
   useEffect(() => {
     if (brands.length === 0) return;
-
-    const savedBrandExists = activeBrandId ? brands.some((b) => b.id === activeBrandId) : false;
-
-    if (!activeBrandId || !savedBrandExists) {
-      const defaultId = brands.find((b) => b.slug === "hobby-shop")?.id ?? brands[0].id;
-      setActiveBrandIdState(defaultId);
-      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, defaultId);
+    if (activeBrandId === ALL) return;
+    const exists = activeBrandId ? brands.some((b) => b.id === activeBrandId) : false;
+    if (!activeBrandId || !exists) {
+      // Default to ALL so multi-brand reporting is on by default
+      setActiveBrandIdState(ALL);
+      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, ALL);
     }
   }, [brands, activeBrandId]);
 
-  const setActiveBrandId = (id: string) => {
+  const setActiveBrandId = (id: string | "all") => {
     setActiveBrandIdState(id);
     if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, id);
   };
 
   const value = useMemo<BrandContextValue>(
-    () => ({
-      brands,
-      activeBrand: brands.find((b) => b.id === activeBrandId) ?? null,
-      setActiveBrandId,
-      isLoading,
-    }),
+    () => {
+      const isAllBrands = activeBrandId === ALL;
+      const activeBrand = isAllBrands ? null : (brands.find((b) => b.id === activeBrandId) ?? null);
+      const brandIds = isAllBrands ? brands.map((b) => b.id) : activeBrand ? [activeBrand.id] : [];
+      return { brands, activeBrand, setActiveBrandId, isAllBrands, brandIds, isLoading };
+    },
     [brands, activeBrandId, isLoading],
   );
 
