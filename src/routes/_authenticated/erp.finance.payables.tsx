@@ -251,11 +251,13 @@ function NewBillDialog({ brandId, suppliers, coa, onClose, onSaved }: {
       if (!expAcct) throw new Error("Pick expense account");
       const ap = apAcct || apDefault?.id;
       if (!ap) throw new Error("Pick an A/P liability account");
-      const { error } = await supabase.rpc("create_bill", {
+      const args: Record<string, unknown> = {
         _brand_id: brandId, _supplier_id: supplierId, _bill_no: billNo, _bill_date: billDate,
-        _due_date: dueDate || undefined, _amount: amt, _expense_account_id: expAcct,
-        _ap_account_id: ap, _description: desc || undefined,
-      });
+        _amount: amt, _expense_account_id: expAcct, _ap_account_id: ap,
+      };
+      if (dueDate) args._due_date = dueDate;
+      if (desc) args._description = desc;
+      const { error } = await supabase.rpc("create_bill", args as never);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Bill created"); onSaved(); onClose(); },
