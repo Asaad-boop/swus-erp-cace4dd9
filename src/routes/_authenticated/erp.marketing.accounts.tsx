@@ -1,27 +1,60 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Plug, RefreshCw, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Wifi,
+  Pencil,
+  AlertCircle,
+  MoreVertical,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
-  listAvailableMetaAccounts,
   listConnectedAdAccounts,
-  connectAdAccount,
-  disconnectAdAccount,
+  createAdAccount,
+  updateAdAccount,
+  deleteAdAccount,
+  toggleAdAccountStatus,
+  testAdAccountConnection,
   syncAdAccountStructure,
   syncAdAccountInsights,
 } from "@/lib/erp/marketing/meta.functions";
@@ -30,20 +63,21 @@ export const Route = createFileRoute("/_authenticated/erp/marketing/accounts")({
   component: AdAccountsPage,
 });
 
-function statusBadge(status: string | null) {
-  switch (status) {
-    case "active":
-      return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Active</Badge>;
-    case "paused":
-      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Paused</Badge>;
-    case "error":
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Error</Badge>;
-    case "disconnected":
-      return <Badge variant="secondary">Disconnected</Badge>;
-    default:
-      return <Badge variant="outline">{status ?? "—"}</Badge>;
-  }
-}
+type AccountRow = {
+  id: string;
+  name: string;
+  external_id: string;
+  currency: string | null;
+  status: string;
+  app_id: string | null;
+  usd_to_bdt_rate: number | string;
+  business_id: string | null;
+  has_access_token: boolean;
+  has_app_secret: boolean;
+  last_structure_sync_at: string | null;
+  last_insights_sync_at: string | null;
+  last_error: string | null;
+};
 
 function fmtAgo(iso: string | null) {
   if (!iso) return "Never";
@@ -54,59 +88,76 @@ function fmtAgo(iso: string | null) {
   }
 }
 
+function statusPill(status: string) {
+  if (status === "active")
+    return <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">Active</Badge>;
+  if (status === "paused")
+    return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Paused</Badge>;
+  if (status === "error")
+    return <Badge className="bg-red-500 text-white hover:bg-red-500">Error</Badge>;
+  return <Badge variant="secondary">{status}</Badge>;
+}
+
 function AdAccountsPage() {
   const qc = useQueryClient();
   const { activeBrand } = useBrand();
   const brandId = activeBrand?.id ?? null;
 
-  const listConnected = useServerFn(listConnectedAdAccounts);
-  const listAvailable = useServerFn(listAvailableMetaAccounts);
-  const connectFn = useServerFn(connectAdAccount);
-  const disconnectFn = useServerFn(disconnectAdAccount);
+  const listFn = useServerFn(listConnectedAdAccounts);
+  const toggleFn = useServerFn(toggleAdAccountStatus);
+  const deleteFn = useServerFn(deleteAdAccount);
+  const testFn = useServerFn(testAdAccountConnection);
   const syncStructureFn = useServerFn(syncAdAccountStructure);
   const syncInsightsFn = useServerFn(syncAdAccountInsights);
 
-  const connectedQ = useQuery({
+  const q = useQuery({
     queryKey: ["mkt", "accounts", brandId],
-    queryFn: () => listConnected({ data: { brandId: brandId! } }),
+    queryFn: () => listFn({ data: { brandId: brandId! } }),
     enabled: !!brandId,
   });
 
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<AccountRow | null>(null);
+  const [confirmDel, setConfirmDel] = useState<AccountRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const availableQ = useQuery({
-    queryKey: ["mkt", "available-accounts", brandId],
-    queryFn: () => listAvailable({ data: { brandId: brandId! } }),
-    enabled: pickerOpen && !!brandId,
-    staleTime: 30_000,
-  });
-
-  const connectMut = useMutation({
-    mutationFn: (acc: { externalId: string; name: string; currency: string | null; timezone: string | null; businessId: string | null }) =>
-      connectFn({ data: { brandId: brandId!, ...acc } }),
+  const toggleMut = useMutation({
+    mutationFn: (v: { id: string; active: boolean }) =>
+      toggleFn({ data: { accountId: v.id, active: v.active } }),
     onSuccess: () => {
-      toast.success("Ad account connected");
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
-      qc.invalidateQueries({ queryKey: ["mkt", "available-accounts", brandId] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Connect failed"),
-  });
-
-  const disconnectMut = useMutation({
-    mutationFn: (accountId: string) => disconnectFn({ data: { accountId } }),
-    onSuccess: () => {
-      toast.success("Disconnected");
       qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Disconnect failed"),
+    onError: (e: any) => toast.error(e?.message ?? "Toggle failed"),
   });
 
-  async function runSync(accountId: string) {
-    setBusyId(accountId);
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { accountId: id } }),
+    onSuccess: () => {
+      toast.success("Account removed");
+      setConfirmDel(null);
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
+  });
+
+  async function testStored(acc: AccountRow) {
+    setBusyId(acc.id);
     try {
-      const s = await syncStructureFn({ data: { accountId } });
-      const i = await syncInsightsFn({ data: { accountId, days: 3 } });
+      const res = await testFn({ data: { accountId: acc.id } });
+      toast.success(`Connected • ${res.info.name} • ${res.info.currency}`);
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Connection failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function syncOne(acc: AccountRow) {
+    setBusyId(acc.id);
+    try {
+      const s = await syncStructureFn({ data: { accountId: acc.id } });
+      const i = await syncInsightsFn({ data: { accountId: acc.id, days: 3 } });
       toast.success(`Synced • structure ${s.rows} • insights ${i.rows}`);
       qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
     } catch (e: any) {
@@ -126,176 +177,434 @@ function AdAccountsPage() {
     );
   }
 
-  const accounts = connectedQ.data ?? [];
+  const accounts = (q.data ?? []) as AccountRow[];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Meta Ad Accounts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Meta Ads API Accounts</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Connected Meta ad accounts for <span className="font-medium">{activeBrand?.name}</span>. Sync pulls campaigns, adsets, ads and last 3 days of insights.
+            Manage your Meta Ads API accounts for{" "}
+            <span className="font-medium">{activeBrand?.name}</span>. Per-account credentials (App
+            ID/Secret, Access Token, Ad Account ID, USD→BDT rate).
           </p>
         </div>
-        <Button onClick={() => setPickerOpen(true)} className="gap-2">
-          <Plug className="h-4 w-4" /> Connect Account
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setEditorOpen(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" /> Add New Account
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Connected Accounts</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {connectedQ.isLoading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Loading…
+      {q.isLoading ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Loading…
+          </CardContent>
+        </Card>
+      ) : accounts.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="text-sm text-muted-foreground mb-4">
+              Kono ad account add kora nei.
             </div>
-          ) : accounts.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Kono ad account connect kora nei. <span className="font-medium">Connect Account</span> chap diye start korun.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Structure sync</TableHead>
-                  <TableHead>Insights sync</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accounts.map((a: any) => (
-                  <TableRow key={a.id}>
-                    <TableCell>
-                      <div className="font-medium">{a.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{a.external_id}</div>
-                      {a.last_error ? (
-                        <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> {a.last_error}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{statusBadge(a.status)}</TableCell>
-                    <TableCell className="text-sm">{a.currency ?? "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{fmtAgo(a.last_structure_sync_at)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{fmtAgo(a.last_insights_sync_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => runSync(a.id)}
-                          disabled={busyId === a.id}
-                          className="gap-1.5"
-                        >
-                          {busyId === a.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          )}
-                          Sync
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            if (confirm(`Disconnect ${a.name}?`)) disconnectMut.mutate(a.id);
-                          }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setEditorOpen(true);
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" /> Add your first account
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {accounts.map((acc) => (
+            <Card key={acc.id} className="overflow-hidden">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-base truncate">{acc.name}</div>
+                    <div className="text-xs font-mono text-muted-foreground truncate">
+                      {acc.external_id}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-1">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditing(acc);
+                          setEditorOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => syncOne(acc)} disabled={busyId === acc.id}>
+                        <RefreshCw className="h-3.5 w-3.5 mr-2" /> Sync now
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => setConfirmDel(acc)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Connect a Meta Ad Account</DialogTitle>
-            <DialogDescription>
-              These are the accounts available under your Meta system user token.
-              Pick one to link with <span className="font-medium">{activeBrand?.name}</span>.
-            </DialogDescription>
-          </DialogHeader>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <span className="text-muted-foreground">USD Rate:</span>
+                  <span className="text-right font-medium">{Number(acc.usd_to_bdt_rate)} BDT</span>
+                  <span className="text-muted-foreground">Currency:</span>
+                  <span className="text-right font-medium">{acc.currency ?? "—"}</span>
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="text-right">{statusPill(acc.status)}</span>
+                  <span className="text-muted-foreground">Structure sync:</span>
+                  <span className="text-right text-xs text-muted-foreground">
+                    {fmtAgo(acc.last_structure_sync_at)}
+                  </span>
+                  <span className="text-muted-foreground">Insights sync:</span>
+                  <span className="text-right text-xs text-muted-foreground">
+                    {fmtAgo(acc.last_insights_sync_at)}
+                  </span>
+                </div>
 
-          {availableQ.isLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Fetching from Meta…
-            </div>
-          ) : availableQ.isError ? (
-            <div className="py-6 text-sm text-red-600">
-              {(availableQ.error as any)?.message ?? "Failed to load Meta accounts. Check META_SYSTEM_USER_TOKEN secret."}
-            </div>
-          ) : (
-            <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Currency</TableHead>
-                    <TableHead>Business</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(availableQ.data ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
-                        No accounts found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (availableQ.data ?? []).map((a: any) => (
-                      <TableRow key={a.external_id}>
-                        <TableCell>
-                          <div className="font-medium">{a.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{a.external_id}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">{a.currency ?? "—"}</TableCell>
-                        <TableCell className="text-sm">{a.business ?? "—"}</TableCell>
-                        <TableCell className="text-right">
-                          {a.connected ? (
-                            <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-                            </span>
-                          ) : (
-                            <Button
-                              size="sm"
-                              disabled={connectMut.isPending}
-                              onClick={() =>
-                                connectMut.mutate({
-                                  externalId: a.external_id,
-                                  name: a.name,
-                                  currency: a.currency,
-                                  timezone: a.timezone,
-                                  businessId: a.business_id,
-                                })
-                              }
-                            >
-                              Connect
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                {acc.last_error ? (
+                  <div className="rounded-md bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 flex items-start gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                    <span className="break-words">{acc.last_error}</span>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between border-t pt-3 gap-2">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <Switch
+                      checked={acc.status === "active"}
+                      onCheckedChange={(v) => toggleMut.mutate({ id: acc.id, active: v })}
+                    />
+                    Toggle status
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={busyId === acc.id || !acc.has_access_token}
+                    onClick={() => testStored(acc)}
+                  >
+                    {busyId === acc.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Wifi className="h-3.5 w-3.5" />
+                    )}
+                    Test Connection
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <AccountEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        brandId={brandId}
+        editing={editing}
+        onSaved={() => {
+          setEditorOpen(false);
+          setEditing(null);
+          qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+        }}
+      />
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDel?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Eta ad account er credential remove korbe. Already-synced campaigns, ads, ar insights
+              database e thakbe (account_id null hoye jabe na — cascade off). Sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => confirmDel && delMut.mutate(confirmDel.id)}
+            >
+              {delMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function AccountEditor({
+  open,
+  onOpenChange,
+  brandId,
+  editing,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  brandId: string;
+  editing: AccountRow | null;
+  onSaved: () => void;
+}) {
+  const isEdit = !!editing;
+  const createMut = useServerFn(createAdAccount);
+  const updateMut = useServerFn(updateAdAccount);
+  const testMut = useServerFn(testAdAccountConnection);
+
+  const [form, setForm] = useState({
+    name: "",
+    appId: "",
+    appSecret: "",
+    accessToken: "",
+    adAccountId: "",
+    usdToBdtRate: "110",
+    active: true,
+  });
+  const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        name: editing?.name ?? "",
+        appId: editing?.app_id ?? "",
+        appSecret: "",
+        accessToken: "",
+        adAccountId: editing?.external_id ?? "",
+        usdToBdtRate: editing ? String(editing.usd_to_bdt_rate) : "110",
+        active: editing ? editing.status === "active" : true,
+      });
+    }
+  }, [open, editing]);
+
+  const canSubmit = useMemo(() => {
+    if (!form.name.trim() || !form.adAccountId.trim()) return false;
+    if (!isEdit && form.accessToken.trim().length < 20) return false;
+    if (!/^\d+$/.test(form.adAccountId.trim())) return false;
+    if (!(Number(form.usdToBdtRate) > 0)) return false;
+    return true;
+  }, [form, isEdit]);
+
+  async function handleTest() {
+    if (isEdit && !form.accessToken.trim() && editing) {
+      // Test stored credentials
+      setTesting(true);
+      try {
+        const res = await testMut({ data: { accountId: editing.id } });
+        toast.success(`OK • ${res.info.name} • ${res.info.currency}`);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed");
+      } finally {
+        setTesting(false);
+      }
+      return;
+    }
+    if (!form.accessToken.trim() || !/^\d+$/.test(form.adAccountId.trim())) {
+      toast.error("Access token ar Ad Account ID dorkar");
+      return;
+    }
+    setTesting(true);
+    try {
+      const res = await testMut({
+        data: { accessToken: form.accessToken.trim(), adAccountId: form.adAccountId.trim() },
+      });
+      toast.success(`OK • ${res.info.name} • ${res.info.currency}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (isEdit && editing) {
+        await updateMut({
+          data: {
+            accountId: editing.id,
+            name: form.name.trim(),
+            appId: form.appId.trim() || null,
+            appSecret: form.appSecret.trim() || null,
+            accessToken: form.accessToken.trim() || null,
+            adAccountId: form.adAccountId.trim(),
+            usdToBdtRate: Number(form.usdToBdtRate),
+            active: form.active,
+          },
+        });
+        toast.success("Account updated");
+      } else {
+        await createMut({
+          data: {
+            brandId,
+            name: form.name.trim(),
+            appId: form.appId.trim() || null,
+            appSecret: form.appSecret.trim() || null,
+            accessToken: form.accessToken.trim(),
+            adAccountId: form.adAccountId.trim(),
+            usdToBdtRate: Number(form.usdToBdtRate),
+            active: form.active,
+          },
+        });
+        toast.success("Account added");
+      }
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit" : "Add"} Meta Ads Account</DialogTitle>
+          <DialogDescription>
+            Enter your Meta Ads API credentials to track ad expenses
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="name">Account Name</Label>
+            <Input
+              id="name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Ecomdrive_SS"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              A friendly name to identify this account
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="appId">App ID</Label>
+              <Input
+                id="appId"
+                value={form.appId}
+                onChange={(e) => setForm((f) => ({ ...f, appId: e.target.value }))}
+                placeholder="1234567890"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Your Meta App ID</p>
+            </div>
+            <div>
+              <Label htmlFor="appSecret">App Secret</Label>
+              <Input
+                id="appSecret"
+                type="password"
+                value={form.appSecret}
+                onChange={(e) => setForm((f) => ({ ...f, appSecret: e.target.value }))}
+                placeholder={isEdit && editing?.has_app_secret ? "•••••••• (saved)" : ""}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Your Meta App Secret</p>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="token">Access Token</Label>
+            <Input
+              id="token"
+              type="password"
+              value={form.accessToken}
+              onChange={(e) => setForm((f) => ({ ...f, accessToken: e.target.value }))}
+              placeholder={
+                isEdit && editing?.has_access_token
+                  ? "•••••••• (saved — leave blank to keep)"
+                  : "EAAB..."
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Long-lived System User Access Token
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="actId">Ad Account ID</Label>
+              <Input
+                id="actId"
+                value={form.adAccountId}
+                onChange={(e) => setForm((f) => ({ ...f, adAccountId: e.target.value }))}
+                placeholder="719581961171714"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Without the "act_" prefix
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="rate">USD to BDT Rate</Label>
+              <Input
+                id="rate"
+                type="number"
+                step="0.01"
+                value={form.usdToBdtRate}
+                onChange={(e) => setForm((f) => ({ ...f, usdToBdtRate: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Current conversion rate</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <div className="font-medium text-sm">Active Status</div>
+              <div className="text-xs text-muted-foreground">Enable or disable this account</div>
+            </div>
+            <Switch
+              checked={form.active}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <div className="font-medium text-sm">Connection Status</div>
+              <div className="text-xs text-muted-foreground">Test your credentials before saving</div>
+            </div>
+            <Button variant="outline" onClick={handleTest} disabled={testing} className="gap-2">
+              {testing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wifi className="h-4 w-4" />
+              )}
+              Test Connection
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!canSubmit || saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isEdit ? "Update" : "Add"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

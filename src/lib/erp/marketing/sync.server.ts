@@ -70,7 +70,9 @@ export async function runStructureSync(supabase: any, accountId: string) {
     .eq("id", accountId)
     .single();
   if (accErr || !acc) throw new Error("Ad account not found");
+  if (!acc.access_token) throw new Error("Access token missing — edit account and add token");
   const act = actId(acc.external_id);
+  const tok = acc.access_token as string;
 
   try {
     return await withSyncLog(supabase, {
@@ -79,9 +81,9 @@ export async function runStructureSync(supabase: any, accountId: string) {
       kind: "structure",
       run: async () => {
         const [camps, adsets, ads] = await Promise.all([
-          listCampaigns(act),
-          listAdsets(act),
-          listAds(act),
+          listCampaigns(act, tok),
+          listAdsets(act, tok),
+          listAds(act, tok),
         ]);
 
         if (camps.length) {
@@ -204,7 +206,9 @@ export async function runInsightsSync(
     .eq("id", accountId)
     .single();
   if (accErr || !acc) throw new Error("Ad account not found");
+  if (!acc.access_token) throw new Error("Access token missing — edit account and add token");
   const act = actId(acc.external_id);
+  const tok = acc.access_token as string;
 
   const until = opts.until ?? isoDate(new Date());
   const since =
@@ -217,7 +221,7 @@ export async function runInsightsSync(
       account_id: acc.id,
       kind: "insights",
       run: async () => {
-        const insights = await getDailyInsights(act, since, until);
+        const insights = await getDailyInsights(act, since, until, tok);
 
         const [{ data: adRows }, { data: adsetRows }, { data: campRows }] = await Promise.all([
           supabase.from("mkt_ads").select("id,external_id").eq("account_id", acc.id),

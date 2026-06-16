@@ -2557,6 +2557,8 @@ export type Database = {
       mkt_ad_accounts: {
         Row: {
           access_token: string | null
+          app_id: string | null
+          app_secret: string | null
           brand_id: string
           business_id: string | null
           created_at: string
@@ -2570,9 +2572,12 @@ export type Database = {
           status: Database["public"]["Enums"]["mkt_account_status"]
           timezone: string | null
           updated_at: string
+          usd_to_bdt_rate: number
         }
         Insert: {
           access_token?: string | null
+          app_id?: string | null
+          app_secret?: string | null
           brand_id: string
           business_id?: string | null
           created_at?: string
@@ -2586,9 +2591,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["mkt_account_status"]
           timezone?: string | null
           updated_at?: string
+          usd_to_bdt_rate?: number
         }
         Update: {
           access_token?: string | null
+          app_id?: string | null
+          app_secret?: string | null
           brand_id?: string
           business_id?: string | null
           created_at?: string
@@ -2602,6 +2610,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["mkt_account_status"]
           timezone?: string | null
           updated_at?: string
+          usd_to_bdt_rate?: number
         }
         Relationships: [
           {
