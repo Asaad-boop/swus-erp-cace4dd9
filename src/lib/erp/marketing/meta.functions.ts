@@ -4,6 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD expected");
 
+declare global {
+  var __LOVABLE_RUNTIME_ENV__: Record<string, string> | undefined;
+}
+
+function getMetaToken(savedToken?: string | null) {
+  return savedToken || process.env.META_SYSTEM_USER_TOKEN || globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN || null;
+}
+
 async function assertStaff(supabase: any, userId: string) {
   const { data } = await supabase
     .from("user_roles")
