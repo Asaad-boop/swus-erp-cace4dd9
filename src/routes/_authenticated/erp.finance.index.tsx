@@ -88,7 +88,7 @@ function OverviewPage() {
       const refundOrdersQ = supabase
         .from("orders")
         .select("total")
-        .in("status", ["returned", "refunded"])
+        .in("status", ["returned", "paid_return", "unpaid_return", "partial_return"])
         .gte("created_at", `${from}T00:00:00`)
         .lte("created_at", `${to}T23:59:59.999`);
       // Accounts
