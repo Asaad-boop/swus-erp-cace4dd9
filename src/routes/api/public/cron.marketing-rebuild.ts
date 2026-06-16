@@ -32,7 +32,12 @@ export const Route = createFileRoute("/api/public/cron/marketing-rebuild")({
             p_days: days,
             p_trigger: "cron",
           });
-          results.push({ brand_id: body.brand_id, data, error: error?.message });
+          const { data: post } = await supabaseAdmin.rpc("mkt_post_meta_spend_window", {
+            p_brand_id: body.brand_id,
+            p_days: days,
+            p_force: false,
+          });
+          results.push({ brand_id: body.brand_id, rebuild: data, post, error: error?.message });
         } else {
           const { data: brands, error: bErr } = await supabaseAdmin
             .from("brands")
@@ -45,7 +50,12 @@ export const Route = createFileRoute("/api/public/cron/marketing-rebuild")({
               p_days: days,
               p_trigger: "cron",
             });
-            results.push({ brand_id: b.id, brand_name: b.name, data, error: error?.message });
+            const { data: post } = await supabaseAdmin.rpc("mkt_post_meta_spend_window", {
+              p_brand_id: b.id,
+              p_days: days,
+              p_force: false,
+            });
+            results.push({ brand_id: b.id, brand_name: b.name, rebuild: data, post, error: error?.message });
           }
         }
 
