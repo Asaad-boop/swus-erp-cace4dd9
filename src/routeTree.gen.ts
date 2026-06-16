@@ -27,6 +27,7 @@ import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_auth
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
 import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
+import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
@@ -37,9 +38,12 @@ import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/
 import { Route as AuthenticatedErpFinanceSimpleRouteImport } from './routes/_authenticated/erp.finance.simple'
 import { Route as AuthenticatedErpFinanceSettingsRouteImport } from './routes/_authenticated/erp.finance.settings'
 import { Route as AuthenticatedErpFinanceReportsRouteImport } from './routes/_authenticated/erp.finance.reports'
+import { Route as AuthenticatedErpFinanceRecurringRouteImport } from './routes/_authenticated/erp.finance.recurring'
+import { Route as AuthenticatedErpFinanceReconciliationRouteImport } from './routes/_authenticated/erp.finance.reconciliation'
 import { Route as AuthenticatedErpFinanceReceivablesRouteImport } from './routes/_authenticated/erp.finance.receivables'
 import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
+import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 
@@ -141,6 +145,12 @@ const ApiPublicCronSyncCourierRoute =
     path: '/api/public/cron/sync-courier',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRunRecurringRoute =
+  ApiPublicCronRunRecurringRouteImport.update({
+    id: '/api/public/cron/run-recurring',
+    path: '/api/public/cron/run-recurring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedErpOrdersWebRoute =
   AuthenticatedErpOrdersWebRouteImport.update({
     id: '/web',
@@ -201,6 +211,18 @@ const AuthenticatedErpFinanceReportsRoute =
     path: '/reports',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceRecurringRoute =
+  AuthenticatedErpFinanceRecurringRouteImport.update({
+    id: '/recurring',
+    path: '/recurring',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
+const AuthenticatedErpFinanceReconciliationRoute =
+  AuthenticatedErpFinanceReconciliationRouteImport.update({
+    id: '/reconciliation',
+    path: '/reconciliation',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceReceivablesRoute =
   AuthenticatedErpFinanceReceivablesRouteImport.update({
     id: '/receivables',
@@ -217,6 +239,12 @@ const AuthenticatedErpFinanceJournalRoute =
   AuthenticatedErpFinanceJournalRouteImport.update({
     id: '/journal',
     path: '/journal',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
+const AuthenticatedErpFinanceBudgetsRoute =
+  AuthenticatedErpFinanceBudgetsRouteImport.update({
+    id: '/budgets',
+    path: '/budgets',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
 const AuthenticatedErpFinanceAccountsRoute =
@@ -245,9 +273,12 @@ export interface FileRoutesByFullPath {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
+  '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
@@ -258,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
@@ -275,9 +307,12 @@ export interface FileRoutesByTo {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
+  '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
@@ -288,6 +323,7 @@ export interface FileRoutesByTo {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
@@ -311,9 +347,12 @@ export interface FileRoutesById {
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
+  '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/_authenticated/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/_authenticated/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
+  '/_authenticated/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/_authenticated/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/_authenticated/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
   '/_authenticated/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
@@ -324,6 +363,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
@@ -347,9 +387,12 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp/'
     | '/erp/finance/accounts'
+    | '/erp/finance/budgets'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
+    | '/erp/finance/reconciliation'
+    | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
     | '/erp/finance/simple'
@@ -360,6 +403,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
@@ -377,9 +421,12 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp'
     | '/erp/finance/accounts'
+    | '/erp/finance/budgets'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
+    | '/erp/finance/reconciliation'
+    | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
     | '/erp/finance/simple'
@@ -390,6 +437,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
@@ -412,9 +460,12 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
     | '/_authenticated/erp/finance/accounts'
+    | '/_authenticated/erp/finance/budgets'
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/payables'
     | '/_authenticated/erp/finance/receivables'
+    | '/_authenticated/erp/finance/reconciliation'
+    | '/_authenticated/erp/finance/recurring'
     | '/_authenticated/erp/finance/reports'
     | '/_authenticated/erp/finance/settings'
     | '/_authenticated/erp/finance/simple'
@@ -425,6 +476,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
+    | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
     | '/api/public/webhook/pathao'
@@ -438,6 +490,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicCronRunRecurringRoute: typeof ApiPublicCronRunRecurringRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
   ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
   ApiPublicWebhookPathaoRoute: typeof ApiPublicWebhookPathaoRoute
@@ -571,6 +624,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronSyncCourierRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/run-recurring': {
+      id: '/api/public/cron/run-recurring'
+      path: '/api/public/cron/run-recurring'
+      fullPath: '/api/public/cron/run-recurring'
+      preLoaderRoute: typeof ApiPublicCronRunRecurringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/erp/orders/web': {
       id: '/_authenticated/erp/orders/web'
       path: '/web'
@@ -641,6 +701,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceReportsRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/recurring': {
+      id: '/_authenticated/erp/finance/recurring'
+      path: '/recurring'
+      fullPath: '/erp/finance/recurring'
+      preLoaderRoute: typeof AuthenticatedErpFinanceRecurringRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
+    '/_authenticated/erp/finance/reconciliation': {
+      id: '/_authenticated/erp/finance/reconciliation'
+      path: '/reconciliation'
+      fullPath: '/erp/finance/reconciliation'
+      preLoaderRoute: typeof AuthenticatedErpFinanceReconciliationRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/receivables': {
       id: '/_authenticated/erp/finance/receivables'
       path: '/receivables'
@@ -662,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceJournalRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/budgets': {
+      id: '/_authenticated/erp/finance/budgets'
+      path: '/budgets'
+      fullPath: '/erp/finance/budgets'
+      preLoaderRoute: typeof AuthenticatedErpFinanceBudgetsRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/accounts': {
       id: '/_authenticated/erp/finance/accounts'
       path: '/accounts'
@@ -681,9 +762,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
+  AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
   AuthenticatedErpFinanceReceivablesRoute: typeof AuthenticatedErpFinanceReceivablesRoute
+  AuthenticatedErpFinanceReconciliationRoute: typeof AuthenticatedErpFinanceReconciliationRoute
+  AuthenticatedErpFinanceRecurringRoute: typeof AuthenticatedErpFinanceRecurringRoute
   AuthenticatedErpFinanceReportsRoute: typeof AuthenticatedErpFinanceReportsRoute
   AuthenticatedErpFinanceSettingsRoute: typeof AuthenticatedErpFinanceSettingsRoute
   AuthenticatedErpFinanceSimpleRoute: typeof AuthenticatedErpFinanceSimpleRoute
@@ -693,10 +777,15 @@ interface AuthenticatedErpFinanceRouteChildren {
 const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren =
   {
     AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
+    AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
     AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
     AuthenticatedErpFinanceReceivablesRoute:
       AuthenticatedErpFinanceReceivablesRoute,
+    AuthenticatedErpFinanceReconciliationRoute:
+      AuthenticatedErpFinanceReconciliationRoute,
+    AuthenticatedErpFinanceRecurringRoute:
+      AuthenticatedErpFinanceRecurringRoute,
     AuthenticatedErpFinanceReportsRoute: AuthenticatedErpFinanceReportsRoute,
     AuthenticatedErpFinanceSettingsRoute: AuthenticatedErpFinanceSettingsRoute,
     AuthenticatedErpFinanceSimpleRoute: AuthenticatedErpFinanceSimpleRoute,
@@ -808,6 +897,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicCronRunRecurringRoute: ApiPublicCronRunRecurringRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
   ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,
   ApiPublicWebhookPathaoRoute: ApiPublicWebhookPathaoRoute,
