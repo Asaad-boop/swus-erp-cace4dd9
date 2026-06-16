@@ -305,7 +305,13 @@ function PoDetailPage() {
         <ArrivedDialog poId={po.id} agent={po.agent} onClose={() => setArrivedOpen(false)} brandId={brandId} />
       )}
       {paymentOpen && brandId && (
-        <PaymentDialog poId={po.id} brandId={brandId} onClose={() => setPaymentOpen(false)} />
+        <PaymentDialog
+          poId={po.id}
+          brandId={brandId}
+          grandTotal={Number(po.grand_total_bdt) || 0}
+          dueAmount={Number(po.due_bdt) || 0}
+          onClose={() => setPaymentOpen(false)}
+        />
       )}
     </div>
   );
