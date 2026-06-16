@@ -1308,6 +1308,72 @@ export type Database = {
           },
         ]
       }
+      erp_finance_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          brand_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          brand_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          brand_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      erp_fx_rates: {
+        Row: {
+          brand_id: string
+          created_at: string
+          from_ccy: string
+          id: string
+          rate: number
+          rate_date: string
+          to_ccy: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          from_ccy: string
+          id?: string
+          rate: number
+          rate_date: string
+          to_ccy: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          from_ccy?: string
+          id?: string
+          rate?: number
+          rate_date?: string
+          to_ccy?: string
+        }
+        Relationships: []
+      }
       erp_journal_entries: {
         Row: {
           brand_id: string
@@ -1852,6 +1918,117 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_tax_entries: {
+        Row: {
+          brand_id: string
+          created_at: string
+          direction: string
+          entry_date: string
+          id: string
+          journal_entry_id: string | null
+          note: string | null
+          tax_amount: number
+          tax_rate_id: string
+          taxable_amount: number
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          direction: string
+          entry_date: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          tax_amount: number
+          tax_rate_id: string
+          taxable_amount: number
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          direction?: string
+          entry_date?: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          tax_amount?: number
+          tax_rate_id?: string
+          taxable_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_tax_entries_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_tax_entries_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "erp_tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_tax_rates: {
+        Row: {
+          brand_id: string
+          code: string
+          created_at: string
+          id: string
+          input_account_id: string | null
+          is_active: boolean
+          kind: string
+          name: string
+          output_account_id: string | null
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          code: string
+          created_at?: string
+          id?: string
+          input_account_id?: string | null
+          is_active?: boolean
+          kind: string
+          name: string
+          output_account_id?: string | null
+          rate: number
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          code?: string
+          created_at?: string
+          id?: string
+          input_account_id?: string | null
+          is_active?: boolean
+          kind?: string
+          name?: string
+          output_account_id?: string | null
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_tax_rates_input_account_id_fkey"
+            columns: ["input_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_tax_rates_output_account_id_fkey"
+            columns: ["output_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -3786,6 +3963,10 @@ export type Database = {
         Returns: Json
       }
       get_customer_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_fx_rate: {
+        Args: { p_brand: string; p_date: string; p_from: string; p_to: string }
+        Returns: number
+      }
       get_general_ledger: {
         Args: {
           _account_id: string
@@ -3817,6 +3998,19 @@ export type Database = {
           normal_balance: string
           total_credit: number
           total_debit: number
+        }[]
+      }
+      get_vat_summary: {
+        Args: { p_brand: string; p_from: string; p_to: string }
+        Returns: {
+          input_tax: number
+          input_taxable: number
+          net_payable: number
+          output_tax: number
+          output_taxable: number
+          rate: number
+          tax_code: string
+          tax_name: string
         }[]
       }
       hard_delete_order: { Args: { _order_id: string }; Returns: undefined }
