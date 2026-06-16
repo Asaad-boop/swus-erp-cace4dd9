@@ -393,8 +393,7 @@ export const getMetaAccountsForBrand = createServerFn({ method: "GET" })
   .inputValidator((d: { brand_id: string }) => z.object({ brand_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select(
         "id, external_account_id, account_name, currency, timezone_name, is_active, last_synced_at, last_sync_error, token_expires_at, access_token_secret_ref",
@@ -415,8 +414,7 @@ export const setMetaAccountActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ is_active: data.is_active })
       .eq("id", data.ad_account_id);
@@ -429,8 +427,7 @@ export const disconnectMetaAccount = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ access_token_secret_ref: null, is_active: false })
       .eq("id", data.ad_account_id);
@@ -443,13 +440,12 @@ export const getMarketingSetupStatus = createServerFn({ method: "POST" })
   .inputValidator((d: { brand_id: string }) => z.object({ brand_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [accounts, campaigns, adsets, ads, insights] = await Promise.all([
-      supabaseAdmin.from("marketing_ad_accounts").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_campaigns").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_adsets").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_ads").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_insights_daily").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_ad_accounts").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_campaigns").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_adsets").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_ads").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_insights_daily").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
     ]);
     for (const r of [accounts, campaigns, adsets, ads, insights]) {
       if (r.error) throw new Error(r.error.message);
