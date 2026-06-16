@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Banknote, Building2, Coins, Landmark, Plus, Smartphone, Truck, Wallet as WalletIcon, FileText } from "lucide-react";
+import { ArrowRightLeft, Banknote, Building2, Coins, Landmark, Plus, Smartphone, Truck, Wallet as WalletIcon, FileText, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,7 @@ function WalletsPage() {
 
   const [transferOpen, setTransferOpen] = useState<{ open: boolean; fromId?: string | null }>({ open: false });
   const [newAcctOpen, setNewAcctOpen] = useState(false);
+  const [editWallet, setEditWallet] = useState<Wallet | null>(null);
   const [statementFor, setStatementFor] = useState<Wallet | null>(null);
 
   const walletsQ = useQuery({
@@ -142,6 +143,9 @@ function WalletsPage() {
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setStatementFor(w)}>
                         <FileText className="h-3 w-3 mr-1" />Statement
                       </Button>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setEditWallet(w)} title="Edit / Delete">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setTransferOpen({ open: true, fromId: w.id })}>
                         <ArrowRightLeft className="h-3 w-3" />
                       </Button>
@@ -164,6 +168,7 @@ function WalletsPage() {
         />
       )}
       {brandId && <AccountForm open={newAcctOpen} onClose={() => setNewAcctOpen(false)} brandId={brandId} />}
+      {brandId && <AccountForm open={!!editWallet} onClose={() => setEditWallet(null)} brandId={brandId} editing={editWallet} />}
       <StatementDialog wallet={statementFor} onClose={() => setStatementFor(null)} />
     </div>
   );
