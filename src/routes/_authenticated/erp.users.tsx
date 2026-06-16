@@ -41,6 +41,12 @@ function UsersPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listAppUsers);
   const agentsFn = useServerFn(listAvailableCargoAgents);
+  const deleteFn = useServerFn(deleteAppUser);
+  const deleteMut = useMutation({
+    mutationFn: (vars: { userId: string }) => deleteFn({ data: vars }),
+    onSuccess: () => { toast.success("User deleted"); qc.invalidateQueries({ queryKey: ["app-users"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["app-users"],
@@ -194,12 +200,7 @@ function UsersPage() {
       )}
     </div>
   );
-
-  function _deleteWrapper() { return null; }
 }
-
-/* The delete mutation must live at the top level — extract into a hook component */
-const deleteMut = ({} as unknown) as ReturnType<typeof useMutation<{ ok: true }, Error, { userId: string }>>;
 
 /* === sub-components === */
 
