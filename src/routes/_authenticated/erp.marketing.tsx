@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp, Banknote, Search, Package, Truck, Layers, ShieldAlert } from "lucide-react";
+import { useState } from "react";
+import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp, Banknote, Search, Package, Truck, Layers, ShieldAlert, PlugZap, AlertTriangle, CheckCircle2, PlayCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useBrand } from "@/contexts/brand-context";
@@ -12,6 +14,15 @@ import {
   listRebuildJobs,
   rebuildProfitWindow,
 } from "@/lib/erp/marketing/profit.functions";
+import {
+  getMarketingSetupStatus,
+  getMetaAccountsForBrand,
+  metaConnectAdAccount,
+  metaListMyAdAccounts,
+  metaSyncInsights,
+  metaSyncStructure,
+  metaTestConnection,
+} from "@/lib/erp/marketing/meta.functions";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
