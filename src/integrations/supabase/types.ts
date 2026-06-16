@@ -572,6 +572,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "coupon_usage_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
       coupons: {
@@ -798,6 +805,250 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_ar_payments: {
+        Row: {
+          amount: number
+          ar_account_id: string | null
+          brand_id: string
+          cash_account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          order_id: string
+          payment_date: string
+          reference_no: string | null
+        }
+        Insert: {
+          amount: number
+          ar_account_id?: string | null
+          brand_id: string
+          cash_account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          order_id: string
+          payment_date?: string
+          reference_no?: string | null
+        }
+        Update: {
+          amount?: number
+          ar_account_id?: string | null
+          brand_id?: string
+          cash_account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          order_id?: string
+          payment_date?: string
+          reference_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_ar_payments_ar_account_id_fkey"
+            columns: ["ar_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ar_payments_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ar_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ar_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ar_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
+      erp_bill_payments: {
+        Row: {
+          amount: number
+          bill_id: string
+          brand_id: string
+          cash_account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          payment_date: string
+          reference_no: string | null
+        }
+        Insert: {
+          amount: number
+          bill_id: string
+          brand_id: string
+          cash_account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          reference_no?: string | null
+        }
+        Update: {
+          amount?: number
+          bill_id?: string
+          brand_id?: string
+          cash_account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          reference_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_bill_payments_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "erp_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_bill_payments_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "v_ap_outstanding"
+            referencedColumns: ["bill_id"]
+          },
+          {
+            foreignKeyName: "erp_bill_payments_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_bill_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_bills: {
+        Row: {
+          amount: number
+          ap_account_id: string | null
+          bill_date: string
+          bill_no: string
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          expense_account_id: string | null
+          id: string
+          journal_entry_id: string | null
+          paid_amount: number
+          source_id: string | null
+          source_type: string | null
+          status: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          ap_account_id?: string | null
+          bill_date?: string
+          bill_no: string
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          expense_account_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          paid_amount?: number
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          ap_account_id?: string | null
+          bill_date?: string
+          bill_no?: string
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          expense_account_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          paid_amount?: number
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_bills_ap_account_id_fkey"
+            columns: ["ap_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_bills_expense_account_id_fkey"
+            columns: ["expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_bills_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_bills_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -2040,6 +2291,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "order_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -2867,6 +3125,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "reviews_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -3066,10 +3331,98 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "reviews_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ap_outstanding: {
+        Row: {
+          age_days: number | null
+          amount: number | null
+          bill_date: string | null
+          bill_id: string | null
+          bill_no: string | null
+          brand_id: string | null
+          due_date: string | null
+          outstanding: number | null
+          paid_amount: number | null
+          status: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_bills_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ar_outstanding: {
+        Row: {
+          age_days: number | null
+          brand_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          invoice_amount: number | null
+          invoice_date: string | null
+          order_id: string | null
+          order_status: string | null
+          outstanding: number | null
+          paid: number | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          prepaid: number | null
+        }
+        Insert: {
+          age_days?: never
+          brand_id?: string | null
+          customer_name?: never
+          customer_phone?: never
+          invoice_amount?: number | null
+          invoice_date?: never
+          order_id?: string | null
+          order_status?: never
+          outstanding?: never
+          paid?: never
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          prepaid?: never
+        }
+        Update: {
+          age_days?: never
+          brand_id?: string | null
+          customer_name?: never
+          customer_phone?: never
+          invoice_amount?: number | null
+          invoice_date?: never
+          order_id?: string | null
+          order_status?: never
+          outstanding?: never
+          paid?: never
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          prepaid?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
         ]
@@ -3120,6 +3473,20 @@ export type Database = {
       append_order_status_log: {
         Args: { _entry: Json; _log_field: string; _order_id: string }
         Returns: undefined
+      }
+      create_bill: {
+        Args: {
+          _amount: number
+          _ap_account_id: string
+          _bill_date: string
+          _bill_no: string
+          _brand_id: string
+          _description?: string
+          _due_date: string
+          _expense_account_id: string
+          _supplier_id: string
+        }
+        Returns: string
       }
       create_journal_entry: {
         Args: {
@@ -3205,6 +3572,29 @@ export type Database = {
       recalc_product_rating: {
         Args: { _product_id: string }
         Returns: undefined
+      }
+      record_ar_payment: {
+        Args: {
+          _amount: number
+          _ar_account_id: string
+          _cash_account_id: string
+          _notes?: string
+          _order_id: string
+          _payment_date?: string
+          _reference_no?: string
+        }
+        Returns: string
+      }
+      record_bill_payment: {
+        Args: {
+          _amount: number
+          _bill_id: string
+          _cash_account_id: string
+          _notes?: string
+          _payment_date?: string
+          _reference_no?: string
+        }
+        Returns: string
       }
       record_courier_expense: {
         Args: { _account_id?: string; _amount: number; _shipment_id: string }
