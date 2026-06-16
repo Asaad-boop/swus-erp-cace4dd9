@@ -5409,6 +5409,7 @@ export type Database = {
         Args: { _d: string; _freq: string; _n: number }
         Returns: string
       }
+      _mkt_require_staff: { Args: never; Returns: undefined }
       acquire_order_lock: {
         Args: { _force?: boolean; _order_id: string }
         Returns: {
@@ -5492,6 +5493,58 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      get_actual_roas_daily: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          actual_roas: number
+          attributed_orders: number
+          collected: number
+          day: string
+          delivered_orders: number
+          meta_roas: number
+          net_profit: number
+          poas: number
+          revenue: number
+          spend: number
+        }[]
+      }
+      get_ad_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          actual_roas: number
+          ad_id: string
+          ad_name: string
+          attributed_orders: number
+          campaign_name: string
+          clicks: number
+          delivered_orders: number
+          external_ad_id: string
+          impressions: number
+          net_profit: number
+          poas: number
+          revenue: number
+          spend: number
+          thumbnail_url: string
+        }[]
+      }
+      get_adset_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          actual_roas: number
+          adset_id: string
+          adset_name: string
+          attributed_orders: number
+          campaign_name: string
+          clicks: number
+          delivered_orders: number
+          external_adset_id: string
+          impressions: number
+          net_profit: number
+          poas: number
+          revenue: number
+          spend: number
+        }[]
+      }
       get_balance_sheet: {
         Args: { _as_of: string; _brand_id: string }
         Returns: Json
@@ -5525,6 +5578,47 @@ export type Database = {
           sku: string
         }[]
       }
+      get_campaign_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          actual_roas: number
+          attributed_orders: number
+          campaign_id: string
+          campaign_name: string
+          clicks: number
+          collected: number
+          delivered_orders: number
+          delivery_rate: number
+          external_campaign_id: string
+          health: string
+          impressions: number
+          meta_purchases: number
+          meta_roas: number
+          meta_value: number
+          net_profit: number
+          poas: number
+          product_cost: number
+          return_rate: number
+          returned_orders: number
+          revenue: number
+          spend: number
+          status: string
+        }[]
+      }
+      get_courier_campaign_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          attributed_orders: number
+          campaign_id: string
+          campaign_name: string
+          courier_cost: number
+          delivered_orders: number
+          delivery_rate: number
+          provider: string
+          return_rate: number
+          returned_orders: number
+        }[]
+      }
       get_customer_stats: { Args: { p_user_id: string }; Returns: Json }
       get_finance_dashboard: {
         Args: { _brand_id: string; _from: string; _to: string }
@@ -5550,10 +5644,28 @@ export type Database = {
           running_balance: number
         }[]
       }
+      get_marketing_overview: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: Json
+      }
       get_order_courier_cost: { Args: { _order_id: string }; Returns: number }
       get_pl_v2: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
+      }
+      get_product_campaign_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          attributed_orders: number
+          campaign_id: string
+          campaign_name: string
+          delivered_orders: number
+          product_cost: number
+          product_id: string
+          product_name: string
+          revenue: number
+          units_sold: number
+        }[]
       }
       get_product_profitability_report: {
         Args: {
@@ -5595,6 +5707,10 @@ export type Database = {
         }[]
       }
       hard_delete_order: { Args: { _order_id: string }; Returns: undefined }
+      has_brand_access: {
+        Args: { _brand_id: string; _user_id?: string }
+        Returns: boolean
+      }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
@@ -5620,7 +5736,24 @@ export type Database = {
         Returns: undefined
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
+      normalize_mobile_bd: { Args: { p_phone: string }; Returns: string }
       reapply_invoice_prefix: { Args: { _brand_id: string }; Returns: number }
+      rebuild_all_marketing_attributions: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: number
+      }
+      rebuild_marketing_profit_snapshot: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
+      rebuild_marketing_profit_snapshots: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: number
+      }
+      rebuild_order_attribution: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
       recalc_product_rating: {
         Args: { _product_id: string }
         Returns: undefined
