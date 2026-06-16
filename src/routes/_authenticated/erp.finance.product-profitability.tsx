@@ -364,8 +364,8 @@ function ProductProfitabilityPage() {
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis dataKey="stage" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip cursor={{ fill: "hsl(var(--muted) / 0.3)" }} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
-                    <Bar dataKey="qty" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", background: "var(--card)" }} />
+                    <Bar dataKey="qty" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -381,7 +381,7 @@ function ProductProfitabilityPage() {
                       <Pie data={costPie} dataKey="value" nameKey="name" innerRadius={50} outerRadius={95} paddingAngle={2} label={(e) => fmtBdt(e.value as number)}>
                         {costPie.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
+                      <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", background: "var(--card)" }} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
