@@ -1,156 +1,174 @@
-## Goal
+# Product/SKU Profitability Report — Build Plan
 
-Tomar dewa full spec ke ja already ache (Phase 1–4: COA, Journal, AR/AP, Budget, Recurring, Reconciliation, Tax, FX, Audit) tar upor build kore ekta **complete Finance OS** banano — Owner Dashboard, Wallets, Cashbook, Expense Mgmt, COD Settlement, Import Costing, Payroll, Owner/Loan tracking, ebong 20+ report.
-
-Eta boro kaj — 6 ta phase e bhag korlam jate test korte paro step by step. Tumi shudhu "phase 5 koro" bolle phase 5 implement hobe.
+Eta boro feature. Tomar spec exact follow korbo, kintu **3 phase** e bhag korbo jate har step verify kora jay (golpo na, real data e). Onek field already ache, onek nai — niche details.
 
 ---
 
-## Phase 5 — Finance Dashboard + Brand Filter
+## Existing data audit (ki ache, ki nai)
 
-Owner-er ek nojore dekhar jonno landing page.
+`**order_items` (current columns):** id, order_id, product_id, variant_id, product_name, product_image, variant_label, sku, quantity, unit_price, line_total, weight_kg, length_cm, width_cm, height_cm, created_at, updated_at.
 
-**KPI cards** (date range + brand filter `HobbyShop / Toyora / All`):
-- Today Sales (confirmed + delivered, brand wise)
-- Cash in Hand (sum of Cash accounts)
-- Bank Balance (sum of Bank accounts)
-- bKash + Nagad Balance (MFS)
-- Courier COD Receivable (Pathao + Steadfast outstanding)
-- Supplier Payable (open AP bills)
-- Total Expense (range)
-- Net Profit (revenue − COGS − expense)
-- Refund/Damage Loss
+Missing for profitability:
 
-**Charts:**
-- 12-month revenue vs expense bar
-- Expense breakdown donut (category wise)
-- Top 5 cash accounts horizontal bar
-- Recent 10 transactions feed
+- `unit_cost_snapshot`, `line_discount_allocated`, `delivery_charge_allocated`, `courier_cost_allocated`, `packaging_cost_allocated`, `refund_amount_allocated`, `source_type`, `status_snapshot`
 
-**Files:** rewrite `erp.finance.index.tsx`, add `dashboard-kpi.tsx`, `dashboard-charts.tsx`, RPC `get_finance_dashboard(brand, from, to)`.
+`**orders`:** has `source` (text), discount_amount, shipping_fee, total, status, payment_method, brand_id, confirmed_at, delivered_at, paid_at, shipped_at — enough.
 
----
+`**courier_shipments`:** has provider, cod_amount, delivery_charge (need to verify) → courier cost source.
 
-## Phase 6 — Wallets / Accounts Hub + Transfers
+`**products`:** has `cost_price` → fallback COGS.
 
-- Account types tag: `cash / bank / mfs / courier_wallet / equity / loan`
-- Opening balance setter (creates one-time journal entry)
-- Balance transfer wizard (Cash → Bank, bKash → Bank) — auto double-entry
-- Account-wise statement (running balance ledger)
-- Balance mismatch checker (system vs manual count)
+**Missing tables:** `erp_product_expense_allocations`, `erp_exchange_cases`, `erp_return_cases`, `erp_ad_product_links` — none exist.
 
-**Files:** new `erp.finance.wallets.tsx`, `transfer-dialog.tsx`, `account-statement.tsx`. Extend `erp_accounts` with `wallet_type` enum + `opening_balance`.
+**Existing reusable:**
+
+- `marketing_campaign_products` already links campaign↔product (can extend for adset/ad).
+- `erp_transactions` has expense entries (link to product via new allocation table).
+- `erp_expense_categories` for marketing categories (Video, Photo, Influencer, etc.).
 
 ---
 
-## Phase 7 — Cashbook + Expense Categories Tree
+## Phase A — Schema & RPC foundation
 
-Daily entry-er main page (already partially `erp.finance.simple.tsx` ache — etake upgrade).
+### A1. Migration: extend `order_items` (backward-safe)
 
-- Unified entry form: Income / Expense / Transfer / Supplier Payment / Courier Settlement / Refund / Owner Draw / Owner Investment
-- Pre-seeded expense category tree (Marketing → Meta Ads / Google / TikTok / Influencer; Office → Rent/Internet/etc; Staff → Salary/Bonus; Delivery → Packaging/Carton; Import → Product Cost/Shipping/Customs)
-- Attachment upload (Supabase Storage `finance-attachments` bucket)
-- Expense approval flow (draft → pending → approved → posted)
-- Filter: date / brand / account / category / type / search
-- CSV export
+Add nullable columns:
 
-**Files:** rewrite `erp.finance.simple.tsx` → `erp.finance.cashbook.tsx`, new `expense-approval.tsx`, migration for `erp_expense_categories` tree seed + `approval_status` column.
+- `unit_cost_snapshot numeric`, `line_discount_allocated numeric DEFAULT 0`, `delivery_charge_allocated numeric DEFAULT 0`, `courier_cost_allocated numeric DEFAULT 0`, `packaging_cost_allocated numeric DEFAULT 0`, `refund_amount_allocated numeric DEFAULT 0`, `source_type text`, `status_snapshot text`
 
----
+**Backfill trigger** (on confirm): when order goes `confirmed`, snapshot `unit_cost_snapshot` from `products.cost_price`, allocate `line_discount_allocated` and `delivery_charge_allocated` by **item value ratio** (`line_total / order_subtotal`), set `source_type` from `orders.source`. Idempotent.
 
-## Phase 8 — Courier COD Settlement + Auto Sales Hook
+Also one-time backfill for already-delivered orders so the report works from day 1.
 
-**Auto journal entries from order events** (trigger on `orders.status` change):
+### A2. New tables (with GRANT + RLS, admin/operations/finance access)
 
-| Event | Entry |
-|---|---|
-| Confirmed | Dr AR 1200 / Cr Sales 4100 + Dr COGS 5100 / Cr Inventory 1300 |
-| Shipped (COD) | Dr Courier COD 1210 / Cr AR 1200 |
-| Paid online | Dr bKash/Bank / Cr AR 1200 |
-| Cancelled | reverse |
-| Returned | Dr Sales Return / Cr AR + reverse COGS |
+1. `**erp_return_cases**` — exact fields from spec.
+2. `**erp_exchange_cases**` — exact fields from spec.
+3. `**erp_product_expense_allocations**` — link `erp_transactions` rows to product/SKU with `expense_type` enum-check + `allocation_method` (`direct` / `percent` / `equal_split`).
+4. `**erp_ad_product_links**` — link Meta campaign/adset/ad to product/SKU with `allocation_percent`. (Use `marketing_campaign_products` as compatibility view if needed.)
 
-**Courier Settlement page:**
-- CSV import (Pathao / Steadfast statement)
-- Auto-match by consignment_id ↔ `courier_shipments.tracking_code`
-- Show: Total COD / Courier Charge / Return Charge / Net Received
-- Settlement post: Dr Bank + Dr Courier Charge / Cr Courier COD Receivable
-- Unmatched orders list
-- Courier due report
+Each table: `brand_id` scoped RLS via `has_role(admin|operations)`, indexes on `(brand_id, product_id)` and reference IDs.
 
-**Files:** new `erp.finance.cod-settlement.tsx`, `cod-import-dialog.tsx`, trigger function `auto_post_order_journal()`, RPC `match_cod_statement()`.
+### A3. Helper: courier cost lookup
 
----
+Function `get_order_courier_cost(_order_id)` → returns `{outbound, return, cod_fee}` from `courier_shipments`. Used for per-item allocation by value ratio.
 
-## Phase 9 — Import Costing + Supplier Ledger + Payroll
+### A4. Main RPC: `get_product_profitability_report(...)`
 
-**Import Lots (landed cost):**
-- Lot create: name, supplier, products[qty, unit_cost], extra_costs[shipping, agent_fee, customs, transport]
-- Auto allocate extra cost proportionally → `landed_cost_per_unit`
-- Push landed cost to `products.cost_price`
-- Lot-wise profit report
+Signature exactly as spec'd. Returns one big jsonb:
 
-**Supplier Ledger** (upgrade existing payables):
-- Supplier statement: Purchase / Paid / Due / Advance
-- Advance payment tracking
-- Payment history
+```jsonc
+{
+  "product": {...},
+  "stock":     { opening, stock_in, current, closing },
+  "quantities":{ website_orders, manual_orders, confirmed, delivered, shipped, cancelled, returned, exchanged, damaged, refunded },
+  "sources":   [ { source, created, confirmed, shipped, delivered, returned, revenue, delivery_collected, net_payable, delivery_rate } ],
+  "revenue":   { gross, delivery_collected, discount, refund, net_payable },
+  "cost":      { cogs, courier_out, courier_return, packaging, return_loss, exchange_loss, damage_loss, refund_loss, meta_ads, marketing_content },
+  "marketing": { content, influencer, photo, other, meta_ads, breakdown: [...] },
+  "profit":    { gross, contribution, net, per_delivered_unit, per_confirmed_unit, return_rate, exchange_rate, damage_rate, delivery_success_rate, break_even_qty },
+  "items":     [ per-order-item breakdown ],
+  "returns":   [...], "exchanges": [...],
+  "warnings":  [ "missing_cost", "missing_source", ... ]
+}
+```
 
-**Payroll:**
-- Staff master (link to `auth.users`)
-- Monthly salary structure (basic + allowance)
-- Advance salary, bonus, commission, deduction
-- Salary payment → expense entry from selected account
-- Staff ledger
+Filters: `p_source` (array), `p_courier` (array) — handle in `WHERE`.
 
-**Files:** `erp.finance.import-lots.tsx`, `import-lot-form.tsx`, `erp.finance.payroll.tsx`, migrations: `erp_import_lots`, `erp_import_lot_items`, `erp_import_lot_costs`, `erp_staff`, `erp_payroll`.
+Date basis: parametrize column (`created_at` / `confirmed_at` / `delivered_at`).
+
+Allocation logic for COGS/courier/delivery (when item_value_ratio missing): fallback to qty ratio.
 
 ---
 
-## Phase 10 — Owner/Investor/Loan + Advanced Reports
+## Phase B — Report page UI
 
-**Owner/Investor/Loan tracking:**
-- Owner investment / withdrawal entries
-- Investor: investment + monthly profit share payment ledger
-- Loan: principal received, repayment schedule, due reminder
+### B1. Route: `src/routes/_authenticated/erp.finance.product-profitability.tsx`
 
-**Advanced Reports (each as printable + CSV):**
-1. Cashbook Report
-2. Account Statement
-3. Expense Report (category drill-down)
-4. Sales Report
-5. P&L (already exists — add brand/product/campaign/staff filter)
-6. Courier COD Due
-7. Supplier Due
-8. Customer Refund Report
-9. Product Profit Report (sales − landed cost)
-10. Daily Closing Report
-11. Brand-wise Profit
-12. Campaign-wise Profit (link with marketing)
-13. Courier-wise Delivery Cost
-14. Return Loss Report
-15. Staff Cost vs Performance
-16. Import Lot Profitability
-17. Monthly Balance Sheet
-18. Cash Flow Statement (Operating/Investing/Financing)
-19. VAT/Tax export (already exists — polish)
-20. Customer Statement PDF
+Layout (top → bottom):
 
-**Files:** `erp.finance.owner.tsx`, `erp.finance.loans.tsx`, `erp.finance.reports.*` per report, shared `report-shell.tsx`, RPCs per report.
+1. **Filter bar** (sticky): Brand (from context), Product autocomplete, Variant select (loaded after product), Date range presets + custom, Date basis (radio), Source (multi-select), Courier (multi-select).
+2. **Product summary card**: name, image, SKU, brand badge.
+3. **Quantity funnel** (horizontal bars): Ordered → Confirmed → Shipped → Delivered → Returned/Exchanged.
+4. **KPI cards grid**: Net Revenue, COGS, Total Cost, Net Profit, Profit/Delivered Unit, Return Rate, Delivery Success Rate, Break-even Qty.
+5. **Revenue breakdown** (Card with rows): Gross sales, +Delivery collected, −Discount, −Refund, =Net payable.
+6. **Cost breakdown** (Card with rows): COGS, Courier (out+return), Packaging, Return loss, Exchange loss, Damage loss, Refund loss, Meta ads, Marketing/content. Each row hide-able if 0 (per memory).
+7. **Profit cards** (3-col): Gross Product Profit, Contribution Profit, Net Product Profit + margin %.
+8. **Source-wise table**: Source × (Created/Confirmed/Shipped/Delivered/Returned/Revenue/Delivery/Net/Rate).
+9. **Order-item detail table**: collapsible, paginated, export CSV.
+10. **Return cases table** + **Exchange cases table**: each row shows type, qty, loss, status.
+11. **Marketing/Meta breakdown** table: campaign/expense → allocated amount → ROAS.
+12. **Data quality warnings panel**: top-right banner, lists each warning with count + "fix" link.
+
+Use recharts for funnel + a small donut for cost composition. Empty sections hide entirely (no "0" cards cluttering — per memory rule).
+
+### B2. Product-page entry: `src/routes/_authenticated/erp.products.$id.profitability.tsx`
+
+Reuse same component with `product_id` pre-filled from route param. (Products route group: need to verify it exists; if not, only add the finance-side route.)
+
+### B3. CSV export
+
+Use existing `downloadCsv` helper from `@/lib/erp/orders`. Buttons on source table, item detail table, return/exchange tables.
 
 ---
 
-## Technical Notes
+## Phase C — Companion screens (case management + linking)
 
-- **Tech**: TanStack Start server fns, Supabase RPC + RLS, `has_role('admin'|'finance_admin'|'finance_editor'|'finance_viewer')`, react-query, recharts.
-- **Order → Journal auto-posting**: Postgres trigger on `orders` table. Idempotent (one journal entry per `(order_id, event_type)`).
-- **Currency**: BDT base, FX module already exists.
-- **Period lock**: already enforced — new entries check `erp_period_locks`.
-- **Audit**: every change continues logging to `erp_finance_audit`.
+These make the report **accurate**. Without C, the report shows warnings but no data to compute return/exchange/marketing loss.
+
+### C1. Return Case dialog
+
+From an order item → "Mark return". Form: type, condition, qty, refund amount, customer paid delivery, packaging loss, note. On save → insert `erp_return_cases` row. Reflected in report instantly.
+
+### C2. Exchange Case dialog
+
+From a delivered order item → "Create exchange". Form: type, old condition, replacement product/variant/qty, exchange charge collected, replacement delivery cost, optional replacement_order_id. Insert `erp_exchange_cases`.
+
+### C3. Product Expense Allocation dialog
+
+From `/erp/finance/simple` expense form → optional "Allocate to product(s)" toggle. Adds rows in `erp_product_expense_allocations` with split %. Expense type dropdown: video_production, photography, influencer, model, content_creator, studio, packaging, other.
+
+### C4. Meta Ad → Product link UI
+
+Extend existing campaign detail page (already at `erp.marketing.campaigns.$campaignId.tsx`) with adset/ad-level product link (uses new `erp_ad_product_links`). Reuses existing `campaign-product-mapping.tsx` component pattern.
 
 ---
 
-## Approach
+## Technical notes
 
-Phase 5 chhoto, fast win (dashboard). Phase 6–7 daily-use foundation. Phase 8 sob theke critical (auto journal from orders) — ekhane bug holey ledger noshto hobe, tai test heavy. Phase 9–10 polish.
+- **All RPC**: `SECURITY DEFINER`, `has_role` gate (admin / operations / customer_service for read; admin/operations only for write).
+- **Idempotency**: confirm/deliver triggers use `WHERE col IS NULL` guards.
+- **No mock data**: every empty section hides; warnings explain what to fill.
+- **Performance**: report RPC adds `WHERE brand_id = ... AND product_id = ...` early in every CTE; expected single-product query < 200ms even with 100k orders.
 
-**Bolo kon phase shuru korbo — `phase 5` likhle ami direct implement shuru korbo.**
+---
+
+## Build order suggestion
+
+
+| Step | Phase | Why first                                                                       |
+| ---- | ----- | ------------------------------------------------------------------------------- |
+| 1    | A1+A2 | Schema must exist before RPC.                                                   |
+| 2    | A3+A4 | RPC needed before UI can show anything.                                         |
+| 3    | B1    | Main report page (read-only — works with whatever data exists, shows warnings). |
+| 4    | C1+C2 | Return/exchange capture — unlocks loss numbers.                                 |
+| 5    | C3+C4 | Marketing/ad attribution — unlocks net profit.                                  |
+| 6    | B2+B3 | Product-page entry + CSV polish.                                                |
+
+
+---
+
+## Approval question
+
+**Eta huge — 1 shot e shob phase build korle ~15-20 files + 4-5 migration + 1 boro RPC. Tomar memory bole "Quality > speed".**
+
+Bolo kivabe egobo:
+
+- **Option 1 (recommended):** Phase A (schema + RPC) first → review → tarpor Phase B (UI) → review → tarpor Phase C (case dialogs + linking).
+- **Option 2:** All-in-one boro shipment.
+- **Option 3:** Specific phase shuru: bolo "phase A" / "phase B" etc.
+
+Confirm korle shuru kori.  
+Approved for Option 1 only: Phase A first.
+
+Option 1. Phase A only
