@@ -1183,6 +1183,7 @@ export type Database = {
           store_id: string | null
           updated_at: string
           username: string | null
+          wallet_id: string | null
         }
         Insert: {
           base_url?: string | null
@@ -1197,6 +1198,7 @@ export type Database = {
           store_id?: string | null
           updated_at?: string
           username?: string | null
+          wallet_id?: string | null
         }
         Update: {
           base_url?: string | null
@@ -1211,6 +1213,7 @@ export type Database = {
           store_id?: string | null
           updated_at?: string
           username?: string | null
+          wallet_id?: string | null
         }
         Relationships: [
           {
@@ -1218,6 +1221,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_courier_settings_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
             referencedColumns: ["id"]
           },
         ]
