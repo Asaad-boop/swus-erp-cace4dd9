@@ -55,6 +55,7 @@ import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from '.
 import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpMarketingReportsProductsRouteImport } from './routes/_authenticated/erp.marketing.reports.products'
+import { Route as AuthenticatedErpMarketingReportsCouriersRouteImport } from './routes/_authenticated/erp.marketing.reports.couriers'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpMarketingAdsetsAdsetIdRouteImport } from './routes/_authenticated/erp.marketing.adsets.$adsetId'
 
@@ -323,6 +324,12 @@ const AuthenticatedErpMarketingReportsProductsRoute =
     path: '/reports/products',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
+const AuthenticatedErpMarketingReportsCouriersRoute =
+  AuthenticatedErpMarketingReportsCouriersRouteImport.update({
+    id: '/reports/couriers',
+    path: '/reports/couriers',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
 const AuthenticatedErpMarketingCampaignsCampaignIdRoute =
   AuthenticatedErpMarketingCampaignsCampaignIdRouteImport.update({
     id: '/$campaignId',
@@ -383,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/erp/marketing/reports/couriers': typeof AuthenticatedErpMarketingReportsCouriersRoute
   '/erp/marketing/reports/products': typeof AuthenticatedErpMarketingReportsProductsRoute
 }
 export interface FileRoutesByTo {
@@ -429,6 +437,7 @@ export interface FileRoutesByTo {
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/erp/marketing/reports/couriers': typeof AuthenticatedErpMarketingReportsCouriersRoute
   '/erp/marketing/reports/products': typeof AuthenticatedErpMarketingReportsProductsRoute
 }
 export interface FileRoutesById {
@@ -480,6 +489,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/_authenticated/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/_authenticated/erp/marketing/reports/couriers': typeof AuthenticatedErpMarketingReportsCouriersRoute
   '/_authenticated/erp/marketing/reports/products': typeof AuthenticatedErpMarketingReportsProductsRoute
 }
 export interface FileRouteTypes {
@@ -531,6 +541,7 @@ export interface FileRouteTypes {
     | '/erp/orders/'
     | '/erp/marketing/adsets/$adsetId'
     | '/erp/marketing/campaigns/$campaignId'
+    | '/erp/marketing/reports/couriers'
     | '/erp/marketing/reports/products'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -577,6 +588,7 @@ export interface FileRouteTypes {
     | '/erp/orders'
     | '/erp/marketing/adsets/$adsetId'
     | '/erp/marketing/campaigns/$campaignId'
+    | '/erp/marketing/reports/couriers'
     | '/erp/marketing/reports/products'
   id:
     | '__root__'
@@ -627,6 +639,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/'
     | '/_authenticated/erp/marketing/adsets/$adsetId'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
+    | '/_authenticated/erp/marketing/reports/couriers'
     | '/_authenticated/erp/marketing/reports/products'
   fileRoutesById: FileRoutesById
 }
@@ -967,6 +980,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpMarketingReportsProductsRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
+    '/_authenticated/erp/marketing/reports/couriers': {
+      id: '/_authenticated/erp/marketing/reports/couriers'
+      path: '/reports/couriers'
+      fullPath: '/erp/marketing/reports/couriers'
+      preLoaderRoute: typeof AuthenticatedErpMarketingReportsCouriersRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
     '/_authenticated/erp/marketing/campaigns/$campaignId': {
       id: '/_authenticated/erp/marketing/campaigns/$campaignId'
       path: '/$campaignId'
@@ -1056,6 +1076,7 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingCampaignsRoute: typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   AuthenticatedErpMarketingInstallRoute: typeof AuthenticatedErpMarketingInstallRoute
   AuthenticatedErpMarketingAdsetsAdsetIdRoute: typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
+  AuthenticatedErpMarketingReportsCouriersRoute: typeof AuthenticatedErpMarketingReportsCouriersRoute
   AuthenticatedErpMarketingReportsProductsRoute: typeof AuthenticatedErpMarketingReportsProductsRoute
 }
 
@@ -1071,6 +1092,8 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
       AuthenticatedErpMarketingInstallRoute,
     AuthenticatedErpMarketingAdsetsAdsetIdRoute:
       AuthenticatedErpMarketingAdsetsAdsetIdRoute,
+    AuthenticatedErpMarketingReportsCouriersRoute:
+      AuthenticatedErpMarketingReportsCouriersRoute,
     AuthenticatedErpMarketingReportsProductsRoute:
       AuthenticatedErpMarketingReportsProductsRoute,
   }
