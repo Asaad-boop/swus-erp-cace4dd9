@@ -170,7 +170,7 @@ function NewPoPage() {
 
       const payload: any = {
         brand_id: brandId,
-        supplier_id: supplierId,
+        supplier: { id: supplierId },
         cargo_agent_id: agentId || undefined,
         order_date: orderDate,
         currency,
