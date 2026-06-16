@@ -59,8 +59,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
     // Validate token works
     await metaMe(data.token);
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: platform, error: pErr } = await supabaseAdmin
+    const { data: platform, error: pErr } = await context.supabase
       .from("marketing_platforms")
       .select("id")
       .eq("code", "meta")
@@ -72,7 +71,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       : `act_${data.external_account_id.replace(/\D/g, "")}`;
     const numericExt = ext.replace(/^act_/, "");
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id")
       .eq("brand_id", data.brand_id)
@@ -81,7 +80,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing?.id) {
-      const { data: row, error } = await supabaseAdmin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .update({
           external_account_id: ext,
@@ -100,7 +99,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       return row;
     }
 
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await context.supabase
       .from("marketing_ad_accounts")
       .upsert(
         {
