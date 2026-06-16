@@ -35,6 +35,7 @@ import { Route as AuthenticatedErpMarketingSettingsRouteImport } from './routes/
 import { Route as AuthenticatedErpMarketingCampaignsRouteImport } from './routes/_authenticated/erp.marketing.campaigns'
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
 import { Route as AuthenticatedErpFinanceSimpleRouteImport } from './routes/_authenticated/erp.finance.simple'
+import { Route as AuthenticatedErpFinanceReportsRouteImport } from './routes/_authenticated/erp.finance.reports'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
@@ -185,6 +186,12 @@ const AuthenticatedErpFinanceSimpleRoute =
     path: '/simple',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceReportsRoute =
+  AuthenticatedErpFinanceReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceJournalRoute =
   AuthenticatedErpFinanceJournalRouteImport.update({
     id: '/journal',
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
+  '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
@@ -244,6 +252,7 @@ export interface FileRoutesByTo {
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
+  '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
@@ -276,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
+  '/_authenticated/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/_authenticated/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/_authenticated/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/erp/'
     | '/erp/finance/accounts'
     | '/erp/finance/journal'
+    | '/erp/finance/reports'
     | '/erp/finance/simple'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
@@ -334,6 +345,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/erp/finance/accounts'
     | '/erp/finance/journal'
+    | '/erp/finance/reports'
     | '/erp/finance/simple'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
@@ -365,6 +377,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/'
     | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/journal'
+    | '/_authenticated/erp/finance/reports'
     | '/_authenticated/erp/finance/simple'
     | '/_authenticated/erp/marketing/accounts'
     | '/_authenticated/erp/marketing/campaigns'
@@ -575,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceSimpleRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/reports': {
+      id: '/_authenticated/erp/finance/reports'
+      path: '/reports'
+      fullPath: '/erp/finance/reports'
+      preLoaderRoute: typeof AuthenticatedErpFinanceReportsRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/journal': {
       id: '/_authenticated/erp/finance/journal'
       path: '/journal'
@@ -602,6 +622,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
+  AuthenticatedErpFinanceReportsRoute: typeof AuthenticatedErpFinanceReportsRoute
   AuthenticatedErpFinanceSimpleRoute: typeof AuthenticatedErpFinanceSimpleRoute
   AuthenticatedErpFinanceIndexRoute: typeof AuthenticatedErpFinanceIndexRoute
 }
@@ -610,6 +631,7 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
   {
     AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
+    AuthenticatedErpFinanceReportsRoute: AuthenticatedErpFinanceReportsRoute,
     AuthenticatedErpFinanceSimpleRoute: AuthenticatedErpFinanceSimpleRoute,
     AuthenticatedErpFinanceIndexRoute: AuthenticatedErpFinanceIndexRoute,
   }
