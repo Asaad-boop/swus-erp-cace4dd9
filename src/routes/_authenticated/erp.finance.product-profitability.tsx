@@ -172,26 +172,54 @@ function ProductProfitabilityPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Product Profitability</h1>
-          <p className="text-sm text-muted-foreground">True unit economics — orders, COGS, courier, returns, exchanges, ads.</p>
+    <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/10 via-background to-emerald-500/5 p-5 md:p-6">
+        <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="absolute -left-12 -bottom-12 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Product Profitability</h1>
+              <p className="text-sm text-muted-foreground">True unit economics — orders, COGS, courier, returns, exchanges, ads.</p>
+            </div>
+          </div>
+          {r && (
+            <div className="flex items-center gap-2 rounded-lg border bg-card/80 backdrop-blur px-3 py-2">
+              {r.product.image ? (
+                <img src={r.product.image} alt="" className="h-10 w-10 rounded-md object-cover" />
+              ) : (
+                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center"><Package className="h-4 w-4 text-muted-foreground" /></div>
+              )}
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate max-w-[260px]">{r.product.name}</div>
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <span>{r.product.sku ?? "—"}</span>
+                  <span>·</span>
+                  <span>Stock {r.stock.current}</span>
+                  {r.product.cost_price != null && <><span>·</span><span>Cost {fmtBdt(r.product.cost_price)}</span></>}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-border/60 shadow-sm">
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="md:col-span-4">
-              <Label className="text-xs">Product</Label>
+              <Label className="text-xs text-muted-foreground">Product</Label>
               <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal">
-                    <Package className="h-4 w-4 mr-2" />
-                    {r?.product?.name ?? (productId ? "Loading…" : "Select product")}
-                    {r?.product?.sku && <span className="text-muted-foreground ml-2">· {r.product.sku}</span>}
+                  <Button variant="outline" className="w-full justify-start font-normal h-10 mt-1">
+                    <Package className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span className="truncate">{r?.product?.name ?? (productId ? "Loading…" : "Select product")}</span>
+                    {r?.product?.sku && <span className="text-muted-foreground ml-2 text-xs">· {r.product.sku}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[420px] p-0" align="start">
@@ -231,17 +259,17 @@ function ProductProfitabilityPage() {
               </Popover>
             </div>
             <div className="md:col-span-2">
-              <Label className="text-xs">From</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Label className="text-xs text-muted-foreground">From</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-10 mt-1" />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-xs">To</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Label className="text-xs text-muted-foreground">To</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-10 mt-1" />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-xs">Date Basis</Label>
+              <Label className="text-xs text-muted-foreground">Date Basis</Label>
               <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as typeof dateBasis)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="created">Order created</SelectItem>
                   <SelectItem value="confirmed">Confirmed at</SelectItem>
@@ -249,24 +277,36 @@ function ProductProfitabilityPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-2 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => { setDateFrom(daysAgoIso(7)); setDateTo(todayIso()); }}>7d</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setDateFrom(daysAgoIso(30)); setDateTo(todayIso()); }}>30d</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setDateFrom(daysAgoIso(90)); setDateTo(todayIso()); }}>90d</Button>
+            <div className="md:col-span-2 flex gap-1.5">
+              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(7)); setDateTo(todayIso()); }}>7d</Button>
+              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(30)); setDateTo(todayIso()); }}>30d</Button>
+              <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setDateFrom(daysAgoIso(90)); setDateTo(todayIso()); }}>90d</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {!productId && (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
-          Select a product to view its profitability report.
-        </CardContent></Card>
+        <Card className="border-dashed">
+          <CardContent className="py-16 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Package className="h-6 w-6 text-primary" />
+            </div>
+            <div className="font-medium">Select a product</div>
+            <div className="text-sm text-muted-foreground mt-1">Pick a product above to view its full profitability report.</div>
+          </CardContent>
+        </Card>
       )}
 
       {productId && reportQ.isLoading && (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Calculating profitability…</CardContent></Card>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-xl border bg-muted/40 animate-pulse" />
+            ))}
+          </div>
+          <div className="h-64 rounded-xl border bg-muted/30 animate-pulse" />
+        </div>
       )}
 
       {productId && reportQ.error && (
