@@ -2554,6 +2554,804 @@ export type Database = {
           },
         ]
       }
+      mkt_ad_accounts: {
+        Row: {
+          access_token: string | null
+          brand_id: string
+          business_id: string | null
+          created_at: string
+          currency: string | null
+          external_id: string
+          id: string
+          last_error: string | null
+          last_insights_sync_at: string | null
+          last_structure_sync_at: string | null
+          name: string
+          status: Database["public"]["Enums"]["mkt_account_status"]
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          brand_id: string
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          external_id: string
+          id?: string
+          last_error?: string | null
+          last_insights_sync_at?: string | null
+          last_structure_sync_at?: string | null
+          name: string
+          status?: Database["public"]["Enums"]["mkt_account_status"]
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          brand_id?: string
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          external_id?: string
+          id?: string
+          last_error?: string | null
+          last_insights_sync_at?: string | null
+          last_structure_sync_at?: string | null
+          name?: string
+          status?: Database["public"]["Enums"]["mkt_account_status"]
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_ad_accounts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_ads: {
+        Row: {
+          account_id: string
+          adset_id: string
+          brand_id: string
+          campaign_id: string
+          created_at: string
+          creative_body: string | null
+          creative_thumbnail: string | null
+          effective_status: string | null
+          external_id: string
+          id: string
+          name: string
+          raw: Json | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          adset_id: string
+          brand_id: string
+          campaign_id: string
+          created_at?: string
+          creative_body?: string | null
+          creative_thumbnail?: string | null
+          effective_status?: string | null
+          external_id: string
+          id?: string
+          name: string
+          raw?: Json | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          adset_id?: string
+          brand_id?: string
+          campaign_id?: string
+          created_at?: string
+          creative_body?: string | null
+          creative_thumbnail?: string | null
+          effective_status?: string | null
+          external_id?: string
+          id?: string
+          name?: string
+          raw?: Json | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_ads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ads_adset_id_fkey"
+            columns: ["adset_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_adsets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ads_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_adsets: {
+        Row: {
+          account_id: string
+          brand_id: string
+          campaign_id: string
+          created_at: string
+          daily_budget: number | null
+          effective_status: string | null
+          external_id: string
+          id: string
+          lifetime_budget: number | null
+          name: string
+          raw: Json | null
+          status: string | null
+          targeting_summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          brand_id: string
+          campaign_id: string
+          created_at?: string
+          daily_budget?: number | null
+          effective_status?: string | null
+          external_id: string
+          id?: string
+          lifetime_budget?: number | null
+          name: string
+          raw?: Json | null
+          status?: string | null
+          targeting_summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          brand_id?: string
+          campaign_id?: string
+          created_at?: string
+          daily_budget?: number | null
+          effective_status?: string | null
+          external_id?: string
+          id?: string
+          lifetime_budget?: number | null
+          name?: string
+          raw?: Json | null
+          status?: string | null
+          targeting_summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_adsets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_adsets_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_adsets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_campaign_products: {
+        Row: {
+          brand_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+          note: string | null
+          product_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          brand_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          brand_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_campaign_products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_campaign_products_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_campaigns: {
+        Row: {
+          account_id: string
+          brand_id: string
+          created_at: string
+          daily_budget: number | null
+          effective_status: string | null
+          external_id: string
+          id: string
+          lifetime_budget: number | null
+          name: string
+          objective: string | null
+          raw: Json | null
+          start_time: string | null
+          status: string | null
+          stop_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          brand_id: string
+          created_at?: string
+          daily_budget?: number | null
+          effective_status?: string | null
+          external_id: string
+          id?: string
+          lifetime_budget?: number | null
+          name: string
+          objective?: string | null
+          raw?: Json | null
+          start_time?: string | null
+          status?: string | null
+          stop_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          brand_id?: string
+          created_at?: string
+          daily_budget?: number | null
+          effective_status?: string | null
+          external_id?: string
+          id?: string
+          lifetime_budget?: number | null
+          name?: string
+          objective?: string | null
+          raw?: Json | null
+          start_time?: string | null
+          status?: string | null
+          stop_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_campaigns_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_campaigns_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_insights_daily: {
+        Row: {
+          account_id: string
+          ad_id: string | null
+          adset_id: string | null
+          brand_id: string
+          campaign_id: string | null
+          clicks: number
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number
+          meta_add_to_cart: number
+          meta_initiate_checkout: number
+          meta_leads: number
+          meta_purchase_value: number
+          meta_purchases: number
+          raw: Json | null
+          reach: number
+          spend: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ad_id?: string | null
+          adset_id?: string | null
+          brand_id: string
+          campaign_id?: string | null
+          clicks?: number
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number
+          meta_add_to_cart?: number
+          meta_initiate_checkout?: number
+          meta_leads?: number
+          meta_purchase_value?: number
+          meta_purchases?: number
+          raw?: Json | null
+          reach?: number
+          spend?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ad_id?: string | null
+          adset_id?: string | null
+          brand_id?: string
+          campaign_id?: string | null
+          clicks?: number
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number
+          meta_add_to_cart?: number
+          meta_initiate_checkout?: number
+          meta_leads?: number
+          meta_purchase_value?: number
+          meta_purchases?: number
+          raw?: Json | null
+          reach?: number
+          spend?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_insights_daily_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_insights_daily_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_insights_daily_adset_id_fkey"
+            columns: ["adset_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_adsets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_insights_daily_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_insights_daily_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_manual_expenses: {
+        Row: {
+          account_id: string | null
+          amount: number
+          attachment_url: string | null
+          brand_id: string
+          campaign_id: string | null
+          category: Database["public"]["Enums"]["mkt_expense_category"]
+          created_at: string
+          created_by: string | null
+          currency: string
+          date: string
+          id: string
+          note: string | null
+          product_id: string | null
+          transaction_id: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          attachment_url?: string | null
+          brand_id: string
+          campaign_id?: string | null
+          category?: Database["public"]["Enums"]["mkt_expense_category"]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date?: string
+          id?: string
+          note?: string | null
+          product_id?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          attachment_url?: string | null
+          brand_id?: string
+          campaign_id?: string | null
+          category?: Database["public"]["Enums"]["mkt_expense_category"]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date?: string
+          id?: string
+          note?: string | null
+          product_id?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_manual_expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_order_attributions: {
+        Row: {
+          ad_id: string | null
+          adset_id: string | null
+          brand_id: string
+          campaign_id: string | null
+          confidence: number
+          created_at: string
+          fbclid: string | null
+          id: string
+          note: string | null
+          order_id: string
+          source: Database["public"]["Enums"]["mkt_attribution_source"]
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          adset_id?: string | null
+          brand_id: string
+          campaign_id?: string | null
+          confidence?: number
+          created_at?: string
+          fbclid?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          source: Database["public"]["Enums"]["mkt_attribution_source"]
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          adset_id?: string | null
+          brand_id?: string
+          campaign_id?: string | null
+          confidence?: number
+          created_at?: string
+          fbclid?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          source?: Database["public"]["Enums"]["mkt_attribution_source"]
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_order_attributions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_adset_id_fkey"
+            columns: ["adset_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_adsets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
+      mkt_sync_log: {
+        Row: {
+          account_id: string | null
+          brand_id: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["mkt_sync_kind"]
+          meta: Json | null
+          rows_processed: number
+          started_at: string
+          status: Database["public"]["Enums"]["mkt_sync_status"]
+        }
+        Insert: {
+          account_id?: string | null
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["mkt_sync_kind"]
+          meta?: Json | null
+          rows_processed?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["mkt_sync_status"]
+        }
+        Update: {
+          account_id?: string | null
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["mkt_sync_kind"]
+          meta?: Json | null
+          rows_processed?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["mkt_sync_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_sync_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_sync_log_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_tracking_events: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          event_type: string
+          fbclid: string | null
+          id: string
+          ip_hash: string | null
+          order_id: string | null
+          phone: string | null
+          product_id: string | null
+          raw: Json | null
+          referrer: string | null
+          session_id: string | null
+          url: string | null
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          event_type: string
+          fbclid?: string | null
+          id?: string
+          ip_hash?: string | null
+          order_id?: string | null
+          phone?: string | null
+          product_id?: string | null
+          raw?: Json | null
+          referrer?: string | null
+          session_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          event_type?: string
+          fbclid?: string | null
+          id?: string
+          ip_hash?: string | null
+          order_id?: string | null
+          phone?: string | null
+          product_id?: string | null
+          raw?: Json | null
+          referrer?: string | null
+          session_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_tracking_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_tracking_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_tracking_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "mkt_tracking_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           cost_price: number | null
@@ -4485,6 +5283,22 @@ export type Database = {
         | "advance_pending"
       coupon_type: "percentage" | "fixed"
       discount_type: "flat" | "percent"
+      mkt_account_status: "active" | "paused" | "error" | "disconnected"
+      mkt_attribution_source:
+        | "utm"
+        | "pixel"
+        | "manual"
+        | "product_link"
+        | "phone_match"
+      mkt_expense_category:
+        | "influencer"
+        | "content"
+        | "photoshoot"
+        | "agency"
+        | "boost"
+        | "other"
+      mkt_sync_kind: "structure" | "insights" | "attribution" | "finance_post"
+      mkt_sync_status: "running" | "success" | "error"
       order_priority: "low" | "normal" | "high" | "urgent"
       order_source: "website" | "facebook" | "manual" | "phone"
       order_status:
@@ -4681,6 +5495,24 @@ export const Constants = {
       ],
       coupon_type: ["percentage", "fixed"],
       discount_type: ["flat", "percent"],
+      mkt_account_status: ["active", "paused", "error", "disconnected"],
+      mkt_attribution_source: [
+        "utm",
+        "pixel",
+        "manual",
+        "product_link",
+        "phone_match",
+      ],
+      mkt_expense_category: [
+        "influencer",
+        "content",
+        "photoshoot",
+        "agency",
+        "boost",
+        "other",
+      ],
+      mkt_sync_kind: ["structure", "insights", "attribution", "finance_post"],
+      mkt_sync_status: ["running", "success", "error"],
       order_priority: ["low", "normal", "high", "urgent"],
       order_source: ["website", "facebook", "manual", "phone"],
       order_status: [
