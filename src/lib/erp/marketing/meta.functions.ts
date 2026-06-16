@@ -4,11 +4,26 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD expected");
 
+declare global {
+  var __LOVABLE_RUNTIME_ENV__: Record<string, string> | undefined;
+}
+
+function getMetaToken(savedToken?: string | null) {
+  const envToken = typeof process !== "undefined" ? process.env.META_SYSTEM_USER_TOKEN : undefined;
+  return (
+    savedToken ||
+    envToken ||
+    globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN ||
+    null
+  );
+}
+
+function normalizeMetaAdAccountId(id: string) {
+  return id.startsWith("act_") ? id : `act_${id.replace(/\D/g, "")}`;
+}
+
 async function assertStaff(supabase: any, userId: string) {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   const roles = new Set((data ?? []).map((r: any) => r.role));
   if (!(roles.has("admin") || roles.has("operations"))) {
     throw new Error("Forbidden: admin or operations role required");
@@ -32,26 +47,27 @@ export const metaListMyAdAccounts = createServerFn({ method: "POST" })
 // ----- Save / connect an ad account with a token -----
 export const metaConnectAdAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    brand_id: string;
-    external_account_id: string;
-    account_name?: string;
-    currency?: string;
-    timezone_name?: string;
-    token: string;
-    token_expires_at?: string | null;
-  }) =>
-    z
-      .object({
-        brand_id: z.string().uuid(),
-        external_account_id: z.string().min(3),
-        account_name: z.string().optional(),
-        currency: z.string().optional(),
-        timezone_name: z.string().optional(),
-        token: z.string().min(20),
-        token_expires_at: z.string().nullable().optional(),
-      })
-      .parse(d),
+  .inputValidator(
+    (d: {
+      brand_id: string;
+      external_account_id: string;
+      account_name?: string;
+      currency?: string;
+      timezone_name?: string;
+      token: string;
+      token_expires_at?: string | null;
+    }) =>
+      z
+        .object({
+          brand_id: z.string().uuid(),
+          external_account_id: z.string().min(3),
+          account_name: z.string().optional(),
+          currency: z.string().optional(),
+          timezone_name: z.string().optional(),
+          token: z.string().min(20),
+          token_expires_at: z.string().nullable().optional(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
@@ -59,20 +75,17 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
     // Validate token works
     await metaMe(data.token);
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: platform, error: pErr } = await supabaseAdmin
+    const { data: platform, error: pErr } = await context.supabase
       .from("marketing_platforms")
       .select("id")
       .eq("code", "meta")
       .single();
     if (pErr || !platform) throw new Error("Meta platform row not found");
 
-    const ext = data.external_account_id.startsWith("act_")
-      ? data.external_account_id
-      : `act_${data.external_account_id.replace(/\D/g, "")}`;
+    const ext = normalizeMetaAdAccountId(data.external_account_id);
     const numericExt = ext.replace(/^act_/, "");
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id")
       .eq("brand_id", data.brand_id)
@@ -81,7 +94,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing?.id) {
-      const { data: row, error } = await supabaseAdmin
+      const { data: row, error } = await context.supabase
         .from("marketing_ad_accounts")
         .update({
           external_account_id: ext,
@@ -100,7 +113,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       return row;
     }
 
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await context.supabase
       .from("marketing_ad_accounts")
       .upsert(
         {
@@ -129,17 +142,17 @@ export const metaTestConnection = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved for this account");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
     const { metaMe } = await import("./meta.server");
     try {
-      const me = await metaMe(acc.access_token_secret_ref);
+      const me = await metaMe(token);
       return { ok: true, me };
     } catch (e: any) {
       return { ok: false, error: e?.message || "Token invalid" };
@@ -152,18 +165,17 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
 
     const { metaListCampaigns, metaListAdsets, metaListAds } = await import("./meta.server");
-    const token = acc.access_token_secret_ref;
-    const ext = acc.external_account_id;
+    const ext = normalizeMetaAdAccountId(acc.external_account_id);
 
     let campaignsCount = 0,
       adsetsCount = 0,
@@ -188,7 +200,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: c,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_campaigns")
           .upsert(rows, { onConflict: "ad_account_id,external_campaign_id" });
         if (e) errors.push(`campaigns: ${e.message}`);
@@ -202,7 +214,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
       const adsets = await metaListAdsets(ext, token);
       if (adsets.length) {
         // map external campaign id -> internal id
-        const { data: campRows } = await supabaseAdmin
+        const { data: campRows } = await context.supabase
           .from("marketing_campaigns")
           .select("id, external_campaign_id")
           .eq("ad_account_id", acc.id);
@@ -225,7 +237,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: a,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_adsets")
           .upsert(rows, { onConflict: "ad_account_id,external_adset_id" });
         if (e) errors.push(`adsets: ${e.message}`);
@@ -238,11 +250,11 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
     try {
       const ads = await metaListAds(ext, token);
       if (ads.length) {
-        const { data: campRows } = await supabaseAdmin
+        const { data: campRows } = await context.supabase
           .from("marketing_campaigns")
           .select("id, external_campaign_id")
           .eq("ad_account_id", acc.id);
-        const { data: asetRows } = await supabaseAdmin
+        const { data: asetRows } = await context.supabase
           .from("marketing_adsets")
           .select("id, external_adset_id")
           .eq("ad_account_id", acc.id);
@@ -266,7 +278,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
           raw_json: a,
           last_synced_at: new Date().toISOString(),
         }));
-        const { error: e } = await supabaseAdmin
+        const { error: e } = await context.supabase
           .from("marketing_ads")
           .upsert(rows, { onConflict: "ad_account_id,external_ad_id" });
         if (e) errors.push(`ads: ${e.message}`);
@@ -276,7 +288,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
       errors.push(`ads fetch: ${e?.message}`);
     }
 
-    await supabaseAdmin
+    await context.supabase
       .from("marketing_ad_accounts")
       .update({
         last_synced_at: new Date().toISOString(),
@@ -295,26 +307,26 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acc, error } = await supabaseAdmin
+    const { data: acc, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select("id, brand_id, external_account_id, access_token_secret_ref")
       .eq("id", data.ad_account_id)
       .single();
     if (error || !acc) throw new Error("Ad account not found");
-    if (!acc.access_token_secret_ref) throw new Error("No token saved");
+    const token = getMetaToken(acc.access_token_secret_ref);
+    if (!token) throw new Error("No Meta token configured");
 
     const { metaListInsights, extractPurchaseStats } = await import("./meta.server");
 
-    const { data: campRows } = await supabaseAdmin
+    const { data: campRows } = await context.supabase
       .from("marketing_campaigns")
       .select("id, external_campaign_id")
       .eq("ad_account_id", acc.id);
-    const { data: asetRows } = await supabaseAdmin
+    const { data: asetRows } = await context.supabase
       .from("marketing_adsets")
       .select("id, external_adset_id")
       .eq("ad_account_id", acc.id);
-    const { data: adRows } = await supabaseAdmin
+    const { data: adRows } = await context.supabase
       .from("marketing_ads")
       .select("id, external_ad_id")
       .eq("ad_account_id", acc.id);
@@ -327,7 +339,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
 
     for (const level of ["campaign", "adset", "ad"] as const) {
       try {
-        const rows = await metaListInsights(acc.external_account_id, acc.access_token_secret_ref, level, data.from, data.to);
+        const rows = await metaListInsights(normalizeMetaAdAccountId(acc.external_account_id), token, level, data.from, data.to);
         if (!rows.length) continue;
         const upserts = rows.map((r: any) => {
           const { purchases, value } = extractPurchaseStats(r);
@@ -361,7 +373,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
         });
         // The unique index is on a COALESCE() expression so PostgREST can't target it.
         // Strategy: delete the (account, level, date-range) slice first, then bulk insert.
-        const delRes = await supabaseAdmin
+        const delRes = await context.supabase
           .from("marketing_insights_daily")
           .delete()
           .eq("ad_account_id", acc.id)
@@ -372,7 +384,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
           errors.push(`${level} delete: ${delRes.error.message}`);
           continue;
         }
-        const insRes = await supabaseAdmin.from("marketing_insights_daily").insert(upserts);
+        const insRes = await context.supabase.from("marketing_insights_daily").insert(upserts);
         if (insRes.error) errors.push(`${level} insert: ${insRes.error.message}`);
         else totals[level] = upserts.length;
       } catch (e: any) {
@@ -380,7 +392,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin
+    await context.supabase
       .from("marketing_ad_accounts")
       .update({
         last_synced_at: new Date().toISOString(),
@@ -397,8 +409,7 @@ export const getMetaAccountsForBrand = createServerFn({ method: "GET" })
   .inputValidator((d: { brand_id: string }) => z.object({ brand_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await context.supabase
       .from("marketing_ad_accounts")
       .select(
         "id, external_account_id, account_name, currency, timezone_name, is_active, last_synced_at, last_sync_error, token_expires_at, access_token_secret_ref",
@@ -406,10 +417,14 @@ export const getMetaAccountsForBrand = createServerFn({ method: "GET" })
       .eq("brand_id", data.brand_id)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (rows ?? []).map(({ access_token_secret_ref, ...row }: any) => ({
-      ...row,
-      has_token: Boolean(access_token_secret_ref),
-    }));
+    return (rows ?? []).map(({ access_token_secret_ref, ...row }: any) => {
+      const hasSavedToken = Boolean(access_token_secret_ref);
+      return {
+        ...row,
+        has_token: Boolean(getMetaToken(access_token_secret_ref)),
+        token_source: hasSavedToken ? "saved" : getMetaToken(null) ? "system" : null,
+      };
+    });
   });
 
 export const setMetaAccountActive = createServerFn({ method: "POST" })
@@ -419,8 +434,7 @@ export const setMetaAccountActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ is_active: data.is_active })
       .eq("id", data.ad_account_id);
@@ -433,8 +447,7 @@ export const disconnectMetaAccount = createServerFn({ method: "POST" })
   .inputValidator((d: { ad_account_id: string }) => z.object({ ad_account_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("marketing_ad_accounts")
       .update({ access_token_secret_ref: null, is_active: false })
       .eq("id", data.ad_account_id);
@@ -447,13 +460,12 @@ export const getMarketingSetupStatus = createServerFn({ method: "POST" })
   .inputValidator((d: { brand_id: string }) => z.object({ brand_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [accounts, campaigns, adsets, ads, insights] = await Promise.all([
-      supabaseAdmin.from("marketing_ad_accounts").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_campaigns").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_adsets").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_ads").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
-      supabaseAdmin.from("marketing_insights_daily").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_ad_accounts").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_campaigns").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_adsets").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_ads").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
+      context.supabase.from("marketing_insights_daily").select("id", { count: "exact", head: true }).eq("brand_id", data.brand_id),
     ]);
     for (const r of [accounts, campaigns, adsets, ads, insights]) {
       if (r.error) throw new Error(r.error.message);

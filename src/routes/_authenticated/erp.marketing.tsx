@@ -433,7 +433,7 @@ function MetaSetupPanel({
                 {a.last_sync_error && <div className="text-xs text-destructive mt-1">{a.last_sync_error}</div>}
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={a.has_token ? "default" : "destructive"}>{a.has_token ? "Token saved" : "Token missing"}</Badge>
+                <Badge variant={a.has_token ? "default" : "destructive"}>{a.has_token ? (a.token_source === "system" ? "System token" : "Token saved") : "Token missing"}</Badge>
                 <Button size="sm" variant="outline" disabled={!a.has_token || testMut.isPending} onClick={() => testMut.mutate(a.id)}>Test</Button>
                 <Button size="sm" disabled={!a.has_token || syncMut.isPending} onClick={() => syncMut.mutate(a.id)}>
                   <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />Sync
