@@ -812,6 +812,70 @@ export type Database = {
           },
         ]
       }
+      erp_ad_product_links: {
+        Row: {
+          ad_id: string | null
+          adset_id: string | null
+          allocation_percent: number
+          brand_id: string
+          campaign_id: string | null
+          created_at: string
+          id: string
+          platform: string
+          product_id: string
+          sku: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          adset_id?: string | null
+          allocation_percent?: number
+          brand_id: string
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          product_id: string
+          sku?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          adset_id?: string | null
+          allocation_percent?: number
+          brand_id?: string
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          product_id?: string
+          sku?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_ad_product_links_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ad_product_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_ad_product_links_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_ar_payments: {
         Row: {
           amount: number
@@ -1222,6 +1286,161 @@ export type Database = {
           },
         ]
       }
+      erp_exchange_cases: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          exchange_charge_collected: number
+          exchange_type: string
+          id: string
+          note: string | null
+          old_item_condition: string
+          original_order_id: string
+          original_order_item_id: string | null
+          original_product_id: string | null
+          original_sku: string | null
+          original_variant_id: string | null
+          product_cost_loss: number
+          refund_amount: number
+          replacement_delivery_cost: number
+          replacement_order_id: string | null
+          replacement_product_id: string | null
+          replacement_qty: number
+          replacement_sku: string | null
+          replacement_variant_id: string | null
+          resolved_at: string | null
+          return_delivery_cost: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          exchange_charge_collected?: number
+          exchange_type: string
+          id?: string
+          note?: string | null
+          old_item_condition: string
+          original_order_id: string
+          original_order_item_id?: string | null
+          original_product_id?: string | null
+          original_sku?: string | null
+          original_variant_id?: string | null
+          product_cost_loss?: number
+          refund_amount?: number
+          replacement_delivery_cost?: number
+          replacement_order_id?: string | null
+          replacement_product_id?: string | null
+          replacement_qty?: number
+          replacement_sku?: string | null
+          replacement_variant_id?: string | null
+          resolved_at?: string | null
+          return_delivery_cost?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          exchange_charge_collected?: number
+          exchange_type?: string
+          id?: string
+          note?: string | null
+          old_item_condition?: string
+          original_order_id?: string
+          original_order_item_id?: string | null
+          original_product_id?: string | null
+          original_sku?: string | null
+          original_variant_id?: string | null
+          product_cost_loss?: number
+          refund_amount?: number
+          replacement_delivery_cost?: number
+          replacement_order_id?: string | null
+          replacement_product_id?: string | null
+          replacement_qty?: number
+          replacement_sku?: string | null
+          replacement_variant_id?: string | null
+          resolved_at?: string | null
+          return_delivery_cost?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_exchange_cases_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_original_order_item_id_fkey"
+            columns: ["original_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_original_product_id_fkey"
+            columns: ["original_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_original_variant_id_fkey"
+            columns: ["original_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_replacement_order_id_fkey"
+            columns: ["replacement_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_replacement_order_id_fkey"
+            columns: ["replacement_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_replacement_product_id_fkey"
+            columns: ["replacement_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_replacement_variant_id_fkey"
+            columns: ["replacement_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_expense_categories: {
         Row: {
           brand_id: string | null
@@ -1526,6 +1745,90 @@ export type Database = {
           },
         ]
       }
+      erp_product_expense_allocations: {
+        Row: {
+          allocation_method: string
+          amount: number
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          expense_transaction_id: string | null
+          expense_type: string
+          id: string
+          journal_entry_id: string | null
+          note: string | null
+          product_id: string
+          sku: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          allocation_method?: string
+          amount?: number
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          expense_transaction_id?: string | null
+          expense_type: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          product_id: string
+          sku?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          allocation_method?: string
+          amount?: number
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          expense_transaction_id?: string | null
+          expense_type?: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          product_id?: string
+          sku?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_product_expense_allocations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_expense_transaction_id_fkey"
+            columns: ["expense_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_expense_allocations_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_recurring_rules: {
         Row: {
           amount: number
@@ -1630,6 +1933,124 @@ export type Database = {
             columns: ["rule_id"]
             isOneToOne: false
             referencedRelation: "erp_recurring_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_return_cases: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          customer_paid_delivery: number
+          id: string
+          item_condition: string
+          note: string | null
+          order_id: string
+          order_item_id: string | null
+          outbound_delivery_cost: number
+          packaging_loss: number
+          product_cost_loss: number
+          product_id: string | null
+          qty: number
+          refund_amount: number
+          resolved_at: string | null
+          return_delivery_cost: number
+          return_type: string
+          sku: string | null
+          status: string
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_paid_delivery?: number
+          id?: string
+          item_condition: string
+          note?: string | null
+          order_id: string
+          order_item_id?: string | null
+          outbound_delivery_cost?: number
+          packaging_loss?: number
+          product_cost_loss?: number
+          product_id?: string | null
+          qty?: number
+          refund_amount?: number
+          resolved_at?: string | null
+          return_delivery_cost?: number
+          return_type: string
+          sku?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_paid_delivery?: number
+          id?: string
+          item_condition?: string
+          note?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          outbound_delivery_cost?: number
+          packaging_loss?: number
+          product_cost_loss?: number
+          product_id?: string | null
+          qty?: number
+          refund_amount?: number
+          resolved_at?: string | null
+          return_delivery_cost?: number
+          return_type?: string
+          sku?: string | null
+          status?: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_return_cases_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -2676,18 +3097,26 @@ export type Database = {
       order_items: {
         Row: {
           cost_price: number | null
+          courier_cost_allocated: number
           created_at: string
+          delivery_charge_allocated: number
           discount_amount: number
           discount_type: Database["public"]["Enums"]["discount_type"] | null
           id: string
           image: string | null
+          line_discount_allocated: number
           line_total: number | null
           name: string
           order_id: string
+          packaging_cost_allocated: number
           price: number
           product_id: string
           quantity: number
+          refund_amount_allocated: number
+          source_type: string | null
+          status_snapshot: string | null
           tax_amount: number
+          unit_cost_snapshot: number | null
           unit_price: number | null
           user_id: string | null
           variant_id: string | null
@@ -2695,18 +3124,26 @@ export type Database = {
         }
         Insert: {
           cost_price?: number | null
+          courier_cost_allocated?: number
           created_at?: string
+          delivery_charge_allocated?: number
           discount_amount?: number
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
           id?: string
           image?: string | null
+          line_discount_allocated?: number
           line_total?: number | null
           name: string
           order_id: string
+          packaging_cost_allocated?: number
           price: number
           product_id: string
           quantity?: number
+          refund_amount_allocated?: number
+          source_type?: string | null
+          status_snapshot?: string | null
           tax_amount?: number
+          unit_cost_snapshot?: number | null
           unit_price?: number | null
           user_id?: string | null
           variant_id?: string | null
@@ -2714,18 +3151,26 @@ export type Database = {
         }
         Update: {
           cost_price?: number | null
+          courier_cost_allocated?: number
           created_at?: string
+          delivery_charge_allocated?: number
           discount_amount?: number
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
           id?: string
           image?: string | null
+          line_discount_allocated?: number
           line_total?: number | null
           name?: string
           order_id?: string
+          packaging_cost_allocated?: number
           price?: number
           product_id?: string
           quantity?: number
+          refund_amount_allocated?: number
+          source_type?: string | null
+          status_snapshot?: string | null
           tax_amount?: number
+          unit_cost_snapshot?: number | null
           unit_price?: number | null
           user_id?: string | null
           variant_id?: string | null
@@ -3990,8 +4435,22 @@ export type Database = {
           running_balance: number
         }[]
       }
+      get_order_courier_cost: { Args: { _order_id: string }; Returns: number }
       get_pl_v2: {
         Args: { _brand_id: string; _from: string; _to: string }
+        Returns: Json
+      }
+      get_product_profitability_report: {
+        Args: {
+          p_brand_id: string
+          p_couriers?: string[]
+          p_date_basis?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_product_id: string
+          p_sources?: string[]
+          p_variant_id?: string
+        }
         Returns: Json
       }
       get_trial_balance: {
@@ -4106,6 +4565,10 @@ export type Database = {
           _reason?: string
         }
         Returns: Json
+      }
+      snapshot_order_item_profit_fields: {
+        Args: { _order_id: string }
+        Returns: undefined
       }
       transition_order_status: {
         Args: {
