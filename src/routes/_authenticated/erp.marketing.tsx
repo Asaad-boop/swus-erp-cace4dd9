@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp, Banknote } from "lucide-react";
+import { Megaphone, Wrench, Code2, RefreshCw, TrendingUp, Banknote, Search, Package, Truck, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const phases = [
   { n: 4, name: "Website UTM / fbclid tracker", done: true },
   { n: 5, name: "Profit Snapshot Engine (rollup + hourly cron)", done: true },
   { n: 6, name: "Accounting Integration (auto-post Meta spend)", done: true },
-  { n: 7, name: "Full UI (Campaigns, Adsets, Ads, Attribution, Product×Campaign, etc.)", done: false },
+  { n: 7, name: "Full UI (Campaigns, Adsets, Ads, Attribution, Product×Campaign, Courier×Campaign)", done: true },
   { n: 8, name: "Polish — health alerts, data-quality checks", done: false },
 ];
 
@@ -113,6 +113,21 @@ function MarketingDashboard() {
             </Link>
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm" variant="secondary">
+          <Link to="/erp/marketing/campaigns"><Layers className="h-4 w-4 mr-1" /> Campaigns</Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link to="/erp/marketing/attribution"><Search className="h-4 w-4 mr-1" /> Attribution</Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link to="/erp/marketing/reports/products"><Package className="h-4 w-4 mr-1" /> Product × Campaign</Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link to="/erp/marketing/reports/couriers"><Truck className="h-4 w-4 mr-1" /> Courier × Campaign</Link>
+        </Button>
       </div>
 
       {activeBrand && (
