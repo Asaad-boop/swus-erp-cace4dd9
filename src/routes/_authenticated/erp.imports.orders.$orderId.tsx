@@ -526,10 +526,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const [courierWalletId, setCourierWalletId] = useState("");
   const [qcNotes, setQcNotes] = useState("");
 
-  const [duePayAmount, setDuePayAmount] = useState<number>(Math.max(0, Number(poDue)));
-  const [duePayWalletId, setDuePayWalletId] = useState("");
-  const [overrideDue, setOverrideDue] = useState(false);
-
   const totalExpected = (carton.items ?? []).reduce((s: number, it: any) => s + Number(it.quantity_expected || 0), 0);
   const totalDamaged = Object.values(rows).reduce((s, r) => s + Number(r.damaged || 0), 0);
   const totalMissing = Object.values(rows).reduce((s, r) => s + Number(r.missing || 0), 0);
@@ -546,7 +542,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const finalInventoryCost = totalLanded; // loss absorbed in ok
   const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
 
-  const dueRemaining = Math.max(0, Number(poDue) - duePayAmount);
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
     const sum = r.ok + r.damaged + r.missing;
@@ -557,11 +552,8 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const validationErrors: string[] = [];
   if (!warehouseId) validationErrors.push("Pick warehouse");
   if (courierBdt > 0 && !courierWalletId) validationErrors.push("Pick local courier wallet");
-  if (poDue > 0 && duePayAmount > 0 && !duePayWalletId) validationErrors.push("Pick a wallet for the due payment");
-  if (poDue > 0 && duePayAmount < poDue && !overrideDue) validationErrors.push("Approve with unpaid due override OR pay full due");
 
   const selectedCourierWallet = wallets.find((w) => w.id === courierWalletId);
-  const selectedDueWallet = wallets.find((w) => w.id === duePayWalletId);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -575,10 +567,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
       if (courierBdt > 0 && courierWalletId) {
         payload.local_courier_payment = { amount: courierBdt, wallet_id: courierWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("crp") };
       }
-      if (duePayAmount > 0 && duePayWalletId) {
-        payload.supplier_due_payment = { amount: duePayAmount, wallet_id: duePayWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("due") };
-      }
-      if (overrideDue) payload.due_override_reason = "Approved with unpaid due via inline QC";
       return await fn({ data: payload });
     },
     onSuccess: () => { toast.success(`Posted ${totalOk} pcs to inventory`); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
