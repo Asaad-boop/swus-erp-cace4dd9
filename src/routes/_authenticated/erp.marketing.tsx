@@ -291,6 +291,202 @@ function MarketingDashboard() {
   );
 }
 
+function MetaSetupPanel({
+  activeBrand,
+  range,
+}: {
+  activeBrand: { id: string; name: string } | null;
+  range: { from: string; to: string };
+}) {
+  const qc = useQueryClient();
+  const [token, setToken] = useState("");
+  const [tokenAccounts, setTokenAccounts] = useState<any[]>([]);
+  const fnStatus = useServerFn(getMarketingSetupStatus);
+  const fnAccounts = useServerFn(getMetaAccountsForBrand);
+  const fnListTokenAccounts = useServerFn(metaListMyAdAccounts);
+  const fnConnect = useServerFn(metaConnectAdAccount);
+  const fnTest = useServerFn(metaTestConnection);
+  const fnSyncStructure = useServerFn(metaSyncStructure);
+  const fnSyncInsights = useServerFn(metaSyncInsights);
+  const fnRebuild = useServerFn(rebuildProfitWindow);
+
+  const statusQ = useQuery({
+    queryKey: ["mkt-setup", activeBrand?.id],
+    queryFn: () => fnStatus({ data: { brand_id: activeBrand!.id } }),
+    enabled: !!activeBrand,
+  });
+  const accountsQ = useQuery({
+    queryKey: ["mkt-meta-accounts", activeBrand?.id],
+    queryFn: () => fnAccounts({ data: { brand_id: activeBrand!.id } }),
+    enabled: !!activeBrand,
+  });
+
+  const listMut = useMutation({
+    mutationFn: () => fnListTokenAccounts({ data: { token: token.trim() } }),
+    onSuccess: (r: any) => {
+      setTokenAccounts(r.accounts ?? []);
+      toast.success(`${r.accounts?.length ?? 0} Meta account found`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const connectMut = useMutation({
+    mutationFn: (a: any) =>
+      fnConnect({
+        data: {
+          brand_id: activeBrand!.id,
+          external_account_id: a.id,
+          account_name: a.name,
+          currency: a.currency,
+          timezone_name: a.timezone_name,
+          token: token.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Meta account connected");
+      setTokenAccounts([]);
+      setToken("");
+      qc.invalidateQueries({ queryKey: ["mkt-meta-accounts"] });
+      qc.invalidateQueries({ queryKey: ["mkt-setup"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const syncOne = async (id: string) => {
+    const structure = await fnSyncStructure({ data: { ad_account_id: id } });
+    const insights = await fnSyncInsights({ data: { ad_account_id: id, from: range.from, to: range.to } });
+    const rebuild = await fnRebuild({ data: { brand_id: activeBrand!.id, days: 7 } });
+    return { structure, insights, rebuild };
+  };
+
+  const syncMut = useMutation({
+    mutationFn: async (adAccountId?: string) => {
+      const rows = accountsQ.data ?? [];
+      const ids = adAccountId ? [adAccountId] : rows.filter((a: any) => a.has_token).map((a: any) => a.id);
+      if (!ids.length) throw new Error("No connected Meta token found");
+      const out = [];
+      for (const id of ids) out.push(await syncOne(id));
+      return out;
+    },
+    onSuccess: () => {
+      toast.success("Meta sync complete");
+      qc.invalidateQueries({ queryKey: ["mkt-setup"] });
+      qc.invalidateQueries({ queryKey: ["mkt-meta-accounts"] });
+      qc.invalidateQueries({ queryKey: ["mkt-kpis"] });
+      qc.invalidateQueries({ queryKey: ["mkt-rollup"] });
+      qc.invalidateQueries({ queryKey: ["mkt-jobs"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const testMut = useMutation({
+    mutationFn: (id: string) => fnTest({ data: { ad_account_id: id } }),
+    onSuccess: (r: any) => r.ok ? toast.success("Token OK") : toast.error(r.error ?? "Token invalid"),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (!activeBrand) return null;
+  const s: any = statusQ.data ?? {};
+  const accounts = accountsQ.data ?? [];
+  const needsToken = accounts.length === 0 || accounts.some((a: any) => !a.has_token);
+  const hasNoData = (s.campaigns ?? 0) === 0 || (s.insights ?? 0) === 0;
+
+  return (
+    <Card className="border-primary/25">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <PlugZap className="h-4 w-4" /> Meta connection & sync
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {(needsToken || hasNoData || statusQ.error || accountsQ.error) && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              {statusQ.error || accountsQ.error
+                ? `Load failed: ${((statusQ.error || accountsQ.error) as any).message}`
+                : needsToken
+                  ? "Meta token missing. Token connect na korle campaign/spend sync hobe na."
+                  : "Campaign/insight data empty. Sync all now run koro."}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <MiniStat label="Accounts" value={s.accounts ?? accounts.length ?? 0} />
+          <MiniStat label="Campaigns" value={s.campaigns ?? 0} />
+          <MiniStat label="Adsets" value={s.adsets ?? 0} />
+          <MiniStat label="Ads" value={s.ads ?? 0} />
+          <MiniStat label="Insights" value={s.insights ?? 0} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Connected ad accounts</div>
+          {accountsQ.isLoading && <div className="text-sm text-muted-foreground">Loading accounts…</div>}
+          {accounts.map((a: any) => (
+            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{a.account_name ?? a.external_account_id}</div>
+                <div className="text-xs text-muted-foreground">
+                  {a.external_account_id} · {a.currency ?? "BDT"} · {a.last_synced_at ? `last ${formatDistanceToNow(new Date(a.last_synced_at), { addSuffix: true })}` : "never synced"}
+                </div>
+                {a.last_sync_error && <div className="text-xs text-destructive mt-1">{a.last_sync_error}</div>}
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={a.has_token ? "default" : "destructive"}>{a.has_token ? "Token saved" : "Token missing"}</Badge>
+                <Button size="sm" variant="outline" disabled={!a.has_token || testMut.isPending} onClick={() => testMut.mutate(a.id)}>Test</Button>
+                <Button size="sm" disabled={!a.has_token || syncMut.isPending} onClick={() => syncMut.mutate(a.id)}>
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncMut.isPending ? "animate-spin" : ""}`} />Sync
+                </Button>
+              </div>
+            </div>
+          ))}
+          <Button size="sm" disabled={!accounts.some((a: any) => a.has_token) || syncMut.isPending} onClick={() => syncMut.mutate(undefined)}>
+            <PlayCircle className="h-4 w-4 mr-1" /> Sync all now
+          </Button>
+        </div>
+
+        <div className="rounded-md border p-3 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="h-4 w-4" /> Connect / repair Meta token</div>
+          <Textarea
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Paste Meta long-lived access token"
+            className="min-h-20 font-mono text-xs"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={token.trim().length < 20 || listMut.isPending} onClick={() => listMut.mutate()}>
+              {listMut.isPending ? "Checking…" : "Find ad accounts"}
+            </Button>
+          </div>
+          {tokenAccounts.length > 0 && (
+            <div className="space-y-2">
+              {tokenAccounts.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between gap-2 rounded border p-2 text-sm">
+                  <div>
+                    <div className="font-medium">{a.name ?? a.id}</div>
+                    <div className="text-xs text-muted-foreground">{a.id} · {a.currency ?? "BDT"}</div>
+                  </div>
+                  <Button size="sm" disabled={connectMut.isPending} onClick={() => connectMut.mutate(a)}>Connect</Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border p-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-lg font-bold">{Number(value ?? 0).toLocaleString("en-BD")}</div>
+    </div>
+  );
+}
+
 function Kpi({
   label,
   value,
