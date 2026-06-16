@@ -288,6 +288,12 @@ function ProductProfitabilityPage() {
                 <ul className="list-disc pl-5 mt-1 space-y-0.5 text-sm">
                   {r.warnings.map((w, i) => <li key={i}>{w}</li>)}
                 </ul>
+                <div className="mt-2">
+                  <Button size="sm" variant="outline" onClick={() => backfillMut.mutate()} disabled={backfillMut.isPending}>
+                    <RefreshCcw className={cn("h-3 w-3 mr-1", backfillMut.isPending && "animate-spin")} />
+                    {backfillMut.isPending ? "Backfilling…" : "Re-snapshot brand orders (admin)"}
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}
