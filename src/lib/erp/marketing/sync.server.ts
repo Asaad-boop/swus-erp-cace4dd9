@@ -483,66 +483,72 @@ export async function postMetaSpendToFinance(
   // Per-product allocation: split each campaign's BDT spend across linked products by weight.
   let allocations = 0;
   try {
-    const txIds = Array.from(txByDate.values());
-    if (txIds.length > 0) {
-      // Clear prior allocations for these transactions so re-syncs stay clean.
-      await supabase
+    // Clear prior Meta auto allocations for this account/window so re-syncs stay clean,
+    // even when no finance wallet/transaction exists yet.
+    await supabase
+      .from("erp_product_expense_allocations")
+      .delete()
+      .eq("source", "meta_auto")
+      .eq("expense_type", "meta_ads")
+      .eq("mkt_ad_account_id", acc.id)
+      .gte("allocation_date", since)
+      .lte("allocation_date", until);
+
+    // Per-campaign-per-day spend (USD) for this account in window
+    const { data: perCamp } = await supabase
+      .from("mkt_insights_daily")
+      .select("date, campaign_id, spend")
+      .eq("account_id", acc.id)
+      .gte("date", since)
+      .lte("date", until);
+
+    // Campaign → product links with weights
+    const { data: links } = await supabase
+      .from("mkt_campaign_products")
+      .select("campaign_id, product_id, weight")
+      .eq("brand_id", acc.brand_id);
+    const linkByCamp = new Map<string, Array<{ product_id: string; weight: number }>>();
+    for (const l of links ?? []) {
+      if (!l.campaign_id || !l.product_id) continue;
+      const arr = linkByCamp.get(l.campaign_id) ?? [];
+      arr.push({ product_id: l.product_id, weight: Number(l.weight) || 1 });
+      linkByCamp.set(l.campaign_id, arr);
+    }
+
+    const rows: any[] = [];
+    for (const r of perCamp ?? []) {
+      if (!r.campaign_id) continue;
+      const products = linkByCamp.get(r.campaign_id);
+      if (!products || products.length === 0) continue;
+      const usd = Number(r.spend) || 0;
+      if (usd <= 0) continue;
+      const bdt = +(isBdtAcc ? usd : usd * fx).toFixed(2);
+      const totalW = products.reduce((s, p) => s + p.weight, 0) || 1;
+      for (const p of products) {
+        const share = +((bdt * p.weight) / totalW).toFixed(2);
+        if (share <= 0) continue;
+        rows.push({
+          brand_id: acc.brand_id,
+          product_id: p.product_id,
+          campaign_id: r.campaign_id,
+          mkt_ad_account_id: acc.id,
+          allocation_date: r.date,
+          expense_transaction_id: txByDate.get(r.date) ?? null,
+          expense_type: "meta_ads",
+          amount: share,
+          allocation_method: "campaign_weight",
+          source: "meta_auto",
+          created_at: `${r.date}T00:00:00.000Z`,
+          note: `Meta spend — ${r.date}`,
+        });
+      }
+    }
+    if (rows.length > 0) {
+      const { error } = await supabase
         .from("erp_product_expense_allocations")
-        .delete()
-        .in("expense_transaction_id", txIds);
-
-      // Per-campaign-per-day spend (USD) for this account in window
-      const { data: perCamp } = await supabase
-        .from("mkt_insights_daily")
-        .select("date, campaign_id, spend")
-        .eq("account_id", acc.id)
-        .gte("date", since)
-        .lte("date", until);
-
-      // Campaign → product links with weights
-      const { data: links } = await supabase
-        .from("mkt_campaign_products")
-        .select("campaign_id, product_id, weight")
-        .eq("brand_id", acc.brand_id);
-      const linkByCamp = new Map<string, Array<{ product_id: string; weight: number }>>();
-      for (const l of links ?? []) {
-        if (!l.campaign_id || !l.product_id) continue;
-        const arr = linkByCamp.get(l.campaign_id) ?? [];
-        arr.push({ product_id: l.product_id, weight: Number(l.weight) || 1 });
-        linkByCamp.set(l.campaign_id, arr);
-      }
-
-      const rows: any[] = [];
-      for (const r of perCamp ?? []) {
-        const txId = txByDate.get(r.date);
-        if (!txId || !r.campaign_id) continue;
-        const products = linkByCamp.get(r.campaign_id);
-        if (!products || products.length === 0) continue;
-        const usd = Number(r.spend) || 0;
-        if (usd <= 0) continue;
-        const bdt = +(isBdtAcc ? usd : usd * fx).toFixed(2);
-        const totalW = products.reduce((s, p) => s + p.weight, 0) || 1;
-        for (const p of products) {
-          const share = +((bdt * p.weight) / totalW).toFixed(2);
-          if (share <= 0) continue;
-          rows.push({
-            brand_id: acc.brand_id,
-            product_id: p.product_id,
-            expense_transaction_id: txId,
-            expense_type: "meta_ads",
-            amount: share,
-            allocation_method: "campaign_weight",
-            note: `Meta spend — ${r.date}`,
-          });
-        }
-      }
-      if (rows.length > 0) {
-        const { error } = await supabase
-          .from("erp_product_expense_allocations")
-          .insert(rows);
-        if (error) throw error;
-        allocations = rows.length;
-      }
+        .insert(rows);
+      if (error) throw error;
+      allocations = rows.length;
     }
   } catch (e: any) {
     // Allocation failure shouldn't fail the whole sync
