@@ -59,6 +59,8 @@ export const listAppUsers = createServerFn({ method: "POST" })
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at,
       email_confirmed_at: u.email_confirmed_at,
+      banned_until: u.banned_until ?? null,
+      phone: u.phone ?? null,
       display_name: profileByUser[u.id] ?? null,
       roles: rolesByUser[u.id] ?? [],
       cargo_agent: agentByUser[u.id] ?? null,
@@ -201,5 +203,112 @@ export const deleteAppUser = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw error;
+    return { ok: true };
+  });
+
+/* ============= BAN / UNBAN ============= */
+
+export const toggleUserBan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; ban: boolean }) =>
+    z.object({ userId: z.string().uuid(), ban: z.boolean() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) throw new Error("Cannot disable your own account");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      ban_duration: data.ban ? "876000h" : "none",
+    } as any);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+/* ============= UPDATE PROFILE ============= */
+
+export const updateUserProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; displayName?: string | null; email?: string | null }) =>
+    z.object({
+      userId: z.string().uuid(),
+      displayName: z.string().trim().max(100).nullable().optional(),
+      email: z.string().trim().email().max(255).nullable().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.email) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { email: data.email });
+      if (error) throw error;
+    }
+    if (data.displayName !== undefined) {
+      await supabaseAdmin.from("profiles").upsert({ id: data.userId, display_name: data.displayName ?? null });
+    }
+    return { ok: true };
+  });
+
+/* ============= GENERATE LINKS ============= */
+
+export const generateAuthLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { email: string; type: "recovery" | "magiclink" }) =>
+    z.object({ email: z.string().email(), type: z.enum(["recovery", "magiclink"]) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: data.type,
+      email: data.email,
+    });
+    if (error) throw error;
+    return { url: link.properties?.action_link ?? null };
+  });
+
+/* ============= BULK ============= */
+
+export const bulkDeleteUsers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userIds: string[] }) =>
+    z.object({ userIds: z.array(z.string().uuid()).min(1).max(100) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const ids = data.userIds.filter((id) => id !== context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("imp_cargo_agents").update({ user_id: null }).in("user_id", ids);
+    await supabaseAdmin.from("user_roles").delete().in("user_id", ids);
+    for (const id of ids) {
+      await supabaseAdmin.auth.admin.deleteUser(id);
+    }
+    return { ok: true, count: ids.length };
+  });
+
+export const bulkSetRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userIds: string[]; role: string; action: "add" | "remove" }) =>
+    z.object({
+      userIds: z.array(z.string().uuid()).min(1).max(100),
+      role: RoleEnum,
+      action: z.enum(["add", "remove"]),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.action === "add") {
+      const rows = data.userIds.map((uid) => ({ user_id: uid, role: data.role }));
+      const { error } = await supabaseAdmin.from("user_roles").upsert(rows, { onConflict: "user_id,role" });
+      if (error) throw error;
+    } else {
+      const safeIds = data.role === "admin" ? data.userIds.filter((id) => id !== context.userId) : data.userIds;
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .in("user_id", safeIds)
+        .eq("role", data.role);
+      if (error) throw error;
+    }
     return { ok: true };
   });
