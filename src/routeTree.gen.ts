@@ -35,6 +35,7 @@ import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
 import { Route as AuthenticatedErpMarketingInstallRouteImport } from './routes/_authenticated/erp.marketing.install'
+import { Route as AuthenticatedErpMarketingHealthRouteImport } from './routes/_authenticated/erp.marketing.health'
 import { Route as AuthenticatedErpMarketingCampaignsRouteImport } from './routes/_authenticated/erp.marketing.campaigns'
 import { Route as AuthenticatedErpMarketingAttributionRouteImport } from './routes/_authenticated/erp.marketing.attribution'
 import { Route as AuthenticatedErpMarketingAccountingRouteImport } from './routes/_authenticated/erp.marketing.accounting'
@@ -202,6 +203,12 @@ const AuthenticatedErpMarketingInstallRoute =
   AuthenticatedErpMarketingInstallRouteImport.update({
     id: '/install',
     path: '/install',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
+const AuthenticatedErpMarketingHealthRoute =
+  AuthenticatedErpMarketingHealthRouteImport.update({
+    id: '/health',
+    path: '/health',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
 const AuthenticatedErpMarketingCampaignsRoute =
@@ -374,6 +381,7 @@ export interface FileRoutesByFullPath {
   '/erp/marketing/accounting': typeof AuthenticatedErpMarketingAccountingRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/erp/marketing/health': typeof AuthenticatedErpMarketingHealthRoute
   '/erp/marketing/install': typeof AuthenticatedErpMarketingInstallRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -421,6 +429,7 @@ export interface FileRoutesByTo {
   '/erp/marketing/accounting': typeof AuthenticatedErpMarketingAccountingRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/erp/marketing/health': typeof AuthenticatedErpMarketingHealthRoute
   '/erp/marketing/install': typeof AuthenticatedErpMarketingInstallRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -473,6 +482,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/marketing/accounting': typeof AuthenticatedErpMarketingAccountingRoute
   '/_authenticated/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/_authenticated/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  '/_authenticated/erp/marketing/health': typeof AuthenticatedErpMarketingHealthRoute
   '/_authenticated/erp/marketing/install': typeof AuthenticatedErpMarketingInstallRoute
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -525,6 +535,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/accounting'
     | '/erp/marketing/attribution'
     | '/erp/marketing/campaigns'
+    | '/erp/marketing/health'
     | '/erp/marketing/install'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
@@ -572,6 +583,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/accounting'
     | '/erp/marketing/attribution'
     | '/erp/marketing/campaigns'
+    | '/erp/marketing/health'
     | '/erp/marketing/install'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
@@ -623,6 +635,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/marketing/accounting'
     | '/_authenticated/erp/marketing/attribution'
     | '/_authenticated/erp/marketing/campaigns'
+    | '/_authenticated/erp/marketing/health'
     | '/_authenticated/erp/marketing/install'
     | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
@@ -838,6 +851,13 @@ declare module '@tanstack/react-router' {
       path: '/install'
       fullPath: '/erp/marketing/install'
       preLoaderRoute: typeof AuthenticatedErpMarketingInstallRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
+    '/_authenticated/erp/marketing/health': {
+      id: '/_authenticated/erp/marketing/health'
+      path: '/health'
+      fullPath: '/erp/marketing/health'
+      preLoaderRoute: typeof AuthenticatedErpMarketingHealthRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
     '/_authenticated/erp/marketing/campaigns': {
@@ -1074,6 +1094,7 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAccountingRoute: typeof AuthenticatedErpMarketingAccountingRoute
   AuthenticatedErpMarketingAttributionRoute: typeof AuthenticatedErpMarketingAttributionRoute
   AuthenticatedErpMarketingCampaignsRoute: typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
+  AuthenticatedErpMarketingHealthRoute: typeof AuthenticatedErpMarketingHealthRoute
   AuthenticatedErpMarketingInstallRoute: typeof AuthenticatedErpMarketingInstallRoute
   AuthenticatedErpMarketingAdsetsAdsetIdRoute: typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   AuthenticatedErpMarketingReportsCouriersRoute: typeof AuthenticatedErpMarketingReportsCouriersRoute
@@ -1088,6 +1109,7 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
       AuthenticatedErpMarketingAttributionRoute,
     AuthenticatedErpMarketingCampaignsRoute:
       AuthenticatedErpMarketingCampaignsRouteWithChildren,
+    AuthenticatedErpMarketingHealthRoute: AuthenticatedErpMarketingHealthRoute,
     AuthenticatedErpMarketingInstallRoute:
       AuthenticatedErpMarketingInstallRoute,
     AuthenticatedErpMarketingAdsetsAdsetIdRoute:
