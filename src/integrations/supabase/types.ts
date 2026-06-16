@@ -5473,6 +5473,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_cargo_agent_id: { Args: never; Returns: string }
       erp_profit_loss: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
