@@ -2990,7 +2990,7 @@ export type Database = {
           product_subtotal_bdt: number
           shipping_total_bdt: number
           status: Database["public"]["Enums"]["imp_po_status"]
-          supplier_id: string
+          supplier_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3011,7 +3011,7 @@ export type Database = {
           product_subtotal_bdt?: number
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
-          supplier_id: string
+          supplier_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3032,7 +3032,7 @@ export type Database = {
           product_subtotal_bdt?: number
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
-          supplier_id?: string
+          supplier_id?: string | null
           updated_at?: string
         }
         Relationships: [
