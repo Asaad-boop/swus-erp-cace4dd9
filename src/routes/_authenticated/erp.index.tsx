@@ -12,23 +12,23 @@ export const Route = createFileRoute("/_authenticated/erp/")({
 });
 
 function DashboardPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id;
+  const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
+  const enabled = brandIds.length > 0;
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["dashboard-stats", brandId],
-    enabled: !!brandId,
+    queryKey: ["dashboard-stats", brandIds.join(",")],
+    enabled,
     queryFn: async () => {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
       const [todayOrders, pendingOrders, deliveredOrders, monthRevenue, lowStock, accounts] = await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brandId!).gte("created_at", todayStart.toISOString()),
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brandId!).in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brandId!).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
-        supabase.from("orders").select("total").eq("brand_id", brandId!).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
-        supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).eq("brand_id", brandId!).eq("is_resolved", false),
-        supabase.from("erp_accounts").select("current_balance").eq("brand_id", brandId!).eq("is_active", true),
+        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).gte("created_at", todayStart.toISOString()),
+        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
+        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        supabase.from("orders").select("total").in("brand_id", brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).in("brand_id", brandIds).eq("is_resolved", false),
+        supabase.from("erp_accounts").select("current_balance").in("brand_id", brandIds).eq("is_active", true),
       ]);
 
       const revenue = (monthRevenue.data ?? []).reduce((s, r) => s + Number(r.total ?? 0), 0);
@@ -60,7 +60,7 @@ function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBrand ? `Showing data for ${activeBrand.name}` : "Loading brand..."}
+            {isAllBrands ? `Showing data for all brands (${brands.length})` : activeBrand ? `Showing data for ${activeBrand.name}` : "Loading brand..."}
           </p>
         </div>
       </header>

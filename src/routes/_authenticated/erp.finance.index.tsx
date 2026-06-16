@@ -55,20 +55,18 @@ type DashboardData = {
 const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8b5cf6", "#ef4444", "#84cc16", "#f97316", "#14b8a6"];
 
 function OverviewPage() {
-  const { activeBrand, brands } = useBrand();
-  const [scope, setScope] = useState<"active" | "all">("active");
-  const brandId = scope === "all" ? null : (activeBrand?.id ?? null);
+  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const [preset, setPreset] = useState<Preset>("this_month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const { from, to } = useMemo(() => rangeFor(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
   const dashQ = useQuery({
-    queryKey: ["finance_dashboard", brandId, from, to],
-    enabled: scope === "all" || !!brandId,
+    queryKey: ["finance_dashboard", brandIds.join(","), from, to],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       const todayIso = new Date().toISOString().slice(0, 10);
-      const brandEq = <T extends { eq: (col: string, v: string) => T }>(q: T) => (brandId ? q.eq("brand_id", brandId) : q);
+      const brandEq = <T extends { in: (col: string, v: string[]) => T }>(q: T) => q.in("brand_id", brandIds);
 
       // Today sales
       const todayOrdersQ = supabase
@@ -242,10 +240,10 @@ function OverviewPage() {
   });
 
   const periodLock = useQuery({
-    queryKey: ["erp_period_lock", brandId],
-    enabled: !!brandId,
+    queryKey: ["erp_period_lock", activeBrand?.id ?? "all"],
+    enabled: !isAllBrands && !!activeBrand?.id,
     queryFn: async () => {
-      const { data } = await supabase.from("erp_period_locks").select("locked_until").eq("brand_id", brandId!).maybeSingle();
+      const { data } = await supabase.from("erp_period_locks").select("locked_until").eq("brand_id", activeBrand!.id).maybeSingle();
       return data;
     },
   });
@@ -267,8 +265,8 @@ function OverviewPage() {
 
   const donutData = topExpenses.slice(0, 6).map(([name, value]) => ({ name, value: Number(value) }));
 
-  if (scope === "active" && !brandId) {
-    return <div className="p-6 text-muted-foreground">Select a brand to view finance.</div>;
+  if (brandIds.length === 0) {
+    return <div className="p-6 text-muted-foreground">Loading brands…</div>;
   }
 
   return (
@@ -276,19 +274,9 @@ function OverviewPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Finance Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{scope === "all" ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}</p>
+          <p className="text-sm text-muted-foreground">{isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
-          <div className="min-w-[140px]">
-            <Label className="text-xs">Brand</Label>
-            <Select value={scope} onValueChange={(v) => setScope(v as "active" | "all")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">{activeBrand?.name ?? "Active brand"}</SelectItem>
-                <SelectItem value="all">All brands</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <div className="min-w-[160px]">
             <Label className="text-xs">Period</Label>
             <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
