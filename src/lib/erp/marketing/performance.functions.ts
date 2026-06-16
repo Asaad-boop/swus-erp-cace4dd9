@@ -74,6 +74,33 @@ function dateRangeDefaults(input: { from?: string; to?: string }) {
   return { from, to };
 }
 
+// Convert a YYYY-MM-DD local-date in the ad account timezone to a UTC ISO string.
+// Default offset = Asia/Dhaka (+6h). Ads Manager day-buckets in the account TZ,
+// so we must match that window when joining to orders (which are stored UTC).
+function localDayToUtcIso(dateStr: string, tzOffsetMinutes: number, endOfDay: boolean) {
+  const time = endOfDay ? "23:59:59.999" : "00:00:00.000";
+  const ms = Date.parse(`${dateStr}T${time}Z`) - tzOffsetMinutes * 60_000;
+  return new Date(ms).toISOString();
+}
+
+// Best-effort offset for an IANA timezone string. We support the few that
+// matter for our users; anything else falls back to +6 (Dhaka).
+function tzOffsetMinutes(tz: string | null | undefined): number {
+  switch ((tz ?? "").trim()) {
+    case "Asia/Dhaka":
+      return 6 * 60;
+    case "Asia/Karachi":
+      return 5 * 60;
+    case "Asia/Kolkata":
+      return 5 * 60 + 30;
+    case "UTC":
+    case "Etc/UTC":
+      return 0;
+    default:
+      return 6 * 60; // Dhaka default for this app
+  }
+}
+
 function classify(row: {
   spend_bdt: number;
   delivered_orders: number;
@@ -111,13 +138,15 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ rows: PerfRow[]; totals: PerfTotals }> => {
     const supabase = context.supabase;
     const { from, to } = dateRangeDefaults(data);
-    const fromStart = `${from}T00:00:00.000Z`;
-    const toEnd = `${to}T23:59:59.999Z`;
+    // Default timezone = Asia/Dhaka (matches Meta Ads Manager day buckets for BD accounts).
+    const tzMin = tzOffsetMinutes("Asia/Dhaka");
+    const fromStart = localDayToUtcIso(from, tzMin, false);
+    const toEnd = localDayToUtcIso(to, tzMin, true);
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
       .select(
-        "id, external_id, name, objective, status, effective_status, account_id, daily_budget, mkt_ad_accounts(name, currency, usd_to_bdt_rate)",
+        "id, external_id, name, objective, status, effective_status, account_id, daily_budget, mkt_ad_accounts(name, currency, timezone, usd_to_bdt_rate)",
       )
       .eq("brand_id", data.brandId)
       .order("name");
@@ -224,8 +253,10 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
 
     const rows: PerfRow[] = (campaigns as any[]).map((c) => {
       const acc = c.mkt_ad_accounts;
-      const currency: string = acc?.currency ?? "USD";
-      const fx: number = Number(acc?.usd_to_bdt_rate) || 110;
+      const currency: string = (acc?.currency ?? "USD").toUpperCase();
+      const usdFx: number = Number(acc?.usd_to_bdt_rate) || 110;
+      // If account currency is BDT, spend is already BDT — do NOT multiply by FX.
+      const fx: number = currency === "BDT" ? 1 : usdFx;
       const ins = insMap.get(c.id) ?? {
         spend: 0,
         impressions: 0,

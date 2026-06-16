@@ -234,16 +234,29 @@ export function extractMetaConversions(insight: MetaInsight) {
     }
     return total;
   };
-  const purchases = sumAction(insight.actions, [
-    "purchase",
-    "offsite_conversion.fb_pixel_purchase",
+  // Meta returns the SAME purchase under multiple action_types
+  // (purchase, offsite_conversion.fb_pixel_purchase, omni_purchase, web_in_store_purchase, ...).
+  // Ads Manager's "Purchases" column = omni_purchase (de-duplicated).
+  // We pick the first available type, NOT the sum, to match Ads Manager.
+  const pickFirst = (
+    list: Array<{ action_type: string; value: string }> | undefined,
+    types: string[],
+  ) => {
+    if (!list) return 0;
+    for (const t of types) {
+      const a = list.find((x) => x.action_type === t);
+      if (a) return Number(a.value) || 0;
+    }
+    return 0;
+  };
+  const PURCHASE_PRIORITY = [
     "omni_purchase",
-  ]);
-  const purchase_value = sumAction(insight.action_values, [
-    "purchase",
     "offsite_conversion.fb_pixel_purchase",
-    "omni_purchase",
-  ]);
+    "onsite_web_purchase",
+    "purchase",
+  ];
+  const purchases = pickFirst(insight.actions, PURCHASE_PRIORITY);
+  const purchase_value = pickFirst(insight.action_values, PURCHASE_PRIORITY);
   const add_to_cart = sumAction(insight.actions, [
     "add_to_cart",
     "offsite_conversion.fb_pixel_add_to_cart",
@@ -254,7 +267,7 @@ export function extractMetaConversions(insight: MetaInsight) {
     "offsite_conversion.fb_pixel_initiate_checkout",
     "omni_initiated_checkout",
   ]);
-  const leads = sumAction(insight.actions, [
+  const leads = pickFirst(insight.actions, [
     "lead",
     "offsite_conversion.fb_pixel_lead",
     "onsite_conversion.lead_grouped",
