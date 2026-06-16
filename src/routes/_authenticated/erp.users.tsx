@@ -555,7 +555,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
     const s = Math.random().toString(36).slice(2, 10) + "A1!";
     setPassword(s); toast.success("Password generated");
   };
-  const showAgentPicker = roles.includes("cargo_agent");
   const freeAgents = agents.filter((a) => !a.user_id);
 
   return (
@@ -603,22 +602,26 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
               ))}
             </div>
           </div>
-          {showAgentPicker && (
-            <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3">
-              <Label>Link to cargo agent profile</Label>
-              <Select value={cargoAgentId} onValueChange={setCargoAgentId}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select an unlinked agent…" /></SelectTrigger>
-                <SelectContent>
-                  {freeAgents.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No unlinked agents</div>
-                  ) : freeAgents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">Linked hole user portal e tar PO/carton dekhte parbe.</p>
-            </div>
-          )}
+          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3">
+            <Label>Link to cargo agent profile</Label>
+            <Select
+              value={cargoAgentId}
+              onValueChange={(value) => {
+                setCargoAgentId(value);
+                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
+              }}
+            >
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Select an unlinked agent…" /></SelectTrigger>
+              <SelectContent>
+                {freeAgents.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No unlinked agents</div>
+                ) : freeAgents.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">Agent select korlei Cargo Agent permission auto add hobe.</p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -670,21 +673,25 @@ function EditUserDialog({ user, agents, onClose, onSaved }: { user: any; agents:
               ))}
             </div>
           </div>
-          {roles.includes("cargo_agent") && (
-            <div>
-              <Label>Cargo agent profile</Label>
-              <Select value={cargoAgentId} onValueChange={setCargoAgentId}>
-                <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
-                <SelectContent>
-                  {freeAgents.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No agents available</div>
-                  ) : freeAgents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label>Cargo agent profile</Label>
+            <Select
+              value={cargoAgentId}
+              onValueChange={(value) => {
+                setCargoAgentId(value);
+                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
+              <SelectContent>
+                {freeAgents.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No agents available</div>
+                ) : freeAgents.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
