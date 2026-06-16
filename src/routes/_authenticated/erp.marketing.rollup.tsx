@@ -46,7 +46,8 @@ function fmtPct(n: number | null | undefined) {
 }
 
 function RollupPage() {
-  const { selectedBrandId } = useBrand();
+  const { activeBrand } = useBrand();
+  const selectedBrandId = activeBrand?.id ?? null;
   const [days, setDays] = useState(30);
   const [search, setSearch] = useState("");
   const range = useMemo(() => dateRange(days), [days]);
