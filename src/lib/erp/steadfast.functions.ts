@@ -157,6 +157,9 @@ const SettingsSchema = z.object({
   secret_key: z.string().min(1).max(500),
   is_active: z.boolean().default(true),
 });
+const SettingsSaveSchema = SettingsSchema.extend({
+  wallet_id: z.string().uuid().nullable().optional(),
+});
 
 export const steadfastGetSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -167,7 +170,7 @@ export const steadfastGetSettingsFn = createServerFn({ method: "POST" })
     if (!admin) throw new Error("Admin only");
     const { data: row, error } = await supabase
       .from("erp_courier_settings")
-      .select("brand_id, base_url, client_id, client_secret, is_active")
+      .select("brand_id, base_url, client_id, client_secret, is_active, wallet_id")
       .eq("provider", "steadfast")
       .eq("brand_id", data.brandId)
       .maybeSingle();
@@ -180,6 +183,7 @@ export const steadfastGetSettingsFn = createServerFn({ method: "POST" })
             api_key: row.client_id,
             secret_key: row.client_secret,
             is_active: row.is_active,
+            wallet_id: row.wallet_id,
           }
         : null,
     };
@@ -187,7 +191,7 @@ export const steadfastGetSettingsFn = createServerFn({ method: "POST" })
 
 export const steadfastSaveSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => SettingsSchema.parse(d))
+  .inputValidator((d) => SettingsSaveSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: admin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
@@ -199,6 +203,7 @@ export const steadfastSaveSettingsFn = createServerFn({ method: "POST" })
       client_id: data.api_key,
       client_secret: data.secret_key,
       is_active: data.is_active,
+      wallet_id: data.wallet_id ?? null,
     };
     const { error } = await supabase
       .from("erp_courier_settings")
