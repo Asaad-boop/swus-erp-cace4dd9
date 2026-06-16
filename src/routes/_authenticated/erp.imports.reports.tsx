@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,12 +79,20 @@ function ImportsReports() {
   if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <Card className="p-4">
+    <div className="p-4 md:p-6 space-y-5 print:p-0 print:space-y-3" id="imports-report-print">
+      <style>{`@media print { @page { size: A4; margin: 12mm; } .no-print { display:none !important; } body { background: white; } #imports-report-print { color: #000; } .print-title { display:block !important; } }`}</style>
+      <div className="hidden print-title print:block">
+        <h1 className="text-xl font-bold">{activeBrand?.name ?? ""} — Imports Report</h1>
+        <div className="text-sm text-muted-foreground">{from} to {to}</div>
+      </div>
+      <Card className="p-4 no-print">
         <div className="flex flex-wrap items-end gap-3">
           <div><Label>From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><Label>To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
-          <div className="ml-auto"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" />Export CSV</Button></div>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" />Print / PDF</Button>
+            <Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" />Export CSV</Button>
+          </div>
         </div>
       </Card>
 
