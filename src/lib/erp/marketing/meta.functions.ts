@@ -9,7 +9,12 @@ declare global {
 }
 
 function getMetaToken(savedToken?: string | null) {
-  return savedToken || process.env.META_SYSTEM_USER_TOKEN || globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN || null;
+  return (
+    savedToken ||
+    process.env.META_SYSTEM_USER_TOKEN ||
+    globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN ||
+    null
+  );
 }
 
 function normalizeMetaAdAccountId(id: string) {
@@ -17,10 +22,7 @@ function normalizeMetaAdAccountId(id: string) {
 }
 
 async function assertStaff(supabase: any, userId: string) {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   const roles = new Set((data ?? []).map((r: any) => r.role));
   if (!(roles.has("admin") || roles.has("operations"))) {
     throw new Error("Forbidden: admin or operations role required");
