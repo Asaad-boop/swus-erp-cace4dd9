@@ -330,31 +330,21 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
             synced_at: new Date().toISOString(),
           };
         });
-        // delete+insert by (ad_account_id,date,level,ext_ids) — easier: rely on unique index, do upsert
-        const { error: uErr } = await supabaseAdmin.from("marketing_insights_daily").upsert(upserts, {
-          onConflict:
-            // matches the unique index expression — but PostgREST onConflict must be a constraint name or columns
-            // The unique index is on (ad_account_id,date,level,COALESCE(...)) — PostgREST cannot target it.
-            // Strategy: delete the range first, then plain insert.
-            "ad_account_id,date,level",
-          ignoreDuplicates: false,
-        }).select().limit(0).then(async (r: any) => {
-          if (r.error) {
-            // Fallback: delete then insert
-            const delRes = await supabaseAdmin
-              .from("marketing_insights_daily")
-              .delete()
-              .eq("ad_account_id", acc.id)
-              .eq("level", level)
-              .gte("date", data.from)
-              .lte("date", data.to);
-            if (delRes.error) return { error: delRes.error };
-            const insRes = await supabaseAdmin.from("marketing_insights_daily").insert(upserts);
-            return { error: insRes.error };
-          }
-          return { error: null };
-        });
-        if (uErr) errors.push(`${level}: ${uErr.message}`);
+        // The unique index is on a COALESCE() expression so PostgREST can't target it.
+        // Strategy: delete the (account, level, date-range) slice first, then bulk insert.
+        const delRes = await supabaseAdmin
+          .from("marketing_insights_daily")
+          .delete()
+          .eq("ad_account_id", acc.id)
+          .eq("level", level)
+          .gte("date", data.from)
+          .lte("date", data.to);
+        if (delRes.error) {
+          errors.push(`${level} delete: ${delRes.error.message}`);
+          continue;
+        }
+        const insRes = await supabaseAdmin.from("marketing_insights_daily").insert(upserts);
+        if (insRes.error) errors.push(`${level} insert: ${insRes.error.message}`);
         else totals[level] = upserts.length;
       } catch (e: any) {
         errors.push(`${level} insights: ${e?.message}`);
