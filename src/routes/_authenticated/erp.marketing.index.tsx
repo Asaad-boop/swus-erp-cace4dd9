@@ -29,6 +29,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
 import {
@@ -52,7 +66,12 @@ import {
   Search,
   RefreshCw,
   ArrowUpRight,
+  MoreHorizontal,
+  Package,
+  ExternalLink,
+  RotateCcw,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/")({
   component: PerformanceDashboard,
@@ -128,11 +147,13 @@ function PerformanceDashboard() {
   const [view, setView] = useState<"meta" | "actual">("actual");
   const [bucketFilter, setBucketFilter] = useState<DecisionBucket | "all">("all");
   const [isSyncingMeta, setIsSyncingMeta] = useState(false);
+  const [manageProductsFor, setManageProductsFor] = useState<PerfRow | null>(null);
 
   const r = useMemo(() => ({ from: dateRange.from, to: dateRange.to }), [dateRange.from, dateRange.to]);
 
   const fn = useServerFn(getPerformanceDashboard);
   const syncRangeFn = useServerFn(syncBrandInsightsRange);
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["mkt-performance", brandId, r.from, r.to],
     queryFn: () => fn({ data: { brandId: brandId!, ...r } }),
@@ -152,6 +173,19 @@ function PerformanceDashboard() {
     } finally {
       setIsSyncingMeta(false);
     }
+  }
+
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setBucketFilter("all");
+    setDateRange(buildPreset("7d"));
+    toast.success("Filters reset");
+  }
+
+  async function refreshData() {
+    await qc.invalidateQueries({ queryKey: ["mkt-performance", brandId] });
+    toast.success("Data refreshed");
   }
 
   if (!brandId) {
@@ -205,6 +239,25 @@ function PerformanceDashboard() {
               <RefreshCw className={cn("h-4 w-4", (q.isFetching || isSyncingMeta) && "animate-spin")} />
               Sync Meta
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" title="More actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={refreshData} className="gap-2">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Refresh data
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={resetFilters} className="gap-2">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset filters
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -409,7 +462,19 @@ function PerformanceDashboard() {
                   </TableRow>
                 )}
                 {filtered.map((row) =>
-                  view === "meta" ? <MetaRow key={row.campaign_id} row={row} /> : <ActualRow key={row.campaign_id} row={row} />,
+                  view === "meta" ? (
+                    <MetaRow
+                      key={row.campaign_id}
+                      row={row}
+                      onManageProducts={() => setManageProductsFor(row)}
+                    />
+                  ) : (
+                    <ActualRow
+                      key={row.campaign_id}
+                      row={row}
+                      onManageProducts={() => setManageProductsFor(row)}
+                    />
+                  ),
                 )}
               </TableBody>
             </Table>
@@ -420,6 +485,19 @@ function PerformanceDashboard() {
           Spend BDT = USD × per-account FX rate. Decision rules: True ROAS ≥3 → Scale, 2-3 → Monitor, 1-2 → Optimize, &lt;1 → Kill. Min ৳330 spend chai evaluate korte.
         </p>
       </div>
+
+      {manageProductsFor && brandId && (
+        <ManageCampaignProductsDialog
+          open={!!manageProductsFor}
+          onOpenChange={(o) => {
+            if (!o) setManageProductsFor(null);
+          }}
+          campaignId={manageProductsFor.campaign_id}
+          campaignName={manageProductsFor.name}
+          brandId={brandId}
+          status={manageProductsFor.effective_status ?? manageProductsFor.status}
+        />
+      )}
     </TooltipProvider>
   );
 }
@@ -567,11 +645,12 @@ function MetaHead() {
       <TableHead className="text-right">Meta Purch.</TableHead>
       <TableHead className="text-right">CPP</TableHead>
       <TableHead className="text-right">Meta ROAS</TableHead>
+      <TableHead className="w-10" />
     </TableRow>
   );
 }
 
-function MetaRow({ row }: { row: PerfRow }) {
+function MetaRow({ row, onManageProducts }: { row: PerfRow; onManageProducts: () => void }) {
   return (
     <TableRow>
       <TableCell>
@@ -594,6 +673,9 @@ function MetaRow({ row }: { row: PerfRow }) {
         {row.meta_cost_per_purchase != null ? fmtUSD(row.meta_cost_per_purchase) : "—"}
       </TableCell>
       <TableCell className="text-right tabular-nums font-medium">{fmtMult(row.meta_roas)}</TableCell>
+      <TableCell className="text-right">
+        <RowActionsMenu row={row} onManageProducts={onManageProducts} />
+      </TableCell>
     </TableRow>
   );
 }
@@ -614,11 +696,12 @@ function ActualHead() {
       <TableHead className="text-center">Breakeven</TableHead>
       <TableHead className="text-right">Meta ROAS</TableHead>
       <TableHead className="text-right">True ROAS</TableHead>
+      <TableHead className="w-10" />
     </TableRow>
   );
 }
 
-function ActualRow({ row }: { row: PerfRow }) {
+function ActualRow({ row, onManageProducts }: { row: PerfRow; onManageProducts: () => void }) {
   const profitTone =
     row.profit_bdt > 0
       ? "text-emerald-600 dark:text-emerald-400"
@@ -665,24 +748,8 @@ function ActualRow({ row }: { row: PerfRow }) {
       <TableCell className="text-center">
         {row.total_spend_bdt === 0 ? (
           <span className="text-muted-foreground">—</span>
-        ) : row.is_breakeven ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <CheckCircle2 className="h-4 w-4 inline text-emerald-500" />
-            </TooltipTrigger>
-            <TooltipContent>
-              Breakeven crossed (needed {fmtBDT(row.breakeven_revenue_bdt)})
-            </TooltipContent>
-          </Tooltip>
         ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <XCircle className="h-4 w-4 inline text-rose-500" />
-            </TooltipTrigger>
-            <TooltipContent>
-              Need {fmtBDT(Math.max(0, row.breakeven_revenue_bdt - row.delivered_revenue_bdt))} more revenue to breakeven
-            </TooltipContent>
-          </Tooltip>
+          <BreakevenPopover row={row} />
         )}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -691,6 +758,178 @@ function ActualRow({ row }: { row: PerfRow }) {
       <TableCell className={cn("text-right tabular-nums font-semibold", trueRoasTone)}>
         {fmtMult(row.true_roas)}
       </TableCell>
+      <TableCell className="text-right">
+        <RowActionsMenu row={row} onManageProducts={onManageProducts} />
+      </TableCell>
     </TableRow>
+  );
+}
+
+// ─────────────────────────── Row actions + Breakeven popover ───────────────────────────
+
+function RowActionsMenu({
+  row,
+  onManageProducts,
+}: {
+  row: PerfRow;
+  onManageProducts: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onSelect={onManageProducts} className="gap-2">
+          <Package className="h-3.5 w-3.5" />
+          Manage Products
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="gap-2">
+          <Link
+            to="/erp/marketing/campaigns/$campaignId"
+            params={{ campaignId: row.campaign_id }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View Campaign Detail
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function BreakevenPopover({ row }: { row: PerfRow }) {
+  const isBE = row.is_breakeven;
+  // Calculate Min ROAS required = (cogs + op + spend) / spend
+  const minRoasRequired =
+    row.total_spend_bdt > 0
+      ? (row.breakeven_revenue_bdt) / row.total_spend_bdt
+      : null;
+  // Max CPP based on avg order value if we have delivered orders
+  const avgOrderValue =
+    row.delivered_orders > 0 ? row.delivered_revenue_bdt / row.delivered_orders : null;
+  const avgMargin =
+    row.delivered_revenue_bdt > 0
+      ? (row.delivered_revenue_bdt - row.cogs_bdt - row.operating_cost_bdt) /
+        row.delivered_revenue_bdt
+      : null;
+  const maxCpp = avgOrderValue && avgMargin != null ? avgOrderValue * avgMargin : null;
+  // Meta-side targets (USD)
+  const metaCppTarget =
+    maxCpp != null && row.fx_rate > 0 ? maxCpp / row.fx_rate : null;
+  const metaRoasTarget = minRoasRequired; // same multiplier
+  // Delivery rate: delivered orders / meta purchases
+  const deliveryRate =
+    row.meta_purchases > 0 ? row.delivered_orders / row.meta_purchases : null;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center justify-center">
+          {isBE ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-rose-500" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80">
+        <div className="space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Breakeven Analysis</div>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px]",
+                isBE
+                  ? "border-emerald-500/40 text-emerald-600"
+                  : "border-rose-500/40 text-rose-600",
+              )}
+            >
+              {isBE ? "Profitable ✓" : "Below breakeven"}
+            </Badge>
+          </div>
+
+          <div className="space-y-1 border-t pt-2">
+            <Stat label="Current Profit" value={fmtBDT(row.profit_bdt)} tone={isBE ? "good" : "bad"} />
+            <Stat label="Revenue needed" value={fmtBDT(row.breakeven_revenue_bdt)} />
+            <Stat
+              label="Gap to breakeven"
+              value={
+                isBE
+                  ? "—"
+                  : fmtBDT(Math.max(0, row.breakeven_revenue_bdt - row.delivered_revenue_bdt))
+              }
+              tone={isBE ? "good" : "bad"}
+            />
+          </div>
+
+          <div className="border-t pt-2">
+            <div className="font-semibold text-foreground mb-1">Actual targets (BDT)</div>
+            <Stat
+              label="Max CPP allowed"
+              value={maxCpp != null ? fmtBDT(maxCpp) : "Need delivered orders"}
+            />
+            <Stat
+              label="Min ROAS required"
+              value={minRoasRequired != null ? fmtMult(minRoasRequired) : "—"}
+            />
+          </div>
+
+          <div className="border-t pt-2">
+            <div className="font-semibold text-foreground mb-1">Meta targets (USD)</div>
+            <Stat
+              label="Meta CPP target"
+              value={metaCppTarget != null ? fmtUSD(metaCppTarget) : "—"}
+              hint="Set this as your CPP cap in Ads Manager"
+            />
+            <Stat
+              label="Meta ROAS target"
+              value={metaRoasTarget != null ? fmtMult(metaRoasTarget) : "—"}
+              hint="Meta should show this ROAS for breakeven"
+            />
+            <Stat
+              label="Delivery rate"
+              value={deliveryRate != null ? fmtPct(deliveryRate * 100, 1) : "—"}
+              hint={
+                deliveryRate != null && deliveryRate < 0.6
+                  ? "Low delivery — confirm orders are converting"
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+  hint,
+}: {
+  label: string;
+  value: string;
+  tone?: "good" | "bad";
+  hint?: string;
+}) {
+  const cls =
+    tone === "good"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "bad"
+        ? "text-rose-600 dark:text-rose-400"
+        : "text-foreground";
+  return (
+    <div className="flex items-start justify-between gap-3 py-0.5">
+      <div className="text-muted-foreground">{label}</div>
+      <div className="text-right">
+        <div className={cn("font-medium tabular-nums", cls)}>{value}</div>
+        {hint && <div className="text-[10px] text-muted-foreground italic mt-0.5">{hint}</div>}
+      </div>
+    </div>
   );
 }
