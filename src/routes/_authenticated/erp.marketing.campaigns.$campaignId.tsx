@@ -9,6 +9,7 @@ import { useBrand } from "@/contexts/brand-context";
 import { getCampaignDetail } from "@/lib/erp/marketing/marketing.functions";
 import { fmtBdt } from "@/lib/erp/finance";
 import { CampaignProductMapping } from "@/components/erp/marketing/campaign-product-mapping";
+import { AdProductLinkPanel } from "@/components/erp/marketing/ad-product-link-panel";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
@@ -94,6 +95,8 @@ function CampaignDetailPage() {
             brandId={activeBrand?.id ?? null}
             initial={d.mappings as any}
           />
+
+          <AdProductLinkPanel campaignId={campaignId} brandId={activeBrand?.id ?? null} />
 
           <Card>
             <CardHeader><CardTitle className="text-base">Daily insights</CardTitle></CardHeader>
