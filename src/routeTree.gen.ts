@@ -29,6 +29,7 @@ import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.t
 import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
+import { Route as ApiPublicCronMarketingRebuildRouteImport } from './routes/api/public/cron.marketing-rebuild'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
@@ -158,6 +159,12 @@ const ApiPublicCronRunRecurringRoute =
   ApiPublicCronRunRecurringRouteImport.update({
     id: '/api/public/cron/run-recurring',
     path: '/api/public/cron/run-recurring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronMarketingRebuildRoute =
+  ApiPublicCronMarketingRebuildRouteImport.update({
+    id: '/api/public/cron/marketing-rebuild',
+    path: '/api/public/cron/marketing-rebuild',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedErpOrdersWebRoute =
@@ -320,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/marketing-rebuild': typeof ApiPublicCronMarketingRebuildRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -359,6 +367,7 @@ export interface FileRoutesByTo {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/marketing-rebuild': typeof ApiPublicCronMarketingRebuildRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -403,6 +412,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/api/public/cron/marketing-rebuild': typeof ApiPublicCronMarketingRebuildRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/api/public/cron/marketing-rebuild'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/api/public/cron/marketing-rebuild'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -529,6 +541,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
+    | '/api/public/cron/marketing-rebuild'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -543,6 +556,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicCronMarketingRebuildRoute: typeof ApiPublicCronMarketingRebuildRoute
   ApiPublicCronRunRecurringRoute: typeof ApiPublicCronRunRecurringRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
   ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
@@ -691,6 +705,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/run-recurring'
       fullPath: '/api/public/cron/run-recurring'
       preLoaderRoute: typeof ApiPublicCronRunRecurringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/marketing-rebuild': {
+      id: '/api/public/cron/marketing-rebuild'
+      path: '/api/public/cron/marketing-rebuild'
+      fullPath: '/api/public/cron/marketing-rebuild'
+      preLoaderRoute: typeof ApiPublicCronMarketingRebuildRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/erp/orders/web': {
@@ -971,6 +992,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicCronMarketingRebuildRoute: ApiPublicCronMarketingRebuildRoute,
   ApiPublicCronRunRecurringRoute: ApiPublicCronRunRecurringRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
   ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,

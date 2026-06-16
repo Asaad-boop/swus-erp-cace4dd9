@@ -4008,6 +4008,59 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_rebuild_jobs: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          orders_processed: number
+          range_from: string
+          range_to: string
+          started_at: string
+          status: string
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          orders_processed?: number
+          range_from: string
+          range_to: string
+          started_at?: string
+          status?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          orders_processed?: number
+          range_from?: string
+          range_to?: string
+          started_at?: string
+          status?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_rebuild_jobs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_sessions: {
         Row: {
           brand_id: string | null
@@ -5779,6 +5832,34 @@ export type Database = {
         Args: { _journal_line_id: string; _line_id: string }
         Returns: undefined
       }
+      mkt_get_campaign_daily_rollup: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          ad_spend: number
+          campaign_id: string
+          campaign_name: string
+          cancelled_orders: number
+          clicks: number
+          day: string
+          delivered_orders: number
+          delivery_rate: number
+          external_campaign_id: string
+          gross_revenue: number
+          health: string
+          impressions: number
+          net_profit: number
+          net_revenue: number
+          orders_attributed: number
+          poas: number
+          real_roas: number
+          return_rate: number
+          returned_orders: number
+        }[]
+      }
+      mkt_get_overview_kpis: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: Json
+      }
       mkt_ingest_track: {
         Args: {
           p_event_name: string
@@ -5787,6 +5868,10 @@ export type Database = {
           p_session_id: string
           p_site_key: string
         }
+        Returns: Json
+      }
+      mkt_rebuild_window: {
+        Args: { p_brand_id: string; p_days?: number; p_trigger?: string }
         Returns: Json
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
