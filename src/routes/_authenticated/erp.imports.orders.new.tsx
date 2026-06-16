@@ -201,17 +201,92 @@ function NewPoPage() {
 
   if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
 
+  // ---- Stepper state & validation ----
+  const [step, setStep] = useState(1);
+
+  const step1Valid = !!supplierId && fxRate > 0;
+  const step2Valid = items.length > 0 && items.every((i) => i.name_snapshot && i.quantity > 0 && i.unit_cost_foreign >= 0);
+  const step3Valid = cartons.length > 0 && reconciliationErrors.length === 0;
+  const step4Valid = !payEnabled || (payAmount > 0 && !!payWalletId);
+  const stepValid: Record<number, boolean> = { 1: step1Valid, 2: step2Valid, 3: step3Valid, 4: step4Valid };
+
+  const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
+  const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+
+  const STEPS = [
+    { id: 1, label: "Order Info", icon: Package, desc: "Supplier, FX & date" },
+    { id: 2, label: "Items", icon: Boxes, desc: "Products & pricing" },
+    { id: 3, label: "Cartons", icon: Truck, desc: "Pack & allocate" },
+    { id: 4, label: "Payment & Review", icon: Wallet, desc: "Advance & submit" },
+  ];
+
+  const canGoNext = stepValid[step];
+  const goNext = () => setStep((s) => Math.min(4, s + 1));
+  const goPrev = () => setStep((s) => Math.max(1, s - 1));
+
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-6xl">
-      <div className="flex items-center gap-3">
-        <Link to="/erp/imports/orders"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button></Link>
-        <div>
-          <h2 className="text-xl font-bold">New Purchase Order</h2>
-          <p className="text-xs text-muted-foreground">Brand: {activeBrand?.name}</p>
+    <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Link to="/erp/imports/orders"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button></Link>
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />New Purchase Order</h2>
+            <p className="text-xs text-muted-foreground">Brand: {activeBrand?.name} · Step {step} of 4</p>
+          </div>
         </div>
+        <Badge variant="outline" className="gap-1.5"><Sparkles className="h-3 w-3" />Draft</Badge>
       </div>
 
-      {/* Order Info */}
+      {/* Stepper Strip */}
+      <Card className="p-3 md:p-4 bg-gradient-to-br from-card to-muted/30 border-primary/10">
+        <div className="grid grid-cols-4 gap-2">
+          {STEPS.map((s, idx) => {
+            const isActive = s.id === step;
+            const isDone = s.id < step && stepValid[s.id];
+            const isReachable = s.id <= step || (s.id === step + 1 && stepValid[step]);
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={!isReachable}
+                onClick={() => isReachable && setStep(s.id)}
+                className={cn(
+                  "relative flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
+                  isActive && "bg-primary/10 border-primary shadow-sm",
+                  !isActive && isDone && "bg-emerald-500/5 border-emerald-500/30 hover:bg-emerald-500/10",
+                  !isActive && !isDone && "bg-card/50 border-border hover:bg-muted/50",
+                  !isReachable && "opacity-50 cursor-not-allowed",
+                )}
+              >
+                <div className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm",
+                  isActive && "bg-primary text-primary-foreground",
+                  !isActive && isDone && "bg-emerald-500 text-white",
+                  !isActive && !isDone && "bg-muted text-muted-foreground border border-border",
+                )}>
+                  {isDone ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0 hidden sm:block">
+                  <div className={cn("text-xs font-semibold truncate", isActive && "text-primary")}>{s.label}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">{s.desc}</div>
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto hidden md:block" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Main 2-col layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-start">
+        <div className="space-y-5 min-w-0">
+
+      {/* Step 1: Order Info */}
+      {step === 1 && (
       <Card className="p-5">
         <SectionTitle icon={Package} title="Order Info" />
         <div className="grid md:grid-cols-3 gap-3 mt-3">
@@ -237,11 +312,13 @@ function NewPoPage() {
           </div>
           <div><Label>Currency</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={8} /></div>
           <div><Label>FX Rate (1 {currency} = ? BDT)</Label><Input type="number" step="0.0001" value={fxRate} onChange={(e) => setFxRate(Number(e.target.value))} /></div>
-          <div><Label>Notes</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></div>
+          <div className="md:col-span-3"><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes for this PO" rows={2} /></div>
         </div>
       </Card>
+      )}
 
-      {/* Items */}
+      {/* Step 2: Items */}
+      {step === 2 && (
       <Card className="p-5">
         <div className="flex items-center justify-between">
           <SectionTitle icon={Boxes} title={`Items (${items.length})`} />
@@ -269,8 +346,10 @@ function NewPoPage() {
           </div>
         </div>
       </Card>
+      )}
 
-      {/* Cartons */}
+      {/* Step 3: Cartons */}
+      {step === 3 && (
       <Card className="p-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <SectionTitle icon={Truck} title={`Cartons (${cartons.length})`} />
@@ -320,8 +399,11 @@ function NewPoPage() {
           ))}
         </div>
       </Card>
+      )}
 
-      {/* Initial Payment */}
+      {/* Step 4: Initial Payment & Review */}
+      {step === 4 && (
+      <>
       <Card className="p-5">
         <div className="flex items-center justify-between">
           <SectionTitle icon={Wallet} title="Initial Payment (Optional)" />
@@ -355,19 +437,111 @@ function NewPoPage() {
         )}
       </Card>
 
-      {/* Summary + Submit */}
-      <Card className="p-5 sticky bottom-2 shadow-lg border-primary/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div><div className="text-xs text-muted-foreground">Items</div><div className="font-semibold">{items.length}</div></div>
-            <div><div className="text-xs text-muted-foreground">Cartons</div><div className="font-semibold">{cartons.length}</div></div>
-            <div><div className="text-xs text-muted-foreground">Subtotal</div><div className="font-semibold tabular-nums">{fmtBdt(productSubtotalBdt)}</div></div>
-          </div>
-          <Button size="lg" disabled={submitMut.isPending || reconciliationErrors.length > 0 || !supplierId} onClick={() => submitMut.mutate()}>
-            {submitMut.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</> : "Create Purchase Order"}
-          </Button>
+      {/* Review */}
+      <Card className="p-5">
+        <SectionTitle icon={FileText} title="Review" />
+        <div className="mt-3 grid md:grid-cols-2 gap-4 text-sm">
+          <ReviewRow label="Supplier" value={(suppliers as any[]).find((s) => s.id === supplierId)?.name ?? "—"} />
+          <ReviewRow label="Cargo Agent" value={(agents as any[]).find((a) => a.id === agentId)?.name ?? "—"} />
+          <ReviewRow label="Order Date" value={orderDate} />
+          <ReviewRow label="FX Rate" value={`1 ${currency} = ${fxRate} BDT`} />
+          <ReviewRow label="Items" value={`${items.length} (${totalUnits} units)`} />
+          <ReviewRow label="Cartons" value={`${cartons.length} (${totalCartonWeight.toFixed(1)} kg)`} />
+          <ReviewRow label="Product Subtotal" value={fmtBdt(productSubtotalBdt)} highlight />
+          {payEnabled && <ReviewRow label="Advance Payment" value={fmtBdt(payAmount)} highlight />}
         </div>
       </Card>
+      </>
+      )}
+
+      {/* Step Nav */}
+      <Card className="p-3 flex items-center justify-between gap-2">
+        <Button variant="ghost" disabled={step === 1} onClick={goPrev}>
+          <ArrowLeft className="h-4 w-4 mr-1" />Previous
+        </Button>
+        <div className="text-xs text-muted-foreground hidden sm:block">
+          {!canGoNext && step < 4 && <span className="text-orange-600">Complete this step to continue</span>}
+        </div>
+        {step < 4 ? (
+          <Button disabled={!canGoNext} onClick={goNext}>
+            Next<ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        ) : (
+          <Button size="lg" disabled={submitMut.isPending || reconciliationErrors.length > 0 || !supplierId || !step4Valid} onClick={() => submitMut.mutate()}>
+            {submitMut.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</> : "Create Purchase Order"}
+          </Button>
+        )}
+      </Card>
+        </div>
+
+        {/* Sidebar Summary */}
+        <div className="lg:sticky lg:top-4 space-y-3">
+          <Card className="p-4 bg-gradient-to-br from-primary/5 to-card border-primary/20">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Grand Total</div>
+            <div className="text-2xl font-bold tabular-nums">{fmtBdt(productSubtotalBdt)}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{productSubtotalForeign.toFixed(2)} {currency} @ {fxRate}</div>
+          </Card>
+
+          <Card className="p-4 space-y-2.5 text-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Summary</div>
+            <SideRow label="Supplier" value={(suppliers as any[]).find((s) => s.id === supplierId)?.name ?? <span className="text-muted-foreground italic">Not set</span>} />
+            <SideRow label="Order Date" value={orderDate} />
+            <SideRow label="Currency" value={`${currency} @ ${fxRate}`} />
+            <div className="border-t border-border my-2" />
+            <SideRow label="Items" value={`${items.length}`} />
+            <SideRow label="Total Units" value={totalUnits.toLocaleString()} />
+            <SideRow label="Cartons" value={`${cartons.length}`} />
+            <SideRow label="Total Weight" value={`${totalCartonWeight.toFixed(1)} kg`} />
+            <div className="border-t border-border my-2" />
+            <SideRow label="Subtotal" value={fmtBdt(productSubtotalBdt)} bold />
+            {payEnabled && payAmount > 0 && (
+              <>
+                <SideRow label="Advance" value={`− ${fmtBdt(payAmount)}`} accent="text-emerald-600" />
+                <SideRow label="Due After" value={fmtBdt(productSubtotalBdt - payAmount)} bold accent={productSubtotalBdt - payAmount > 0 ? "text-orange-600" : "text-emerald-600"} />
+              </>
+            )}
+          </Card>
+
+          {reconciliationErrors.length > 0 && (
+            <Card className="p-3 border-orange-500/30 bg-orange-500/5">
+              <div className="flex items-start gap-2 text-xs">
+                <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div className="font-semibold text-orange-700 dark:text-orange-300 mb-1">Carton mismatch</div>
+                  <div className="text-orange-700/80 dark:text-orange-400/80">Fix in Step 3 before submitting.</div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          <Card className="p-3 text-[11px] text-muted-foreground leading-relaxed">
+            <div className="font-semibold text-foreground mb-1 text-xs">Tips</div>
+            <ul className="space-y-1 list-disc ml-4">
+              <li>FX rate locks the BDT cost at order time.</li>
+              <li>Use "Auto-split" to evenly distribute items across cartons.</li>
+              <li>Advance payment is optional — you can pay later from the PO detail page.</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SideRow({ label, value, bold, accent }: { label: string; value: React.ReactNode; bold?: boolean; accent?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={cn("text-sm tabular-nums text-right truncate", bold && "font-bold", accent)}>{value}</span>
+    </div>
+  );
+}
+
+function ReviewRow({ label, value, highlight }: { label: string; value: React.ReactNode; highlight?: boolean }) {
+  return (
+    <div className={cn("flex items-center justify-between gap-3 p-2.5 rounded-md border", highlight ? "border-primary/30 bg-primary/5" : "border-border bg-card/50")}>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={cn("text-sm tabular-nums font-medium text-right truncate", highlight && "font-bold text-primary")}>{value}</span>
     </div>
   );
 }
