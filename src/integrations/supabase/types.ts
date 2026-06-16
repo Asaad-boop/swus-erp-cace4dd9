@@ -5301,6 +5301,57 @@ export type Database = {
         Args: { _d: string; _freq: string; _n: number }
         Returns: string
       }
+      _imp_has_any_role: {
+        Args: { _roles: string[]; _user: string }
+        Returns: boolean
+      }
+      _imp_log: {
+        Args: {
+          _action: string
+          _after?: Json
+          _before?: Json
+          _brand: string
+          _entity_id: string
+          _entity_type: string
+          _new: string
+          _notes: string
+          _prev: string
+          _user: string
+        }
+        Returns: undefined
+      }
+      _imp_post_journal: {
+        Args: {
+          _brand_id: string
+          _description: string
+          _entry_date: string
+          _lines: Json
+          _source_id: string
+          _source_type: string
+          _user: string
+        }
+        Returns: string
+      }
+      _imp_record_payment: {
+        Args: {
+          _amount: number
+          _brand: string
+          _carton: string
+          _cr_account: string
+          _date: string
+          _dr_account: string
+          _idem: string
+          _notes: string
+          _po: string
+          _ptype: Database["public"]["Enums"]["imp_payment_type"]
+          _ref: string
+          _user: string
+          _wallet: string
+        }
+        Returns: string
+      }
+      _imp_refresh_po_status: { Args: { _po: string }; Returns: undefined }
+      _imp_refresh_po_totals: { Args: { _po: string }; Returns: undefined }
       _mkt_require_staff: { Args: never; Returns: undefined }
       acquire_order_lock: {
         Args: { _force?: boolean; _order_id: string }
@@ -5615,6 +5666,7 @@ export type Database = {
         Returns: boolean
       }
       heartbeat_order_lock: { Args: { _order_id: string }; Returns: undefined }
+      imp_create_po: { Args: { _payload: Json }; Returns: Json }
       imp_get_or_create_account: {
         Args: {
           _brand: string
@@ -5625,7 +5677,15 @@ export type Database = {
         }
         Returns: string
       }
+      imp_mark_arrived: { Args: { _payload: Json }; Returns: Json }
       imp_next_po_number: { Args: { _brand: string }; Returns: string }
+      imp_post_to_inventory: { Args: { _payload: Json }; Returns: Json }
+      imp_record_payment_rpc: { Args: { _payload: Json }; Returns: Json }
+      imp_release_carton: { Args: { _payload: Json }; Returns: Json }
+      imp_update_carton_stage: {
+        Args: { _carton: string; _new_stage: string; _notes?: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_guest_order: { Args: { _order_id: string }; Returns: boolean }
       is_recent_guest_order: { Args: { _order_id: string }; Returns: boolean }
