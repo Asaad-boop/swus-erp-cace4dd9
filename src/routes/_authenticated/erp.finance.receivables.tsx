@@ -228,10 +228,13 @@ function ReceivePaymentDialog({ row, coa, onClose, onSaved }: {
       const amt = Number(amount);
       if (!(amt > 0)) throw new Error("Amount must be > 0");
       if (amt > row.outstanding + 0.01) throw new Error("Exceeds outstanding");
-      const { error } = await supabase.rpc("record_ar_payment", {
+      const args: Record<string, unknown> = {
         _order_id: row.order_id, _amount: amt, _cash_account_id: cashAcct,
-        _ar_account_id: arAcct, _payment_date: date, _reference_no: ref || undefined, _notes: notes || undefined,
-      });
+        _ar_account_id: arAcct, _payment_date: date,
+      };
+      if (ref) args._reference_no = ref;
+      if (notes) args._notes = notes;
+      const { error } = await supabase.rpc("record_ar_payment", args as never);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Payment recorded"); onSaved(); onClose(); },
