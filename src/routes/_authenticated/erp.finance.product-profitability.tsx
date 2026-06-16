@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/product-profit
   component: ProductProfitabilityPage,
 });
 
-type ProductRow = { id: string; name: string; sku: string | null; image_url: string | null; brand_id: string; stock: number | null };
+type ProductRow = { id: string; title: string; sku: string | null; image: string | null; brand_id: string | null; stock: number | null };
 
 type Report = {
   product: { id: string; name: string; sku: string | null; image: string | null; brand_id: string; cost_price: number | null; stock: number | null };
@@ -79,11 +79,11 @@ function ProductProfitabilityPage() {
     queryKey: ["pp-products", brandId, search],
     enabled: !!brandId && pickerOpen,
     queryFn: async () => {
-      let q = supabase.from("products").select("id,name,sku,image_url,brand_id,stock").eq("brand_id", brandId!).order("name").limit(50);
-      if (search.trim()) q = q.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+      let q = supabase.from("products").select("id,title,sku,image,brand_id,stock").eq("brand_id", brandId!).order("title").limit(50);
+      if (search.trim()) q = q.or(`title.ilike.%${search}%,sku.ilike.%${search}%`);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as ProductRow[];
+      return (data ?? []) as unknown as ProductRow[];
     },
   });
 
@@ -192,13 +192,13 @@ function ProductProfitabilityPage() {
                           productId === p.id && "bg-muted",
                         )}
                       >
-                        {p.image_url ? (
-                          <img src={p.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                        {p.image ? (
+                          <img src={p.image} alt="" className="h-8 w-8 rounded object-cover" />
                         ) : (
                           <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><Package className="h-4 w-4 text-muted-foreground" /></div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm truncate">{p.name}</div>
+                          <div className="text-sm truncate">{p.title}</div>
                           <div className="text-xs text-muted-foreground">{p.sku ?? "—"} · stock {p.stock ?? 0}</div>
                         </div>
                       </button>
