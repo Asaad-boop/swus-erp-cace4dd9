@@ -56,17 +56,17 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       token: string;
       token_expires_at?: string | null;
     }) =>
-    z
-      .object({
-        brand_id: z.string().uuid(),
-        external_account_id: z.string().min(3),
-        account_name: z.string().optional(),
-        currency: z.string().optional(),
-        timezone_name: z.string().optional(),
-        token: z.string().min(20),
-        token_expires_at: z.string().nullable().optional(),
-      })
-      .parse(d),
+      z
+        .object({
+          brand_id: z.string().uuid(),
+          external_account_id: z.string().min(3),
+          account_name: z.string().optional(),
+          currency: z.string().optional(),
+          timezone_name: z.string().optional(),
+          token: z.string().min(20),
+          token_expires_at: z.string().nullable().optional(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
