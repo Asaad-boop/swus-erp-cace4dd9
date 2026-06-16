@@ -118,8 +118,12 @@ export const createAppUser = createServerFn({ method: "POST" })
       await supabaseAdmin.from("profiles").upsert({ id: newUserId, display_name: data.displayName });
     }
 
-    if (data.roles.length) {
-      const rows = data.roles.map((r) => ({ user_id: newUserId, role: r }));
+    const finalRoles = data.cargoAgentId && !data.roles.includes("cargo_agent")
+      ? [...data.roles, "cargo_agent" as const]
+      : data.roles;
+
+    if (finalRoles.length) {
+      const rows = finalRoles.map((r) => ({ user_id: newUserId, role: r }));
       const { error: rErr } = await supabaseAdmin.from("user_roles").insert(rows);
       if (rErr) throw rErr;
     }
@@ -172,6 +176,11 @@ export const linkUserToCargoAgent = createServerFn({ method: "POST" })
     // unlink existing first
     await supabaseAdmin.from("imp_cargo_agents").update({ user_id: null }).eq("user_id", data.userId);
     if (data.cargoAgentId) {
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .upsert({ user_id: data.userId, role: "cargo_agent" }, { onConflict: "user_id,role" });
+      if (roleErr) throw roleErr;
+
       const { error } = await supabaseAdmin
         .from("imp_cargo_agents")
         .update({ user_id: data.userId })
