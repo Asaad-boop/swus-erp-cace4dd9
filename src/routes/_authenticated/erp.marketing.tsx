@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authenticated/erp/marketing")({
 });
 
 const tabs = [
-  { to: "/erp/marketing", label: "Overview", exact: true },
+  { to: "/erp/marketing", label: "Performance", exact: true },
   { to: "/erp/marketing/accounts", label: "Ad Accounts" },
   { to: "/erp/marketing/campaigns", label: "Campaigns" },
   { to: "/erp/marketing/rollup", label: "Profit Rollup" },
