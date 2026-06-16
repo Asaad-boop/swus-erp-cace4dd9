@@ -23,6 +23,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
+import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
+import { ExchangeCaseDialog } from "@/components/erp/finance/exchange-case-dialog";
+import { ProductExpenseAllocationDialog } from "@/components/erp/finance/product-expense-allocation-dialog";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/product-profitability")({
   head: () => ({ meta: [{ title: "Product Profitability — Finance" }] }),
@@ -73,6 +77,9 @@ function ProductProfitabilityPage() {
   const [dateBasis, setDateBasis] = useState<"created" | "confirmed" | "delivered">("created");
   const [search, setSearch] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [allocOpen, setAllocOpen] = useState(false);
 
   // product list (search)
   const productsQ = useQuery({
@@ -425,6 +432,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="returns" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setReturnOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> New Return Case
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
@@ -452,6 +464,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="exchanges" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setExchangeOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> New Exchange Case
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
@@ -477,6 +494,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="marketing" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setAllocOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> Allocate Expense
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
@@ -499,6 +521,13 @@ function ProductProfitabilityPage() {
               </Tabs>
             </CardContent>
           </Card>
+        </>
+      )}
+      {brandId && productId && r && (
+        <>
+          <ReturnCaseDialog open={returnOpen} onClose={() => setReturnOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
+          <ExchangeCaseDialog open={exchangeOpen} onClose={() => setExchangeOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
+          <ProductExpenseAllocationDialog open={allocOpen} onClose={() => setAllocOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
         </>
       )}
     </div>
