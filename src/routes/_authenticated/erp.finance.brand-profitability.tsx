@@ -162,7 +162,7 @@ function BrandProfitabilityPage() {
                 <Table>
                   <TableBody>
                     {topWinners.map((r) => (
-                      <TableRow key={r.product_id}>
+                      <TableRow key={`${r.brand_id ?? ""}-${r.product_id}`}>
                         <TableCell className="font-medium">{r.name}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">{r.delivered_qty} sold</TableCell>
                         <TableCell className="text-right text-emerald-600 font-semibold">{fmtBdt(r.net_profit)}</TableCell>
@@ -181,7 +181,7 @@ function BrandProfitabilityPage() {
                   <Table>
                     <TableBody>
                       {topLosers.map((r) => (
-                        <TableRow key={r.product_id}>
+                        <TableRow key={`${r.brand_id ?? ""}-${r.product_id}`}>
                           <TableCell className="font-medium">{r.name}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">{r.delivered_qty} sold</TableCell>
                           <TableCell className="text-right text-red-600 font-semibold">{fmtBdt(r.net_profit)}</TableCell>
@@ -229,7 +229,7 @@ function BrandProfitabilityPage() {
                   {filtered.map((r) => {
                     const net = Number(r.net_profit);
                     return (
-                      <TableRow key={r.product_id}>
+                      <TableRow key={`${r.brand_id ?? ""}-${r.product_id}`}>
                         <TableCell>
                           <div className="flex items-center gap-2 min-w-[200px]">
                             {r.image ? <img src={r.image} alt="" className="h-9 w-9 rounded object-cover" /> : <div className="h-9 w-9 rounded bg-muted" />}
