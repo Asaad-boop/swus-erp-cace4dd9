@@ -413,10 +413,14 @@ export const getMetaAccountsForBrand = createServerFn({ method: "GET" })
       .eq("brand_id", data.brand_id)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (rows ?? []).map(({ access_token_secret_ref, ...row }: any) => ({
-      ...row,
-      has_token: Boolean(access_token_secret_ref),
-    }));
+    return (rows ?? []).map(({ access_token_secret_ref, ...row }: any) => {
+      const hasSavedToken = Boolean(access_token_secret_ref);
+      return {
+        ...row,
+        has_token: Boolean(getMetaToken(access_token_secret_ref)),
+        token_source: hasSavedToken ? "saved" : getMetaToken(null) ? "system" : null,
+      };
+    });
   });
 
 export const setMetaAccountActive = createServerFn({ method: "POST" })
