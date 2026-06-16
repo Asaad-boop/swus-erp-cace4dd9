@@ -5896,6 +5896,58 @@ export type Database = {
         Args: { _journal_line_id: string; _line_id: string }
         Returns: undefined
       }
+      mkt_attribution_explorer: {
+        Args: {
+          p_brand_id: string
+          p_campaign_id?: string
+          p_from: string
+          p_limit?: number
+          p_source?: string
+          p_to: string
+        }
+        Returns: {
+          ad_id: string
+          ad_name: string
+          adset_id: string
+          adset_name: string
+          allocated_ad_spend: number
+          campaign_id: string
+          campaign_name: string
+          is_delivered: boolean
+          is_returned: boolean
+          medium: string
+          net_profit: number
+          net_sales: number
+          order_created_at: string
+          order_id: string
+          order_status: string
+          source: string
+        }[]
+      }
+      mkt_campaign_summary: {
+        Args: {
+          p_brand_id: string
+          p_campaign_id: string
+          p_from: string
+          p_to: string
+        }
+        Returns: Json
+      }
+      mkt_courier_campaign_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          campaign_id: string
+          campaign_name: string
+          courier_provider: string
+          delivered_orders: number
+          delivery_rate: number
+          net_profit: number
+          net_revenue: number
+          return_rate: number
+          returned_orders: number
+          total_orders: number
+        }[]
+      }
       mkt_get_campaign_daily_rollup: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
@@ -5934,6 +5986,80 @@ export type Database = {
         }
         Returns: Json
       }
+      mkt_list_ads: {
+        Args: {
+          p_adset_id: string
+          p_brand_id: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          ad_id: string
+          ad_spend: number
+          clicks: number
+          creative_name: string
+          delivered_orders: number
+          effective_status: string
+          external_ad_id: string
+          impressions: number
+          name: string
+          net_profit: number
+          net_revenue: number
+          orders_attributed: number
+          poas: number
+          preview_url: string
+          real_roas: number
+          status: string
+          thumbnail_url: string
+        }[]
+      }
+      mkt_list_adsets: {
+        Args: {
+          p_brand_id: string
+          p_campaign_id: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          ad_spend: number
+          adset_id: string
+          clicks: number
+          daily_budget: number
+          delivered_orders: number
+          effective_status: string
+          external_adset_id: string
+          impressions: number
+          lifetime_budget: number
+          name: string
+          net_profit: number
+          net_revenue: number
+          orders_attributed: number
+          poas: number
+          real_roas: number
+          status: string
+        }[]
+      }
+      mkt_list_campaigns: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          ad_spend: number
+          campaign_id: string
+          clicks: number
+          delivered_orders: number
+          effective_status: string
+          external_campaign_id: string
+          impressions: number
+          name: string
+          net_profit: number
+          net_revenue: number
+          objective: string
+          orders_attributed: number
+          poas: number
+          real_roas: number
+          returned_orders: number
+          status: string
+        }[]
+      }
       mkt_post_meta_spend_day: {
         Args: { p_brand_id: string; p_day: string; p_force?: boolean }
         Returns: Json
@@ -5941,6 +6067,20 @@ export type Database = {
       mkt_post_meta_spend_window: {
         Args: { p_brand_id: string; p_days?: number; p_force?: boolean }
         Returns: Json
+      }
+      mkt_product_campaign_report: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          campaign_id: string
+          campaign_name: string
+          delivered_units: number
+          gross_revenue: number
+          product_cost: number
+          product_id: string
+          product_name: string
+          returned_units: number
+          units_sold: number
+        }[]
       }
       mkt_rebuild_window: {
         Args: { p_brand_id: string; p_days?: number; p_trigger?: string }
