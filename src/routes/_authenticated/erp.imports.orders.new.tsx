@@ -88,6 +88,9 @@ function NewPoPage() {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payRef, setPayRef] = useState("");
 
+  // stepper
+  const [step, setStep] = useState(1);
+
   // computed
   const productSubtotalForeign = items.reduce((s, i) => s + i.quantity * i.unit_cost_foreign, 0);
   const productSubtotalBdt = productSubtotalForeign * (fxRate || 0);
@@ -200,9 +203,6 @@ function NewPoPage() {
   });
 
   if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
-
-  // ---- Stepper state & validation ----
-  const [step, setStep] = useState(1);
 
   const step1Valid = !!supplierId && fxRate > 0;
   const step2Valid = items.length > 0 && items.every((i) => i.name_snapshot && i.quantity > 0 && i.unit_cost_foreign >= 0);
