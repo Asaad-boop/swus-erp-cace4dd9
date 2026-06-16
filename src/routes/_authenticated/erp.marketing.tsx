@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_authenticated/erp/marketing")({
 
 const phases = [
   { n: 1, name: "Database Foundation (11 tables, RLS, indexes)", done: true },
-  { n: 2, name: "DB Functions — attribution & profit snapshot RPCs", done: false },
-  { n: 3, name: "Meta API Sync (server functions)", done: false },
+  { n: 2, name: "DB Functions — attribution & profit snapshot RPCs", done: true },
+  { n: 3, name: "Meta API Sync (server functions + daily cron)", done: true },
   { n: 4, name: "Website UTM / fbclid / session tracking", done: false },
   { n: 5, name: "Profit Snapshot Engine", done: false },
   { n: 6, name: "Accounting Integration (auto-post Meta spend)", done: false },
