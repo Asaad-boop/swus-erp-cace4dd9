@@ -385,6 +385,7 @@ export async function postMetaSpendToFinance(
   let updated = 0;
   let removed = 0;
   let totalBdt = 0;
+  const txByDate = new Map<string, string>();
 
   for (const [date, usd] of dailyUsd) {
     const bdt = +(isBdtAcc ? usd : usd * fx).toFixed(2);
@@ -467,6 +468,7 @@ export async function postMetaSpendToFinance(
       if (error) throw error;
       inserted++;
     }
+    if (txId) txByDate.set(date, txId);
   }
 
   // Any existing rows in window with no insight day anymore → remove (Meta returned 0)
@@ -478,6 +480,84 @@ export async function postMetaSpendToFinance(
     removed++;
   }
 
+  // Per-product allocation: split each campaign's BDT spend across linked products by weight.
+  let allocations = 0;
+  try {
+    const txIds = Array.from(txByDate.values());
+    if (txIds.length > 0) {
+      // Clear prior allocations for these transactions so re-syncs stay clean.
+      await supabase
+        .from("erp_product_expense_allocations")
+        .delete()
+        .in("expense_transaction_id", txIds);
+
+      // Per-campaign-per-day spend (USD) for this account in window
+      const { data: perCamp } = await supabase
+        .from("mkt_insights_daily")
+        .select("date, campaign_id, spend")
+        .eq("account_id", acc.id)
+        .gte("date", since)
+        .lte("date", until);
+
+      // Campaign → product links with weights
+      const { data: links } = await supabase
+        .from("mkt_campaign_products")
+        .select("campaign_id, product_id, weight")
+        .eq("brand_id", acc.brand_id);
+      const linkByCamp = new Map<string, Array<{ product_id: string; weight: number }>>();
+      for (const l of links ?? []) {
+        if (!l.campaign_id || !l.product_id) continue;
+        const arr = linkByCamp.get(l.campaign_id) ?? [];
+        arr.push({ product_id: l.product_id, weight: Number(l.weight) || 1 });
+        linkByCamp.set(l.campaign_id, arr);
+      }
+
+      const rows: any[] = [];
+      for (const r of perCamp ?? []) {
+        const txId = txByDate.get(r.date);
+        if (!txId || !r.campaign_id) continue;
+        const products = linkByCamp.get(r.campaign_id);
+        if (!products || products.length === 0) continue;
+        const usd = Number(r.spend) || 0;
+        if (usd <= 0) continue;
+        const bdt = +(isBdtAcc ? usd : usd * fx).toFixed(2);
+        const totalW = products.reduce((s, p) => s + p.weight, 0) || 1;
+        for (const p of products) {
+          const share = +((bdt * p.weight) / totalW).toFixed(2);
+          if (share <= 0) continue;
+          rows.push({
+            brand_id: acc.brand_id,
+            product_id: p.product_id,
+            expense_transaction_id: txId,
+            expense_type: "meta_ads",
+            amount: share,
+            allocation_method: "campaign_weight",
+            note: `Meta spend — ${r.date}`,
+          });
+        }
+      }
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from("erp_product_expense_allocations")
+          .insert(rows);
+        if (error) throw error;
+        allocations = rows.length;
+      }
+    }
+  } catch (e: any) {
+    // Allocation failure shouldn't fail the whole sync
+    return {
+      inserted,
+      updated,
+      removed,
+      total_bdt: +totalBdt.toFixed(2),
+      fx,
+      wallet_id: walletId,
+      wallet_missing: !walletId,
+      allocation_error: String(e?.message ?? e),
+    };
+  }
+
   return {
     inserted,
     updated,
@@ -486,5 +566,6 @@ export async function postMetaSpendToFinance(
     fx,
     wallet_id: walletId,
     wallet_missing: !walletId,
+    allocations,
   };
 }
