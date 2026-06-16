@@ -12,6 +12,10 @@ function getMetaToken(savedToken?: string | null) {
   return savedToken || process.env.META_SYSTEM_USER_TOKEN || globalThis.__LOVABLE_RUNTIME_ENV__?.META_SYSTEM_USER_TOKEN || null;
 }
 
+function normalizeMetaAdAccountId(id: string) {
+  return id.startsWith("act_") ? id : `act_${id.replace(/\D/g, "")}`;
+}
+
 async function assertStaff(supabase: any, userId: string) {
   const { data } = await supabase
     .from("user_roles")
@@ -74,9 +78,7 @@ export const metaConnectAdAccount = createServerFn({ method: "POST" })
       .single();
     if (pErr || !platform) throw new Error("Meta platform row not found");
 
-    const ext = data.external_account_id.startsWith("act_")
-      ? data.external_account_id
-      : `act_${data.external_account_id.replace(/\D/g, "")}`;
+    const ext = normalizeMetaAdAccountId(data.external_account_id);
     const numericExt = ext.replace(/^act_/, "");
 
     const { data: existing } = await context.supabase
@@ -169,7 +171,7 @@ export const metaSyncStructure = createServerFn({ method: "POST" })
     if (!token) throw new Error("No Meta token configured");
 
     const { metaListCampaigns, metaListAdsets, metaListAds } = await import("./meta.server");
-    const ext = acc.external_account_id;
+    const ext = normalizeMetaAdAccountId(acc.external_account_id);
 
     let campaignsCount = 0,
       adsetsCount = 0,
@@ -333,7 +335,7 @@ export const metaSyncInsights = createServerFn({ method: "POST" })
 
     for (const level of ["campaign", "adset", "ad"] as const) {
       try {
-        const rows = await metaListInsights(acc.external_account_id, token, level, data.from, data.to);
+        const rows = await metaListInsights(normalizeMetaAdAccountId(acc.external_account_id), token, level, data.from, data.to);
         if (!rows.length) continue;
         const upserts = rows.map((r: any) => {
           const { purchases, value } = extractPurchaseStats(r);
