@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Megaphone, Database, Wrench } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Megaphone, Database, Wrench, Code2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing")({
   head: () => ({ meta: [{ title: "Marketing Intelligence — ERP" }] }),
@@ -12,7 +13,7 @@ const phases = [
   { n: 1, name: "Database Foundation (11 tables, RLS, indexes)", done: true },
   { n: 2, name: "DB Functions — attribution & profit snapshot RPCs", done: true },
   { n: 3, name: "Meta API Sync (server functions + daily cron)", done: true },
-  { n: 4, name: "Website UTM / fbclid / session tracking", done: false },
+  { n: 4, name: "Website UTM / fbclid / session tracking", done: true },
   { n: 5, name: "Profit Snapshot Engine", done: false },
   { n: 6, name: "Accounting Integration (auto-post Meta spend)", done: false },
   { n: 7, name: "UI Pages (12 routes: Overview, Campaigns, Adsets, Ads, Attribution, ROAS, Product×Campaign, Courier×Campaign, Accounting, Settings)", done: false },
@@ -31,6 +32,23 @@ function MarketingRebuildPlaceholder() {
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Code2 className="h-4 w-4" />
+            Website Tracker (Phase 4)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-3">
+          <p className="text-muted-foreground">
+            Site key generate koro, snippet copy kore website e paste koro. UTM/fbclid/mobile auto-capture hobe.
+          </p>
+          <Button asChild size="sm">
+            <Link to="/erp/marketing/install">Open Tracker Settings →</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

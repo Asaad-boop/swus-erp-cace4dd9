@@ -4176,6 +4176,50 @@ export type Database = {
           },
         ]
       }
+      marketing_tracker_sites: {
+        Row: {
+          allowed_origins: string[]
+          brand_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_event_at: string | null
+          name: string
+          site_key: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_origins?: string[]
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_event_at?: string | null
+          name: string
+          site_key: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_origins?: string[]
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_event_at?: string | null
+          name?: string
+          site_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_tracker_sites_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           cost_price: number | null
@@ -5734,6 +5778,16 @@ export type Database = {
       match_statement_line: {
         Args: { _journal_line_id: string; _line_id: string }
         Returns: undefined
+      }
+      mkt_ingest_track: {
+        Args: {
+          p_event_name: string
+          p_origin: string
+          p_payload: Json
+          p_session_id: string
+          p_site_key: string
+        }
+        Returns: Json
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
       normalize_mobile_bd: { Args: { p_phone: string }; Returns: string }
