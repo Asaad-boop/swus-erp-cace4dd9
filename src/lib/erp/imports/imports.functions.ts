@@ -365,12 +365,12 @@ export const createImportPo = createServerFn({ method: "POST" })
   .inputValidator((d: any) =>
     z.object({
       brand_id: z.string().uuid(),
-      cargo_agent_id: z.string().uuid().optional(),
+      cargo_agent_id: z.string().uuid(),
       order_date: z.string(),
       currency: z.string().default("CNY"),
       fx_rate: z.number().positive(),
       notes: z.string().optional(),
-      supplier: supplierInlineSchema,
+      supplier: supplierInlineSchema.optional(),
       items: z.array(poItemSchema).min(1),
       cartons: z.array(cartonSchema).min(1),
       initial_payment: initialPaymentSchema.optional(),
@@ -382,6 +382,54 @@ export const createImportPo = createServerFn({ method: "POST" })
     const { data: out, error } = await context.supabase.rpc("imp_create_po", { _payload: data });
     if (error) throw error;
     return out;
+  });
+
+/* --- Product picker + quick create (for New PO page) --- */
+
+export const listProductsForPicker = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; search?: string }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      search: z.string().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("products")
+      .select("id,title,slug,image,sku,stock,cost_price")
+      .eq("brand_id", data.brandId)
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    if (data.search && data.search.trim()) {
+      const s = data.search.trim();
+      q = q.or(`title.ilike.%${s}%,sku.ilike.%${s}%,slug.ilike.%${s}%`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const quickCreateProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; title: string; sku?: string; image?: string }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      title: z.string().min(1).max(160),
+      sku: z.string().max(64).optional(),
+      image: z.string().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+    const { data: out, error } = await context.supabase.rpc("imp_quick_create_product", {
+      _brand: data.brandId,
+      _title: data.title,
+      _sku: data.sku ?? null,
+      _image: data.image ?? null,
+    });
+    if (error) throw error;
+    return out as { id: string; title: string; slug: string };
   });
 
 /* --- carton stage update --- */
