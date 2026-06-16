@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Download, Plus, Wallet, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { Download, Plus, Wallet, TrendingUp, TrendingDown, ArrowRightLeft, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -159,6 +159,7 @@ function AdjustButton({ accountId }: { accountId: string }) {
 }
 
 function TransactionsTab({ brandId }: { brandId: string | null }) {
+  const qc = useQueryClient();
   const accountsQ = useAccounts(brandId);
   const categoriesQ = useCategories(brandId);
   const [filter, setFilter] = useState<TxnFilter>({
@@ -174,6 +175,21 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
     const csv = exportTransactionsCsv(rows, catMap, accMap);
     downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("erp_transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Transaction deleted");
+      qc.invalidateQueries({ queryKey: ["erp_transactions"] });
+      qc.invalidateQueries({ queryKey: ["erp_accounts"] });
+      qc.invalidateQueries({ queryKey: ["wallets"] });
+      qc.invalidateQueries({ queryKey: ["finance_dashboard"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div className="space-y-3">
@@ -217,11 +233,12 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
               <TableHead>Account</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>}
-            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>}
+            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions</TableCell></TableRow>}
             {rows.map((t) => {
               const meta = TXN_TYPE_LABEL[t.txn_type] ?? { label: t.txn_type, className: "" };
               const sign = t.txn_type === "expense" ? -1 : 1;
@@ -238,6 +255,18 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
                     {sign < 0 ? "−" : "+"}{fmtBdt(t.amount)}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground truncate max-w-[260px]">{t.description ?? ""}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-red-600 hover:text-red-700"
+                      title="Delete transaction"
+                      disabled={del.isPending}
+                      onClick={() => { if (confirm("Delete this transaction? Account balances will be recomputed.")) del.mutate(t.id); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               );
             })}
