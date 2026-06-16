@@ -144,6 +144,8 @@ function MarketingDashboard() {
         </Button>
       </div>
 
+      <MetaSetupPanel activeBrand={activeBrand} range={range} />
+
       {activeBrand && (
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <Kpi label="Ad Spend" value={fmtMoney(k.ad_spend)} />
