@@ -1,0 +1,1 @@
+ALTER VIEW public.v_product_incoming SET (security_invoker = true);
