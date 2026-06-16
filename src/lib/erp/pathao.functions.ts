@@ -643,6 +643,9 @@ const SettingsSchema = z.object({
   store_id: z.string().min(1).max(50),
   is_active: z.boolean().default(true),
 });
+const SettingsSaveSchema = SettingsSchema.extend({
+  wallet_id: z.string().uuid().nullable().optional(),
+});
 
 export const pathaoGetSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -653,7 +656,7 @@ export const pathaoGetSettingsFn = createServerFn({ method: "POST" })
     if (!admin) throw new Error("Admin only");
     const { data: row, error } = await supabase
       .from("erp_courier_settings")
-      .select("brand_id, base_url, client_id, client_secret, username, password, store_id, is_active")
+      .select("brand_id, base_url, client_id, client_secret, username, password, store_id, is_active, wallet_id")
       .eq("provider", "pathao")
       .eq("brand_id", data.brandId)
       .maybeSingle();
@@ -663,7 +666,7 @@ export const pathaoGetSettingsFn = createServerFn({ method: "POST" })
 
 export const pathaoSaveSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => SettingsSchema.parse(d))
+  .inputValidator((d) => SettingsSaveSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: admin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
@@ -678,6 +681,7 @@ export const pathaoSaveSettingsFn = createServerFn({ method: "POST" })
       password: data.password,
       store_id: data.store_id,
       is_active: data.is_active,
+      wallet_id: data.wallet_id ?? null,
     };
     const { error } = await supabase
       .from("erp_courier_settings")
