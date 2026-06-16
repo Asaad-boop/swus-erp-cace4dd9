@@ -54,6 +54,7 @@ import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from '.
 import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
+import { Route as AuthenticatedErpMarketingAdsetsAdsetIdRouteImport } from './routes/_authenticated/erp.marketing.adsets.$adsetId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -314,6 +315,12 @@ const AuthenticatedErpMarketingCampaignsCampaignIdRoute =
     path: '/$campaignId',
     getParentRoute: () => AuthenticatedErpMarketingCampaignsRoute,
   } as any)
+const AuthenticatedErpMarketingAdsetsAdsetIdRoute =
+  AuthenticatedErpMarketingAdsetsAdsetIdRouteImport.update({
+    id: '/adsets/$adsetId',
+    path: '/adsets/$adsetId',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -359,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRoutesByTo {
@@ -402,6 +410,7 @@ export interface FileRoutesByTo {
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRoutesById {
@@ -450,6 +459,7 @@ export interface FileRoutesById {
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/_authenticated/erp/marketing/adsets/$adsetId': typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
 }
 export interface FileRouteTypes {
@@ -498,6 +508,7 @@ export interface FileRouteTypes {
     | '/api/public/webhook/pathao'
     | '/erp/finance/'
     | '/erp/orders/'
+    | '/erp/marketing/adsets/$adsetId'
     | '/erp/marketing/campaigns/$campaignId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -541,6 +552,7 @@ export interface FileRouteTypes {
     | '/api/public/webhook/pathao'
     | '/erp/finance'
     | '/erp/orders'
+    | '/erp/marketing/adsets/$adsetId'
     | '/erp/marketing/campaigns/$campaignId'
   id:
     | '__root__'
@@ -588,6 +600,7 @@ export interface FileRouteTypes {
     | '/api/public/webhook/pathao'
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/orders/'
+    | '/_authenticated/erp/marketing/adsets/$adsetId'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
   fileRoutesById: FileRoutesById
 }
@@ -921,6 +934,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpMarketingCampaignsCampaignIdRouteImport
       parentRoute: typeof AuthenticatedErpMarketingCampaignsRoute
     }
+    '/_authenticated/erp/marketing/adsets/$adsetId': {
+      id: '/_authenticated/erp/marketing/adsets/$adsetId'
+      path: '/adsets/$adsetId'
+      fullPath: '/erp/marketing/adsets/$adsetId'
+      preLoaderRoute: typeof AuthenticatedErpMarketingAdsetsAdsetIdRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
   }
 }
 
@@ -994,6 +1014,7 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAccountingRoute: typeof AuthenticatedErpMarketingAccountingRoute
   AuthenticatedErpMarketingCampaignsRoute: typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   AuthenticatedErpMarketingInstallRoute: typeof AuthenticatedErpMarketingInstallRoute
+  AuthenticatedErpMarketingAdsetsAdsetIdRoute: typeof AuthenticatedErpMarketingAdsetsAdsetIdRoute
 }
 
 const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChildren =
@@ -1004,6 +1025,8 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
       AuthenticatedErpMarketingCampaignsRouteWithChildren,
     AuthenticatedErpMarketingInstallRoute:
       AuthenticatedErpMarketingInstallRoute,
+    AuthenticatedErpMarketingAdsetsAdsetIdRoute:
+      AuthenticatedErpMarketingAdsetsAdsetIdRoute,
   }
 
 const AuthenticatedErpMarketingRouteWithChildren =
