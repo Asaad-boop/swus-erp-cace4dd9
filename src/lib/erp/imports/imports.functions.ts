@@ -425,8 +425,8 @@ export const quickCreateProduct = createServerFn({ method: "POST" })
     const { data: out, error } = await context.supabase.rpc("imp_quick_create_product", {
       _brand: data.brandId,
       _title: data.title,
-      _sku: data.sku ?? null,
-      _image: data.image ?? null,
+      _sku: data.sku ?? undefined,
+      _image: data.image ?? undefined,
     });
     if (error) throw error;
     return out as { id: string; title: string; slug: string };
