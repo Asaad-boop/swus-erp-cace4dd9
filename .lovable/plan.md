@@ -1,174 +1,225 @@
-# Product/SKU Profitability Report — Build Plan
+# Marketing Intelligence & Meta Ads — Full Rebuild Plan
 
-Eta boro feature. Tomar spec exact follow korbo, kintu **3 phase** e bhag korbo jate har step verify kora jay (golpo na, real data e). Onek field already ache, onek nai — niche details.
+## Goal
 
----
-
-## Existing data audit (ki ache, ki nai)
-
-`**order_items` (current columns):** id, order_id, product_id, variant_id, product_name, product_image, variant_label, sku, quantity, unit_price, line_total, weight_kg, length_cm, width_cm, height_cm, created_at, updated_at.
-
-Missing for profitability:
-
-- `unit_cost_snapshot`, `line_discount_allocated`, `delivery_charge_allocated`, `courier_cost_allocated`, `packaging_cost_allocated`, `refund_amount_allocated`, `source_type`, `status_snapshot`
-
-`**orders`:** has `source` (text), discount_amount, shipping_fee, total, status, payment_method, brand_id, confirmed_at, delivered_at, paid_at, shipped_at — enough.
-
-`**courier_shipments`:** has provider, cod_amount, delivery_charge (need to verify) → courier cost source.
-
-`**products`:** has `cost_price` → fallback COGS.
-
-**Missing tables:** `erp_product_expense_allocations`, `erp_exchange_cases`, `erp_return_cases`, `erp_ad_product_links` — none exist.
-
-**Existing reusable:**
-
-- `marketing_campaign_products` already links campaign↔product (can extend for adset/ad).
-- `erp_transactions` has expense entries (link to product via new allocation table).
-- `erp_expense_categories` for marketing categories (Video, Photo, Influencer, etc.).
+Purano marketing module (UI + tables minus access token data) sorate hobe. Notun "Marketing Intelligence" module banate hobe ja Meta Ads spend, website UTM tracking, ERP orders, courier delivery, returns, product/courier/packaging cost, accounting — shob ek jaygay connect kore **real ROAS, POAS, net profit** dekhabe. Mock data thakbe na — sob real Supabase query.
 
 ---
 
-## Phase A — Schema & RPC foundation
+## Current State (audit done)
 
-### A1. Migration: extend `order_items` (backward-safe)
+- **Existing marketing tables (drop/replace korbo)**: `marketing_platforms`, `marketing_ad_accounts`, `marketing_campaigns`, `marketing_adsets`, `marketing_ads`, `marketing_campaign_insights`, `marketing_campaign_products`, `marketing_expense_links`, `marketing_settings`, `erp_ad_product_links`.
+- **Reuse korbo (touch korbo na)**: `orders`, `order_items`, `courier_shipments`, `products`, `product_variants`, `brands`, `erp_transactions`, `erp_accounts`, `erp_chart_accounts`, `erp_expense_categories`, `erp_settings`, `user_roles`, `staff_permissions`.
+- **Preserve korbo**: ad account access token + `external_account_id` + metadata (notun schema te migrate kore).
 
-Add nullable columns:
+---
 
-- `unit_cost_snapshot numeric`, `line_discount_allocated numeric DEFAULT 0`, `delivery_charge_allocated numeric DEFAULT 0`, `courier_cost_allocated numeric DEFAULT 0`, `packaging_cost_allocated numeric DEFAULT 0`, `refund_amount_allocated numeric DEFAULT 0`, `source_type text`, `status_snapshot text`
+## Preservation Strategy (token data harabo na)
 
-**Backfill trigger** (on confirm): when order goes `confirmed`, snapshot `unit_cost_snapshot` from `products.cost_price`, allocate `line_discount_allocated` and `delivery_charge_allocated` by **item value ratio** (`line_total / order_subtotal`), set `source_type` from `orders.source`. Idempotent.
+Migration shurute:
 
-Also one-time backfill for already-delivered orders so the report works from day 1.
-
-### A2. New tables (with GRANT + RLS, admin/operations/finance access)
-
-1. `**erp_return_cases**` — exact fields from spec.
-2. `**erp_exchange_cases**` — exact fields from spec.
-3. `**erp_product_expense_allocations**` — link `erp_transactions` rows to product/SKU with `expense_type` enum-check + `allocation_method` (`direct` / `percent` / `equal_split`).
-4. `**erp_ad_product_links**` — link Meta campaign/adset/ad to product/SKU with `allocation_percent`. (Use `marketing_campaign_products` as compatibility view if needed.)
-
-Each table: `brand_id` scoped RLS via `has_role(admin|operations)`, indexes on `(brand_id, product_id)` and reference IDs.
-
-### A3. Helper: courier cost lookup
-
-Function `get_order_courier_cost(_order_id)` → returns `{outbound, return, cod_fee}` from `courier_shipments`. Used for per-item allocation by value ratio.
-
-### A4. Main RPC: `get_product_profitability_report(...)`
-
-Signature exactly as spec'd. Returns one big jsonb:
-
-```jsonc
-{
-  "product": {...},
-  "stock":     { opening, stock_in, current, closing },
-  "quantities":{ website_orders, manual_orders, confirmed, delivered, shipped, cancelled, returned, exchanged, damaged, refunded },
-  "sources":   [ { source, created, confirmed, shipped, delivered, returned, revenue, delivery_collected, net_payable, delivery_rate } ],
-  "revenue":   { gross, delivery_collected, discount, refund, net_payable },
-  "cost":      { cogs, courier_out, courier_return, packaging, return_loss, exchange_loss, damage_loss, refund_loss, meta_ads, marketing_content },
-  "marketing": { content, influencer, photo, other, meta_ads, breakdown: [...] },
-  "profit":    { gross, contribution, net, per_delivered_unit, per_confirmed_unit, return_rate, exchange_rate, damage_rate, delivery_success_rate, break_even_qty },
-  "items":     [ per-order-item breakdown ],
-  "returns":   [...], "exchanges": [...],
-  "warnings":  [ "missing_cost", "missing_source", ... ]
-}
+```sql
+CREATE TEMP TABLE _meta_token_backup AS
+SELECT brand_id, external_account_id, account_name, currency,
+       access_token_secret_ref, token_expires_at, last_synced_at
+FROM marketing_ad_accounts;
 ```
 
-Filters: `p_source` (array), `p_courier` (array) — handle in `WHERE`.
-
-Date basis: parametrize column (`created_at` / `confirmed_at` / `delivered_at`).
-
-Allocation logic for COGS/courier/delivery (when item_value_ratio missing): fallback to qty ratio.
+Notun `marketing_ad_accounts` tairi howar por backup theke insert kore debo. Token name secret-ref hisebe `secrets` tool e nai — column ei thake (encrypted-at-rest by Supabase). Frontend e kokhono expose hobe na — server fn only.
 
 ---
 
-## Phase B — Report page UI
+## Phase Breakdown
 
-### B1. Route: `src/routes/_authenticated/erp.finance.product-profitability.tsx`
+### Phase 1 — Database Foundation (1 migration)
 
-Layout (top → bottom):
+Spec moto **11 ta table** create:
 
-1. **Filter bar** (sticky): Brand (from context), Product autocomplete, Variant select (loaded after product), Date range presets + custom, Date basis (radio), Source (multi-select), Courier (multi-select).
-2. **Product summary card**: name, image, SKU, brand badge.
-3. **Quantity funnel** (horizontal bars): Ordered → Confirmed → Shipped → Delivered → Returned/Exchanged.
-4. **KPI cards grid**: Net Revenue, COGS, Total Cost, Net Profit, Profit/Delivered Unit, Return Rate, Delivery Success Rate, Break-even Qty.
-5. **Revenue breakdown** (Card with rows): Gross sales, +Delivery collected, −Discount, −Refund, =Net payable.
-6. **Cost breakdown** (Card with rows): COGS, Courier (out+return), Packaging, Return loss, Exchange loss, Damage loss, Refund loss, Meta ads, Marketing/content. Each row hide-able if 0 (per memory).
-7. **Profit cards** (3-col): Gross Product Profit, Contribution Profit, Net Product Profit + margin %.
-8. **Source-wise table**: Source × (Created/Confirmed/Shipped/Delivered/Returned/Revenue/Delivery/Net/Rate).
-9. **Order-item detail table**: collapsible, paginated, export CSV.
-10. **Return cases table** + **Exchange cases table**: each row shows type, qty, loss, status.
-11. **Marketing/Meta breakdown** table: campaign/expense → allocated amount → ROAS.
-12. **Data quality warnings panel**: top-right banner, lists each warning with count + "fix" link.
+1. `marketing_platforms` (seed: meta, google, tiktok)
+2. `marketing_ad_accounts`
+3. `marketing_campaigns`
+4. `marketing_adsets`
+5. `marketing_ads`
+6. `marketing_insights_daily`
+7. `marketing_sessions`
+8. `marketing_events`
+9. `marketing_order_attributions` (most important)
+10. `marketing_order_profit_snapshots`
+11. `marketing_cost_rules`
 
-Use recharts for funnel + a small donut for cost composition. Empty sections hide entirely (no "0" cards cluttering — per memory rule).
+Protyek table e:
 
-### B2. Product-page entry: `src/routes/_authenticated/erp.products.$id.profitability.tsx`
+- `brand_id` + FK to `brands(id)`
+- RLS enabled
+- GRANT to `authenticated` + `service_role`
+- Policies: `has_brand_access(brand_id)` security-definer function diye (jodi exist na kore, banabo `user_roles`/`staff_permissions` theke)
+- Indexes: brand_id, external_*_id, date, session_id, mobile_normalized, fbclid
+- `updated_at` trigger
 
-Reuse same component with `product_id` pre-filled from route param. (Products route group: need to verify it exists; if not, only add the finance-side route.)
+Old marketing tables `DROP CASCADE` korar age token backup → restore.
 
-### B3. CSV export
+### Phase 2 — DB Functions & RPC
 
-Use existing `downloadCsv` helper from `@/lib/erp/orders`. Buttons on source table, item detail table, return/exchange tables.
+- `has_brand_access(_brand_id, _user_id)` security definer
+- `rebuild_order_attribution(p_order_id uuid)` — 5-tier priority (exact_utm → session → customer → manual → unknown)
+- `rebuild_all_marketing_attributions(p_brand_id, p_from, p_to)`
+- `rebuild_marketing_profit_snapshot(p_order_id)` — revenue/cost/profit calc with allocated ad spend proportional to attributed orders per day per campaign
+- `rebuild_marketing_profit_snapshots(p_brand_id, p_from, p_to)`
+- `get_marketing_overview(p_brand_id, p_from, p_to)` — overview cards
+- `get_campaign_report(p_brand_id, p_from, p_to)` — campaign table with all KPIs + health badge
+- `get_adset_report`, `get_ad_report`
+- `get_actual_roas_daily`, `get_product_campaign_report`, `get_courier_campaign_report`
+
+Trigger: order status change → enqueue snapshot rebuild (defer kora hobe; phase 5 e implement).
+
+### Phase 3 — Meta API Sync (TanStack server functions, NOT edge functions)
+
+Existing `src/lib/erp/marketing/meta.server.ts` Meta Graph client reuse. Notun functions:
+
+- `metaSyncStructure(brandId, adAccountId)` — accounts/campaigns/adsets/ads/creatives
+- `metaSyncInsights(brandId, adAccountId, from, to)` — daily by campaign+adset+ad → upsert `marketing_insights_daily`
+- `metaTestConnection(adAccountId)`
+- `metaSyncSingleAccount(adAccountId)` — manual UI button
+- After insights sync: optional auto-post to accounting (phase 6)
+
+Cron route `/api/public/cron.sync-marketing` update kore daily insights sync korbe.
+
+### Phase 4 — Website Tracking
+
+- `src/lib/marketing/tracker.client.ts` — root e mount korbo. URL params (utm_*, fbclid, meta_*_id, placement) capture → localStorage + cookie (`mkt_session`) + server fn `recordMarketingSession`
+- `recordMarketingEvent(name, payload)` — PageView/ViewContent/Purchase etc.
+- Order creation flow (`src/lib/erp/orders.ts` `createOrder`) — optional `marketing_attribution` parameter accept korbe; create howar pore `rebuild_order_attribution(order_id)` call.
+- Manual order form e "Marketing source" selector add.
+
+### Phase 5 — Profit Snapshot Engine
+
+- Order lifecycle hooks: confirm/ship/deliver/return/cancel — trigger snapshot rebuild (pg trigger → mark dirty; server fn or cron e batch rebuild — 10k+ orders e safe).
+- Cost sources:
+  - product_cost: `order_items.unit_cost_snapshot` fallback `product_variants.cost_price` fallback `products.cost_price`
+  - courier_cost: `courier_shipments.delivery_fee` fallback `marketing_cost_rules`
+  - packaging/COD/PG fee/return_cost: `marketing_cost_rules`
+  - allocated_ad_spend: daily campaign spend ÷ # of attributed orders that day
+
+### Phase 6 — Accounting Integration
+
+- Setting in `marketing_cost_rules` (or extend): `auto_post_meta_spend`, `meta_expense_account_id`, `meta_payment_account_id`.
+- Daily insight sync er por: ekta `erp_transactions` row per (brand, ad_account, date) — idempotent key `meta_spend:{ad_account}:{date}` (notun column `external_ref` ba `marketing_expense_links` style table). Duplicate prevent.
+- "Accounting Sync" UI page — manual repost button.
+
+### Phase 7 — UI Pages (sob real query, no mock)
+
+Sidebar e "Marketing" parent + 12 sub-route under `/erp/marketing`:
+
+1. `/erp/marketing` — Overview (15 KPI cards + 4 charts, real RPC)
+2. `/erp/marketing/accounts` — Meta Ad Accounts (token masked)
+3. `/erp/marketing/campaigns` — Campaign table with health badges
+4. `/erp/marketing/campaigns/$id` — Campaign detail
+5. `/erp/marketing/adsets` — Adset report
+6. `/erp/marketing/ads` — Creative report (thumbnails)
+7. `/erp/marketing/attribution` — 4 tabs: Mapped / Unattributed / Low Confidence / Manual
+8. `/erp/marketing/roas` — Actual ROAS daily table with formula display
+9. `/erp/marketing/products` — Product × Campaign
+10. `/erp/marketing/courier` — Courier × Campaign
+11. `/erp/marketing/accounting` — Accounting sync
+12. `/erp/marketing/settings` — UTM template / Attribution / Cost rules / CAPI / Accounting
+
+Reusable components:
+
+- `MetricCard`, `MarketingDateFilter`, `CampaignHealthBadge`, `AttributionBadge`, `ProfitBreakdownCard`, `SyncStatusBadge`, `DataQualityAlert`
+
+Empty states + loading + error boundary every page.
+
+### Phase 8 — Polish
+
+- Health badge logic (Profitable / Losing / Meta-Looks-Good-ERP-Bad / High Return / Low Delivery / Hidden Winner / No Attribution)
+- Data quality alerts (missing product cost, missing courier cost, unmapped orders, expired token)
+- Sidebar "Quick Actions" e "Sync Meta Now" button
+- Test with real Toyora + HobbyShop data
 
 ---
 
-## Phase C — Companion screens (case management + linking)
+## Phase Order & Approval
 
-These make the report **accurate**. Without C, the report shows warnings but no data to compute return/exchange/marketing loss.
-
-### C1. Return Case dialog
-
-From an order item → "Mark return". Form: type, condition, qty, refund amount, customer paid delivery, packaging loss, note. On save → insert `erp_return_cases` row. Reflected in report instantly.
-
-### C2. Exchange Case dialog
-
-From a delivered order item → "Create exchange". Form: type, old condition, replacement product/variant/qty, exchange charge collected, replacement delivery cost, optional replacement_order_id. Insert `erp_exchange_cases`.
-
-### C3. Product Expense Allocation dialog
-
-From `/erp/finance/simple` expense form → optional "Allocate to product(s)" toggle. Adds rows in `erp_product_expense_allocations` with split %. Expense type dropdown: video_production, photography, influencer, model, content_creator, studio, packaging, other.
-
-### C4. Meta Ad → Product link UI
-
-Extend existing campaign detail page (already at `erp.marketing.campaigns.$campaignId.tsx`) with adset/ad-level product link (uses new `erp_ad_product_links`). Reuses existing `campaign-product-mapping.tsx` component pattern.
-
----
-
-## Technical notes
-
-- **All RPC**: `SECURITY DEFINER`, `has_role` gate (admin / operations / customer_service for read; admin/operations only for write).
-- **Idempotency**: confirm/deliver triggers use `WHERE col IS NULL` guards.
-- **No mock data**: every empty section hides; warnings explain what to fill.
-- **Performance**: report RPC adds `WHERE brand_id = ... AND product_id = ...` early in every CTE; expected single-product query < 200ms even with 100k orders.
-
----
-
-## Build order suggestion
+Bhai eta onek boro — ami **phase by phase** korbo, protyek phase shesh hole ektu check kore tumi next bolte parba. Suggestion:
 
 
-| Step | Phase | Why first                                                                       |
-| ---- | ----- | ------------------------------------------------------------------------------- |
-| 1    | A1+A2 | Schema must exist before RPC.                                                   |
-| 2    | A3+A4 | RPC needed before UI can show anything.                                         |
-| 3    | B1    | Main report page (read-only — works with whatever data exists, shows warnings). |
-| 4    | C1+C2 | Return/exchange capture — unlocks loss numbers.                                 |
-| 5    | C3+C4 | Marketing/ad attribution — unlocks net profit.                                  |
-| 6    | B2+B3 | Product-page entry + CSV polish.                                                |
+| Order | Phase                          | Risk                     |
+| ----- | ------------------------------ | ------------------------ |
+| 1     | DB foundation + token preserve | High (old tables drop)   |
+| 2     | DB functions/RPC               | Medium                   |
+| 3     | Meta API sync                  | Low (existing client)    |
+| 4     | Website tracking               | Low                      |
+| 5     | Profit snapshot engine         | Medium                   |
+| 6     | Accounting integration         | Medium (touches finance) |
+| 7     | UI pages (12)                  | Low — biggest chunk      |
+| 8     | Polish + badges + QA           | Low                      |
 
 
 ---
 
-## Approval question
+## Technical Notes
 
-**Eta huge — 1 shot e shob phase build korle ~15-20 files + 4-5 migration + 1 boro RPC. Tomar memory bole "Quality > speed".**
+- Server fns: `src/lib/erp/marketing/*.functions.ts` (auth middleware), `*.server.ts` for Meta Graph helpers.
+- All token reads stay in `.server.ts` files — never returned to client.
+- Existing finance/orders/courier code **untouched** except `orders.ts createOrder` (add optional attribution param) and finance trigger compatibility.
+- Routes lazy split — `_authenticated/erp.marketing.*.tsx`.
+- Use existing `useBrand()` context for brand_id everywhere.
 
-Bolo kivabe egobo:
+---
 
-- **Option 1 (recommended):** Phase A (schema + RPC) first → review → tarpor Phase B (UI) → review → tarpor Phase C (case dialogs + linking).
-- **Option 2:** All-in-one boro shipment.
-- **Option 3:** Specific phase shuru: bolo "phase A" / "phase B" etc.
+## Confirmation Needed
 
-Confirm korle shuru kori.  
-Approved for Option 1 only: Phase A first.
+1. **Approve plan?** (yes/no)
+2. **Phase 1 (DB + drop old tables with token preserve) start korbo akhon, naki shudhu plan dekhe rakhbo?**
+3. Old `erp_ad_product_links` data ki preserve korte chao naki delete?
 
-Option 1. Phase A only
+Bolo, then ami Phase 1 migration likhe shuru kori.  
+Yes, approve the full plan, but start with Phase 1 only.
+
+Before Phase 1 migration, apply these safety rules:
+
+1. Do NOT directly DROP CASCADE old marketing tables first.  
+Instead:
+  - Create permanent backup tables for old marketing data.
+  - Rename old tables with `_legacy` suffix if needed.
+  - Create the new Marketing Intelligence tables.
+  - Restore/migrate preserved data.
+  - Only after verification we will decide whether to delete legacy tables.
+2. For Meta ad account token preservation, do not use only TEMP backup.  
+Create a permanent backup table first:
+  `marketing_ad_accounts_legacy_backup`
+  Preserve:
+  - brand_id
+  - external_account_id
+  - account_name
+  - currency
+  - access_token_secret_ref
+  - token_expires_at
+  - last_synced_at
+  - created_at / updated_at if available
+  Then restore this data into the new `marketing_ad_accounts` table.
+3. Preserve `erp_ad_product_links`.  
+Do not delete it now.  
+If it is old/legacy, either:
+  - keep it untouched, or
+  - migrate it later into the new Product × Campaign mapping/reporting structure.  
+  For Phase 1, no data loss is allowed.
+4. Phase 1 scope only:
+  - Database backup/rename safety
+  - New 11 marketing tables
+  - RLS
+  - indexes
+  - updated_at triggers
+  - seed marketing_platforms
+  - restore preserved ad account metadata/token secret refs
+5. Do not touch order creation, finance, courier, Meta sync, website tracking, or UI yet.  
+Those are later phases.
+6. After Phase 1, show me:
+  - migration summary
+  - old tables backed up/renamed list
+  - new tables created list
+  - token/ad account data restoration result
+  - RLS policies added
+  - any errors or warnings
+
+Now implement Phase 1 safely.
