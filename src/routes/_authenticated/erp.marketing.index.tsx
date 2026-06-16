@@ -197,12 +197,13 @@ function PerformanceDashboard() {
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <Button
               variant="outline"
-              size="icon"
               onClick={refreshMetaRange}
               disabled={q.isFetching || isSyncingMeta}
               title="Sync selected Meta range"
+              className="gap-2"
             >
               <RefreshCw className={cn("h-4 w-4", (q.isFetching || isSyncingMeta) && "animate-spin")} />
+              Sync Meta
             </Button>
           </div>
         </div>
