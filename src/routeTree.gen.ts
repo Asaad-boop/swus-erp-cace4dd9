@@ -38,6 +38,7 @@ import { Route as AuthenticatedErpFinanceSimpleRouteImport } from './routes/_aut
 import { Route as AuthenticatedErpFinanceSettingsRouteImport } from './routes/_authenticated/erp.finance.settings'
 import { Route as AuthenticatedErpFinanceReportsRouteImport } from './routes/_authenticated/erp.finance.reports'
 import { Route as AuthenticatedErpFinanceRecurringRouteImport } from './routes/_authenticated/erp.finance.recurring'
+import { Route as AuthenticatedErpFinanceReconciliationRouteImport } from './routes/_authenticated/erp.finance.reconciliation'
 import { Route as AuthenticatedErpFinanceReceivablesRouteImport } from './routes/_authenticated/erp.finance.receivables'
 import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
@@ -209,6 +210,12 @@ const AuthenticatedErpFinanceRecurringRoute =
     path: '/recurring',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceReconciliationRoute =
+  AuthenticatedErpFinanceReconciliationRouteImport.update({
+    id: '/reconciliation',
+    path: '/reconciliation',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceReceivablesRoute =
   AuthenticatedErpFinanceReceivablesRouteImport.update({
     id: '/receivables',
@@ -263,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
   '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
@@ -295,6 +303,7 @@ export interface FileRoutesByTo {
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
   '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
@@ -333,6 +342,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/_authenticated/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
+  '/_authenticated/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
   '/_authenticated/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/_authenticated/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/_authenticated/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
+    | '/erp/finance/reconciliation'
     | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/erp/finance/journal'
     | '/erp/finance/payables'
     | '/erp/finance/receivables'
+    | '/erp/finance/reconciliation'
     | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
@@ -440,6 +452,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/payables'
     | '/_authenticated/erp/finance/receivables'
+    | '/_authenticated/erp/finance/reconciliation'
     | '/_authenticated/erp/finance/recurring'
     | '/_authenticated/erp/finance/reports'
     | '/_authenticated/erp/finance/settings'
@@ -674,6 +687,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceRecurringRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/reconciliation': {
+      id: '/_authenticated/erp/finance/reconciliation'
+      path: '/reconciliation'
+      fullPath: '/erp/finance/reconciliation'
+      preLoaderRoute: typeof AuthenticatedErpFinanceReconciliationRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/receivables': {
       id: '/_authenticated/erp/finance/receivables'
       path: '/receivables'
@@ -725,6 +745,7 @@ interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
   AuthenticatedErpFinanceReceivablesRoute: typeof AuthenticatedErpFinanceReceivablesRoute
+  AuthenticatedErpFinanceReconciliationRoute: typeof AuthenticatedErpFinanceReconciliationRoute
   AuthenticatedErpFinanceRecurringRoute: typeof AuthenticatedErpFinanceRecurringRoute
   AuthenticatedErpFinanceReportsRoute: typeof AuthenticatedErpFinanceReportsRoute
   AuthenticatedErpFinanceSettingsRoute: typeof AuthenticatedErpFinanceSettingsRoute
@@ -740,6 +761,8 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
     AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
     AuthenticatedErpFinanceReceivablesRoute:
       AuthenticatedErpFinanceReceivablesRoute,
+    AuthenticatedErpFinanceReconciliationRoute:
+      AuthenticatedErpFinanceReconciliationRoute,
     AuthenticatedErpFinanceRecurringRoute:
       AuthenticatedErpFinanceRecurringRoute,
     AuthenticatedErpFinanceReportsRoute: AuthenticatedErpFinanceReportsRoute,
