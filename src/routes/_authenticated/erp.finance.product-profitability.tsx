@@ -432,6 +432,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="returns" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setReturnOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> New Return Case
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
@@ -459,6 +464,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="exchanges" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setExchangeOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> New Exchange Case
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
@@ -484,6 +494,11 @@ function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="marketing" className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setAllocOpen(true)} disabled={!brandId || !productId}>
+                      <Plus className="h-3 w-3 mr-1" /> Allocate Expense
+                    </Button>
+                  </div>
                   <div className="rounded border overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow>
