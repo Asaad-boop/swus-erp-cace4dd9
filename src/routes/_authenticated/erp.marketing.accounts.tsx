@@ -12,6 +12,7 @@ import {
   Pencil,
   AlertCircle,
   MoreVertical,
+  Wallet,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -22,6 +23,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +66,7 @@ import {
   testAdAccountConnection,
   syncAdAccountStructure,
   syncAdAccountInsights,
+  repostMetaSpendToFinance,
 } from "@/lib/erp/marketing/meta.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/accounts")({
@@ -77,7 +87,28 @@ type AccountRow = {
   last_structure_sync_at: string | null;
   last_insights_sync_at: string | null;
   last_error: string | null;
+  auto_post_to_finance: boolean;
+  finance_wallet_id: string | null;
 };
+
+type WalletOption = { id: string; name: string; wallet_type: string };
+
+function useBrandWallets(brandId: string | null) {
+  return useQuery({
+    queryKey: ["mkt", "wallets", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_accounts")
+        .select("id,name,wallet_type")
+        .eq("brand_id", brandId!)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as WalletOption[];
+    },
+  });
+}
 
 function fmtAgo(iso: string | null) {
   if (!iso) return "Never";
@@ -109,6 +140,9 @@ function AdAccountsPage() {
   const testFn = useServerFn(testAdAccountConnection);
   const syncStructureFn = useServerFn(syncAdAccountStructure);
   const syncInsightsFn = useServerFn(syncAdAccountInsights);
+  const repostFn = useServerFn(repostMetaSpendToFinance);
+
+  const walletsQ = useBrandWallets(brandId);
 
   const q = useQuery({
     queryKey: ["mkt", "accounts", brandId],
@@ -158,10 +192,42 @@ function AdAccountsPage() {
     try {
       const s = await syncStructureFn({ data: { accountId: acc.id } });
       const i = await syncInsightsFn({ data: { accountId: acc.id, days: 90 } });
-      toast.success(`Synced • structure ${s.rows} • insights ${i.rows}`);
+      const fin = (i as any)?.meta?.finance;
+      const finMsg = fin?.total_bdt
+        ? ` • finance ৳${Number(fin.total_bdt).toLocaleString("en-BD")}`
+        : fin?.wallet_missing
+          ? " • wallet set korun"
+          : "";
+      toast.success(`Synced • structure ${s.rows} • insights ${i.rows}${finMsg}`);
       qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["finance"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Sync failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function repostFinance(acc: AccountRow) {
+    const today = new Date();
+    const since = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+    const until = today.toISOString().slice(0, 10);
+    setBusyId(acc.id);
+    try {
+      const res = await repostFn({ data: { accountId: acc.id, since, until } });
+      if ((res as any)?.wallet_missing) {
+        toast.error("Wallet set korun — edit account → Finance Wallet");
+      } else {
+        toast.success(
+          `Finance e posted • ৳${Number((res as any)?.total_bdt ?? 0).toLocaleString("en-BD")} (FX ${(res as any)?.fx})`,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["finance"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Repost failed");
     } finally {
       setBusyId(null);
     }
@@ -254,6 +320,12 @@ function AdAccountsPage() {
                       <DropdownMenuItem onClick={() => syncOne(acc)} disabled={busyId === acc.id}>
                         <RefreshCw className="h-3.5 w-3.5 mr-2" /> Sync now
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => repostFinance(acc)}
+                        disabled={busyId === acc.id}
+                      >
+                        <Wallet className="h-3.5 w-3.5 mr-2" /> Re-post to finance (this month)
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-red-600 focus:text-red-600"
@@ -279,6 +351,22 @@ function AdAccountsPage() {
                   <span className="text-muted-foreground">Insights sync:</span>
                   <span className="text-right text-xs text-muted-foreground">
                     {fmtAgo(acc.last_insights_sync_at)}
+                  </span>
+                  <span className="text-muted-foreground">Auto-post:</span>
+                  <span className="text-right text-xs">
+                    {acc.auto_post_to_finance ? (
+                      <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">
+                        On
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Off</Badge>
+                    )}
+                  </span>
+                  <span className="text-muted-foreground">Wallet:</span>
+                  <span className="text-right text-xs text-muted-foreground truncate">
+                    {walletsQ.data?.find((w) => w.id === acc.finance_wallet_id)?.name ?? (
+                      <span className="text-amber-600">Auto (1st wallet)</span>
+                    )}
                   </span>
                 </div>
 
@@ -323,6 +411,7 @@ function AdAccountsPage() {
         onOpenChange={setEditorOpen}
         brandId={brandId}
         editing={editing}
+        wallets={walletsQ.data ?? []}
         onSaved={() => {
           setEditorOpen(false);
           setEditing(null);
