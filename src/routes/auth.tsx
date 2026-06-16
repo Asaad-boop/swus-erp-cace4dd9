@@ -22,8 +22,10 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/erp" });
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: isAgent } = await supabase.rpc("has_role", { _user_id: data.user.id, _role: "cargo_agent" });
+      navigate({ to: isAgent ? "/agent" : "/erp" });
     });
   }, [navigate]);
 
@@ -41,7 +43,13 @@ function AuthPage() {
         toast.success("Account created — check your email if confirmation is required");
       }
       await router.invalidate();
-      navigate({ to: "/erp" });
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) {
+        const { data: isAgent } = await supabase.rpc("has_role", { _user_id: u.user.id, _role: "cargo_agent" });
+        navigate({ to: isAgent ? "/agent" : "/erp" });
+      } else {
+        navigate({ to: "/erp" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
