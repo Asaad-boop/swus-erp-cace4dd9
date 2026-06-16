@@ -5976,6 +5976,18 @@ export type Database = {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: Json
       }
+      mkt_health_checks: {
+        Args: { p_brand_id: string; p_from: string; p_to: string }
+        Returns: {
+          category: string
+          detail: string
+          metric: number
+          ref_id: string
+          ref_label: string
+          severity: string
+          title: string
+        }[]
+      }
       mkt_ingest_track: {
         Args: {
           p_event_name: string
