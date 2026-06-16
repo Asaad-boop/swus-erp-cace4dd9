@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/public/mkt/track")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin.rpc("mkt_ingest_track", {
           p_site_key: siteKey,
-          p_origin: origin,
+          p_origin: origin ?? "",
           p_session_id: sessionId,
           p_event_name: eventName,
           p_payload: payload,
