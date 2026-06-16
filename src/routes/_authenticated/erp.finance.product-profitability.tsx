@@ -23,6 +23,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
+import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
+import { ExchangeCaseDialog } from "@/components/erp/finance/exchange-case-dialog";
+import { ProductExpenseAllocationDialog } from "@/components/erp/finance/product-expense-allocation-dialog";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/product-profitability")({
   head: () => ({ meta: [{ title: "Product Profitability — Finance" }] }),
@@ -73,6 +77,9 @@ function ProductProfitabilityPage() {
   const [dateBasis, setDateBasis] = useState<"created" | "confirmed" | "delivered">("created");
   const [search, setSearch] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [allocOpen, setAllocOpen] = useState(false);
 
   // product list (search)
   const productsQ = useQuery({
