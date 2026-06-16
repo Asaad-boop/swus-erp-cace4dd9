@@ -2579,6 +2579,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           address?: string | null
@@ -2594,6 +2595,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           address?: string | null
@@ -2609,6 +2611,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -2707,6 +2710,9 @@ export type Database = {
           posted_at: string | null
           qc_at: string | null
           received_at: string | null
+          release_request_note: string | null
+          release_requested_at: string | null
+          release_requested_by: string | null
           released_at: string | null
           shipping_charge_bdt: number
           status: Database["public"]["Enums"]["imp_carton_status"]
@@ -2728,6 +2734,9 @@ export type Database = {
           posted_at?: string | null
           qc_at?: string | null
           received_at?: string | null
+          release_request_note?: string | null
+          release_requested_at?: string | null
+          release_requested_by?: string | null
           released_at?: string | null
           shipping_charge_bdt?: number
           status?: Database["public"]["Enums"]["imp_carton_status"]
@@ -2749,6 +2758,9 @@ export type Database = {
           posted_at?: string | null
           qc_at?: string | null
           received_at?: string | null
+          release_request_note?: string | null
+          release_requested_at?: string | null
+          release_requested_by?: string | null
           released_at?: string | null
           shipping_charge_bdt?: number
           status?: Database["public"]["Enums"]["imp_carton_status"]
@@ -2990,6 +3002,7 @@ export type Database = {
           product_subtotal_bdt: number
           shipping_total_bdt: number
           status: Database["public"]["Enums"]["imp_po_status"]
+          submitted_by_agent_id: string | null
           supplier_id: string | null
           updated_at: string
         }
@@ -3011,6 +3024,7 @@ export type Database = {
           product_subtotal_bdt?: number
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
+          submitted_by_agent_id?: string | null
           supplier_id?: string | null
           updated_at?: string
         }
@@ -3032,6 +3046,7 @@ export type Database = {
           product_subtotal_bdt?: number
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
+          submitted_by_agent_id?: string | null
           supplier_id?: string | null
           updated_at?: string
         }
@@ -3046,6 +3061,13 @@ export type Database = {
           {
             foreignKeyName: "imp_purchase_orders_cargo_agent_id_fkey"
             columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_submitted_by_agent_id_fkey"
+            columns: ["submitted_by_agent_id"]
             isOneToOne: false
             referencedRelation: "imp_cargo_agents"
             referencedColumns: ["id"]
@@ -5451,6 +5473,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_cargo_agent_id: { Args: never; Returns: string }
       erp_profit_loss: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
@@ -6083,6 +6106,7 @@ export type Database = {
         | "accountant"
         | "marketing_manager"
         | "warehouse_staff"
+        | "cargo_agent"
       call_status:
         | "not_called"
         | "attempting"
@@ -6118,6 +6142,7 @@ export type Database = {
         | "local_courier"
         | "adjustment"
       imp_po_status:
+        | "pending_review"
         | "ordered"
         | "at_china_warehouse"
         | "in_transit"
@@ -6317,6 +6342,7 @@ export const Constants = {
         "accountant",
         "marketing_manager",
         "warehouse_staff",
+        "cargo_agent",
       ],
       call_status: [
         "not_called",
@@ -6357,6 +6383,7 @@ export const Constants = {
         "adjustment",
       ],
       imp_po_status: [
+        "pending_review",
         "ordered",
         "at_china_warehouse",
         "in_transit",
