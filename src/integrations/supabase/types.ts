@@ -802,6 +802,75 @@ export type Database = {
           },
         ]
       }
+      erp_chart_accounts: {
+        Row: {
+          account_type: string
+          brand_id: string
+          code: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_archived: boolean
+          name: string
+          normal_balance: string
+          opening_balance: number
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_type: string
+          brand_id: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_archived?: boolean
+          name: string
+          normal_balance: string
+          opening_balance?: number
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          brand_id?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_archived?: boolean
+          name?: string
+          normal_balance?: string
+          opening_balance?: number
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_chart_accounts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_chart_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_courier_settings: {
         Row: {
           base_url: string | null
@@ -885,6 +954,209 @@ export type Database = {
             foreignKeyName: "erp_expense_categories_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_finance_attachments: {
+        Row: {
+          brand_id: string
+          created_at: string
+          file_name: string | null
+          id: string
+          journal_entry_id: string | null
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          transaction_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          transaction_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          transaction_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_finance_attachments_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_finance_attachments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_journal_entries: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          entry_date: string
+          entry_no: string
+          id: string
+          is_locked: boolean
+          source_id: string | null
+          source_type: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          entry_date: string
+          entry_no: string
+          id?: string
+          is_locked?: boolean
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_no?: string
+          id?: string
+          is_locked?: boolean
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_journal_entries_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_journal_lines: {
+        Row: {
+          account_id: string
+          brand_id: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          journal_entry_id: string
+          line_order: number
+        }
+        Insert: {
+          account_id: string
+          brand_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_entry_id: string
+          line_order?: number
+        }
+        Update: {
+          account_id?: string
+          brand_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_entry_id?: string
+          line_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_journal_lines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_period_locks: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          locked_by: string | null
+          locked_until: string
+          reason: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          locked_by?: string | null
+          locked_until: string
+          reason?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          locked_by?: string | null
+          locked_until?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_period_locks_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
             referencedRelation: "brands"
             referencedColumns: ["id"]
           },
@@ -2849,6 +3121,18 @@ export type Database = {
         Args: { _entry: Json; _log_field: string; _order_id: string }
         Returns: undefined
       }
+      create_journal_entry: {
+        Args: {
+          _brand_id: string
+          _description: string
+          _entry_date: string
+          _lines: Json
+          _source_id?: string
+          _source_type?: string
+          _status?: string
+        }
+        Returns: string
+      }
       erp_profit_loss: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
@@ -2857,7 +3141,44 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      get_balance_sheet: {
+        Args: { _as_of: string; _brand_id: string }
+        Returns: Json
+      }
       get_customer_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_general_ledger: {
+        Args: {
+          _account_id: string
+          _brand_id: string
+          _from: string
+          _to: string
+        }
+        Returns: {
+          credit: number
+          debit: number
+          description: string
+          entry_date: string
+          entry_no: string
+          running_balance: number
+        }[]
+      }
+      get_pl_v2: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: Json
+      }
+      get_trial_balance: {
+        Args: { _as_of: string; _brand_id: string }
+        Returns: {
+          account_id: string
+          account_type: string
+          balance: number
+          code: string
+          name: string
+          normal_balance: string
+          total_credit: number
+          total_debit: number
+        }[]
+      }
       hard_delete_order: { Args: { _order_id: string }; Returns: undefined }
       has_permission: {
         Args: { _permission: string; _user_id: string }
@@ -2907,6 +3228,7 @@ export type Database = {
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
       reserve_stock: { Args: { _order_id: string }; Returns: undefined }
+      seed_default_coa: { Args: { _brand_id: string }; Returns: number }
       set_product_stock: {
         Args: {
           _new_qty: number
@@ -2967,6 +3289,10 @@ export type Database = {
           valid_until: string
           value: number
         }[]
+      }
+      void_journal_entry: {
+        Args: { _entry_id: string; _reason: string }
+        Returns: undefined
       }
     }
     Enums: {
