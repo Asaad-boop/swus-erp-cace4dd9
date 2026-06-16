@@ -221,6 +221,7 @@ export async function getDailyInsights(
       action_attribution_windows: JSON.stringify(["7d_click", "1d_view"]),
     },
     token,
+    200,
   );
 }
 
