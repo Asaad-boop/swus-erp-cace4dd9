@@ -20,7 +20,7 @@ import { downloadCsv } from "@/lib/erp/orders";
 import { TransactionForm } from "@/components/erp/finance/transaction-form";
 import { AccountForm } from "@/components/erp/finance/account-form";
 
-export const Route = createFileRoute("/_authenticated/erp/finance")({
+export const Route = createFileRoute("/_authenticated/erp/finance/simple")({
   head: () => ({ meta: [{ title: "Finance — ERP" }] }),
   component: FinancePage,
 });

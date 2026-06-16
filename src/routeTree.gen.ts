@@ -19,7 +19,6 @@ import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
 import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
-import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
 import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
@@ -33,6 +32,7 @@ import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedErpMarketingSettingsRouteImport } from './routes/_authenticated/erp.marketing.settings'
 import { Route as AuthenticatedErpMarketingCampaignsRouteImport } from './routes/_authenticated/erp.marketing.campaigns'
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
+import { Route as AuthenticatedErpFinanceSimpleRouteImport } from './routes/_authenticated/erp.finance.simple'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -88,11 +88,6 @@ const AuthenticatedErpInventoryRoute =
     path: '/inventory',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
-const AuthenticatedErpFinanceRoute = AuthenticatedErpFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => AuthenticatedErpRoute,
-} as any)
 const AuthenticatedErpCourierRoute = AuthenticatedErpCourierRouteImport.update({
   id: '/courier',
   path: '/courier',
@@ -169,6 +164,12 @@ const AuthenticatedErpMarketingAccountsRoute =
     path: '/accounts',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
+const AuthenticatedErpFinanceSimpleRoute =
+  AuthenticatedErpFinanceSimpleRouteImport.update({
+    id: '/finance/simple',
+    path: '/finance/simple',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
 const AuthenticatedErpMarketingCampaignsCampaignIdRoute =
   AuthenticatedErpMarketingCampaignsCampaignIdRouteImport.update({
     id: '/$campaignId',
@@ -181,13 +182,13 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
   '/erp/courier': typeof AuthenticatedErpCourierRoute
-  '/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
+  '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
@@ -206,11 +207,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
-  '/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
@@ -232,13 +233,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
-  '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRoute
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/_authenticated/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/_authenticated/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsRouteWithChildren
   '/_authenticated/erp/marketing/settings': typeof AuthenticatedErpMarketingSettingsRoute
@@ -260,13 +261,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/erp'
     | '/erp/courier'
-    | '/erp/finance'
     | '/erp/inventory'
     | '/erp/marketing'
     | '/erp/orders'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/'
+    | '/erp/finance/simple'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
     | '/erp/marketing/settings'
@@ -285,11 +286,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp/courier'
-    | '/erp/finance'
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp'
+    | '/erp/finance/simple'
     | '/erp/marketing/accounts'
     | '/erp/marketing/campaigns'
     | '/erp/marketing/settings'
@@ -310,13 +311,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/erp'
     | '/_authenticated/erp/courier'
-    | '/_authenticated/erp/finance'
     | '/_authenticated/erp/inventory'
     | '/_authenticated/erp/marketing'
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/'
+    | '/_authenticated/erp/finance/simple'
     | '/_authenticated/erp/marketing/accounts'
     | '/_authenticated/erp/marketing/campaigns'
     | '/_authenticated/erp/marketing/settings'
@@ -413,13 +414,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpInventoryRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
-    '/_authenticated/erp/finance': {
-      id: '/_authenticated/erp/finance'
-      path: '/finance'
-      fullPath: '/erp/finance'
-      preLoaderRoute: typeof AuthenticatedErpFinanceRouteImport
-      parentRoute: typeof AuthenticatedErpRoute
-    }
     '/_authenticated/erp/courier': {
       id: '/_authenticated/erp/courier'
       path: '/courier'
@@ -511,6 +505,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpMarketingAccountsRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
+    '/_authenticated/erp/finance/simple': {
+      id: '/_authenticated/erp/finance/simple'
+      path: '/finance/simple'
+      fullPath: '/erp/finance/simple'
+      preLoaderRoute: typeof AuthenticatedErpFinanceSimpleRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
     '/_authenticated/erp/marketing/campaigns/$campaignId': {
       id: '/_authenticated/erp/marketing/campaigns/$campaignId'
       path: '/$campaignId'
@@ -583,24 +584,24 @@ const AuthenticatedErpOrdersRouteWithChildren =
 
 interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
-  AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRoute
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
   AuthenticatedErpMarketingRoute: typeof AuthenticatedErpMarketingRouteWithChildren
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
+  AuthenticatedErpFinanceSimpleRoute: typeof AuthenticatedErpFinanceSimpleRoute
 }
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
-  AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRoute,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
   AuthenticatedErpMarketingRoute: AuthenticatedErpMarketingRouteWithChildren,
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
+  AuthenticatedErpFinanceSimpleRoute: AuthenticatedErpFinanceSimpleRoute,
 }
 
 const AuthenticatedErpRouteWithChildren =
