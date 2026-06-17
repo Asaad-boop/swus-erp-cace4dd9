@@ -38,11 +38,12 @@ function SuppliersPage() {
     queryKey: ["suppliers", brandIds.join(",")],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_suppliers")
-        .select("id,name,contact_person,phone,email,address,opening_balance,current_due,notes,is_active,brand_id")
-        applyBrandScope(, brandIds)
-        .order("name");
+      const { data, error } = await applyBrandScope(
+        supabase
+          .from("erp_suppliers")
+          .select("id,name,contact_person,phone,email,address,opening_balance,current_due,notes,is_active,brand_id"),
+        brandIds,
+      ).order("name");
       if (error) throw error;
       return data as Supplier[];
     },

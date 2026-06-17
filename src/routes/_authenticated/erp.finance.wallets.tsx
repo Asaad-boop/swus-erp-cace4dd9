@@ -45,10 +45,10 @@ function WalletsPage() {
     queryKey: ["wallets", brandIds],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_accounts")
-        .select("*")
-        applyBrandScope(, brandIds)
+      const { data, error } = await applyBrandScope(
+        supabase.from("erp_accounts").select("*"),
+        brandIds,
+      )
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
