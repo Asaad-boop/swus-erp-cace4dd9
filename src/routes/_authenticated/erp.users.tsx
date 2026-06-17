@@ -244,7 +244,6 @@ function UsersPage() {
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">All <span className="ml-1.5 text-xs opacity-60">{counts.total}</span></TabsTrigger>
             <TabsTrigger value="team">Team <span className="ml-1.5 text-xs opacity-60">{counts.team}</span></TabsTrigger>
-            <TabsTrigger value="cargo_agent">Cargo Agents <span className="ml-1.5 text-xs opacity-60">{counts.cargo_agent}</span></TabsTrigger>
             <TabsTrigger value="customer">Customers <span className="ml-1.5 text-xs opacity-60">{counts.customer}</span></TabsTrigger>
             <TabsTrigger value="no_role">No role <span className="ml-1.5 text-xs opacity-60">{counts.no_role}</span></TabsTrigger>
             <TabsTrigger value="disabled">Disabled <span className="ml-1.5 text-xs opacity-60">{counts.disabled}</span></TabsTrigger>
@@ -388,9 +387,6 @@ function UsersPage() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {u.cargo_agent ? u.cargo_agent.name : <span className="text-xs text-muted-foreground">—</span>}
-                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                     {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "Never"}
                   </TableCell>
@@ -453,15 +449,13 @@ function UsersPage() {
       <CreateUserDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        agents={agents as any[]}
         onCreated={invalidate}
       />
       {editUser && (
         <EditUserDialog
           user={editUser}
-          agents={agents as any[]}
           onClose={() => setEditUser(null)}
-          onSaved={() => { invalidate(); qc.invalidateQueries({ queryKey: ["available-cargo-agents"] }); }}
+          onSaved={() => { invalidate(); }}
         />
       )}
       {pwUser && <PasswordDialog user={pwUser} onClose={() => setPwUser(null)} />}
