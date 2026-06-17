@@ -54,6 +54,7 @@ import { Route as AuthenticatedErpImportsReportsRouteImport } from './routes/_au
 import { Route as AuthenticatedErpHrShiftsRouteImport } from './routes/_authenticated/erp.hr.shifts'
 import { Route as AuthenticatedErpHrSettingsRouteImport } from './routes/_authenticated/erp.hr.settings'
 import { Route as AuthenticatedErpHrLeaveRouteImport } from './routes/_authenticated/erp.hr.leave'
+import { Route as AuthenticatedErpHrHolidaysRouteImport } from './routes/_authenticated/erp.hr.holidays'
 import { Route as AuthenticatedErpHrDesignationsRouteImport } from './routes/_authenticated/erp.hr.designations'
 import { Route as AuthenticatedErpHrDepartmentsRouteImport } from './routes/_authenticated/erp.hr.departments'
 import { Route as AuthenticatedErpHrAttendanceRouteImport } from './routes/_authenticated/erp.hr.attendance'
@@ -338,6 +339,12 @@ const AuthenticatedErpHrLeaveRoute = AuthenticatedErpHrLeaveRouteImport.update({
   path: '/leave',
   getParentRoute: () => AuthenticatedErpHrRoute,
 } as any)
+const AuthenticatedErpHrHolidaysRoute =
+  AuthenticatedErpHrHolidaysRouteImport.update({
+    id: '/holidays',
+    path: '/holidays',
+    getParentRoute: () => AuthenticatedErpHrRoute,
+  } as any)
 const AuthenticatedErpHrDesignationsRoute =
   AuthenticatedErpHrDesignationsRouteImport.update({
     id: '/designations',
@@ -556,6 +563,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/erp/hr/holidays': typeof AuthenticatedErpHrHolidaysRoute
   '/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
   '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRoute
@@ -623,6 +631,7 @@ export interface FileRoutesByTo {
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/erp/hr/holidays': typeof AuthenticatedErpHrHolidaysRoute
   '/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
   '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRoute
@@ -701,6 +710,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
   '/_authenticated/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/_authenticated/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/_authenticated/erp/hr/holidays': typeof AuthenticatedErpHrHolidaysRoute
   '/_authenticated/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
   '/_authenticated/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/_authenticated/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRoute
@@ -779,6 +789,7 @@ export interface FileRouteTypes {
     | '/erp/hr/attendance'
     | '/erp/hr/departments'
     | '/erp/hr/designations'
+    | '/erp/hr/holidays'
     | '/erp/hr/leave'
     | '/erp/hr/settings'
     | '/erp/hr/shifts'
@@ -846,6 +857,7 @@ export interface FileRouteTypes {
     | '/erp/finance/wallets'
     | '/erp/hr/departments'
     | '/erp/hr/designations'
+    | '/erp/hr/holidays'
     | '/erp/hr/leave'
     | '/erp/hr/settings'
     | '/erp/hr/shifts'
@@ -923,6 +935,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr/attendance'
     | '/_authenticated/erp/hr/departments'
     | '/_authenticated/erp/hr/designations'
+    | '/_authenticated/erp/hr/holidays'
     | '/_authenticated/erp/hr/leave'
     | '/_authenticated/erp/hr/settings'
     | '/_authenticated/erp/hr/shifts'
@@ -1292,6 +1305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpHrLeaveRouteImport
       parentRoute: typeof AuthenticatedErpHrRoute
     }
+    '/_authenticated/erp/hr/holidays': {
+      id: '/_authenticated/erp/hr/holidays'
+      path: '/holidays'
+      fullPath: '/erp/hr/holidays'
+      preLoaderRoute: typeof AuthenticatedErpHrHolidaysRouteImport
+      parentRoute: typeof AuthenticatedErpHrRoute
+    }
     '/_authenticated/erp/hr/designations': {
       id: '/_authenticated/erp/hr/designations'
       path: '/designations'
@@ -1591,6 +1611,7 @@ interface AuthenticatedErpHrRouteChildren {
   AuthenticatedErpHrAttendanceRoute: typeof AuthenticatedErpHrAttendanceRouteWithChildren
   AuthenticatedErpHrDepartmentsRoute: typeof AuthenticatedErpHrDepartmentsRoute
   AuthenticatedErpHrDesignationsRoute: typeof AuthenticatedErpHrDesignationsRoute
+  AuthenticatedErpHrHolidaysRoute: typeof AuthenticatedErpHrHolidaysRoute
   AuthenticatedErpHrLeaveRoute: typeof AuthenticatedErpHrLeaveRoute
   AuthenticatedErpHrSettingsRoute: typeof AuthenticatedErpHrSettingsRoute
   AuthenticatedErpHrShiftsRoute: typeof AuthenticatedErpHrShiftsRoute
@@ -1605,6 +1626,7 @@ const AuthenticatedErpHrRouteChildren: AuthenticatedErpHrRouteChildren = {
     AuthenticatedErpHrAttendanceRouteWithChildren,
   AuthenticatedErpHrDepartmentsRoute: AuthenticatedErpHrDepartmentsRoute,
   AuthenticatedErpHrDesignationsRoute: AuthenticatedErpHrDesignationsRoute,
+  AuthenticatedErpHrHolidaysRoute: AuthenticatedErpHrHolidaysRoute,
   AuthenticatedErpHrLeaveRoute: AuthenticatedErpHrLeaveRoute,
   AuthenticatedErpHrSettingsRoute: AuthenticatedErpHrSettingsRoute,
   AuthenticatedErpHrShiftsRoute: AuthenticatedErpHrShiftsRoute,
