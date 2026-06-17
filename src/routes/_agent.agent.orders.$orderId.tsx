@@ -2,15 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, PackageCheck, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, PackageCheck, CheckCircle2, PlaneLanding } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAgentPurchaseOrder, requestCartonRelease } from "@/lib/erp/imports/agent.functions";
+import { getAgentPurchaseOrder, requestCartonRelease, markPoArrivedBd } from "@/lib/erp/imports/agent.functions";
 import { PO_STATUS_LABEL, CARTON_STATUS_LABEL, fmtBdt, type ImpPoStatus, type ImpCartonStatus } from "@/lib/erp/imports/types";
 
 export const Route = createFileRoute("/_agent/agent/orders/$orderId")({
@@ -23,6 +25,7 @@ function AgentOrderDetail() {
   const qc = useQueryClient();
   const fn = useServerFn(getAgentPurchaseOrder);
   const releaseFn = useServerFn(requestCartonRelease);
+  const arrivedFn = useServerFn(markPoArrivedBd);
   const { data, isLoading, error } = useQuery({
     queryKey: ["agent-po", orderId],
     queryFn: () => fn({ data: { poId: orderId } }),
@@ -31,6 +34,9 @@ function AgentOrderDetail() {
 
   const [releaseCarton, setReleaseCarton] = useState<any | null>(null);
   const [note, setNote] = useState("");
+  const [arrivedOpen, setArrivedOpen] = useState(false);
+  const [shippedAt, setShippedAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [weightKg, setWeightKg] = useState<string>("");
 
   const releaseMut = useMutation({
     mutationFn: (vars: { cartonId: string; note?: string }) => releaseFn({ data: vars }),
@@ -39,6 +45,19 @@ function AgentOrderDetail() {
       setReleaseCarton(null);
       setNote("");
       qc.invalidateQueries({ queryKey: ["agent-po", orderId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const arrivedMut = useMutation({
+    mutationFn: (vars: { poId: string; shipped_at: string; total_weight_kg: number }) =>
+      arrivedFn({ data: vars }),
+    onSuccess: () => {
+      toast.success("PO mark kora hoyeche as Arrived in BD");
+      setArrivedOpen(false);
+      setWeightKg("");
+      qc.invalidateQueries({ queryKey: ["agent-po", orderId] });
+      qc.invalidateQueries({ queryKey: ["agent-pos"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
@@ -71,6 +90,8 @@ function AgentOrderDetail() {
   const cartons = data.cartons as any[];
   const payments = data.payments as any[];
 
+  const canMarkArrived = ["ordered", "at_china_warehouse", "in_transit"].includes(po.status);
+
   return (
     <div className="p-6 space-y-5 max-w-6xl">
       <div className="flex items-center gap-3">
@@ -86,6 +107,11 @@ function AgentOrderDetail() {
           </div>
           <div className="text-xs text-muted-foreground">{po.order_date} · {po.supplier?.name ?? "No supplier"}</div>
         </div>
+        {canMarkArrived && (
+          <Button onClick={() => setArrivedOpen(true)}>
+            <PlaneLanding className="h-4 w-4 mr-1.5" /> Mark Arrived in BD
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -94,6 +120,23 @@ function AgentOrderDetail() {
         <Stat label="Grand Total" value={fmtBdt(po.grand_total_bdt)} accent="text-foreground" />
         <Stat label="Due" value={fmtBdt(po.due_bdt)} accent="text-orange-600" />
       </div>
+
+      {(po.shipped_at || po.total_weight_kg) && (
+        <Card className="p-4 flex flex-wrap gap-6 text-sm">
+          {po.shipped_at && (
+            <div>
+              <div className="text-xs text-muted-foreground">Shipped / Arrived BD</div>
+              <div className="font-semibold">{po.shipped_at}</div>
+            </div>
+          )}
+          {po.total_weight_kg != null && (
+            <div>
+              <div className="text-xs text-muted-foreground">Total Weight</div>
+              <div className="font-semibold tabular-nums">{po.total_weight_kg} kg</div>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="overflow-hidden">
         <div className="p-4 border-b border-border"><h2 className="font-semibold">Items</h2></div>
