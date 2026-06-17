@@ -82,6 +82,7 @@ import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_
 import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
 import { Route as AuthenticatedErpHrEmployeesNewRouteImport } from './routes/_authenticated/erp.hr.employees.new'
 import { Route as AuthenticatedErpHrEmployeesIdRouteImport } from './routes/_authenticated/erp.hr.employees.$id'
+import { Route as AuthenticatedErpHrAttendanceMusterRouteImport } from './routes/_authenticated/erp.hr.attendance.muster'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -504,6 +505,12 @@ const AuthenticatedErpHrEmployeesIdRoute =
     path: '/employees/$id',
     getParentRoute: () => AuthenticatedErpHrRoute,
   } as any)
+const AuthenticatedErpHrAttendanceMusterRoute =
+  AuthenticatedErpHrAttendanceMusterRouteImport.update({
+    id: '/muster',
+    path: '/muster',
+    getParentRoute: () => AuthenticatedErpHrAttendanceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -569,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
+  '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
@@ -634,6 +642,7 @@ export interface FileRoutesByTo {
   '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationIndexRoute
+  '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
@@ -710,6 +719,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/_authenticated/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
+  '/_authenticated/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/_authenticated/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/_authenticated/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
@@ -786,6 +796,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/'
     | '/erp/orders/'
     | '/erp/reconciliation/'
+    | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
     | '/erp/hr/employees/new'
     | '/erp/imports/orders/$orderId'
@@ -851,6 +862,7 @@ export interface FileRouteTypes {
     | '/erp/marketing'
     | '/erp/orders'
     | '/erp/reconciliation'
+    | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
     | '/erp/hr/employees/new'
     | '/erp/imports/orders/$orderId'
@@ -926,6 +938,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/marketing/'
     | '/_authenticated/erp/orders/'
     | '/_authenticated/erp/reconciliation/'
+    | '/_authenticated/erp/hr/attendance/muster'
     | '/_authenticated/erp/hr/employees/$id'
     | '/_authenticated/erp/hr/employees/new'
     | '/_authenticated/erp/imports/orders/$orderId'
@@ -1462,6 +1475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpHrEmployeesIdRouteImport
       parentRoute: typeof AuthenticatedErpHrRoute
     }
+    '/_authenticated/erp/hr/attendance/muster': {
+      id: '/_authenticated/erp/hr/attendance/muster'
+      path: '/muster'
+      fullPath: '/erp/hr/attendance/muster'
+      preLoaderRoute: typeof AuthenticatedErpHrAttendanceMusterRouteImport
+      parentRoute: typeof AuthenticatedErpHrAttendanceRoute
+    }
   }
 }
 
@@ -1530,11 +1550,14 @@ const AuthenticatedErpFinanceRouteWithChildren =
   )
 
 interface AuthenticatedErpHrAttendanceRouteChildren {
+  AuthenticatedErpHrAttendanceMusterRoute: typeof AuthenticatedErpHrAttendanceMusterRoute
   AuthenticatedErpHrAttendanceIndexRoute: typeof AuthenticatedErpHrAttendanceIndexRoute
 }
 
 const AuthenticatedErpHrAttendanceRouteChildren: AuthenticatedErpHrAttendanceRouteChildren =
   {
+    AuthenticatedErpHrAttendanceMusterRoute:
+      AuthenticatedErpHrAttendanceMusterRoute,
     AuthenticatedErpHrAttendanceIndexRoute:
       AuthenticatedErpHrAttendanceIndexRoute,
   }
