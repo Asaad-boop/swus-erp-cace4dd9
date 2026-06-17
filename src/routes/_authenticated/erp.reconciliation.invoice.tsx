@@ -59,7 +59,7 @@ import {
 } from "@/lib/erp/reconciliation.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/reconciliation/invoice")({
-  head: () => ({ meta: [{ title: "Pathao Invoice Reconciliation — ERP" }] }),
+  head: () => ({ meta: [{ title: "Invoice Reconciliation — ERP" }] }),
   component: ReconciliationPage,
 });
 
