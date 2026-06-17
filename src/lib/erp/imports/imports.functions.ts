@@ -38,12 +38,11 @@ export const listPurchaseOrders = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("imp_purchase_orders")
       .select(`
-        id, po_number, brand_id, supplier_id, cargo_agent_id, order_date,
+        id, po_number, brand_id, supplier_id, order_date,
         currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
-        supplier:supplier_id ( id, name ),
-        agent:cargo_agent_id ( id, name )
+        supplier:supplier_id ( id, name )
       `)
       .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false })
@@ -65,12 +64,11 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const [poRes, itemsRes, cartonsRes, paymentsRes, historyRes] = await Promise.all([
       context.supabase.from("imp_purchase_orders").select(`
-        id, po_number, brand_id, supplier_id, cargo_agent_id, order_date,
+        id, po_number, brand_id, supplier_id, order_date,
         currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
-        supplier:supplier_id ( id, name, phone, source_link, address, currency ),
-        agent:cargo_agent_id ( id, name, phone, default_shipping_rate_per_kg_bdt )
+        supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
         id, product_id, variant_id, sku_snapshot, name_snapshot, image_snapshot,
@@ -105,65 +103,6 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
       payments: paymentsRes.data ?? [],
       history: historyRes.data ?? [],
     };
-  });
-
-export const listCargoAgents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
-      .from("imp_cargo_agents")
-      .select(`*, po_count:imp_purchase_orders!imp_purchase_orders_cargo_agent_id_fkey(count)`)
-      .eq("brand_id", data.brandId)
-      .order("name");
-    if (error) throw error;
-    const agents = rows ?? [];
-    if (agents.length === 0) return [];
-    // Attach latest daily rate for each agent
-    const ids = agents.map((a: any) => a.id);
-    const { data: rates } = await context.supabase
-      .from("imp_cargo_agent_rates")
-      .select("agent_id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, updated_at")
-      .in("agent_id", ids)
-      .order("rate_date", { ascending: false });
-    const latestByAgent = new Map<string, any>();
-    for (const r of rates ?? []) {
-      if (!latestByAgent.has(r.agent_id)) latestByAgent.set(r.agent_id, r);
-    }
-    // Attach running balance per agent
-    const balances = await Promise.all(
-      ids.map((id: string) => context.supabase.rpc("get_cargo_agent_balance", { _agent_id: id })),
-    );
-    const balanceById = new Map<string, number>();
-    ids.forEach((id: string, i: number) => {
-      balanceById.set(id, Number(balances[i]?.data ?? 0));
-    });
-    return agents.map((a: any) => ({
-      ...a,
-      latest_rate: latestByAgent.get(a.id) ?? null,
-      balance_bdt: balanceById.get(a.id) ?? 0,
-    }));
-  });
-
-export const listCargoAgentRates = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { agentId: string; limit?: number }) =>
-    z.object({
-      agentId: z.string().uuid(),
-      limit: z.number().int().min(1).max(365).optional(),
-    }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
-      .from("imp_cargo_agent_rates")
-      .select("id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, note, updated_at")
-      .eq("agent_id", data.agentId)
-      .order("rate_date", { ascending: false })
-      .limit(data.limit ?? 60);
-    if (error) throw error;
-    return rows ?? [];
   });
 
 export const listImportSuppliers = createServerFn({ method: "POST" })
@@ -216,8 +155,7 @@ export const getImportsDashboardStats = createServerFn({ method: "POST" })
       .from("imp_purchase_orders")
       .select(`id, status, grand_total_bdt, paid_bdt, due_bdt,
                product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
-               supplier:supplier_id ( id, name ),
-               agent:cargo_agent_id ( id, name )`)
+               supplier:supplier_id ( id, name )`)
       .eq("brand_id", data.brandId);
     if (data.from) q = q.gte("order_date", data.from);
     if (data.to) q = q.lte("order_date", data.to);
@@ -240,60 +178,6 @@ export const getImportsDashboardStats = createServerFn({ method: "POST" })
 /* ============================================================
    WRITE-side server functions (call RPCs)
    ============================================================ */
-
-/* --- Cargo Agents --- */
-
-export const upsertCargoAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    id?: string;
-    brandId: string;
-    name: string;
-    phone?: string;
-    address?: string;
-    default_shipping_rate_per_kg_bdt: number;
-    default_currency?: string;
-    default_fx_rate: number;
-    notes?: string;
-    is_active?: boolean;
-  }) =>
-    z.object({
-      id: z.string().uuid().optional(),
-      brandId: z.string().uuid(),
-      name: z.string().min(1).max(120),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      default_shipping_rate_per_kg_bdt: z.number().nonnegative(),
-      default_currency: z.string().max(8).optional(),
-      default_fx_rate: z.number().nonnegative(),
-      notes: z.string().optional(),
-      is_active: z.boolean().optional(),
-    }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAnyRole(context.supabase, context.userId, ["admin", "operations"]);
-    const payload: any = {
-      brand_id: data.brandId,
-      name: data.name,
-      phone: data.phone ?? null,
-      address: data.address ?? null,
-      default_shipping_rate_per_kg_bdt: data.default_shipping_rate_per_kg_bdt,
-      default_currency: data.default_currency ?? "CNY",
-      default_fx_rate: data.default_fx_rate,
-      notes: data.notes ?? null,
-      is_active: data.is_active ?? true,
-    };
-    if (data.id) {
-      const { error } = await context.supabase.from("imp_cargo_agents").update(payload).eq("id", data.id);
-      if (error) throw error;
-      return { id: data.id };
-    } else {
-      payload.created_by = context.userId;
-      const { data: row, error } = await context.supabase.from("imp_cargo_agents").insert(payload).select("id").single();
-      if (error) throw error;
-      return { id: row.id };
-    }
-  });
 
 /* --- Suppliers (import) --- */
 
@@ -409,7 +293,6 @@ export const createImportPo = createServerFn({ method: "POST" })
   .inputValidator((d: any) =>
     z.object({
       brand_id: z.string().uuid(),
-      cargo_agent_id: z.string().uuid(),
       order_date: z.string(),
       currency: z.string().default("CNY"),
       fx_rate: z.number().positive(),

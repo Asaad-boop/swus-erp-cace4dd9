@@ -11,7 +11,6 @@ export const APP_ROLES = [
   "customer_service",
   "marketing_manager",
   "moderator",
-  "cargo_agent",
   "customer",
 ] as const;
 export type AppRole = (typeof APP_ROLES)[number];
@@ -35,14 +34,12 @@ export const listAppUsers = createServerFn({ method: "POST" })
     const users = list.users ?? [];
     const ids = users.map((u: any) => u.id);
 
-    const [rolesRes, profilesRes, agentsRes] = await Promise.all([
+    const [rolesRes, profilesRes] = await Promise.all([
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]),
       supabaseAdmin.from("profiles").select("id, display_name").in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]),
-      supabaseAdmin.from("imp_cargo_agents").select("id, name, user_id, brand_id").not("user_id", "is", null),
     ]);
     if (rolesRes.error) throw rolesRes.error;
     if (profilesRes.error) throw profilesRes.error;
-    if (agentsRes.error) throw agentsRes.error;
 
     const rolesByUser: Record<string, string[]> = {};
     (rolesRes.data ?? []).forEach((r: any) => {
@@ -50,8 +47,6 @@ export const listAppUsers = createServerFn({ method: "POST" })
     });
     const profileByUser: Record<string, string> = {};
     (profilesRes.data ?? []).forEach((p: any) => { profileByUser[p.id] = p.display_name; });
-    const agentByUser: Record<string, any> = {};
-    (agentsRes.data ?? []).forEach((a: any) => { if (a.user_id) agentByUser[a.user_id] = a; });
 
     return users.map((u: any) => ({
       id: u.id,
@@ -63,26 +58,6 @@ export const listAppUsers = createServerFn({ method: "POST" })
       phone: u.phone ?? null,
       display_name: profileByUser[u.id] ?? null,
       roles: rolesByUser[u.id] ?? [],
-      cargo_agent: agentByUser[u.id] ?? null,
-    }));
-  });
-
-export const listAvailableCargoAgents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [agentsRes, brandsRes] = await Promise.all([
-      supabaseAdmin.from("imp_cargo_agents").select("id, name, brand_id, user_id").order("name"),
-      supabaseAdmin.from("brands").select("id, name"),
-    ]);
-    if (agentsRes.error) throw agentsRes.error;
-    if (brandsRes.error) throw brandsRes.error;
-    const brandMap: Record<string, string> = {};
-    (brandsRes.data ?? []).forEach((b: any) => { brandMap[b.id] = b.name; });
-    return (agentsRes.data ?? []).map((a: any) => ({
-      ...a,
-      brands: a.brand_id ? { name: brandMap[a.brand_id] ?? null } : null,
     }));
   });
 
@@ -92,13 +67,12 @@ const RoleEnum = z.enum(APP_ROLES);
 
 export const createAppUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { email: string; password: string; displayName?: string; roles: string[]; cargoAgentId?: string | null }) =>
+  .inputValidator((d: { email: string; password: string; displayName?: string; roles: string[] }) =>
     z.object({
       email: z.string().trim().email().max(255),
       password: z.string().min(6).max(72),
       displayName: z.string().trim().max(100).optional(),
       roles: z.array(RoleEnum).max(10),
-      cargoAgentId: z.string().uuid().nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -118,22 +92,10 @@ export const createAppUser = createServerFn({ method: "POST" })
       await supabaseAdmin.from("profiles").upsert({ id: newUserId, display_name: data.displayName });
     }
 
-    const finalRoles = data.cargoAgentId && !data.roles.includes("cargo_agent")
-      ? [...data.roles, "cargo_agent" as const]
-      : data.roles;
-
-    if (finalRoles.length) {
-      const rows = finalRoles.map((r) => ({ user_id: newUserId, role: r }));
+    if (data.roles.length) {
+      const rows = data.roles.map((r) => ({ user_id: newUserId, role: r }));
       const { error: rErr } = await supabaseAdmin.from("user_roles").insert(rows);
       if (rErr) throw rErr;
-    }
-
-    if (data.cargoAgentId) {
-      const { error: aErr } = await supabaseAdmin
-        .from("imp_cargo_agents")
-        .update({ user_id: newUserId })
-        .eq("id", data.cargoAgentId);
-      if (aErr) throw aErr;
     }
 
     return { id: newUserId };
@@ -163,33 +125,6 @@ export const updateUserRoles = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/* ============= LINK CARGO AGENT ============= */
-
-export const linkUserToCargoAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; cargoAgentId: string | null }) =>
-    z.object({ userId: z.string().uuid(), cargoAgentId: z.string().uuid().nullable() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // unlink existing first
-    await supabaseAdmin.from("imp_cargo_agents").update({ user_id: null }).eq("user_id", data.userId);
-    if (data.cargoAgentId) {
-      const { error: roleErr } = await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: data.userId, role: "cargo_agent" }, { onConflict: "user_id,role" });
-      if (roleErr) throw roleErr;
-
-      const { error } = await supabaseAdmin
-        .from("imp_cargo_agents")
-        .update({ user_id: data.userId })
-        .eq("id", data.cargoAgentId);
-      if (error) throw error;
-    }
-    return { ok: true };
-  });
-
 /* ============= PASSWORD RESET ============= */
 
 export const setUserPassword = createServerFn({ method: "POST" })
@@ -214,7 +149,6 @@ export const deleteAppUser = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     if (data.userId === context.userId) throw new Error("Cannot delete your own account");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("imp_cargo_agents").update({ user_id: null }).eq("user_id", data.userId);
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw error;
@@ -292,7 +226,6 @@ export const bulkDeleteUsers = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const ids = data.userIds.filter((id) => id !== context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("imp_cargo_agents").update({ user_id: null }).in("user_id", ids);
     await supabaseAdmin.from("user_roles").delete().in("user_id", ids);
     for (const id of ids) {
       await supabaseAdmin.auth.admin.deleteUser(id);
