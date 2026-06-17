@@ -41,7 +41,7 @@ const TYPE_COLOR: Record<COA["account_type"], string> = {
 };
 
 function AccountsPage() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker( = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);

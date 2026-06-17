@@ -31,7 +31,7 @@ function shiftIso(iso: string, deltaDays: number) {
 }
 
 function ImportsDashboard() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker( = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
 
   const statsFn = useServerFn(getImportsDashboardStats);
