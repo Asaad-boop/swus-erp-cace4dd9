@@ -191,28 +191,39 @@ async function aiPickFromList(opts: {
   const url = useGemini
     ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     : "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: useGemini ? "gemini-2.5-flash-lite" : "google/gemini-3.1-flash-lite-preview",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0,
-    }),
-  });
+  const modelChain = useGemini
+    ? ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+    : ["google/gemini-3.1-flash-lite-preview"];
+  let res: Response | null = null;
+  let lastErrTxt = "";
+  for (const model of modelChain) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0,
+        }),
+      });
+      if (res.ok || res.status === 429 || res.status === 402) break;
+      lastErrTxt = await res.text();
+      if (res.status !== 503 && res.status !== 500 && res.status !== 502) break;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+    if (res && (res.ok || res.status === 429 || res.status === 402)) break;
+  }
+  if (!res) throw new Error("AI request failed");
 
   if (res.status === 429) throw new Error("AI rate limit exceeded. Try again shortly.");
   if (res.status === 402) throw new Error("AI credits exhausted. Add credits to continue.");
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`AI gateway error (${res.status}): ${txt.slice(0, 200)}`);
+    throw new Error(`AI service busy (${res.status}). Try again. ${lastErrTxt.slice(0, 150)}`);
   }
 
   const json = await res.json();
