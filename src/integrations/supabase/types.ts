@@ -6204,6 +6204,25 @@ export type Database = {
       }
     }
     Views: {
+      crm_customers_mv: {
+        Row: {
+          avg_order_value: number | null
+          brand_ids: string[] | null
+          customer_key: string | null
+          email: string | null
+          first_order_at: string | null
+          is_registered: boolean | null
+          last_order_at: string | null
+          lifetime_value: number | null
+          meta_status: string | null
+          name: string | null
+          orders_count: number | null
+          profile_segment: string | null
+          user_id: string | null
+          valid_orders_count: number | null
+        }
+        Relationships: []
+      }
       crm_customers_v: {
         Row: {
           avg_order_value: number | null
@@ -7099,6 +7118,7 @@ export type Database = {
         }
         Returns: string
       }
+      refresh_crm_customers_mv: { Args: never; Returns: undefined }
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
       reserve_stock: { Args: { _order_id: string }; Returns: undefined }
