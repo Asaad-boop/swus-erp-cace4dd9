@@ -33,6 +33,9 @@ function envValue(...keys: string[]): string | undefined {
   return keys.map((key) => process.env[key]).find(Boolean);
 }
 
+const FALLBACK_SUPABASE_URL = "https://bgsspipkjeuceftuatue.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = "configured fallback";
+
 export const runDiagnostics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DiagnosticsResult> => {
@@ -83,9 +86,9 @@ export const runDiagnostics = createServerFn({ method: "POST" })
 
     return {
       server: {
-        supabaseUrlHost: host(envValue("SUPABASE_URL", "VITE_SUPABASE_URL")),
+        supabaseUrlHost: host(envValue("SUPABASE_URL", "VITE_SUPABASE_URL") ?? FALLBACK_SUPABASE_URL),
         hasServiceRoleKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.ADMIN_SERVICE_ROLE_KEY),
-        hasPublishableKey: !!envValue("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY"),
+        hasPublishableKey: !!(envValue("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY") ?? FALLBACK_SUPABASE_PUBLISHABLE_KEY),
         nodeEnv: process.env.NODE_ENV ?? null,
         runtime: typeof (globalThis as any).EdgeRuntime === "string" ? "edge" : "node",
       },
