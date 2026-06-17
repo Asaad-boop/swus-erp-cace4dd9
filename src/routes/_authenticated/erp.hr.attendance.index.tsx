@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { LivePunchPanel } from "@/components/erp/hr/attendance/live-punch-panel";
 import {
   listAttendance, markAttendance, deleteAttendance, getAttendanceKpis, listShifts,
 } from "@/lib/erp/hr/attendance.functions";
@@ -106,6 +108,15 @@ function AttendancePage() {
           <KpiCard icon={Clock} label="Avg hrs" value={`${kpi?.avgWorkHours ?? 0}h`} />
         </div>
 
+        <Tabs defaultValue="live">
+          <TabsList>
+            <TabsTrigger value="live">Live Punch</TabsTrigger>
+            <TabsTrigger value="manual">Manual / Records</TabsTrigger>
+          </TabsList>
+          <TabsContent value="live" className="mt-4">
+            <LivePunchPanel />
+          </TabsContent>
+          <TabsContent value="manual" className="mt-4">
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex flex-wrap gap-2 items-end">
@@ -176,6 +187,8 @@ function AttendancePage() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
