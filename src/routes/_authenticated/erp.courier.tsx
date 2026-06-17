@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useShipments } from "@/hooks/erp/use-courier-query";
+import { useBrand } from "@/contexts/brand-context";
 import { pathaoTrackFn } from "@/lib/erp/pathao.functions";
 import { steadfastTrackFn } from "@/lib/erp/steadfast.functions";
 import { PathaoSettings } from "@/components/erp/courier/pathao-settings";
@@ -35,6 +36,8 @@ function statusTone(s: string | null) {
 
 function CourierPage() {
   const qc = useQueryClient();
+  const { isAllBrands, brands } = useBrand();
+  const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
   const { data: shipments = [], isLoading } = useShipments();
   const trackPathao = useServerFn(pathaoTrackFn);
   const trackSteadfast = useServerFn(steadfastTrackFn);
@@ -162,7 +165,16 @@ function CourierPage() {
                   <TableRow key={s.id}>
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(s.created_at), "dd MMM, hh:mm a")}</TableCell>
                     <TableCell className="font-mono text-xs">{s.consignment_id ?? "—"}</TableCell>
-                    <TableCell className="capitalize">{s.provider}</TableCell>
+                    <TableCell className="capitalize">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{s.provider}</span>
+                        {isAllBrands && s.brand_id && (
+                          <Badge variant="outline" className="w-fit text-[10px] h-4 px-1.5">
+                            {brandNameById.get(s.brand_id) ?? "Brand"}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm">
                       <div>{s.orders?.shipping_name ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{s.orders?.shipping_phone ?? ""}</div>
