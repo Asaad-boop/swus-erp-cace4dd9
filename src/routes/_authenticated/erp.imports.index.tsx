@@ -6,7 +6,7 @@ import {
   Package, Truck, Plane, Warehouse, CheckCircle2, AlertTriangle,
   Plus, ArrowRight, Wallet, TrendingUp, Container, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +31,7 @@ function shiftIso(iso: string, deltaDays: number) {
 }
 
 function ImportsDashboard() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
 
   const statsFn = useServerFn(getImportsDashboardStats);
@@ -111,9 +110,7 @@ function ImportsDashboard() {
     return Object.entries(counts).map(([k, v]) => ({ status: k as ImpPoStatus, count: v }));
   }, [pos]);
 
-  if (!brandId) {
-    return <div className="p-6 text-sm text-muted-foreground">Select a brand to view imports.</div>;
-  }
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-6">

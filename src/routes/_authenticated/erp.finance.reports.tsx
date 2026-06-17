@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,21 +20,20 @@ export const Route = createFileRoute("/_authenticated/erp/finance/reports")({
 });
 
 function ReportsPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap justify-between items-end gap-3 print:hidden">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financial Reports</h1>
-          <p className="text-sm text-muted-foreground">{activeBrand?.name}</p>
+          <p className="text-sm text-muted-foreground">{effectiveBrand?.name}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
           <div><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>

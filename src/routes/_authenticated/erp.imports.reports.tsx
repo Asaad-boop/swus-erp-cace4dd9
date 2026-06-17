@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Download, Printer } from "lucide-react";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/reports")({
 });
 
 function ImportsReports() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
 
@@ -76,13 +75,13 @@ function ImportsReports() {
     URL.revokeObjectURL(url);
   };
 
-  if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-5 print:p-0 print:space-y-3" id="imports-report-print">
       <style>{`@media print { @page { size: A4; margin: 12mm; } .no-print { display:none !important; } body { background: white; } #imports-report-print { color: #000; } .print-title { display:block !important; } }`}</style>
       <div className="hidden print-title print:block">
-        <h1 className="text-xl font-bold">{activeBrand?.name ?? ""} — Imports Report</h1>
+        <h1 className="text-xl font-bold">{effectiveBrand?.name ?? ""} — Imports Report</h1>
         <div className="text-sm text-muted-foreground">{from} to {to}</div>
       </div>
       <Card className="p-4 no-print">

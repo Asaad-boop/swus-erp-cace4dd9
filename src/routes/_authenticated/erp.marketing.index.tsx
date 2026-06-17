@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
 import { cn } from "@/lib/utils";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
   getPerformanceDashboard,
   type PerfRow,
@@ -139,8 +139,7 @@ const DECISIONS: Record<
 // ─────────────────────────── page ───────────────────────────
 
 function PerformanceDashboard() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -188,13 +187,7 @@ function PerformanceDashboard() {
     toast.success("Data refreshed");
   }
 
-  if (!brandId) {
-    return (
-      <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-        Top-bar theke ekta brand select korun.
-      </div>
-    );
-  }
+  if (gate) return gate;
 
   const allRows = q.data?.rows ?? [];
   const totals = q.data?.totals;

@@ -12,7 +12,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,8 +89,7 @@ function downloadCsv(filename: string, rows: (string | number | null)[][]) {
 }
 
 function ProductProfitabilityPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
 
   const [productId, setProductId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<string>(daysAgoIso(30));
@@ -189,6 +188,8 @@ function ProductProfitabilityPage() {
       ...r.sources.map((s) => [s.source, s.created, s.confirmed, s.shipped, s.delivered, s.returned, s.revenue, s.delivery_collected, s.net_payable, s.delivery_rate]),
     ]);
   }
+
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto">

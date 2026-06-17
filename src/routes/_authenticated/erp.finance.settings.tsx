@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, Sparkles, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
 });
 
 function SettingsPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const qc = useQueryClient();
 
   const lockQ = useQuery({
@@ -78,13 +77,13 @@ function SettingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Finance Settings</h1>
-        <p className="text-sm text-muted-foreground">{activeBrand?.name}</p>
+        <p className="text-sm text-muted-foreground">{effectiveBrand?.name}</p>
       </header>
 
       <Card>

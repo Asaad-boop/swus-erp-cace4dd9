@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,8 +131,7 @@ function statusPill(status: string) {
 
 function AdAccountsPage() {
   const qc = useQueryClient();
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
 
   const listFn = useServerFn(listConnectedAdAccounts);
   const toggleFn = useServerFn(toggleAdAccountStatus);
@@ -233,15 +232,7 @@ function AdAccountsPage() {
     }
   }
 
-  if (!brandId) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Brand select korun toolbar theke.
-        </CardContent>
-      </Card>
-    );
-  }
+  if (gate) return gate;
 
   const accounts = (q.data ?? []) as AccountRow[];
 
@@ -252,7 +243,7 @@ function AdAccountsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Meta Ads API Accounts</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your Meta Ads API accounts for{" "}
-            <span className="font-medium">{activeBrand?.name}</span>. Per-account credentials (App
+            <span className="font-medium">{effectiveBrand?.name}</span>. Per-account credentials (App
             ID/Secret, Access Token, Ad Account ID, USD→BDT rate).
           </p>
         </div>

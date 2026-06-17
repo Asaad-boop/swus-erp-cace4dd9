@@ -8,7 +8,6 @@ import {
   PackageCheck, Receipt, Send,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useBrand } from "@/contexts/brand-context";
 import { useAccounts } from "@/hooks/erp/use-finance-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,8 +49,6 @@ const PIPELINE_STAGES: { key: ImpCartonStatus; label: string; icon: any; bg: str
 
 function PoDetailPage() {
   const { orderId } = Route.useParams();
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
   const qc = useQueryClient();
   const detailFn = useServerFn(getPurchaseOrderDetail);
   const stageFn = useServerFn(updateCartonStage);
@@ -85,6 +82,8 @@ function PoDetailPage() {
   if (!data?.po) return <div className="p-6 text-sm text-muted-foreground">Purchase order not found.</div>;
 
   const po: any = data.po;
+  // Always derive brand from the PO row — works in single-brand and All-Brands mode.
+  const brandId: string | null = po?.brand_id ?? null;
   const items: any[] = data.items;
   const cartons: any[] = data.cartons;
   const payments: any[] = data.payments;
