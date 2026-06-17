@@ -173,7 +173,14 @@ function InventoryPage() {
                           {r.image && <img src={r.image} alt="" className="h-9 w-9 rounded object-cover" />}
                           <div className="min-w-0">
                             <div className="font-medium truncate max-w-[280px]">{r.title}</div>
-                            <div className="text-xs text-muted-foreground truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</div>
+                            <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                              {isAllBrands && r.brand_id && (
+                                <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-semibold">
+                                  {brandNameById.get(r.brand_id) ?? "Brand"}
+                                </Badge>
+                              )}
+                              <span className="truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</span>
+                            </div>
                           </div>
                         </div>
                       </TableCell>
