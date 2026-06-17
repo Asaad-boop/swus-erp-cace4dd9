@@ -223,6 +223,9 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
           ))}
         </details>
       </TableCell>
+      <TableCell className="text-right tabular-nums text-emerald-600 text-xs">{otEarn > 0 ? `৳${otEarn.toLocaleString("en-BD")}` : "—"}</TableCell>
+      <TableCell className="text-right tabular-nums text-red-600 text-xs">{absentDed > 0 ? `৳${absentDed.toLocaleString("en-BD")}` : "—"}</TableCell>
+      <TableCell className="text-right tabular-nums text-red-600 text-xs">{lateDed > 0 ? `৳${lateDed.toLocaleString("en-BD")}` : "—"}</TableCell>
       <TableCell className="text-right text-xs">
         <div className="font-medium tabular-nums text-gray-700">৳{dedSum.toLocaleString("en-BD")}</div>
         <details>
