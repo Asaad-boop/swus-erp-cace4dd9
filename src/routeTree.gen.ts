@@ -10,12 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AgentRouteImport } from './routes/_agent'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
-import { Route as AgentAgentIndexRouteImport } from './routes/_agent.agent.index'
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
@@ -26,13 +24,11 @@ import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpImportsRouteImport } from './routes/_authenticated/erp.imports'
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
-import { Route as AgentAgentProfileRouteImport } from './routes/_agent.agent.profile'
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
 import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
 import { Route as AuthenticatedErpImportsIndexRouteImport } from './routes/_authenticated/erp.imports.index'
 import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
-import { Route as AgentAgentOrdersIndexRouteImport } from './routes/_agent.agent.orders.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
 import { Route as ApiPublicMktTrackerDotjsRouteImport } from './routes/api/public/mkt.tracker[.]js'
 import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.track'
@@ -67,7 +63,6 @@ import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_au
 import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from './routes/_authenticated/erp.finance.brand-profitability'
 import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
-import { Route as AgentAgentOrdersOrderIdRouteImport } from './routes/_agent.agent.orders.$orderId'
 import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './routes/_authenticated/erp.marketing.campaigns.index'
 import { Route as AuthenticatedErpImportsOrdersIndexRouteImport } from './routes/_authenticated/erp.imports.orders.index'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
@@ -77,10 +72,6 @@ import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './rout
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgentRoute = AgentRouteImport.update({
-  id: '/_agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -101,11 +92,6 @@ const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
-} as any)
-const AgentAgentIndexRoute = AgentAgentIndexRouteImport.update({
-  id: '/agent/',
-  path: '/agent/',
-  getParentRoute: () => AgentRoute,
 } as any)
 const AuthenticatedErpUsersRoute = AuthenticatedErpUsersRouteImport.update({
   id: '/users',
@@ -162,11 +148,6 @@ const AuthenticatedErpCourierRoute = AuthenticatedErpCourierRouteImport.update({
   path: '/courier',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
-const AgentAgentProfileRoute = AgentAgentProfileRouteImport.update({
-  id: '/agent/profile',
-  path: '/agent/profile',
-  getParentRoute: () => AgentRoute,
-} as any)
 const AuthenticatedErpReconciliationIndexRoute =
   AuthenticatedErpReconciliationIndexRouteImport.update({
     id: '/',
@@ -197,11 +178,6 @@ const AuthenticatedErpFinanceIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AgentAgentOrdersIndexRoute = AgentAgentOrdersIndexRouteImport.update({
-  id: '/agent/orders/',
-  path: '/agent/orders/',
-  getParentRoute: () => AgentRoute,
-} as any)
 const ApiPublicWebhookPathaoRoute = ApiPublicWebhookPathaoRouteImport.update({
   id: '/api/public/webhook/pathao',
   path: '/api/public/webhook/pathao',
@@ -404,11 +380,6 @@ const AuthenticatedErpFinanceAccountsRoute =
     path: '/accounts',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AgentAgentOrdersOrderIdRoute = AgentAgentOrdersOrderIdRouteImport.update({
-  id: '/agent/orders/$orderId',
-  path: '/agent/orders/$orderId',
-  getParentRoute: () => AgentRoute,
-} as any)
 const AuthenticatedErpMarketingCampaignsIndexRoute =
   AuthenticatedErpMarketingCampaignsIndexRouteImport.update({
     id: '/campaigns/',
@@ -444,7 +415,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
-  '/agent/profile': typeof AgentAgentProfileRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
@@ -455,9 +425,7 @@ export interface FileRoutesByFullPath {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
-  '/agent/': typeof AgentAgentIndexRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
-  '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -492,7 +460,6 @@ export interface FileRoutesByFullPath {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
-  '/agent/orders/': typeof AgentAgentOrdersIndexRoute
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
@@ -507,15 +474,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/agent/profile': typeof AgentAgentProfileRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
-  '/agent': typeof AgentAgentIndexRoute
   '/erp': typeof AuthenticatedErpIndexRoute
-  '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -550,7 +514,6 @@ export interface FileRoutesByTo {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
-  '/agent/orders': typeof AgentAgentOrdersIndexRoute
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/imports': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
@@ -566,10 +529,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/_agent': typeof AgentRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
-  '/_agent/agent/profile': typeof AgentAgentProfileRoute
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/_authenticated/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
@@ -580,9 +541,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
-  '/_agent/agent/': typeof AgentAgentIndexRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
-  '/_agent/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/_authenticated/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -617,7 +576,6 @@ export interface FileRoutesById {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
-  '/_agent/agent/orders/': typeof AgentAgentOrdersIndexRoute
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
@@ -635,7 +593,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp'
-    | '/agent/profile'
     | '/erp/courier'
     | '/erp/finance'
     | '/erp/imports'
@@ -646,9 +603,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
-    | '/agent/'
     | '/erp/'
-    | '/agent/orders/$orderId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
@@ -683,7 +638,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
-    | '/agent/orders/'
     | '/erp/finance/'
     | '/erp/imports/'
     | '/erp/marketing/'
@@ -698,15 +652,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/agent/profile'
     | '/erp/courier'
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
-    | '/agent'
     | '/erp'
-    | '/agent/orders/$orderId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
@@ -741,7 +692,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
-    | '/agent/orders'
     | '/erp/finance'
     | '/erp/imports'
     | '/erp/marketing'
@@ -756,10 +706,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/_agent'
     | '/auth'
     | '/_authenticated/erp'
-    | '/_agent/agent/profile'
     | '/_authenticated/erp/courier'
     | '/_authenticated/erp/finance'
     | '/_authenticated/erp/imports'
@@ -770,9 +718,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
-    | '/_agent/agent/'
     | '/_authenticated/erp/'
-    | '/_agent/agent/orders/$orderId'
     | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/audit'
     | '/_authenticated/erp/finance/brand-profitability'
@@ -807,7 +753,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
-    | '/_agent/agent/orders/'
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/imports/'
     | '/_authenticated/erp/marketing/'
@@ -823,7 +768,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AgentRoute: typeof AgentRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicCronRunRecurringRoute: typeof ApiPublicCronRunRecurringRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
@@ -840,13 +784,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_agent': {
-      id: '/_agent'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -876,13 +813,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/'
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
-    }
-    '/_agent/agent/': {
-      id: '/_agent/agent/'
-      path: '/agent'
-      fullPath: '/agent/'
-      preLoaderRoute: typeof AgentAgentIndexRouteImport
-      parentRoute: typeof AgentRoute
     }
     '/_authenticated/erp/users': {
       id: '/_authenticated/erp/users'
@@ -954,13 +884,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpCourierRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
-    '/_agent/agent/profile': {
-      id: '/_agent/agent/profile'
-      path: '/agent/profile'
-      fullPath: '/agent/profile'
-      preLoaderRoute: typeof AgentAgentProfileRouteImport
-      parentRoute: typeof AgentRoute
-    }
     '/_authenticated/erp/reconciliation/': {
       id: '/_authenticated/erp/reconciliation/'
       path: '/'
@@ -995,13 +918,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/finance/'
       preLoaderRoute: typeof AuthenticatedErpFinanceIndexRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_agent/agent/orders/': {
-      id: '/_agent/agent/orders/'
-      path: '/agent/orders'
-      fullPath: '/agent/orders/'
-      preLoaderRoute: typeof AgentAgentOrdersIndexRouteImport
-      parentRoute: typeof AgentRoute
     }
     '/api/public/webhook/pathao': {
       id: '/api/public/webhook/pathao'
@@ -1241,13 +1157,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceAccountsRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
-    '/_agent/agent/orders/$orderId': {
-      id: '/_agent/agent/orders/$orderId'
-      path: '/agent/orders/$orderId'
-      fullPath: '/agent/orders/$orderId'
-      preLoaderRoute: typeof AgentAgentOrdersOrderIdRouteImport
-      parentRoute: typeof AgentRoute
-    }
     '/_authenticated/erp/marketing/campaigns/': {
       id: '/_authenticated/erp/marketing/campaigns/'
       path: '/campaigns'
@@ -1480,26 +1389,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface AgentRouteChildren {
-  AgentAgentProfileRoute: typeof AgentAgentProfileRoute
-  AgentAgentIndexRoute: typeof AgentAgentIndexRoute
-  AgentAgentOrdersOrderIdRoute: typeof AgentAgentOrdersOrderIdRoute
-  AgentAgentOrdersIndexRoute: typeof AgentAgentOrdersIndexRoute
-}
-
-const AgentRouteChildren: AgentRouteChildren = {
-  AgentAgentProfileRoute: AgentAgentProfileRoute,
-  AgentAgentIndexRoute: AgentAgentIndexRoute,
-  AgentAgentOrdersOrderIdRoute: AgentAgentOrdersOrderIdRoute,
-  AgentAgentOrdersIndexRoute: AgentAgentOrdersIndexRoute,
-}
-
-const AgentRouteWithChildren = AgentRoute._addFileChildren(AgentRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AgentRoute: AgentRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicCronRunRecurringRoute: ApiPublicCronRunRecurringRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
