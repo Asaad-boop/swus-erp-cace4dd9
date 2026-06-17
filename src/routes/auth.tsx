@@ -90,7 +90,7 @@ function AuthPage() {
         <div className="relative space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl font-bold leading-tight tracking-tight xl:text-5xl">
-              Run Hobby Shop &amp; Playora from one place.
+              Run Hobby Shop &amp; Toyora from one place.
             </h1>
             <p className="max-w-md text-base text-primary-foreground/70">
               Orders, inventory, imports, marketing and finance — unified for both brands with real-time insights.

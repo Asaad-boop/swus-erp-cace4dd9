@@ -84,7 +84,7 @@ function DashboardPage() {
           <CardTitle className="text-base">Phase 0 — Foundation Ready</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>✅ Multi-brand schema live (Hobby Shop + Playora). Existing orders/products tagged to Hobby Shop.</p>
+          <p>✅ Multi-brand schema live (Hobby Shop + Toyora). Existing orders/products tagged to Hobby Shop.</p>
           <p>✅ ERP tables: accounts, transactions, suppliers, supplier payments, settings, expense categories.</p>
           <p>✅ Auth + role-aware RLS. Brand switcher in top-right.</p>
           <p className="pt-2 text-foreground font-medium">Next phase: full Orders module (list, filters, drawer, manual order creation) — say <em>"phase 1 শুরু কর"</em> to continue.</p>
