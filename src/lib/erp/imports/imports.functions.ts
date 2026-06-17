@@ -132,7 +132,19 @@ export const listCargoAgents = createServerFn({ method: "POST" })
     for (const r of rates ?? []) {
       if (!latestByAgent.has(r.agent_id)) latestByAgent.set(r.agent_id, r);
     }
-    return agents.map((a: any) => ({ ...a, latest_rate: latestByAgent.get(a.id) ?? null }));
+    // Attach running balance per agent
+    const balances = await Promise.all(
+      ids.map((id: string) => context.supabase.rpc("get_cargo_agent_balance", { _agent_id: id })),
+    );
+    const balanceById = new Map<string, number>();
+    ids.forEach((id: string, i: number) => {
+      balanceById.set(id, Number(balances[i]?.data ?? 0));
+    });
+    return agents.map((a: any) => ({
+      ...a,
+      latest_rate: latestByAgent.get(a.id) ?? null,
+      balance_bdt: balanceById.get(a.id) ?? 0,
+    }));
   });
 
 export const listCargoAgentRates = createServerFn({ method: "POST" })

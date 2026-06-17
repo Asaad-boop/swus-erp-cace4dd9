@@ -2564,6 +2564,86 @@ export type Database = {
         }
         Relationships: []
       }
+      imp_cargo_agent_ledger: {
+        Row: {
+          agent_id: string
+          amount_bdt: number
+          brand_id: string | null
+          carton_id: string | null
+          created_at: string
+          created_by: string | null
+          direction: Database["public"]["Enums"]["imp_agent_ledger_dir"]
+          entry_date: string
+          entry_type: Database["public"]["Enums"]["imp_agent_ledger_kind"]
+          id: string
+          note: string | null
+          po_id: string | null
+          reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount_bdt: number
+          brand_id?: string | null
+          carton_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction: Database["public"]["Enums"]["imp_agent_ledger_dir"]
+          entry_date?: string
+          entry_type?: Database["public"]["Enums"]["imp_agent_ledger_kind"]
+          id?: string
+          note?: string | null
+          po_id?: string | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount_bdt?: number
+          brand_id?: string | null
+          carton_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: Database["public"]["Enums"]["imp_agent_ledger_dir"]
+          entry_date?: string
+          entry_type?: Database["public"]["Enums"]["imp_agent_ledger_kind"]
+          id?: string
+          note?: string | null
+          po_id?: string | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_agent_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_agent_ledger_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_agent_ledger_carton_id_fkey"
+            columns: ["carton_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cartons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_agent_ledger_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "imp_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imp_cargo_agent_rates: {
         Row: {
           agent_id: string
@@ -5641,6 +5721,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_cargo_agent_balance: { Args: { _agent_id: string }; Returns: number }
       get_courier_campaign_report: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
@@ -6174,6 +6255,13 @@ export type Database = {
         | "advance_pending"
       coupon_type: "percentage" | "fixed"
       discount_type: "flat" | "percent"
+      imp_agent_ledger_dir: "credit" | "debit"
+      imp_agent_ledger_kind:
+        | "deposit"
+        | "payment"
+        | "adjustment"
+        | "refund"
+        | "opening_balance"
       imp_carton_status:
         | "ordered"
         | "at_china_warehouse"
@@ -6413,6 +6501,14 @@ export const Constants = {
       ],
       coupon_type: ["percentage", "fixed"],
       discount_type: ["flat", "percent"],
+      imp_agent_ledger_dir: ["credit", "debit"],
+      imp_agent_ledger_kind: [
+        "deposit",
+        "payment",
+        "adjustment",
+        "refund",
+        "opening_balance",
+      ],
       imp_carton_status: [
         "ordered",
         "at_china_warehouse",
