@@ -35,28 +35,35 @@ export const Route = createFileRoute("/_authenticated/erp/inventory")({
 });
 
 function InventoryPage() {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<InventoryFilter>({
-    brandId: null, search: "", stockState: "all", page: 0, pageSize: 50,
+    brandIds: [], search: "", stockState: "all", page: 0, pageSize: 50,
   });
   const effective = useMemo<InventoryFilter>(
-    () => ({ ...filter, brandId: activeBrand?.id ?? null }),
-    [filter, activeBrand?.id],
+    () => ({ ...filter, brandIds }),
+    [filter, brandIds],
   );
 
   const { data, isLoading } = useInventoryQuery(effective);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const lowQuery = useLowStockAlerts(activeBrand?.id ?? null);
-  const movements = useStockMovements(activeBrand?.id ?? null);
+  const lowQuery = useLowStockAlerts(brandIds);
+  const movements = useStockMovements(brandIds);
+
+  const brandNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of brands) m.set(b.id, b.name);
+    return m;
+  }, [brands]);
 
   const [adjust, setAdjust] = useState<{ product: ProductRow; mode: "in" | "out" } | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductRow | null>(null);
 
   const handleExport = () => {
     const csv = exportProductsCsv(rows);
-    downloadCsv(`inventory-${activeBrand?.slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const slug = isAllBrands ? "all-brands" : activeBrand?.slug ?? "brand";
+    downloadCsv(`inventory-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
 
   const movementProductIds = useMemo(
@@ -85,7 +92,7 @@ function InventoryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBrand?.name} · {total.toLocaleString()} products
+            {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · {total.toLocaleString()} products
           </p>
         </div>
         <Button variant="outline" onClick={handleExport} disabled={!rows.length}>
