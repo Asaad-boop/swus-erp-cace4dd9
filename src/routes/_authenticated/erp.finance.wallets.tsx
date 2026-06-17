@@ -56,6 +56,7 @@ function WalletsPage() {
   });
 
   const wallets = walletsQ.data ?? [];
+  const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
   const totals = useMemo(() => {
     const t: Record<string, number> = {};
     let liquid = 0;
@@ -128,6 +129,9 @@ function WalletsPage() {
                       <CardTitle className="text-sm font-medium truncate">{w.name}</CardTitle>
                       <Icon className={cn("h-4 w-4 shrink-0", g.color)} />
                     </div>
+                    {isAllBrands && (
+                      <p className="text-[11px] text-muted-foreground truncate">{brandMap.get(w.brand_id) ?? "—"}</p>
+                    )}
                     {w.account_number && (
                       <p className="text-[11px] text-muted-foreground font-mono truncate">{w.account_number}</p>
                     )}
