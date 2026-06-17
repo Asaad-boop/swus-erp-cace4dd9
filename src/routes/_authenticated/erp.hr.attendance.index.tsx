@@ -2,13 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarCheck, Clock, AlertCircle, Users, Download, Plus, Pencil, Trash2 } from "lucide-react";
+import { CalendarCheck, Clock, AlertCircle, Users, Download, Plus, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,20 +18,19 @@ import {
   listAttendance, markAttendance, deleteAttendance, getAttendanceKpis, listShifts,
 } from "@/lib/erp/hr/attendance.functions";
 import { listEmployees, listDepartments } from "@/lib/erp/hr/hr.functions";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
+import { StatCard } from "@/components/erp/hr/ui/stat-card";
+import { StatusPill, type StatusTone } from "@/components/erp/hr/ui/status-pill";
+import { EmptyState } from "@/components/erp/hr/ui/empty-state";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/attendance/")({
   head: () => ({ meta: [{ title: "Attendance — HR" }] }),
   component: AttendancePage,
 });
 
-const STATUS_TONE: Record<string, string> = {
-  present: "bg-emerald-100 text-emerald-800",
-  late: "bg-amber-100 text-amber-800",
-  half_day: "bg-orange-100 text-orange-800",
-  absent: "bg-red-100 text-red-800",
-  leave: "bg-blue-100 text-blue-800",
-  holiday: "bg-violet-100 text-violet-800",
-  week_off: "bg-slate-100 text-slate-700",
+const TONE: Record<string, StatusTone> = {
+  present: "present", late: "late", half_day: "late",
+  absent: "absent", leave: "leave", holiday: "holiday", week_off: "inactive",
 };
 
 function AttendancePage() {
@@ -77,57 +75,56 @@ function AttendancePage() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
-            <p className="text-sm text-muted-foreground">Daily punch-in / out, late, overtime</p>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/erp/hr/attendance/muster" className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-border hover:bg-accent">
-              <CalendarCheck className="h-4 w-4" /> Muster Roll
-            </Link>
-            <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-2" />Export</Button>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-2" />Mark</Button>
-              </DialogTrigger>
-              <MarkDialog defaultDate={date} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["att-list"] }); qc.invalidateQueries({ queryKey: ["att-kpi"] }); }} />
-            </Dialog>
-          </div>
-        </div>
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title="Attendance"
+          subtitle="Daily punch-in / out, lateness, overtime"
+          actions={
+            <>
+              <Link to="/erp/hr/attendance/muster">
+                <Button variant="outline" size="sm" className="rounded-lg"><CalendarCheck className="h-4 w-4 mr-2" /> Muster Roll</Button>
+              </Link>
+              <Button variant="outline" size="sm" onClick={exportCsv} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Export</Button>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />Mark</Button>
+                </DialogTrigger>
+                <MarkDialog defaultDate={date} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["att-list"] }); qc.invalidateQueries({ queryKey: ["att-kpi"] }); }} />
+              </Dialog>
+            </>
+          }
+        />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KpiCard icon={Users} label="Total" value={kpi?.totalEmployees ?? 0} />
-          <KpiCard icon={CalendarCheck} label="Present" value={kpi?.present ?? 0} tone="text-emerald-600" />
-          <KpiCard icon={Clock} label="Late" value={kpi?.late ?? 0} tone="text-amber-600" />
-          <KpiCard icon={AlertCircle} label="Absent" value={kpi?.absent ?? 0} tone="text-red-600" />
-          <KpiCard icon={CalendarCheck} label="On leave" value={kpi?.onLeave ?? 0} tone="text-blue-600" />
-          <KpiCard icon={Clock} label="Avg hrs" value={`${kpi?.avgWorkHours ?? 0}h`} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <StatCard label="Total" value={kpi?.totalEmployees ?? 0} icon={Users} accent="slate" />
+          <StatCard label="Present" value={kpi?.present ?? 0} icon={CalendarCheck} accent="emerald" />
+          <StatCard label="Late" value={kpi?.late ?? 0} icon={Clock} accent="amber" />
+          <StatCard label="Absent" value={kpi?.absent ?? 0} icon={AlertCircle} accent="red" />
+          <StatCard label="On Leave" value={kpi?.onLeave ?? 0} icon={CalendarCheck} accent="blue" />
+          <StatCard label="Avg Hours" value={`${kpi?.avgWorkHours ?? 0}h`} icon={Clock} accent="indigo" />
         </div>
 
         <Tabs defaultValue="live">
-          <TabsList>
-            <TabsTrigger value="live">Live Punch</TabsTrigger>
-            <TabsTrigger value="manual">Manual / Records</TabsTrigger>
+          <TabsList className="bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+            <TabsTrigger value="live" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Live Punch</TabsTrigger>
+            <TabsTrigger value="manual" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Manual / Records</TabsTrigger>
           </TabsList>
-          <TabsContent value="live" className="mt-4">
+          <TabsContent value="live" className="mt-5">
             <LivePunchPanel />
           </TabsContent>
-          <TabsContent value="manual" className="mt-4">
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex flex-wrap gap-2 items-end">
+          <TabsContent value="manual" className="mt-5">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <div className="flex flex-wrap gap-3 items-end">
               <div>
                 <Label className="text-xs">Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-9 rounded-lg border-gray-200" />
               </div>
               <div>
                 <Label className="text-xs">Department</Label>
                 <Select value={dept} onValueChange={setDept}>
-                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-48 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All departments</SelectItem>
                     {(depts as any[]).map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
@@ -137,69 +134,56 @@ function AttendancePage() {
               <div>
                 <Label className="text-xs">Status</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-40 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    {Object.keys(STATUS_TONE).map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                    {Object.keys(TONE).map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="border rounded-md overflow-hidden">
+            <div className="border border-gray-100 rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>In</TableHead>
-                    <TableHead>Out</TableHead>
-                    <TableHead className="text-right">Late</TableHead>
-                    <TableHead className="text-right">OT</TableHead>
-                    <TableHead className="text-right">Work</TableHead>
-                    <TableHead></TableHead>
+                  <TableRow className="border-gray-100 hover:bg-transparent">
+                    {["Employee","Status","In","Out"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
+                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Late</TableHead>
+                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">OT</TableHead>
+                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Work</TableHead>
+                    <TableHead className="bg-gray-50/50"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-gray-400 py-10">Loading…</TableCell></TableRow>
                   ) : (rows as any[]).length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No attendance for this date</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="p-0"><EmptyState icon={FileText} title="No attendance" description="No records for this date." /></TableCell></TableRow>
                   ) : (rows as any[]).map((r: any) => (
-                    <TableRow key={r.id}>
+                    <TableRow key={r.id} className="border-gray-100 hover:bg-gray-50/60">
                       <TableCell>
-                        <div className="text-sm font-medium">{r.employee?.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{r.employee?.employee_code}</div>
+                        <div className="text-sm font-semibold text-gray-900">{r.employee?.full_name}</div>
+                        <div className="text-xs text-gray-500 font-mono">{r.employee?.employee_code}</div>
                       </TableCell>
-                      <TableCell><Badge variant="secondary" className={STATUS_TONE[r.status]}>{r.status}</Badge></TableCell>
-                      <TableCell className="font-mono text-xs">{r.in_time ? new Date(r.in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{r.out_time ? new Date(r.out_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
-                      <TableCell className="text-right">{r.late_min || ""}</TableCell>
-                      <TableCell className="text-right">{r.ot_min || ""}</TableCell>
-                      <TableCell className="text-right">{r.work_min ? `${(r.work_min / 60).toFixed(1)}h` : ""}</TableCell>
+                      <TableCell><StatusPill tone={TONE[r.status] ?? "neutral"} dot>{r.status}</StatusPill></TableCell>
+                      <TableCell className="font-mono text-xs text-gray-700">{r.in_time ? new Date(r.in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
+                      <TableCell className="font-mono text-xs text-gray-700">{r.out_time ? new Date(r.out_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-gray-700">{r.late_min || ""}</TableCell>
+                      <TableCell className="text-right tabular-nums text-gray-700">{r.ot_min || ""}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-gray-900">{r.work_min ? `${(r.work_min / 60).toFixed(1)}h` : ""}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" onClick={() => delMut.mutate(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => delMut.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+        </div>
           </TabsContent>
         </Tabs>
       </div>
     </div>
-  );
-}
-
-function KpiCard({ icon: Icon, label, value, tone }: { icon: any; label: string; value: number | string; tone?: string }) {
-  return (
-    <Card><CardContent className="p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5"><Icon className={`h-3.5 w-3.5 ${tone ?? ""}`} />{label}</div>
-      <div className="text-2xl font-bold">{value}</div>
-    </CardContent></Card>
   );
 }
 
