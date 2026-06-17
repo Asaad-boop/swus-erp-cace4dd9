@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Pencil, Truck, Users, Loader2, History, TrendingUp, TrendingDown, Minus, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Truck, Users, Loader2, History, TrendingUp, TrendingDown, Minus, CalendarDays, Wallet, ArrowDownCircle, ArrowUpCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -17,6 +18,7 @@ import {
   listImportSuppliers, upsertImportSupplier,
   listCargoAgentRates,
 } from "@/lib/erp/imports/imports.functions";
+import { getAgentLedger, addAgentLedgerEntry, deleteAgentLedgerEntry } from "@/lib/erp/imports/agent.functions";
 import { fmtBdt } from "@/lib/erp/imports/types";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
@@ -59,6 +61,7 @@ function AgentsTab({ brandId }: { brandId: string }) {
   });
   const [editing, setEditing] = useState<any | null>(null);
   const [historyFor, setHistoryFor] = useState<any | null>(null);
+  const [balanceFor, setBalanceFor] = useState<any | null>(null);
 
   return (
     <>
@@ -68,7 +71,15 @@ function AgentsTab({ brandId }: { brandId: string }) {
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
         {(agents as any[]).length === 0 && <Card className="p-8 text-center text-sm text-muted-foreground col-span-full">No cargo agents yet.</Card>}
-        {(agents as any[]).map((a) => <AgentCard key={a.id} agent={a} onEdit={() => setEditing(a)} onHistory={() => setHistoryFor(a)} />)}
+        {(agents as any[]).map((a) => (
+          <AgentCard
+            key={a.id}
+            agent={a}
+            onEdit={() => setEditing(a)}
+            onHistory={() => setHistoryFor(a)}
+            onBalance={() => setBalanceFor(a)}
+          />
+        ))}
       </div>
       {editing && (
         <AgentDialog
@@ -86,14 +97,23 @@ function AgentsTab({ brandId }: { brandId: string }) {
       {historyFor && (
         <RateHistoryDialog agent={historyFor} onClose={() => setHistoryFor(null)} />
       )}
+      {balanceFor && (
+        <BalanceDialog
+          agent={balanceFor}
+          onClose={() => setBalanceFor(null)}
+          onChanged={() => qc.invalidateQueries({ queryKey: ["imp-agents", brandId] })}
+        />
+      )}
     </>
   );
 }
 
-function AgentCard({ agent: a, onEdit, onHistory }: { agent: any; onEdit: () => void; onHistory: () => void }) {
+function AgentCard({ agent: a, onEdit, onHistory, onBalance }: { agent: any; onEdit: () => void; onHistory: () => void; onBalance: () => void }) {
   const today = new Date().toISOString().slice(0, 10);
   const latest = a.latest_rate as any | null;
   const isToday = latest?.rate_date === today;
+  const balance = Number(a.balance_bdt ?? 0);
+  const balTone = balance > 0 ? "text-emerald-600" : balance < 0 ? "text-rose-600" : "text-muted-foreground";
   return (
     <Card className="p-4 hover:border-primary/40 transition">
       <div className="flex items-start justify-between">
@@ -103,6 +123,21 @@ function AgentCard({ agent: a, onEdit, onHistory }: { agent: any; onEdit: () => 
         </div>
         <Badge variant={a.is_active ? "default" : "secondary"}>{a.is_active ? "Active" : "Inactive"}</Badge>
       </div>
+
+      {/* Balance band */}
+      <button
+        type="button"
+        onClick={onBalance}
+        className="mt-3 w-full rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 transition px-3 py-2 text-left"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-muted-foreground">
+            <Wallet className="h-3 w-3" />Agent Balance
+          </div>
+          <span className="text-[10px] text-primary">Manage →</span>
+        </div>
+        <div className={`mt-1 text-lg font-bold tabular-nums ${balTone}`}>৳ {fmtBdt(balance)}</div>
+      </button>
 
       {/* Today's rate band */}
       <div className={`mt-3 rounded-md border px-3 py-2 ${isToday ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
