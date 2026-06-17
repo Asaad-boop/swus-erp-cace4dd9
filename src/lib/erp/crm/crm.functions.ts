@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeSegment } from "./segments";
 import type { CrmCustomerRow, CrmListResponse, CrmSegment } from "./types";
 
+const ALL_SEGMENTS: CrmSegment[] = ["new", "one_time", "repeat", "vip", "at_risk", "lost", "blocked"];
+
 async function assertAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (error) throw error;
@@ -30,6 +32,7 @@ const filtersSchema = z
     maxOrders: z.number().optional(),
     lastOrderFrom: z.string().optional(),
     lastOrderTo: z.string().optional(),
+    hasEmail: z.boolean().optional(),
   })
   .default({});
 
@@ -101,6 +104,9 @@ function applyFilters(
     const t = new Date(f.lastOrderTo).getTime() + 86400000;
     out = out.filter((r) => r.last_order_at && new Date(r.last_order_at).getTime() <= t);
   }
+  if (typeof f.hasEmail === "boolean") {
+    out = out.filter((r) => f.hasEmail ? !!(r.email && r.email.trim()) : !(r.email && r.email.trim()));
+  }
   return out;
 }
 
@@ -167,11 +173,28 @@ function computeKpis(rows: CrmCustomerRow[]): CrmListResponse["kpis"] {
   let aovCount = 0;
   let newThisMonth = 0;
   let active30 = 0;
+  const segmentCounts = ALL_SEGMENTS.reduce(
+    (acc, s) => ({ ...acc, [s]: 0 }),
+    {} as Record<CrmSegment, number>,
+  );
+  // 30-day trend: bucket by yyyy-mm-dd of first_order_at
+  const trendBuckets = new Map<string, number>();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * 86400000);
+    trendBuckets.set(d.toISOString().slice(0, 10), 0);
+  }
   for (const r of rows) {
     totalLtv += r.lifetime_value;
     if (r.avg_order_value > 0) { totalAovSum += r.avg_order_value; aovCount++; }
     if (r.first_order_at && new Date(r.first_order_at).getTime() >= ms) newThisMonth++;
     if (r.last_order_at && new Date(r.last_order_at).getTime() >= day30) active30++;
+    segmentCounts[r.segment] = (segmentCounts[r.segment] ?? 0) + 1;
+    if (r.first_order_at) {
+      const key = r.first_order_at.slice(0, 10);
+      if (trendBuckets.has(key)) trendBuckets.set(key, (trendBuckets.get(key) ?? 0) + 1);
+    }
   }
   return {
     totalCustomers: rows.length,
@@ -180,6 +203,8 @@ function computeKpis(rows: CrmCustomerRow[]): CrmListResponse["kpis"] {
     totalLtv,
     avgLtv: rows.length ? totalLtv / rows.length : 0,
     avgAov: aovCount ? totalAovSum / aovCount : 0,
+    segmentCounts,
+    newTrend: Array.from(trendBuckets.entries()).map(([date, count]) => ({ date, count })),
   };
 }
 
@@ -408,6 +433,64 @@ export const bulkAddCrmTag = createServerFn({ method: "POST" })
       .upsert(rows, { onConflict: "customer_key,tag" });
     if (error) throw error;
     return { ok: true, count: rows.length };
+  });
+
+export const bulkRemoveCrmTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[]; tag: string }) =>
+    z.object({ customerKeys: z.array(z.string().min(1)).min(1).max(2000), tag: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const tag = data.tag.trim().toLowerCase();
+    const keys = data.customerKeys.map((k) => normalizePhone(k) ?? k);
+    const { error } = await context.supabase.from("crm_customer_tags")
+      .delete().in("customer_key", keys).eq("tag", tag);
+    if (error) throw error;
+    return { ok: true, count: keys.length };
+  });
+
+export const bulkSetCrmStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[]; status: "active" | "at_risk" | "lost" | "blocked" | "vip" }) =>
+    z.object({
+      customerKeys: z.array(z.string().min(1)).min(1).max(2000),
+      status: z.enum(["active", "at_risk", "lost", "blocked", "vip"]),
+    }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const rows = data.customerKeys.map((k) => ({
+      customer_key: normalizePhone(k) ?? k,
+      status: data.status,
+      updated_by: context.userId,
+    }));
+    const { error } = await context.supabase.from("crm_customer_meta")
+      .upsert(rows, { onConflict: "customer_key" });
+    if (error) throw error;
+    return { ok: true, count: rows.length };
+  });
+
+/**
+ * Removes a customer from the CRM list. Only removes CRM-side data
+ * (imported entry, tags, notes, meta). Actual order/profile rows are
+ * untouched — customers with orders will reappear because the view
+ * derives from orders.
+ */
+export const bulkDeleteCrmCustomers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[] }) =>
+    z.object({ customerKeys: z.array(z.string().min(1)).min(1).max(2000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const keys = data.customerKeys.map((k) => normalizePhone(k) ?? k);
+    const [a, b, c, d2] = await Promise.all([
+      context.supabase.from("crm_imported_customers").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_tags").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_notes").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_meta").delete().in("customer_key", keys),
+    ]);
+    const err = a.error || b.error || c.error || d2.error;
+    if (err) throw err;
+    return { ok: true, count: keys.length };
   });
 
 /* =================== STATUS =================== */
