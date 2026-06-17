@@ -5,6 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const FALLBACK_SUPABASE_URL = 'https://bgsspipkjeuceftuatue.supabase.co';
+
 declare global {
   // Runtime-only secret bridge populated by src/server.ts in the server worker.
   // eslint-disable-next-line no-var
@@ -16,7 +18,7 @@ function getServerEnv(key: string) {
 }
 
 function getSupabaseAdminConfig() {
-  const SUPABASE_URL = getServerEnv('SUPABASE_URL');
+  const SUPABASE_URL = getServerEnv('SUPABASE_URL') || getServerEnv('VITE_SUPABASE_URL') || FALLBACK_SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY =
     getServerEnv('SUPABASE_SERVICE_ROLE_KEY') || getServerEnv('ADMIN_SERVICE_ROLE_KEY');
 

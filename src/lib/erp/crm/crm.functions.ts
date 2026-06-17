@@ -37,7 +37,7 @@ const filtersSchema = z
   .default({});
 
 async function loadAll(
-  supabaseAdmin: any,
+  supabaseClient: any,
   brandIds: string[] | undefined,
 ): Promise<any[]> {
   // Read from the materialized view (fast snapshot). Fall back to live view
@@ -47,7 +47,7 @@ async function loadAll(
   let from = 0;
   let source: "crm_customers_mv" | "crm_customers_v" = "crm_customers_mv";
   for (;;) {
-    let q = supabaseAdmin
+    let q = supabaseClient
       .from(source)
       .select("*")
       .range(from, from + PAGE - 1);
@@ -61,6 +61,10 @@ async function loadAll(
       }
       throw error;
     }
+    if (source === "crm_customers_mv" && from === 0 && (!data || data.length === 0)) {
+      source = "crm_customers_v";
+      continue;
+    }
     if (!data || !data.length) break;
     all.push(...data);
     if (data.length < PAGE) break;
@@ -69,9 +73,9 @@ async function loadAll(
   return all;
 }
 
-async function loadTags(supabaseAdmin: any): Promise<Map<string, string[]>> {
+async function loadTags(supabaseClient: any): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabaseClient
     .from("crm_customer_tags")
     .select("customer_key, tag");
   if (error) throw error;
@@ -228,10 +232,9 @@ export const listCrmCustomers = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<CrmListResponse> => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [raw, tagMap] = await Promise.all([
-      loadAll(supabaseAdmin, data.filters.brandIds),
-      loadTags(supabaseAdmin),
+      loadAll(context.supabase, data.filters.brandIds),
+      loadTags(context.supabase),
     ]);
     const enriched = enrich(raw, tagMap);
     const kpis = computeKpis(enriched);
@@ -247,15 +250,17 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
   .inputValidator((d: { customerKey: string }) => z.object({ customerKey: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = normalizePhone(data.customerKey) ?? data.customerKey;
 
-    const [viewRes, tagsRes, notesRes, metaRes] = await Promise.all([
-      supabaseAdmin.from("crm_customers_v").select("*").eq("customer_key", key).maybeSingle(),
-      supabaseAdmin.from("crm_customer_tags").select("id, tag, created_at").eq("customer_key", key).order("created_at", { ascending: false }),
-      supabaseAdmin.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
-      supabaseAdmin.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
+    const [initialViewRes, tagsRes, notesRes, metaRes] = await Promise.all([
+      context.supabase.from("crm_customers_mv").select("*").eq("customer_key", key).maybeSingle(),
+      context.supabase.from("crm_customer_tags").select("id, tag, created_at").eq("customer_key", key).order("created_at", { ascending: false }),
+      context.supabase.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
+      context.supabase.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
     ]);
+    const viewRes = initialViewRes.error || !initialViewRes.data
+      ? await context.supabase.from("crm_customers_v").select("*").eq("customer_key", key).maybeSingle()
+      : initialViewRes;
     if (viewRes.error) throw viewRes.error;
     if (!viewRes.data) throw new Error("Customer not found");
 
@@ -270,7 +275,7 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     });
 
     // Orders for this customer (by phone in shipping or guest)
-    const { data: orders, error: ordersErr } = await supabaseAdmin
+    const { data: orders, error: ordersErr } = await context.supabase
       .from("orders")
       .select("id, total, status, created_at, brand_id, payment_method, shipping_city, shipping_phone, guest_phone, shipping_name, guest_name")
       .or(`shipping_phone.like.%${key},guest_phone.like.%${key}`)
@@ -281,7 +286,7 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     // Addresses for registered user
     let addresses: any[] = [];
     if (v.user_id) {
-      const { data: addr } = await supabaseAdmin
+      const { data: addr } = await context.supabase
         .from("addresses")
         .select("id, label, full_name, phone, address_line, city, district, postal_code, is_default")
         .eq("user_id", v.user_id)
@@ -336,10 +341,9 @@ export const exportCrmCustomersCsv = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<{ csv: string; count: number }> => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [raw, tagMap] = await Promise.all([
-      loadAll(supabaseAdmin, data.filters.brandIds),
-      loadTags(supabaseAdmin),
+      loadAll(context.supabase, data.filters.brandIds),
+      loadTags(context.supabase),
     ]);
     const enriched = enrich(raw, tagMap);
     const filtered = applyFilters(enriched, data.filters);
