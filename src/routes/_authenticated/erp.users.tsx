@@ -325,9 +325,9 @@ function UsersPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-10 text-sm text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-sm text-muted-foreground">Loading…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-12">
+              <TableRow><TableCell colSpan={7} className="text-center py-12">
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <UsersIcon className="h-8 w-8 opacity-40" />
                   <div className="text-sm">No users in this view.</div>
