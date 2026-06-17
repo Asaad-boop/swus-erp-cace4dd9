@@ -37,6 +37,7 @@ import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.t
 import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
+import { Route as AuthenticatedErpReconciliationInvoiceRouteImport } from './routes/_authenticated/erp.reconciliation.invoice'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
@@ -64,7 +65,6 @@ import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_au
 import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from './routes/_authenticated/erp.finance.brand-profitability'
 import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
-import { Route as AuthenticatedErpCourierReconciliationRouteImport } from './routes/_authenticated/erp.courier.reconciliation'
 import { Route as AgentAgentOrdersOrderIdRouteImport } from './routes/_agent.agent.orders.$orderId'
 import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './routes/_authenticated/erp.marketing.campaigns.index'
 import { Route as AuthenticatedErpImportsOrdersIndexRouteImport } from './routes/_authenticated/erp.imports.orders.index'
@@ -221,6 +221,12 @@ const ApiPublicCronRunRecurringRoute =
     id: '/api/public/cron/run-recurring',
     path: '/api/public/cron/run-recurring',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedErpReconciliationInvoiceRoute =
+  AuthenticatedErpReconciliationInvoiceRouteImport.update({
+    id: '/reconciliation/invoice',
+    path: '/reconciliation/invoice',
+    getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpOrdersWebRoute =
   AuthenticatedErpOrdersWebRouteImport.update({
@@ -384,12 +390,6 @@ const AuthenticatedErpFinanceAccountsRoute =
     path: '/accounts',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AuthenticatedErpCourierReconciliationRoute =
-  AuthenticatedErpCourierReconciliationRouteImport.update({
-    id: '/reconciliation',
-    path: '/reconciliation',
-    getParentRoute: () => AuthenticatedErpCourierRoute,
-  } as any)
 const AgentAgentOrdersOrderIdRoute = AgentAgentOrdersOrderIdRouteImport.update({
   id: '/agent/orders/$orderId',
   path: '/agent/orders/$orderId',
@@ -431,7 +431,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
   '/agent/profile': typeof AgentAgentProfileRoute
-  '/erp/courier': typeof AuthenticatedErpCourierRouteWithChildren
+  '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
@@ -443,7 +443,6 @@ export interface FileRoutesByFullPath {
   '/agent/': typeof AgentAgentIndexRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
-  '/erp/courier/reconciliation': typeof AuthenticatedErpCourierReconciliationRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -471,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -492,7 +492,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/agent/profile': typeof AgentAgentProfileRoute
-  '/erp/courier': typeof AuthenticatedErpCourierRouteWithChildren
+  '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -500,7 +500,6 @@ export interface FileRoutesByTo {
   '/agent': typeof AgentAgentIndexRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
-  '/erp/courier/reconciliation': typeof AuthenticatedErpCourierReconciliationRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -528,6 +527,7 @@ export interface FileRoutesByTo {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -553,7 +553,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
   '/_agent/agent/profile': typeof AgentAgentProfileRoute
-  '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRouteWithChildren
+  '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/_authenticated/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
@@ -565,7 +565,6 @@ export interface FileRoutesById {
   '/_agent/agent/': typeof AgentAgentIndexRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_agent/agent/orders/$orderId': typeof AgentAgentOrdersOrderIdRoute
-  '/_authenticated/erp/courier/reconciliation': typeof AuthenticatedErpCourierReconciliationRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/_authenticated/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
@@ -593,6 +592,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/_authenticated/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -629,7 +629,6 @@ export interface FileRouteTypes {
     | '/agent/'
     | '/erp/'
     | '/agent/orders/$orderId'
-    | '/erp/courier/reconciliation'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
@@ -657,6 +656,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -686,7 +686,6 @@ export interface FileRouteTypes {
     | '/agent'
     | '/erp'
     | '/agent/orders/$orderId'
-    | '/erp/courier/reconciliation'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
@@ -714,6 +713,7 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -750,7 +750,6 @@ export interface FileRouteTypes {
     | '/_agent/agent/'
     | '/_authenticated/erp/'
     | '/_agent/agent/orders/$orderId'
-    | '/_authenticated/erp/courier/reconciliation'
     | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/audit'
     | '/_authenticated/erp/finance/brand-profitability'
@@ -778,6 +777,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
+    | '/_authenticated/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -1007,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRunRecurringRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/erp/reconciliation/invoice': {
+      id: '/_authenticated/erp/reconciliation/invoice'
+      path: '/reconciliation/invoice'
+      fullPath: '/erp/reconciliation/invoice'
+      preLoaderRoute: typeof AuthenticatedErpReconciliationInvoiceRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
     '/_authenticated/erp/orders/web': {
       id: '/_authenticated/erp/orders/web'
       path: '/web'
@@ -1196,13 +1203,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceAccountsRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
-    '/_authenticated/erp/courier/reconciliation': {
-      id: '/_authenticated/erp/courier/reconciliation'
-      path: '/reconciliation'
-      fullPath: '/erp/courier/reconciliation'
-      preLoaderRoute: typeof AuthenticatedErpCourierReconciliationRouteImport
-      parentRoute: typeof AuthenticatedErpCourierRoute
-    }
     '/_agent/agent/orders/$orderId': {
       id: '/_agent/agent/orders/$orderId'
       path: '/agent/orders/$orderId'
@@ -1247,21 +1247,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AuthenticatedErpCourierRouteChildren {
-  AuthenticatedErpCourierReconciliationRoute: typeof AuthenticatedErpCourierReconciliationRoute
-}
-
-const AuthenticatedErpCourierRouteChildren: AuthenticatedErpCourierRouteChildren =
-  {
-    AuthenticatedErpCourierReconciliationRoute:
-      AuthenticatedErpCourierReconciliationRoute,
-  }
-
-const AuthenticatedErpCourierRouteWithChildren =
-  AuthenticatedErpCourierRoute._addFileChildren(
-    AuthenticatedErpCourierRouteChildren,
-  )
 
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
@@ -1397,7 +1382,7 @@ const AuthenticatedErpOrdersRouteWithChildren =
   )
 
 interface AuthenticatedErpRouteChildren {
-  AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRouteWithChildren
+  AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
   AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRouteWithChildren
   AuthenticatedErpImportsRoute: typeof AuthenticatedErpImportsRouteWithChildren
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
@@ -1407,10 +1392,11 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
+  AuthenticatedErpReconciliationInvoiceRoute: typeof AuthenticatedErpReconciliationInvoiceRoute
 }
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
-  AuthenticatedErpCourierRoute: AuthenticatedErpCourierRouteWithChildren,
+  AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
   AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRouteWithChildren,
   AuthenticatedErpImportsRoute: AuthenticatedErpImportsRouteWithChildren,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
@@ -1420,6 +1406,8 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
+  AuthenticatedErpReconciliationInvoiceRoute:
+    AuthenticatedErpReconciliationInvoiceRoute,
 }
 
 const AuthenticatedErpRouteWithChildren =
@@ -1467,13 +1455,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
