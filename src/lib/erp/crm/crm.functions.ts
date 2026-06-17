@@ -37,7 +37,7 @@ const filtersSchema = z
   .default({});
 
 async function loadAll(
-  supabaseAdmin: any,
+  supabaseClient: any,
   brandIds: string[] | undefined,
 ): Promise<any[]> {
   // Read from the materialized view (fast snapshot). Fall back to live view
@@ -47,7 +47,7 @@ async function loadAll(
   let from = 0;
   let source: "crm_customers_mv" | "crm_customers_v" = "crm_customers_mv";
   for (;;) {
-    let q = supabaseAdmin
+    let q = supabaseClient
       .from(source)
       .select("*")
       .range(from, from + PAGE - 1);
