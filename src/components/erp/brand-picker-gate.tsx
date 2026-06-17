@@ -19,10 +19,12 @@ export function useBrandPicker(opts?: { label?: string; hint?: string }) {
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
   const effectiveBrand: Brand | null =
     activeBrand ?? brands.find((b) => b.id === pickedBrandId) ?? null;
-  const brandId = effectiveBrand?.id ?? null;
+  // NOTE: `brandId` is typed as `string` for ergonomic use after `if (gate) return gate;`.
+  // Callers MUST render `gate` first when it is non-null; otherwise `brandId` will be "".
+  const brandId = (effectiveBrand?.id ?? "") as string;
 
   let gate: ReactNode = null;
-  if (!brandId) {
+  if (!effectiveBrand) {
     if (isAllBrands) {
       gate = (
         <Card>
