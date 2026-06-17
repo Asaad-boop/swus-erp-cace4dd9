@@ -202,7 +202,7 @@ export const getTodayPunchStatus = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("hr_attendance")
       .select(
-        "employee_id, status, check_in_time, check_out_time, break_start, break_end, late_min, total_hours, selfie_url, check_in_lat, check_in_lng",
+        "employee_id, status, check_in_time, check_out_time, break_start, break_end, late_min, ot_min, total_hours, selfie_url, check_in_lat, check_in_lng, deduction_amount, overtime_amount",
       )
       .eq("date", today);
     if (data.employeeIds?.length) q = q.in("employee_id", data.employeeIds);

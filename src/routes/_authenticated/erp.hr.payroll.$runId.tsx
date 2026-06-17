@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import {
   getPayrollRun, updatePayslip, finalizePayrollRun, markPayslipPaid, getPayslip,
@@ -122,7 +123,7 @@ function PayrollRunPage() {
               <TableHeader>
                 <TableRow className="border-gray-100 hover:bg-transparent">
                   <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</TableHead>
-                  {["Basic","Allowances","Deductions","Gross","Net"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
+                  {["Basic","Allowances","OT Earning","Absent Ded.","Late Ded.","Deductions","Gross","Net Pay"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
                   <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payment</TableHead>
                   <TableHead className="bg-gray-50/50"></TableHead>
                 </TableRow>
@@ -192,6 +193,11 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
   const dedSum = useMemo(() => Object.values(ded).reduce((a, b) => a + Number(b || 0), 0), [ded]);
   const gross = basic + allowSum;
   const net = gross - dedSum;
+  const otEarn = Number(allow.overtime ?? p.overtime_earning ?? 0);
+  const absentDed = Number(ded.absent ?? p.absent_deduction ?? 0);
+  const lateDed = Number(ded.late ?? p.late_deduction ?? 0);
+  const earningsBd = { basic, ...allow };
+  const deductionsBd = { ...ded };
 
   return (
     <TableRow className="border-gray-100 hover:bg-gray-50/60">
@@ -217,6 +223,9 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
           ))}
         </details>
       </TableCell>
+      <TableCell className="text-right tabular-nums text-emerald-600 text-xs">{otEarn > 0 ? `৳${otEarn.toLocaleString("en-BD")}` : "—"}</TableCell>
+      <TableCell className="text-right tabular-nums text-red-600 text-xs">{absentDed > 0 ? `৳${absentDed.toLocaleString("en-BD")}` : "—"}</TableCell>
+      <TableCell className="text-right tabular-nums text-red-600 text-xs">{lateDed > 0 ? `৳${lateDed.toLocaleString("en-BD")}` : "—"}</TableCell>
       <TableCell className="text-right text-xs">
         <div className="font-medium tabular-nums text-gray-700">৳{dedSum.toLocaleString("en-BD")}</div>
         <details>
@@ -232,7 +241,27 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
         </details>
       </TableCell>
       <TableCell className="text-right tabular-nums text-gray-700">৳{gross.toLocaleString("en-BD")}</TableCell>
-      <TableCell className="text-right font-bold tabular-nums text-gray-900">৳{net.toLocaleString("en-BD")}</TableCell>
+      <TableCell className="text-right">
+        <TooltipProvider delayDuration={120}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="font-bold tabular-nums text-gray-900 cursor-help underline decoration-dotted decoration-gray-300">৳{net.toLocaleString("en-BD")}</span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs max-w-xs">
+              <div className="font-semibold mb-1">Earnings</div>
+              {Object.entries(earningsBd).filter(([,v]) => Number(v) > 0).map(([k,v]) => (
+                <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
+              ))}
+              <div className="font-semibold mt-2 mb-1">Deductions</div>
+              {Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).length === 0 ? <div className="text-gray-400">None</div> :
+                Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).map(([k,v]) => (
+                  <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
+                ))
+              }
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </TableCell>
       <TableCell>
         <StatusPill tone={(p.payment_status === "paid" ? "paid" : "pending") as StatusTone} dot>{p.payment_status}</StatusPill>
         {p.payment_method && <div className="text-[10px] text-gray-500 mt-1">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}

@@ -1,5 +1,23 @@
 import { printHtml, fmtBdt } from "@/lib/erp/hr/pdf";
 
+const ALLOW_LABELS: Record<string, string> = {
+  house: "House Allowance",
+  transport: "Transport Allowance",
+  medical: "Medical Allowance",
+  food: "Food Allowance",
+  mobile: "Mobile Allowance",
+  overtime: "Overtime",
+  other: "Other",
+};
+const DED_LABELS: Record<string, string> = {
+  pf: "Provident Fund",
+  tax: "Tax",
+  loan: "Loan",
+  absent: "Absent Deduction",
+  late: "Late Deduction",
+  other: "Other",
+};
+
 export function printPayslip(args: {
   companyName: string;
   companyAddress?: string;
@@ -17,12 +35,34 @@ export function printPayslip(args: {
 
   const allow = p.allowances ?? {};
   const ded = p.deductions ?? {};
+  const otMin = Number(p.overtime_total_minutes ?? 0);
+  const absentDays = Number(p.absent_days ?? 0);
+  const lateMin = Number(p.late_total_minutes ?? 0);
 
-  const rows = (obj: Record<string, number>) =>
-    Object.entries(obj)
+  const earningRow = (label: string, amt: number) =>
+    `<tr><td>${label}</td><td class="right">${fmtBdt(amt)}</td></tr>`;
+
+  const earningsRows = [
+    earningRow("Basic Salary", Number(p.basic) || 0),
+    ...Object.entries(allow)
+      .filter(([k]) => k !== "overtime")
       .filter(([, v]) => Number(v) > 0)
-      .map(([k, v]) => `<tr><td style="text-transform:capitalize">${k}</td><td class="right">${fmtBdt(Number(v))}</td></tr>`)
-      .join("");
+      .map(([k, v]) => earningRow(ALLOW_LABELS[k] ?? k.replace(/_/g, " "), Number(v))),
+  ];
+  if (Number(allow.overtime ?? p.overtime_earning ?? 0) > 0 || otMin > 0) {
+    const hrs = Math.floor(otMin / 60); const mins = otMin % 60;
+    const label = `Overtime${otMin ? ` (${hrs}h${mins ? ` ${mins}m` : ""})` : ""}`;
+    earningsRows.push(earningRow(label, Number(allow.overtime ?? p.overtime_earning ?? 0)));
+  }
+
+  const deductionsRows = Object.entries(ded)
+    .filter(([, v]) => Number(v) > 0)
+    .map(([k, v]) => {
+      let label = DED_LABELS[k] ?? k.replace(/_/g, " ");
+      if (k === "absent" && absentDays > 0) label = `Absent Deduction (${absentDays} day${absentDays > 1 ? "s" : ""})`;
+      if (k === "late" && lateMin > 0) label = `Late Deduction (${lateMin} min)`;
+      return earningRow(label, Number(v));
+    });
 
   const html = `
     <div class="header">
@@ -44,23 +84,22 @@ export function printPayslip(args: {
       <div>
         <h3>Earnings</h3>
         <table>
-          <tr><th>Component</th><th class="right">Amount</th></tr>
-          <tr><td>Basic</td><td class="right">${fmtBdt(p.basic)}</td></tr>
-          ${rows(allow)}
-          <tr class="totals"><td>Gross</td><td class="right">${fmtBdt(p.gross)}</td></tr>
+          <tr><th>Item</th><th class="right">Amount</th></tr>
+          ${earningsRows.join("")}
+          <tr class="totals"><td><strong>Gross Earnings</strong></td><td class="right"><strong>${fmtBdt(p.gross)}</strong></td></tr>
         </table>
       </div>
       <div>
         <h3>Deductions</h3>
         <table>
-          <tr><th>Component</th><th class="right">Amount</th></tr>
-          ${rows(ded) || `<tr><td class="muted">No deductions</td><td></td></tr>`}
-          <tr class="totals"><td>Total Deductions</td><td class="right">${fmtBdt(p.gross - p.net_pay)}</td></tr>
+          <tr><th>Item</th><th class="right">Amount</th></tr>
+          ${deductionsRows.join("") || `<tr><td class="muted">No deductions</td><td></td></tr>`}
+          <tr class="totals"><td><strong>Total Deductions</strong></td><td class="right"><strong>${fmtBdt(p.gross - p.net_pay)}</strong></td></tr>
         </table>
       </div>
     </div>
     <table>
-      <tr class="totals"><th>Net Pay</th><td class="right" style="font-size:1.4em;color:#0a7c3a">${fmtBdt(p.net_pay)}</td></tr>
+      <tr class="totals"><th style="font-size:1.1em">NET PAY</th><td class="right" style="font-size:1.6em;color:#0a7c3a;font-weight:bold">${fmtBdt(p.net_pay)}</td></tr>
     </table>
     <div class="sig">
       <div>Prepared By</div>

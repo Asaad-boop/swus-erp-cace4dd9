@@ -125,7 +125,12 @@ export function LivePunchPanel() {
                         : onBreak ? <Badge className="bg-amber-100 text-amber-800">On break</Badge>
                         : checkedIn ? <Badge className="bg-emerald-100 text-emerald-800">In</Badge>
                         : <Badge variant="outline">Not started</Badge>}
-                      {s?.late_min ? <span className="ml-2 text-xs text-amber-600">+{s.late_min}m late</span> : null}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s?.late_min ? <Badge className="bg-amber-100 text-amber-800 border-amber-200">Late: {s.late_min} min</Badge> : null}
+                        {s?.ot_min ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">OT: {Math.floor(s.ot_min/60)}h {s.ot_min%60}m</Badge> : null}
+                        {s?.deduction_amount && Number(s.deduction_amount) > 0 ? <span className="text-[11px] text-red-600 font-medium">Deduction: ৳{Number(s.deduction_amount).toLocaleString("en-BD")}</span> : null}
+                        {s?.overtime_amount && Number(s.overtime_amount) > 0 ? <span className="text-[11px] text-emerald-600 font-medium">OT Earning: ৳{Number(s.overtime_amount).toLocaleString("en-BD")}</span> : null}
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {s?.check_in_time ? new Date(s.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}

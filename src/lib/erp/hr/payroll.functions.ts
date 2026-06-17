@@ -55,6 +55,114 @@ function computeTotals(payslips: any[]) {
   return { total_gross, total_net, total_employees: payslips.length };
 }
 
+/* ============ Attendance-based calculations ============ */
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate();
+}
+
+function minutesBetween(start: string, end: string) {
+  return Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
+}
+
+async function loadPayrollSettings(supabase: any) {
+  const { data } = await supabase
+    .from("hr_settings")
+    .select("working_days_per_month, absent_deduction_enabled, late_consecutive_threshold, late_rate_per_min, overtime_enabled, overtime_rate_per_hour")
+    .is("brand_id", null)
+    .maybeSingle();
+  return {
+    working_days_per_month: Number(data?.working_days_per_month ?? 26),
+    absent_deduction_enabled: data?.absent_deduction_enabled ?? true,
+    late_consecutive_threshold: Number(data?.late_consecutive_threshold ?? 3),
+    late_rate_per_min: Number(data?.late_rate_per_min ?? 50),
+    overtime_enabled: data?.overtime_enabled ?? true,
+    overtime_rate_per_hour: Number(data?.overtime_rate_per_hour ?? 100),
+  };
+}
+
+async function computeAttendanceImpact(
+  supabase: any,
+  employeeId: string,
+  year: number,
+  month: number,
+  settings: Awaited<ReturnType<typeof loadPayrollSettings>>,
+  monthlyBasic: number,
+) {
+  const mm = String(month).padStart(2, "0");
+  const last = String(daysInMonth(year, month)).padStart(2, "0");
+  const from = `${year}-${mm}-01`;
+  const to = `${year}-${mm}-${last}`;
+
+  const { data: rows } = await supabase
+    .from("hr_attendance")
+    .select("id, date, status, late_min, ot_min")
+    .eq("employee_id", employeeId)
+    .gte("date", from)
+    .lte("date", to)
+    .order("date", { ascending: true });
+
+  const list = (rows ?? []) as any[];
+  let absent_days = 0;
+  let late_total_minutes = 0;
+  let overtime_total_minutes = 0;
+  let late_deductible_minutes = 0;
+  let streak = 0;
+  const updates: Array<{ id: string; consecutive_late_count: number; deduction_amount: number; overtime_amount: number }> = [];
+
+  const perDaySalary = settings.working_days_per_month > 0 ? monthlyBasic / settings.working_days_per_month : 0;
+
+  for (const r of list) {
+    const lateMin = Number(r.late_min || 0);
+    const otMin = Number(r.ot_min || 0);
+    const status = r.status;
+
+    if (status === "absent") { absent_days += 1; streak = 0; }
+    else if (lateMin > 0 || status === "late") { streak += 1; late_total_minutes += lateMin; }
+    else if (status === "present" || status === "half_day") { streak = 0; }
+
+    overtime_total_minutes += otMin;
+
+    let dayLateDed = 0;
+    if (settings.late_rate_per_min > 0 && (lateMin > 0 || status === "late") && streak >= settings.late_consecutive_threshold) {
+      dayLateDed = lateMin * settings.late_rate_per_min;
+      late_deductible_minutes += lateMin;
+    }
+    const dayAbsentDed = status === "absent" && settings.absent_deduction_enabled ? perDaySalary : 0;
+    const dayOtEarn = settings.overtime_enabled ? (otMin / 60) * settings.overtime_rate_per_hour : 0;
+
+    updates.push({
+      id: r.id,
+      consecutive_late_count: streak,
+      deduction_amount: Math.round((dayLateDed + dayAbsentDed) * 100) / 100,
+      overtime_amount: Math.round(dayOtEarn * 100) / 100,
+    });
+  }
+
+  const absent_deduction = settings.absent_deduction_enabled
+    ? Math.round(absent_days * perDaySalary * 100) / 100 : 0;
+  const late_deduction = Math.round(late_deductible_minutes * settings.late_rate_per_min * 100) / 100;
+  const overtime_earning = settings.overtime_enabled
+    ? Math.round((overtime_total_minutes / 60) * settings.overtime_rate_per_hour * 100) / 100 : 0;
+
+  // persist per-day calc back to attendance rows (idempotent)
+  for (const u of updates) {
+    await supabase.from("hr_attendance").update({
+      consecutive_late_count: u.consecutive_late_count,
+      deduction_amount: u.deduction_amount,
+      overtime_amount: u.overtime_amount,
+    }).eq("id", u.id);
+  }
+
+  return {
+    absent_days,
+    late_total_minutes,
+    overtime_total_minutes,
+    absent_deduction,
+    late_deduction,
+    overtime_earning,
+  };
+}
+
 /* ==================== RUNS ==================== */
 export const listPayrollRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -134,11 +242,44 @@ export const createPayrollRun = createServerFn({ method: "POST" })
         },
       };
     });
-    if (payslips.length) {
-      const { error: pe } = await context.supabase.from("hr_payslips").insert(payslips);
+    // Attendance-based deductions + OT
+    const settings = await loadPayrollSettings(context.supabase);
+    const enriched: any[] = [];
+    for (let i = 0; i < (emps ?? []).length; i++) {
+      const e = (emps as any[])[i];
+      const base = payslips[i];
+      const impact = await computeAttendanceImpact(
+        context.supabase, e.id, data.year, data.month, settings, Number(base.basic) || 0,
+      );
+      const allowances = { ...base.allowances, overtime: impact.overtime_earning };
+      const deductions = { ...base.deductions, absent: impact.absent_deduction, late: impact.late_deduction };
+      const allowSum = sumValues(allowances);
+      const dedSum = sumValues(deductions);
+      const gross = Number(base.basic) + allowSum;
+      const net_pay = gross - dedSum;
+      const total_earnings_breakdown = { basic: Number(base.basic), ...base.allowances, overtime: impact.overtime_earning };
+      const total_deductions_breakdown = { ...base.deductions, absent: impact.absent_deduction, late: impact.late_deduction };
+      enriched.push({
+        ...base,
+        allowances,
+        deductions,
+        gross,
+        net_pay,
+        absent_days: impact.absent_days,
+        late_total_minutes: impact.late_total_minutes,
+        overtime_total_minutes: impact.overtime_total_minutes,
+        absent_deduction: impact.absent_deduction,
+        late_deduction: impact.late_deduction,
+        overtime_earning: impact.overtime_earning,
+        total_earnings_breakdown,
+        total_deductions_breakdown,
+      });
+    }
+    if (enriched.length) {
+      const { error: pe } = await context.supabase.from("hr_payslips").insert(enriched);
       if (pe) throw pe;
     }
-    const totals = computeTotals(payslips);
+    const totals = computeTotals(enriched);
     await context.supabase.from("hr_payroll_runs").update(totals).eq("id", run.id);
     return { ...run, ...totals };
   });
@@ -190,6 +331,10 @@ export const updatePayslip = createServerFn({ method: "POST" })
     }
     const gross = Number(data.basic) + sumValues(data.allowances);
     const net_pay = gross - sumValues(data.deductions);
+    const allow = data.allowances ?? {};
+    const ded = data.deductions ?? {};
+    const total_earnings_breakdown = { basic: Number(data.basic), ...allow };
+    const total_deductions_breakdown = { ...ded };
     const { error } = await context.supabase
       .from("hr_payslips")
       .update({
@@ -198,6 +343,11 @@ export const updatePayslip = createServerFn({ method: "POST" })
         deductions: data.deductions,
         gross,
         net_pay,
+        total_earnings_breakdown,
+        total_deductions_breakdown,
+        overtime_earning: Number(allow.overtime ?? 0),
+        absent_deduction: Number(ded.absent ?? 0),
+        late_deduction: Number(ded.late ?? 0),
         notes: data.notes ?? null,
       })
       .eq("id", data.id);

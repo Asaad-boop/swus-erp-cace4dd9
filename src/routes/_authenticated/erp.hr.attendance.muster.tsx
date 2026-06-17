@@ -242,6 +242,37 @@ function CellDetailDialog({ data, onClose }: { data: { empId: string; date: stri
               <div><div className="text-xs text-muted-foreground">Break</div><div className="font-mono">{cell.row.break_start ? `${new Date(cell.row.break_start).toLocaleTimeString()} – ${cell.row.break_end ? new Date(cell.row.break_end).toLocaleTimeString() : "…"}` : "—"}</div></div>
               <div><div className="text-xs text-muted-foreground">Total Hours</div><div className="font-mono">{cell.row.total_hours ? `${cell.row.total_hours}h` : (cell.row.work_min ? `${(cell.row.work_min/60).toFixed(1)}h` : "—")}</div></div>
             </div>
+            {(cell.row.late_min > 0 || cell.row.ot_min > 0 || cell.row.status === "absent" || Number(cell.row.deduction_amount) > 0 || Number(cell.row.overtime_amount) > 0) && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-1.5">
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payroll Impact</div>
+                {cell.row.late_min > 0 && (
+                  <div className="text-xs text-gray-700">
+                    <span className="text-amber-700 font-medium">Late: {cell.row.late_min} min</span>
+                    {" → "}
+                    {Number(cell.row.deduction_amount) > 0 && cell.row.status !== "absent"
+                      ? <span className="text-red-600 font-medium">Deduction: ৳{Number(cell.row.deduction_amount).toLocaleString("en-BD")}</span>
+                      : <span className="text-gray-500">No deduction yet (under consecutive threshold)</span>}
+                  </div>
+                )}
+                {cell.row.ot_min > 0 && (
+                  <div className="text-xs text-gray-700">
+                    <span className="text-blue-700 font-medium">OT: {cell.row.ot_min} min</span>
+                    {Number(cell.row.overtime_amount) > 0 && (
+                      <> → <span className="text-emerald-600 font-medium">Earning: ৳{Number(cell.row.overtime_amount).toLocaleString("en-BD")}</span></>
+                    )}
+                  </div>
+                )}
+                {cell.row.status === "absent" && (
+                  <div className="text-xs text-gray-700">
+                    <span className="text-red-700 font-medium">Absent</span>
+                    {Number(cell.row.deduction_amount) > 0 && (
+                      <> → <span className="text-red-600 font-medium">Day salary deducted: ৳{Number(cell.row.deduction_amount).toLocaleString("en-BD")}</span></>
+                    )}
+                  </div>
+                )}
+                <div className="text-[10px] text-gray-400 pt-1">Values finalize when the payroll run is generated for this month.</div>
+              </div>
+            )}
             {cell.row.check_in_lat && cell.row.check_in_lng && (
               <a href={`https://maps.google.com/?q=${cell.row.check_in_lat},${cell.row.check_in_lng}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-primary text-xs hover:underline">
                 <MapPin className="h-3 w-3" /> Open check-in location in Maps
