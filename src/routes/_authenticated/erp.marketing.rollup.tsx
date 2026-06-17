@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
   getCampaignProfitRollup,
   getProductProfitRollup,
@@ -46,8 +46,7 @@ function fmtPct(n: number | null | undefined) {
 }
 
 function RollupPage() {
-  const { activeBrand } = useBrand();
-  const selectedBrandId = activeBrand?.id ?? null;
+  const { brandId: selectedBrandId, gate } = useBrandPicker();
   const [days, setDays] = useState(30);
   const [search, setSearch] = useState("");
   const range = useMemo(() => dateRange(days), [days]);
@@ -66,9 +65,7 @@ function RollupPage() {
     enabled: !!selectedBrandId,
   });
 
-  if (!selectedBrandId) {
-    return <div className="text-sm text-muted-foreground">Brand select korun.</div>;
-  }
+  if (gate) return gate;
 
   const totals = campaignsQ.data?.totals;
   const campRows = (campaignsQ.data?.rows ?? []).filter((r) =>
