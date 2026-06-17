@@ -254,7 +254,7 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
       context.supabase.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
       context.supabase.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
     ]);
-    const viewRes = initialViewRes.error
+    const viewRes = initialViewRes.error || !initialViewRes.data
       ? await context.supabase.from("crm_customers_v").select("*").eq("customer_key", key).maybeSingle()
       : initialViewRes;
     if (viewRes.error) throw viewRes.error;
