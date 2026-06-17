@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { importCrmCustomers } from "@/lib/erp/crm/crm.functions";
+import * as XLSX from "xlsx";
 
 type Row = { phone: string; name?: string; email?: string };
 
@@ -69,8 +70,26 @@ export function CrmImportDialog({ open, onOpenChange }: { open: boolean; onOpenC
   const onFile = async (f: File | null) => {
     if (!f) return;
     setFileName(f.name);
-    const text = await f.text();
-    const { headers, rows } = parseCsv(text);
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    let headers: string[] = [];
+    let rows: string[][] = [];
+    if (ext === "xlsx" || ext === "xls" || ext === "xlsm" || ext === "ods") {
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "", raw: false });
+      const all = aoa.filter((r) => Array.isArray(r) && r.some((c) => String(c ?? "").trim().length));
+      if (all.length) {
+        headers = (all[0] as any[]).map((h) => String(h ?? "").trim().toLowerCase());
+        rows = all.slice(1).map((r) => (r as any[]).map((c) => String(c ?? "").trim()));
+      }
+      setSource(ext);
+    } else {
+      const text = await f.text();
+      const parsed = parseCsv(text);
+      headers = parsed.headers; rows = parsed.rows;
+      setSource("csv");
+    }
     setHeaders(headers); setRows(rows);
     setPhoneCol(guessCol(headers, ["phone", "mobile", "number", "phone_number", "mobile_number", "contact"]));
     setNameCol(guessCol(headers, ["name", "customer", "full_name", "customer_name"]));
@@ -113,7 +132,7 @@ export function CrmImportDialog({ open, onOpenChange }: { open: boolean; onOpenC
         <DialogHeader>
           <DialogTitle>Import customers</DialogTitle>
           <DialogDescription>
-            CSV upload korun. Phone column required — auto-tagged with <span className="font-mono bg-muted px-1 rounded">imported</span>.
+            CSV / XLSX upload korun. Phone column required — auto-tagged with <span className="font-mono bg-muted px-1 rounded">imported</span>.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,12 +140,12 @@ export function CrmImportDialog({ open, onOpenChange }: { open: boolean; onOpenC
           {!headers.length ? (
             <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-accent/30 transition-colors">
               <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-              <div className="text-sm font-medium">Click to upload CSV</div>
-              <div className="text-xs text-muted-foreground mt-1">First row should be headers (phone, name, email)</div>
+              <div className="text-sm font-medium">Click to upload CSV or Excel</div>
+              <div className="text-xs text-muted-foreground mt-1">.csv, .xlsx, .xls · First row = headers (phone, name, email)</div>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.xlsx,.xls,.xlsm,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 className="hidden"
                 onChange={(e) => onFile(e.target.files?.[0] ?? null)}
               />
