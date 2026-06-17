@@ -2,14 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { getMusterRoll } from "@/lib/erp/hr/attendance.functions";
+import { getAttendanceCell } from "@/lib/erp/hr/punch.functions";
 import { listDepartments } from "@/lib/erp/hr/hr.functions";
+import { exportAoaXlsx } from "@/lib/erp/hr/excel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/attendance/muster")({
   head: () => ({ meta: [{ title: "Muster Roll — HR" }] }),
@@ -31,6 +35,7 @@ function MusterPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [dept, setDept] = useState("all");
+  const [cellOpen, setCellOpen] = useState<{ empId: string; date: string; name: string } | null>(null);
 
   const musterFn = useServerFn(getMusterRoll);
   const deptsFn = useServerFn(listDepartments);
@@ -67,6 +72,29 @@ function MusterPage() {
     link.click();
   }
 
+  function exportExcel() {
+    if (!data) return;
+    const header = ["Code", "Employee", ...days.map((d) => `${data.from.slice(0,7)}-${String(d).padStart(2,"0")}`), "Present", "Absent", "Leave", "Late Days", "OT Hours"];
+    const aoa: any[][] = [header];
+    for (const e of data.employees as any[]) {
+      const att = (data.attendance as any)[e.id] ?? {};
+      let p = 0, a = 0, l = 0, late = 0, ot = 0;
+      const cells = days.map((d) => {
+        const dateStr = `${data.from.slice(0,7)}-${String(d).padStart(2,"0")}`;
+        const r: any = att[dateStr];
+        if (!r) return "";
+        if (["present","late","half_day"].includes(r.status)) p++;
+        if (r.status === "absent") a++;
+        if (r.status === "leave") l++;
+        if (r.status === "late") late++;
+        if (r.ot_min) ot += Number(r.ot_min) / 60;
+        return CODE[r.status]?.code ?? r.status;
+      });
+      aoa.push([e.employee_code, e.full_name, ...cells, p, a, l, late, Math.round(ot * 10) / 10]);
+    }
+    exportAoaXlsx(aoa, `${year}-${String(month).padStart(2,"0")}`, `muster-${year}-${String(month).padStart(2,"0")}`);
+  }
+
   return (
     <div>
       <HrSubnav />
@@ -77,6 +105,7 @@ function MusterPage() {
             <p className="text-sm text-muted-foreground">Monthly attendance grid</p>
           </div>
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-2" />Export CSV</Button>
+          <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Export Excel</Button>
         </div>
 
         <Card><CardContent className="p-4 space-y-3">
@@ -159,7 +188,17 @@ function MusterPage() {
                         const code = r ? CODE[r.status] : null;
                         return (
                           <td key={d} className="px-1 py-1 text-center">
-                            {code ? <span className={`inline-block w-6 rounded ${code.tone}`} title={r.note ?? r.status}>{code.code}</span> : <span className="text-muted-foreground">·</span>}
+                            {code ? (
+                              <button
+                                className={`inline-block w-6 rounded ${code.tone} hover:ring-2 ring-primary cursor-pointer`}
+                                title={r.note ?? r.status}
+                                onClick={() => setCellOpen({ empId: e.id, date: dateStr, name: e.full_name })}
+                              >
+                                {code.code}
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground">·</span>
+                            )}
                           </td>
                         );
                       })}
@@ -174,6 +213,49 @@ function MusterPage() {
           </div>
         </CardContent></Card>
       </div>
+      {cellOpen && <CellDetailDialog data={cellOpen} onClose={() => setCellOpen(null)} />}
     </div>
+  );
+}
+
+function CellDetailDialog({ data, onClose }: { data: { empId: string; date: string; name: string }; onClose: () => void }) {
+  const fn = useServerFn(getAttendanceCell);
+  const { data: cell, isLoading } = useQuery({
+    queryKey: ["att-cell", data.empId, data.date],
+    queryFn: () => fn({ data: { employee_id: data.empId, date: data.date } }),
+  });
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{data.name} — {data.date}</DialogTitle></DialogHeader>
+        {isLoading ? <div className="py-6 text-center text-muted-foreground">Loading…</div> : !cell?.row ? <div className="py-6 text-center text-muted-foreground">No record</div> : (
+          <div className="space-y-3 text-sm">
+            <div className="flex gap-2 items-center">
+              <Badge>{cell.row.status}</Badge>
+              {cell.row.late_min ? <span className="text-amber-600">{cell.row.late_min} min late</span> : null}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><div className="text-xs text-muted-foreground">Check In</div><div className="font-mono">{cell.row.check_in_time ? new Date(cell.row.check_in_time).toLocaleTimeString() : (cell.row.in_time ? new Date(cell.row.in_time).toLocaleTimeString() : "—")}</div></div>
+              <div><div className="text-xs text-muted-foreground">Check Out</div><div className="font-mono">{cell.row.check_out_time ? new Date(cell.row.check_out_time).toLocaleTimeString() : (cell.row.out_time ? new Date(cell.row.out_time).toLocaleTimeString() : "—")}</div></div>
+              <div><div className="text-xs text-muted-foreground">Break</div><div className="font-mono">{cell.row.break_start ? `${new Date(cell.row.break_start).toLocaleTimeString()} – ${cell.row.break_end ? new Date(cell.row.break_end).toLocaleTimeString() : "…"}` : "—"}</div></div>
+              <div><div className="text-xs text-muted-foreground">Total Hours</div><div className="font-mono">{cell.row.total_hours ? `${cell.row.total_hours}h` : (cell.row.work_min ? `${(cell.row.work_min/60).toFixed(1)}h` : "—")}</div></div>
+            </div>
+            {cell.row.check_in_lat && cell.row.check_in_lng && (
+              <a href={`https://maps.google.com/?q=${cell.row.check_in_lat},${cell.row.check_in_lng}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-primary text-xs hover:underline">
+                <MapPin className="h-3 w-3" /> Open check-in location in Maps
+              </a>
+            )}
+            {cell.selfieSignedUrl && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Check-in selfie</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={cell.selfieSignedUrl} alt="selfie" className="max-h-64 rounded border" />
+              </div>
+            )}
+            {cell.row.note && <div className="text-xs italic">{cell.row.note}</div>}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
