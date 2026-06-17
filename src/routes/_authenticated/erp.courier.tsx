@@ -4,7 +4,8 @@ import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Truck, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Truck, ExternalLink, FileSpreadsheet } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,9 +93,17 @@ function CourierPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Courier</h1>
-        <p className="text-sm text-muted-foreground">Pathao &amp; Steadfast consignments. Book from any order's detail page.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Courier</h1>
+          <p className="text-sm text-muted-foreground">Pathao &amp; Steadfast consignments. Book from any order's detail page.</p>
+        </div>
+        <Link to="/erp/courier/reconciliation">
+          <Button variant="outline" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Invoice Reconciliation
+          </Button>
+        </Link>
       </div>
       <Tabs defaultValue="shipments">
         <TabsList>

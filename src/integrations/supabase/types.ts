@@ -1801,6 +1801,197 @@ export type Database = {
           },
         ]
       }
+      erp_reconciliation_rows: {
+        Row: {
+          amount_diff: number | null
+          applied_expense_txn_id: string | null
+          applied_income_txn_id: string | null
+          cod_fee: number
+          collected: number
+          consignment_id: string | null
+          created_at: string
+          delivery_fee: number
+          discount: number
+          id: string
+          invoice_date: string | null
+          match_status: string
+          matched_order_id: string | null
+          matched_via: string | null
+          merchant_order_id: string | null
+          note: string | null
+          other_fee: number
+          payout: number
+          raw: Json | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          run_id: string
+          store_name: string | null
+          total_fee: number
+          updated_at: string
+        }
+        Insert: {
+          amount_diff?: number | null
+          applied_expense_txn_id?: string | null
+          applied_income_txn_id?: string | null
+          cod_fee?: number
+          collected?: number
+          consignment_id?: string | null
+          created_at?: string
+          delivery_fee?: number
+          discount?: number
+          id?: string
+          invoice_date?: string | null
+          match_status?: string
+          matched_order_id?: string | null
+          matched_via?: string | null
+          merchant_order_id?: string | null
+          note?: string | null
+          other_fee?: number
+          payout?: number
+          raw?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          run_id: string
+          store_name?: string | null
+          total_fee?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_diff?: number | null
+          applied_expense_txn_id?: string | null
+          applied_income_txn_id?: string | null
+          cod_fee?: number
+          collected?: number
+          consignment_id?: string | null
+          created_at?: string
+          delivery_fee?: number
+          discount?: number
+          id?: string
+          invoice_date?: string | null
+          match_status?: string
+          matched_order_id?: string | null
+          matched_via?: string | null
+          merchant_order_id?: string | null
+          note?: string | null
+          other_fee?: number
+          payout?: number
+          raw?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          run_id?: string
+          store_name?: string | null
+          total_fee?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_reconciliation_rows_applied_expense_txn_id_fkey"
+            columns: ["applied_expense_txn_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_applied_income_txn_id_fkey"
+            columns: ["applied_income_txn_id"]
+            isOneToOne: false
+            referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_matched_order_id_fkey"
+            columns: ["matched_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_matched_order_id_fkey"
+            columns: ["matched_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "erp_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_reconciliation_runs: {
+        Row: {
+          applied_at: string | null
+          brand_id: string | null
+          courier: string
+          created_at: string
+          id: string
+          matched_count: number
+          mismatched_count: number
+          notes: string | null
+          reverted_at: string | null
+          source_filename: string | null
+          status: string
+          total_collected: number
+          total_fee: number
+          total_payout: number
+          total_rows: number
+          unmatched_count: number
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          brand_id?: string | null
+          courier?: string
+          created_at?: string
+          id?: string
+          matched_count?: number
+          mismatched_count?: number
+          notes?: string | null
+          reverted_at?: string | null
+          source_filename?: string | null
+          status?: string
+          total_collected?: number
+          total_fee?: number
+          total_payout?: number
+          total_rows?: number
+          unmatched_count?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          brand_id?: string | null
+          courier?: string
+          created_at?: string
+          id?: string
+          matched_count?: number
+          mismatched_count?: number
+          notes?: string | null
+          reverted_at?: string | null
+          source_filename?: string | null
+          status?: string
+          total_collected?: number
+          total_fee?: number
+          total_payout?: number
+          total_rows?: number
+          unmatched_count?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_reconciliation_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_recurring_rules: {
         Row: {
           amount: number
