@@ -1,114 +1,94 @@
 ## Goal
+Brand switcher er upor pura app er dependency komano. Default e shob page e **shob brand er data** dekhabe. Brand selection only oi page er local filter ba create-time mandatory field hisebe kaj korbe.
 
-Finance & Accounting dashboard ke ekta complete "command center" baniye dewa — jekhane current capital, inventory value, profitability, account balances, receivables/payables, imports advance/due, recurring fixed costs — sob ekjaygay clean view e dekha jay.
+## New Brand Model
 
-## Current state
+### 1. Global behavior change
+- Top header er `BrandSwitcher` thakbe, but default value = **"All Brands"**.
+- Kono page ar `useBrandPicker` gate dekhabe na (no more "Please select a brand" blocker).
+- `useBrand()` hook same thakbe, but pages eta read-only filter hisebe use korbe — gate hisebe na.
 
-`/erp/finance` (overview) e already ache: today/range sales, cash/bank/mfs, COD receivable, AR due, supplier payable, expense by category, 12-month revenue vs expense, accounts list, recent transactions.
+### 2. List / Read pages (default: all brands)
+Eishob page e **brand column** thakbe table e + page-local brand filter dropdown (top-right):
 
-Onek kichu missing — Net Worth/Capital, Inventory valuation, Imports advance & due, Recurring schedule, upcoming dues calendar, P&L summary card, top expenses, cashflow trend.
+- CRM (customers, list, details)
+- Orders (list, web orders, incomplete)
+- Inventory
+- Suppliers
+- Imports → Purchase Orders list
+- Finance (accounts, transactions, journal, reports, etc.)
+- HR (employees, attendance, leave)
+- Marketing (campaigns, expenses, attribution)
+- Reconciliation
+- Courier
+- Settings → Business / Invoice / Courier mapping (each brand er setting alada card hisebe dekhabe, ba page-local brand tab)
+- Dashboard (already supports multi-brand, just polish)
 
-## Plan: Restructure `/erp/finance` (overview) into 4-zone dashboard
+Page-local filter er value local state — header er global brand ke override korbe na. URL search param `?brand=<id>` e persist korbe jate share/back kaj kore.
 
-### Zone 1 — Net Worth / Capital Snapshot (top hero strip)
+### 3. Create / Edit pages (brand mandatory)
+Eishob form e top e ekta **"Brand *"** select field thakbe (required):
 
-4 large KPI cards:
+- New Order (`erp.orders.new.tsx`)
+- New Purchase Order (`erp.imports.orders.new.tsx`)
+- New Employee, New Supplier, New Product, New Campaign, New Account, New Transaction, etc.
 
-- **Total Capital** = Cash + Bank + MFS + Inventory value + AR + COD receivable + Imports advance − Payables − Imports due
-- **Liquid Cash** = Cash + Bank + MFS (sub-breakdown chip)
-- **Inventory Value** = SUM(stock_qty × cost_price) across all warehouses
-- **Net Receivable** = COD receivable + AR due + Imports advance − Supplier payable − Imports due
+Rules:
+- Brand select na korleo onno field (name, phone, address, courier charge, items) fill kora jabe — disabled na.
+- Submit button disabled jotokkhon na brand select kora.
+- Default value: jodi header e single brand select thake, oita pre-fill; "All Brands" hole khali.
+- Edit page e existing record er brand pre-selected + locked (change kora jabe na, ba alada "Transfer brand" action).
 
-### Zone 2 — Profit & Loss Strip
+### 4. Components to add/change
 
-- Range P&L: Revenue, COGS, Gross Profit, Operating Expense, **Net Profit** (with margin %)
-- Mini sparkline: last 30 days net daily profit
-- Refund/Return loss separate chip
+**New shared components:**
+- `src/components/erp/brand-filter.tsx` — page-local brand filter dropdown (controlled, "All" + brand list, URL sync optional).
+- `src/components/erp/brand-select-field.tsx` — form field for create/edit, required variant, integrates with react-hook-form.
 
-### Zone 3 — Money Map (3 columns)
+**Update:**
+- `src/contexts/brand-context.tsx` — default `activeBrandId = "all"` (already supports it, ensure localStorage default).
+- `src/components/erp/brand-picker-gate.tsx` — **delete** ba deprecate kore dibo. Jeshob page eta use korche, sheguloy `BrandFilter` (read pages) ba `BrandSelectField` (create pages) bosabo.
+- `src/lib/erp/apply-brand-scope.ts` — already accepts `null/all`; ensure queries return multi-brand rows + include `brand_id` so column show kora jay.
 
-**Column A — Where my money is**
+### 5. Migration approach (phase-wise, to avoid breaking everything)
 
-- Accounts list grouped: Cash / Bank / MFS with balances + totals
-- Inventory value per brand mini-bar
+**Phase 1 — Infra (this turn):**
+1. Create `BrandFilter` + `BrandSelectField` components.
+2. Remove gate behavior from `useBrandPicker` (return null gate, still expose brandId for backward compat).
+3. Ensure all list queries already pass through `applyBrandScope` with "all" support (audit).
+4. Add `brand` column + page-local filter to: **CRM list, Orders list, Inventory, Suppliers, Purchase Orders list**.
+5. Add mandatory `BrandSelectField` to: **New Order, New Purchase Order**.
 
-**Column B — Money coming in**
+**Phase 2 (next turn, after you confirm Phase 1 works):**
+- Same treatment for Finance, HR, Marketing, Reconciliation pages.
+- Settings page → per-brand tabs.
 
-- COD receivable (per courier breakdown: Pathao, Steadfast, etc.)
-- AR due (customer-wise top 5)
-- Imports advance paid (PO-wise top 5)
-- Other income (range)
+### 6. Out of scope (this turn)
+- RLS / permission change — already brand-scoped via `has_brand_access`, unchanged.
+- Bulk re-assign brand action.
+- Backend schema change.
 
-**Column C — Money going out**
+## Technical Notes
+- `BrandFilter` URL param: use TanStack Router `useSearch` + `navigate({ search })`.
+- `BrandSelectField` validation: zod `z.string().uuid({ message: "Brand select korun" })`.
+- Edit pages: pass `lockedBrandId` prop to disable the select.
+- Brand column in tables: use existing `BrandBadge` component (already exists).
 
-- Supplier payable top 5
-- Imports due top 5 (PO + ETA)
-- Upcoming recurring (next 30 days, date-wise list) — uses `erp_recurring_rules.next_run`
-- Top 5 expense categories (range)
+## Files to Touch (Phase 1)
+- create `src/components/erp/brand-filter.tsx`
+- create `src/components/erp/brand-select-field.tsx`
+- edit `src/components/erp/brand-picker-gate.tsx` (neuter gate)
+- edit `src/contexts/brand-context.tsx` (confirm "all" default)
+- edit `src/routes/_authenticated/erp.crm.index.tsx`
+- edit `src/routes/_authenticated/erp.orders.list.tsx` (or index)
+- edit `src/routes/_authenticated/erp.orders.new.tsx`
+- edit `src/routes/_authenticated/erp.inventory.tsx`
+- edit `src/routes/_authenticated/erp.suppliers.tsx`
+- edit `src/routes/_authenticated/erp.imports.orders.index.tsx`
+- edit `src/routes/_authenticated/erp.imports.orders.new.tsx`
 
-### Zone 4 — Trends & Activity
+## Question for you
+1. Settings page e tumi ki chao: (a) per-brand **tab** (Brand A | Brand B), naki (b) ekta brand select kore tar setting dekhabe? Ami (a) suggest korchi — easier compare kora jay.
+2. Edit page e brand **locked** thakbe (recommended) naki change kora jabe? Brand change korle order/transaction onno brand er hoye jay — accounting jhamela hoy.
 
-- 12-month Revenue vs Expense vs Net Profit (line/bar combo)
-- Expense donut by category
-- Recent 10 transactions table (existing)
-- Quick links row: Reconciliation, Journal, Reports, Budgets, Payables, Receivables, Recurring, FX
-
-## New server function
-
-`getFinanceOverview` — single server fn aggregating everything to avoid N round-trips:
-
-```
-{
-  capital: { total, liquid, inventory, receivable, payable, breakdown },
-  pnl: { revenue, cogs, gross, expense, net, margin, refundLoss, dailySeries[] },
-  accounts: [...],
-  inventoryByBrand: [...],
-  receivables: { codByCourier[], arTop5[], importsAdvanceTop5[], otherIncome },
-  payables: { supplierTop5[], importsDueTop5[], upcomingRecurring[], topExpenseCats[] },
-  monthlySeries: [...],
-  recentTxns: [...]
-}
-```
-
-Live under `src/lib/erp/finance-overview.functions.ts` (server-side aggregation; respects brand scope via middleware).
-
-## Inventory valuation
-
-Query `products` + `product_variants` for `stock_qty * cost_price`. If no `cost_price`, fall back to last purchase price or 0; show warning chip "X products without cost".
-
-## Imports advance & due
-
-From `imp_purchase_orders` + `imp_payments`:
-
-- Advance = SUM(paid) for PO status IN (draft, ordered, in_transit) — i.e. not received yet
-- Due = (total − paid) for received POs not fully settled
-
-## Recurring schedule
-
-From `erp_recurring_rules` where `is_active=true AND next_run BETWEEN now AND now+30d`, ordered by `next_run` with amount + account.
-
-## UI conventions
-
-- Tailwind + existing shadcn `Card` components, semantic tokens only
-- Number-heavy → tabular-nums, `fmtBdt()`
-- Hover any KPI → tooltip with formula
-- Each major card has "View details →" link to the dedicated sub-route
-
-## Files
-
-- **new**: `src/lib/erp/finance-overview.functions.ts`
-- **edit**: `src/routes/_authenticated/erp.finance.index.tsx` — full rewrite using new server fn, new layout
-- **edit (small)**: `src/lib/erp/finance.ts` — add helper formulas if needed
-
-## Out of scope (later phases)
-
-- Cash flow forecasting
-- Multi-currency consolidation card
-- Drill-down modal per KPI (link to sub-routes for now)
-- Budget vs actual chart (already has `/budgets` route)
-
-## Time
-
-1 file new, 1 file heavy rewrite. Ek shot e shob shipping.  
-  
-koor and aro advance korte parle koro
+Confirm korle Phase 1 implement kora shuru korbo.
