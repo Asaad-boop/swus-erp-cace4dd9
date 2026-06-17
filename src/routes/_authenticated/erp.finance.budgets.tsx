@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,7 @@ function monthStart(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1)
 function monthEnd(d: Date) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10); }
 
 function BudgetsPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const qc = useQueryClient();
   const [month, setMonth] = useState(() => monthStart(new Date()).slice(0, 7));
   const monthDate = month + "-01";
@@ -99,7 +98,7 @@ function BudgetsPage() {
     });
   }, [coaQ.data, budgetsQ.data, actualsQ.data]);
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">

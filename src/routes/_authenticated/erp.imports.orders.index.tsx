@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, Search, Filter, Package, Wallet, AlertTriangle, TrendingUp, X, ArrowUpDown, Boxes } from "lucide-react";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/orders/")({
 type SortKey = "date" | "total" | "due" | "status";
 
 function PoListPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [status, setStatus] = useState<string>("all");
   const [q, setQ] = useState("");
   const [payState, setPayState] = useState<"all" | "paid" | "partial" | "unpaid">("all");
@@ -85,7 +84,7 @@ function PoListPage() {
   const clearFilters = () => { setQ(""); setStatus("all"); setPayState("all"); };
   const hasFilters = q.trim() || status !== "all" || payState !== "all";
 
-  if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">

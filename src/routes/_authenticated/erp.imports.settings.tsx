@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Plus, Pencil, Truck, Users, Loader2, History, TrendingUp, TrendingDown, Minus, CalendarDays, Wallet, ArrowDownCircle, ArrowUpCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +27,10 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 });
 
 function ImportsSettings() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [tab, setTab] = useState<"agents" | "suppliers">("agents");
 
-  if (!brandId) return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">

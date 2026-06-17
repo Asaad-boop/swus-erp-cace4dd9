@@ -8,7 +8,7 @@ import {
   PackageCheck, Receipt, Send,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { useAccounts } from "@/hooks/erp/use-finance-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,7 @@ const PIPELINE_STAGES: { key: ImpCartonStatus; label: string; icon: any; bg: str
 
 function PoDetailPage() {
   const { orderId } = Route.useParams();
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const qc = useQueryClient();
   const detailFn = useServerFn(getPurchaseOrderDetail);
   const stageFn = useServerFn(updateCartonStage);

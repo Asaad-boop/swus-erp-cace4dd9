@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/fx")({
 type FX = { id: string; from_ccy: string; to_ccy: string; rate: number; rate_date: string };
 
 function FxPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const qc = useQueryClient();
   const [form, setForm] = useState({ from_ccy: "USD", to_ccy: "BDT", rate: "", rate_date: new Date().toISOString().slice(0, 10) });
 
@@ -46,7 +45,7 @@ function FxPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">

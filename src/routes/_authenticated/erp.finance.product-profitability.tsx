@@ -12,7 +12,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,8 +89,7 @@ function downloadCsv(filename: string, rows: (string | number | null)[][]) {
 }
 
 function ProductProfitabilityPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
 
   const [productId, setProductId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<string>(daysAgoIso(30));

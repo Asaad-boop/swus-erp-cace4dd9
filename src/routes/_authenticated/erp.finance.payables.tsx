@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Wallet, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,8 +39,7 @@ const BUCKETS = [
 ] as const;
 
 function PayablesPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [bucket, setBucket] = useState<string>("all");
@@ -110,7 +109,7 @@ function PayablesPage() {
 
   const totalOutstanding = (apQ.data ?? []).reduce((s, r) => s + Number(r.outstanding), 0);
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">

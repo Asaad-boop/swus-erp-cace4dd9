@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
@@ -18,8 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/audit")({
 type Row = { id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; before_data: unknown; after_data: unknown; created_at: string };
 
 function AuditPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Row | null>(null);
 
@@ -42,7 +41,7 @@ function AuditPage() {
 
   const colorFor = (a: string) => a === "create" ? "text-emerald-600" : a === "void" ? "text-amber-600" : a === "delete" ? "text-red-600" : "text-blue-600";
 
-  if (!brandId) return <div className="p-6 text-muted-foreground">Select a brand.</div>;
+  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
