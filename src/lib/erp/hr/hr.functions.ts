@@ -372,6 +372,12 @@ export const updateHrSettings = createServerFn({ method: "POST" })
     employee_code_prefix: z.string().min(1).optional(),
     employee_code_padding: z.number().int().min(1).max(10).optional(),
     fiscal_year_start_month: z.number().int().min(1).max(12).optional(),
+    working_days_per_month: z.number().int().min(1).max(31).optional(),
+    absent_deduction_enabled: z.boolean().optional(),
+    late_consecutive_threshold: z.number().int().min(1).max(30).optional(),
+    late_rate_per_min: z.number().min(0).optional(),
+    overtime_enabled: z.boolean().optional(),
+    overtime_rate_per_hour: z.number().min(0).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
