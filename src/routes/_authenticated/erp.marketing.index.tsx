@@ -139,7 +139,7 @@ const DECISIONS: Record<
 // ─────────────────────────── page ───────────────────────────
 
 function PerformanceDashboard() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -187,8 +187,6 @@ function PerformanceDashboard() {
     toast.success("Data refreshed");
   }
 
-  if (gate) return gate;
-
   const allRows = q.data?.rows ?? [];
   const totals = q.data?.totals;
 
@@ -217,10 +215,11 @@ function PerformanceDashboard() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Ad Performance</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Meta ad-er real performance — Meta data vs delivered orders, BDT te true profit & decision.
+              {effectiveBrand?.name ?? "—"} · Meta ad-er real performance — Meta data vs delivered orders, BDT te true profit & decision.
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {picker}
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <Button
               variant="outline"
