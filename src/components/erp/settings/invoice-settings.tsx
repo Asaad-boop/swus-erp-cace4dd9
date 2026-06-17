@@ -39,9 +39,9 @@ const SAMPLE_ITEMS = [
   { name: "Sports Cap", quantity: 1, unit_price: 700, price: 700, variant_label: null, line_total: 700, sku: "CAP-001", image: null },
 ];
 
-export function InvoiceSettings() {
+export function InvoiceSettings({ brandIdOverride }: { brandIdOverride?: string | null } = {}) {
   const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id;
+  const brandId = brandIdOverride ?? activeBrand?.id;
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({

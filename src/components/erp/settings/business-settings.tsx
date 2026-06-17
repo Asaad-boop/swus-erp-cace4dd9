@@ -71,9 +71,9 @@ const DEFAULT_ORDER_SOURCES = [
 
 const SLUG_RE = /^[A-Za-z0-9_]+-?$/;
 
-export function BusinessSettings() {
+export function BusinessSettings({ brandIdOverride }: { brandIdOverride?: string | null } = {}) {
   const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id;
+  const brandId = brandIdOverride ?? activeBrand?.id;
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
