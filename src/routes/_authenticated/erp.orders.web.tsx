@@ -450,7 +450,7 @@ function WebOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Web Orders</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBrand?.name} · Orders from website
+            {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · Orders from website
           </p>
         </div>
         <Input
@@ -723,9 +723,9 @@ function WebOrdersPage() {
                     {/* Site */}
                     <TableCell className="py-4">
                       <div className="flex flex-col gap-1 items-start">
-                        {activeBrand?.name && (
+                        {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
                           <span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold ring-1 ring-primary/30">
-                            {activeBrand.name}
+                            {isAllBrands ? brandNameById.get(r.brand_id ?? "") : activeBrand?.name}
                           </span>
                         )}
                         {siteLabel ? (
