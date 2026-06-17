@@ -182,8 +182,8 @@ function AgentOrderDetail() {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Payee</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Reference</TableHead>
               <TableHead>Note</TableHead>
               <TableHead className="text-right">Amount</TableHead>
             </TableRow>
