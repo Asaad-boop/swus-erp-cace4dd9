@@ -100,13 +100,19 @@ export const updateBrand = createServerFn({ method: "POST" })
       ...(data.language !== undefined ? { language: data.language } : {}),
     };
 
-    const patch: Record<string, unknown> = { settings: merged };
+    const patch: {
+      settings: typeof merged;
+      name?: string;
+      slug?: string;
+      logo_url?: string | null;
+      is_active?: boolean;
+    } = { settings: merged };
     if (data.name !== undefined) patch.name = data.name;
     if (data.slug !== undefined) patch.slug = data.slug;
     if (data.logo_url !== undefined) patch.logo_url = data.logo_url;
     if (data.is_active !== undefined) patch.is_active = data.is_active;
 
-    const { error } = await context.supabase.from("brands").update(patch).eq("id", data.id);
+    const { error } = await context.supabase.from("brands").update(patch as any).eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });
