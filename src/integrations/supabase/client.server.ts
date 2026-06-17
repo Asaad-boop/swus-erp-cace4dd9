@@ -16,7 +16,7 @@ function getServerEnv(key: string) {
 }
 
 function getSupabaseAdminConfig() {
-  const SUPABASE_URL = getServerEnv('SUPABASE_URL');
+  const SUPABASE_URL = getServerEnv('SUPABASE_URL') || getServerEnv('VITE_SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY =
     getServerEnv('SUPABASE_SERVICE_ROLE_KEY') || getServerEnv('ADMIN_SERVICE_ROLE_KEY');
 

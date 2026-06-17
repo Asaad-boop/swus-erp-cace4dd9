@@ -29,6 +29,10 @@ function host(u: string | undefined | null): string | null {
   try { return new URL(u).host; } catch { return null; }
 }
 
+function envValue(...keys: string[]): string | undefined {
+  return keys.map((key) => process.env[key]).find(Boolean);
+}
+
 export const runDiagnostics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DiagnosticsResult> => {
@@ -79,9 +83,9 @@ export const runDiagnostics = createServerFn({ method: "POST" })
 
     return {
       server: {
-        supabaseUrlHost: host(process.env.SUPABASE_URL),
+        supabaseUrlHost: host(envValue("SUPABASE_URL", "VITE_SUPABASE_URL")),
         hasServiceRoleKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.ADMIN_SERVICE_ROLE_KEY),
-        hasPublishableKey: !!process.env.SUPABASE_PUBLISHABLE_KEY,
+        hasPublishableKey: !!envValue("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY"),
         nodeEnv: process.env.NODE_ENV ?? null,
         runtime: typeof (globalThis as any).EdgeRuntime === "string" ? "edge" : "node",
       },
