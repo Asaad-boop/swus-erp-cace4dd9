@@ -6137,6 +6137,35 @@ export type Database = {
           },
         ]
       }
+      user_brand_access: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_brand_access_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -6772,6 +6801,7 @@ export type Database = {
           total_debit: number
         }[]
       }
+      get_user_brand_ids: { Args: { _user_id?: string }; Returns: string[] }
       get_vat_summary: {
         Args: { p_brand: string; p_from: string; p_to: string }
         Returns: {
