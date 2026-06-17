@@ -35,6 +35,8 @@ export type CrmListResponse = {
     totalLtv: number;
     avgLtv: number;
     avgAov: number;
+    segmentCounts: Record<CrmSegment, number>;
+    newTrend: { date: string; count: number }[];
   };
 };
 
@@ -50,6 +52,7 @@ export type CrmFilters = {
   maxOrders?: number;
   lastOrderFrom?: string;
   lastOrderTo?: string;
+  hasEmail?: boolean;
 };
 
 export type CrmSort =
