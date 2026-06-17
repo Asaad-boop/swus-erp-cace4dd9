@@ -76,6 +76,7 @@ import { Route as AuthenticatedErpCrmCustomerIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './routes/_authenticated/erp.marketing.campaigns.index'
 import { Route as AuthenticatedErpImportsOrdersIndexRouteImport } from './routes/_authenticated/erp.imports.orders.index'
 import { Route as AuthenticatedErpHrEmployeesIndexRouteImport } from './routes/_authenticated/erp.hr.employees.index'
+import { Route as AuthenticatedErpHrAttendanceIndexRouteImport } from './routes/_authenticated/erp.hr.attendance.index'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_authenticated/erp.imports.orders.new'
 import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
@@ -467,6 +468,12 @@ const AuthenticatedErpHrEmployeesIndexRoute =
     path: '/employees/',
     getParentRoute: () => AuthenticatedErpHrRoute,
   } as any)
+const AuthenticatedErpHrAttendanceIndexRoute =
+  AuthenticatedErpHrAttendanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedErpHrAttendanceRoute,
+  } as any)
 const AuthenticatedErpMarketingCampaignsCampaignIdRoute =
   AuthenticatedErpMarketingCampaignsCampaignIdRouteImport.update({
     id: '/campaigns/$campaignId',
@@ -532,7 +539,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
-  '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRoute
+  '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
   '/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
@@ -567,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/erp/hr/attendance/': typeof AuthenticatedErpHrAttendanceIndexRoute
   '/erp/hr/employees/': typeof AuthenticatedErpHrEmployeesIndexRoute
   '/erp/imports/orders/': typeof AuthenticatedErpImportsOrdersIndexRoute
   '/erp/marketing/campaigns/': typeof AuthenticatedErpMarketingCampaignsIndexRoute
@@ -597,7 +605,6 @@ export interface FileRoutesByTo {
   '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
-  '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRoute
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
   '/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
@@ -632,6 +639,7 @@ export interface FileRoutesByTo {
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceIndexRoute
   '/erp/hr/employees': typeof AuthenticatedErpHrEmployeesIndexRoute
   '/erp/imports/orders': typeof AuthenticatedErpImportsOrdersIndexRoute
   '/erp/marketing/campaigns': typeof AuthenticatedErpMarketingCampaignsIndexRoute
@@ -672,7 +680,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/_authenticated/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/_authenticated/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
-  '/_authenticated/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRoute
+  '/_authenticated/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
   '/_authenticated/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/_authenticated/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
   '/_authenticated/erp/hr/leave': typeof AuthenticatedErpHrLeaveRoute
@@ -707,6 +715,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/_authenticated/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
+  '/_authenticated/erp/hr/attendance/': typeof AuthenticatedErpHrAttendanceIndexRoute
   '/_authenticated/erp/hr/employees/': typeof AuthenticatedErpHrEmployeesIndexRoute
   '/_authenticated/erp/imports/orders/': typeof AuthenticatedErpImportsOrdersIndexRoute
   '/_authenticated/erp/marketing/campaigns/': typeof AuthenticatedErpMarketingCampaignsIndexRoute
@@ -782,6 +791,7 @@ export interface FileRouteTypes {
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
+    | '/erp/hr/attendance/'
     | '/erp/hr/employees/'
     | '/erp/imports/orders/'
     | '/erp/marketing/campaigns/'
@@ -812,7 +822,6 @@ export interface FileRouteTypes {
     | '/erp/finance/simple'
     | '/erp/finance/taxes'
     | '/erp/finance/wallets'
-    | '/erp/hr/attendance'
     | '/erp/hr/departments'
     | '/erp/hr/designations'
     | '/erp/hr/leave'
@@ -847,6 +856,7 @@ export interface FileRouteTypes {
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
+    | '/erp/hr/attendance'
     | '/erp/hr/employees'
     | '/erp/imports/orders'
     | '/erp/marketing/campaigns'
@@ -921,6 +931,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/imports/orders/$orderId'
     | '/_authenticated/erp/imports/orders/new'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
+    | '/_authenticated/erp/hr/attendance/'
     | '/_authenticated/erp/hr/employees/'
     | '/_authenticated/erp/imports/orders/'
     | '/_authenticated/erp/marketing/campaigns/'
@@ -1409,6 +1420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpHrEmployeesIndexRouteImport
       parentRoute: typeof AuthenticatedErpHrRoute
     }
+    '/_authenticated/erp/hr/attendance/': {
+      id: '/_authenticated/erp/hr/attendance/'
+      path: '/'
+      fullPath: '/erp/hr/attendance/'
+      preLoaderRoute: typeof AuthenticatedErpHrAttendanceIndexRouteImport
+      parentRoute: typeof AuthenticatedErpHrAttendanceRoute
+    }
     '/_authenticated/erp/marketing/campaigns/$campaignId': {
       id: '/_authenticated/erp/marketing/campaigns/$campaignId'
       path: '/campaigns/$campaignId'
@@ -1511,8 +1529,23 @@ const AuthenticatedErpFinanceRouteWithChildren =
     AuthenticatedErpFinanceRouteChildren,
   )
 
+interface AuthenticatedErpHrAttendanceRouteChildren {
+  AuthenticatedErpHrAttendanceIndexRoute: typeof AuthenticatedErpHrAttendanceIndexRoute
+}
+
+const AuthenticatedErpHrAttendanceRouteChildren: AuthenticatedErpHrAttendanceRouteChildren =
+  {
+    AuthenticatedErpHrAttendanceIndexRoute:
+      AuthenticatedErpHrAttendanceIndexRoute,
+  }
+
+const AuthenticatedErpHrAttendanceRouteWithChildren =
+  AuthenticatedErpHrAttendanceRoute._addFileChildren(
+    AuthenticatedErpHrAttendanceRouteChildren,
+  )
+
 interface AuthenticatedErpHrRouteChildren {
-  AuthenticatedErpHrAttendanceRoute: typeof AuthenticatedErpHrAttendanceRoute
+  AuthenticatedErpHrAttendanceRoute: typeof AuthenticatedErpHrAttendanceRouteWithChildren
   AuthenticatedErpHrDepartmentsRoute: typeof AuthenticatedErpHrDepartmentsRoute
   AuthenticatedErpHrDesignationsRoute: typeof AuthenticatedErpHrDesignationsRoute
   AuthenticatedErpHrLeaveRoute: typeof AuthenticatedErpHrLeaveRoute
@@ -1524,7 +1557,8 @@ interface AuthenticatedErpHrRouteChildren {
 }
 
 const AuthenticatedErpHrRouteChildren: AuthenticatedErpHrRouteChildren = {
-  AuthenticatedErpHrAttendanceRoute: AuthenticatedErpHrAttendanceRoute,
+  AuthenticatedErpHrAttendanceRoute:
+    AuthenticatedErpHrAttendanceRouteWithChildren,
   AuthenticatedErpHrDepartmentsRoute: AuthenticatedErpHrDepartmentsRoute,
   AuthenticatedErpHrDesignationsRoute: AuthenticatedErpHrDesignationsRoute,
   AuthenticatedErpHrLeaveRoute: AuthenticatedErpHrLeaveRoute,
