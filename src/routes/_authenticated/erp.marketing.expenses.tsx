@@ -60,8 +60,10 @@ function categoryBadge(c: string) {
 
 function ExpensesPage() {
   const qc = useQueryClient();
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { activeBrand, brands, isAllBrands } = useBrand();
+  const [pickedBrandId, setPickedBrandId] = useState<string>("");
+  const effectiveBrand = activeBrand ?? brands.find((b) => b.id === pickedBrandId) ?? null;
+  const brandId = effectiveBrand?.id ?? null;
 
   const [open, setOpen] = useState(false);
 
@@ -101,6 +103,21 @@ function ExpensesPage() {
   }, [rows]);
 
   if (!brandId) {
+    if (isAllBrands) {
+      return (
+        <Card>
+          <CardContent className="py-8 space-y-3 max-w-sm">
+            <p className="text-sm">All-Brands mode — kon brand er expenses dekhbe?</p>
+            <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
+              <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
+              <SelectContent>
+                {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      );
+    }
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
