@@ -267,6 +267,48 @@ function AgentOrderDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={arrivedOpen} onOpenChange={setArrivedOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Arrived in BD</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground">
+              PO <b>{po.po_number}</b> ke "Arrived in BD" status e move korbe. Shipping date ar total weight diye dao.
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="shipped_at">Shipping Date</Label>
+              <Input id="shipped_at" type="date" value={shippedAt} onChange={(e) => setShippedAt(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="weight_kg">Total Weight (KG)</Label>
+              <Input
+                id="weight_kg"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 45.5"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setArrivedOpen(false)}>Cancel</Button>
+            <Button
+              disabled={arrivedMut.isPending || !shippedAt || !weightKg || Number(weightKg) <= 0}
+              onClick={() => arrivedMut.mutate({
+                poId: po.id,
+                shipped_at: shippedAt,
+                total_weight_kg: Number(weightKg),
+              })}
+            >
+              {arrivedMut.isPending ? "Saving…" : "Confirm Arrival"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
