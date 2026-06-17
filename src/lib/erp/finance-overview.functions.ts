@@ -83,8 +83,8 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       supabase.from("product_variants").select("product_id,stock"),
       supabase.from("orders").select("total,subtotal,created_at").in("status", ["delivered", "partial_delivered", "paid"]).in("brand_id", brandIds).gte("created_at", fromTs).lte("created_at", toTs),
       supabase.from("orders").select("total").in("status", ["returned", "paid_return", "unpaid_return", "partial_return"]).in("brand_id", brandIds).gte("created_at", fromTs).lte("created_at", toTs),
-      supabase.from("orders").select("total,id,courier_shipments!inner(provider)").in("status", ["shipped", "delivered", "partial_delivered"]).in("brand_id", brandIds),
-      supabase.from("orders").select("id,total,customer_name,customer_phone").in("status", ["delivered", "partial_delivered"]).eq("payment_status", "unpaid").in("brand_id", brandIds).limit(1000),
+      supabase.from("orders").select("total,id").in("status", ["shipped", "delivered", "partial_delivered"]).in("brand_id", brandIds).limit(2000),
+      supabase.from("orders").select("id,total,shipping_name,shipping_phone").in("status", ["delivered", "partial_delivered"]).eq("payment_status", "unpaid").in("brand_id", brandIds).limit(1000),
       supabase.from("erp_transactions").select("id,txn_type,amount,category_id,transaction_date,account_id").in("brand_id", brandIds).gte("transaction_date", from).lte("transaction_date", to),
       supabase.from("erp_transactions").select("id,txn_type,amount,transaction_date,description,category_id,account_id").in("brand_id", brandIds).order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).limit(10),
       supabase.from("erp_expense_categories").select("id,name").in("brand_id", brandIds),
@@ -141,16 +141,38 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     const revenue = sum(rangeOrdRes.data as { total: number }[] | null, (x) => num(x.total));
     const refundLoss = sum(refundOrdRes.data as { total: number }[] | null, (x) => num(x.total));
 
-    // COD receivable by courier
-    const codByCourier = new Map<string, { amount: number; orders: number }>();
+    // COD receivable by courier — fetch shipments separately and join in-memory
+    const codOrders = (codOrdRes.data ?? []) as { id: string; total: number }[];
+    const codOrderMap = new Map(codOrders.map((o) => [o.id, num(o.total)]));
+    const orderIds = codOrders.map((o) => o.id);
     let codReceivable = 0;
-    for (const r of (codOrdRes.data ?? []) as { total: number; courier_shipments: { provider: string }[] | null }[]) {
-      const provider = r.courier_shipments?.[0]?.provider ?? "unknown";
-      const cur = codByCourier.get(provider) ?? { amount: 0, orders: 0 };
-      cur.amount += num(r.total);
-      cur.orders += 1;
-      codByCourier.set(provider, cur);
-      codReceivable += num(r.total);
+    const codByCourier = new Map<string, { amount: number; orders: number }>();
+    if (orderIds.length > 0) {
+      const { data: ships } = await supabase
+        .from("courier_shipments")
+        .select("order_id,provider")
+        .in("order_id", orderIds);
+      const seen = new Set<string>();
+      for (const s of (ships ?? []) as { order_id: string; provider: string | null }[]) {
+        if (seen.has(s.order_id)) continue;
+        seen.add(s.order_id);
+        const amt = codOrderMap.get(s.order_id) ?? 0;
+        const provider = s.provider ?? "unknown";
+        const cur = codByCourier.get(provider) ?? { amount: 0, orders: 0 };
+        cur.amount += amt;
+        cur.orders += 1;
+        codByCourier.set(provider, cur);
+        codReceivable += amt;
+      }
+      // Orders without a shipment row
+      let noShipAmt = 0; let noShipCount = 0;
+      for (const o of codOrders) {
+        if (!seen.has(o.id)) { noShipAmt += num(o.total); noShipCount += 1; }
+      }
+      if (noShipCount > 0) {
+        codByCourier.set("no_shipment", { amount: noShipAmt, orders: noShipCount });
+        codReceivable += noShipAmt;
+      }
     }
     const codByCourierArr = Array.from(codByCourier.entries())
       .map(([provider, v]) => ({ provider, ...v }))
@@ -159,9 +181,9 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     // AR top (by phone/customer aggregate)
     const arMap = new Map<string, { name: string; phone: string | null; amount: number; orders: number }>();
     let arDue = 0;
-    for (const o of (arOrdRes.data ?? []) as { total: number; customer_name: string | null; customer_phone: string | null }[]) {
-      const key = (o.customer_phone || o.customer_name || "Unknown").toString();
-      const cur = arMap.get(key) ?? { name: o.customer_name ?? "Unknown", phone: o.customer_phone, amount: 0, orders: 0 };
+    for (const o of (arOrdRes.data ?? []) as { total: number; shipping_name: string | null; shipping_phone: string | null }[]) {
+      const key = (o.shipping_phone || o.shipping_name || "Unknown").toString();
+      const cur = arMap.get(key) ?? { name: o.shipping_name ?? "Unknown", phone: o.shipping_phone, amount: 0, orders: 0 };
       cur.amount += num(o.total);
       cur.orders += 1;
       arMap.set(key, cur);
