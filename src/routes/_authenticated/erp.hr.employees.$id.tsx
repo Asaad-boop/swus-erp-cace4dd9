@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Phone, Mail, Building2, BadgeCheck, Calendar } from "lucide-react";
+import { ArrowLeft, Trash2, Phone, Mail, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { EmployeeForm } from "@/components/erp/hr/employee-form";
 import { getEmployee, updateEmployee, deleteEmployee } from "@/lib/erp/hr/hr.functions";
+import { useHrAccess } from "@/lib/erp/hr/role-gate";
+import { PhotoUpload } from "@/components/erp/hr/profile/photo-upload";
+import { SalaryTab } from "@/components/erp/hr/profile/salary-tab";
+import { DocumentsTab } from "@/components/erp/hr/profile/documents-tab";
+import { HistoryTab } from "@/components/erp/hr/profile/history-tab";
+import {
+  AttendanceSummaryTab,
+  LeaveSummaryTab,
+} from "@/components/erp/hr/profile/summary-tabs";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/employees/$id")({
   head: () => ({ meta: [{ title: "Employee — HR" }] }),
@@ -20,6 +29,7 @@ function EmployeeDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const access = useHrAccess();
   const getFn = useServerFn(getEmployee);
   const updateFn = useServerFn(updateEmployee);
   const delFn = useServerFn(deleteEmployee);
@@ -50,6 +60,9 @@ function EmployeeDetail() {
 
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
   if (!data) return <div className="p-6">Not found</div>;
+  if (!access.canAccess && !access.isLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">You don't have access to HR.</div>;
+  }
   const e = data.employee;
 
   return (
@@ -63,9 +76,12 @@ function EmployeeDetail() {
         <Card>
           <CardContent className="p-5 flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-start gap-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                {e.full_name.charAt(0).toUpperCase()}
-              </div>
+              <PhotoUpload
+                employeeId={e.id}
+                currentUrl={e.photo_url}
+                fullName={e.full_name}
+                canEdit={access.canManageEmployees}
+              />
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold">{e.full_name}</h1>
@@ -79,19 +95,25 @@ function EmployeeDetail() {
                 </div>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => {
-              if (confirm(`Delete ${e.full_name}?`)) delMut.mutate();
-            }}>
-              <Trash2 className="h-4 w-4 mr-1.5" /> Delete
-            </Button>
+            {access.canDelete && (
+              <Button variant="outline" size="sm" onClick={() => {
+                if (confirm(`Delete ${e.full_name}?`)) delMut.mutate();
+              }}>
+                <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+              </Button>
+            )}
           </CardContent>
         </Card>
 
         <Tabs defaultValue="profile">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="history">History ({data.history.length})</TabsTrigger>
-            <TabsTrigger value="documents">Documents ({data.documents.length})</TabsTrigger>
+            <TabsTrigger value="employment">Employment</TabsTrigger>
+            <TabsTrigger value="salary">Salary</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="leave">Leave</TabsTrigger>
           </TabsList>
           <TabsContent value="profile" className="mt-4">
             <EmployeeForm
@@ -101,33 +123,33 @@ function EmployeeDetail() {
               submitLabel="Save Changes"
             />
           </TabsContent>
-          <TabsContent value="history" className="mt-4">
-            <Card>
-              <CardContent className="p-5">
-                {data.history.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No history events.</div>
-                ) : (
-                  <ul className="space-y-3">
-                    {data.history.map((h: any) => (
-                      <li key={h.id} className="border-l-2 border-primary/40 pl-3 py-1">
-                        <div className="text-sm font-medium capitalize">{h.event_type.replace("_"," ")}</div>
-                        <div className="text-xs text-muted-foreground">{h.event_date}</div>
-                        {h.from_value && <div className="text-xs">From: <code>{JSON.stringify(h.from_value)}</code></div>}
-                        {h.to_value && <div className="text-xs">To: <code>{JSON.stringify(h.to_value)}</code></div>}
-                        {h.notes && <div className="text-sm mt-1">{h.notes}</div>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="employment" className="mt-4">
+            <EmployeeForm
+              initial={e}
+              onSubmit={async (d) => { await mut.mutateAsync(d); }}
+              submitting={mut.isPending}
+              submitLabel="Save Changes"
+            />
+          </TabsContent>
+          <TabsContent value="salary" className="mt-4">
+            <SalaryTab
+              employeeId={e.id}
+              initial={e}
+              canEdit={access.canSeeSalary}
+              canView={access.canSeeSalary}
+            />
           </TabsContent>
           <TabsContent value="documents" className="mt-4">
-            <Card>
-              <CardContent className="p-5 text-sm text-muted-foreground">
-                Document management aschhe upcoming phase-e.
-              </CardContent>
-            </Card>
+            <DocumentsTab employeeId={e.id} canEdit={access.canManageDocuments} />
+          </TabsContent>
+          <TabsContent value="history" className="mt-4">
+            <HistoryTab employeeId={e.id} canEdit={access.canManageEmployees} />
+          </TabsContent>
+          <TabsContent value="attendance" className="mt-4">
+            <AttendanceSummaryTab employeeId={e.id} />
+          </TabsContent>
+          <TabsContent value="leave" className="mt-4">
+            <LeaveSummaryTab employeeId={e.id} />
           </TabsContent>
         </Tabs>
       </div>
