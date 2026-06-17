@@ -193,9 +193,9 @@ function AgentOrderDetail() {
               <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Akhono kono payment nei.</TableCell></TableRow>
             ) : payments.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="text-sm">{p.paid_on}</TableCell>
-                <TableCell className="text-sm">{p.method ?? "—"}</TableCell>
-                <TableCell className="text-sm">{p.payee_type ?? "—"}</TableCell>
+                <TableCell className="text-sm">{p.payment_date}</TableCell>
+                <TableCell className="text-sm capitalize">{p.payment_type ?? "—"}</TableCell>
+                <TableCell className="text-sm">{p.reference ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{p.notes ?? ""}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium text-emerald-600">{fmtBdt(p.amount_bdt)}</TableCell>
               </TableRow>
