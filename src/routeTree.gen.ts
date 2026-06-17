@@ -24,6 +24,7 @@ import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpImportsRouteImport } from './routes/_authenticated/erp.imports'
 import { Route as AuthenticatedErpHrRouteImport } from './routes/_authenticated/erp.hr'
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
+import { Route as AuthenticatedErpDiagnosticsRouteImport } from './routes/_authenticated/erp.diagnostics'
 import { Route as AuthenticatedErpCrmRouteImport } from './routes/_authenticated/erp.crm'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
@@ -168,6 +169,12 @@ const AuthenticatedErpFinanceRoute = AuthenticatedErpFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedErpDiagnosticsRoute =
+  AuthenticatedErpDiagnosticsRouteImport.update({
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
 const AuthenticatedErpCrmRoute = AuthenticatedErpCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
@@ -553,6 +560,7 @@ export interface FileRoutesByFullPath {
   '/erp': typeof AuthenticatedErpRouteWithChildren
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
+  '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/erp/hr': typeof AuthenticatedErpHrRouteWithChildren
   '/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
@@ -631,6 +639,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -705,6 +714,7 @@ export interface FileRoutesById {
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
+  '/_authenticated/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/_authenticated/erp/hr': typeof AuthenticatedErpHrRouteWithChildren
   '/_authenticated/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
@@ -787,6 +797,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/erp/courier'
     | '/erp/crm'
+    | '/erp/diagnostics'
     | '/erp/finance'
     | '/erp/hr'
     | '/erp/imports'
@@ -865,6 +876,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp/courier'
+    | '/erp/diagnostics'
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
@@ -938,6 +950,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp'
     | '/_authenticated/erp/courier'
     | '/_authenticated/erp/crm'
+    | '/_authenticated/erp/diagnostics'
     | '/_authenticated/erp/finance'
     | '/_authenticated/erp/hr'
     | '/_authenticated/erp/imports'
@@ -1130,6 +1143,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/erp/finance'
       preLoaderRoute: typeof AuthenticatedErpFinanceRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/diagnostics': {
+      id: '/_authenticated/erp/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/erp/diagnostics'
+      preLoaderRoute: typeof AuthenticatedErpDiagnosticsRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/crm': {
@@ -1818,6 +1838,7 @@ const AuthenticatedErpReconciliationRouteWithChildren =
 interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
   AuthenticatedErpCrmRoute: typeof AuthenticatedErpCrmRouteWithChildren
+  AuthenticatedErpDiagnosticsRoute: typeof AuthenticatedErpDiagnosticsRoute
   AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRouteWithChildren
   AuthenticatedErpHrRoute: typeof AuthenticatedErpHrRouteWithChildren
   AuthenticatedErpImportsRoute: typeof AuthenticatedErpImportsRouteWithChildren
@@ -1834,6 +1855,7 @@ interface AuthenticatedErpRouteChildren {
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
   AuthenticatedErpCrmRoute: AuthenticatedErpCrmRouteWithChildren,
+  AuthenticatedErpDiagnosticsRoute: AuthenticatedErpDiagnosticsRoute,
   AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRouteWithChildren,
   AuthenticatedErpHrRoute: AuthenticatedErpHrRouteWithChildren,
   AuthenticatedErpImportsRoute: AuthenticatedErpImportsRouteWithChildren,
