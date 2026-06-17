@@ -112,7 +112,7 @@ export const updateCrmActivity = createServerFn({ method: "POST" })
     if (!Object.keys(patch).length) return { ok: true };
     const { error } = await context.supabase
       .from("crm_activities")
-      .update(patch)
+      .update(patch as any)
       .eq("id", data.id);
     if (error) throw error;
     return { ok: true };
@@ -256,7 +256,7 @@ export const updateCrmTask = createServerFn({ method: "POST" })
     if (p.assignedTo !== undefined) patch.assigned_to = p.assignedTo;
     const { error } = await context.supabase
       .from("crm_tasks")
-      .update(patch)
+      .update(patch as any)
       .eq("id", data.id);
     if (error) throw error;
     return { ok: true };
