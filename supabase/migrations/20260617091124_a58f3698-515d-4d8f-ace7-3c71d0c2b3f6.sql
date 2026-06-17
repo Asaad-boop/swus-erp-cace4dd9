@@ -1,0 +1,2 @@
+UPDATE public.brands SET name = 'Toyora', slug = 'toyora' WHERE slug = 'playora' OR lower(name) = 'playora';
+UPDATE public.brands SET name = 'HobbyShop' WHERE slug = 'hobby-shop' OR lower(name) IN ('hobby shop','hobbyshop');
