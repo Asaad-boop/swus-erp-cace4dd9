@@ -33,13 +33,21 @@ function attachRuntimeEnv(env: unknown) {
     const value = runtimeEnv[key];
     if (typeof value === "string" && value.length > 0) {
       globalThis.__LOVABLE_RUNTIME_ENV__[key] = value;
-      if (!process.env[key]) process.env[key] = value;
+      process.env[key] = value;
     }
   }
 
   if (!globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY) {
     const anonKey = globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_ANON_KEY;
     if (anonKey) globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY = anonKey;
+  }
+
+  if (!globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_SERVICE_ROLE_KEY) {
+    const adminKey = globalThis.__LOVABLE_RUNTIME_ENV__.ADMIN_SERVICE_ROLE_KEY;
+    if (adminKey) {
+      globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_SERVICE_ROLE_KEY = adminKey;
+      process.env.SUPABASE_SERVICE_ROLE_KEY = adminKey;
+    }
   }
 }
 

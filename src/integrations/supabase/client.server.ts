@@ -12,7 +12,7 @@ declare global {
 }
 
 function getServerEnv(key: string) {
-  return process.env[key] || globalThis.__LOVABLE_RUNTIME_ENV__?.[key];
+  return globalThis.__LOVABLE_RUNTIME_ENV__?.[key] || process.env[key];
 }
 
 function getSupabaseAdminConfig() {
@@ -27,7 +27,7 @@ export function getSupabaseAdminMissingEnv() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getSupabaseAdminConfig();
   return [
     ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-    ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
+    ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY or ADMIN_SERVICE_ROLE_KEY'] : []),
   ];
 }
 
@@ -54,10 +54,20 @@ function createSupabaseAdminClient() {
 }
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
+let _supabaseAdminSignature: string | undefined;
+
+function getSupabaseAdminSignature() {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getSupabaseAdminConfig();
+  return `${SUPABASE_URL ?? ''}:${SUPABASE_SERVICE_ROLE_KEY ?? ''}`;
+}
 
 export function tryGetSupabaseAdmin() {
   if (!isSupabaseAdminConfigured()) return null;
-  if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
+  const signature = getSupabaseAdminSignature();
+  if (!_supabaseAdmin || _supabaseAdminSignature !== signature) {
+    _supabaseAdmin = createSupabaseAdminClient();
+    _supabaseAdminSignature = signature;
+  }
   return _supabaseAdmin;
 }
 
@@ -67,7 +77,11 @@ export function tryGetSupabaseAdmin() {
 // Top-level import is safe only in other .server.ts modules - route files and *.functions.ts ship to the client bundle.
 export const supabaseAdmin = new Proxy({} as ReturnType<typeof createSupabaseAdminClient>, {
   get(_, prop, receiver) {
-    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
+    const signature = getSupabaseAdminSignature();
+    if (!_supabaseAdmin || _supabaseAdminSignature !== signature) {
+      _supabaseAdmin = createSupabaseAdminClient();
+      _supabaseAdminSignature = signature;
+    }
     return Reflect.get(_supabaseAdmin, prop, receiver);
   },
 });
