@@ -2564,6 +2564,53 @@ export type Database = {
         }
         Relationships: []
       }
+      imp_cargo_agent_rates: {
+        Row: {
+          agent_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          fx_rate: number
+          id: string
+          note: string | null
+          rate_date: string
+          shipping_rate_per_kg_bdt: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          fx_rate: number
+          id?: string
+          note?: string | null
+          rate_date?: string
+          shipping_rate_per_kg_bdt: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          fx_rate?: number
+          id?: string
+          note?: string | null
+          rate_date?: string
+          shipping_rate_per_kg_bdt?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_agent_rates_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imp_cargo_agents: {
         Row: {
           address: string | null

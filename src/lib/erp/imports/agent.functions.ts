@@ -140,3 +140,60 @@ export const requestCartonRelease = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+/* ============= Daily rate (cargo agent) ============= */
+
+export const submitTodayRate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    shipping_rate_per_kg_bdt: number;
+    fx_rate: number;
+    currency?: string;
+    note?: string;
+    rate_date?: string;
+  }) =>
+    z.object({
+      shipping_rate_per_kg_bdt: z.number().positive(),
+      fx_rate: z.number().positive(),
+      currency: z.string().min(1).max(8).optional(),
+      note: z.string().max(500).optional(),
+      rate_date: z.string().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const agent = await resolveAgentId(context.supabase, context.userId);
+    const today = data.rate_date ?? new Date().toISOString().slice(0, 10);
+    const payload = {
+      agent_id: agent.id,
+      rate_date: today,
+      shipping_rate_per_kg_bdt: data.shipping_rate_per_kg_bdt,
+      currency: data.currency ?? agent.default_currency ?? "CNY",
+      fx_rate: data.fx_rate,
+      note: data.note ?? null,
+      created_by: context.userId,
+    };
+    const { data: row, error } = await context.supabase
+      .from("imp_cargo_agent_rates")
+      .upsert(payload, { onConflict: "agent_id,rate_date" })
+      .select("id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, note, updated_at")
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+export const listMyRates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { limit?: number }) =>
+    z.object({ limit: z.number().int().min(1).max(365).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const agent = await resolveAgentId(context.supabase, context.userId);
+    const { data: rows, error } = await context.supabase
+      .from("imp_cargo_agent_rates")
+      .select("id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, note, updated_at")
+      .eq("agent_id", agent.id)
+      .order("rate_date", { ascending: false })
+      .limit(data.limit ?? 60);
+    if (error) throw error;
+    return rows ?? [];
+  });

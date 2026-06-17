@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Pencil, Truck, Users, Loader2 } from "lucide-react";
+import { Plus, Pencil, Truck, Users, Loader2, History, TrendingUp, TrendingDown, Minus, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   listCargoAgents, upsertCargoAgent,
   listImportSuppliers, upsertImportSupplier,
+  listCargoAgentRates,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt } from "@/lib/erp/imports/types";
 
@@ -57,6 +58,7 @@ function AgentsTab({ brandId }: { brandId: string }) {
     queryFn: () => listFn({ data: { brandId } }),
   });
   const [editing, setEditing] = useState<any | null>(null);
+  const [historyFor, setHistoryFor] = useState<any | null>(null);
 
   return (
     <>
@@ -66,22 +68,7 @@ function AgentsTab({ brandId }: { brandId: string }) {
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
         {(agents as any[]).length === 0 && <Card className="p-8 text-center text-sm text-muted-foreground col-span-full">No cargo agents yet.</Card>}
-        {(agents as any[]).map((a) => (
-          <Card key={a.id} className="p-4 hover:border-primary/40 transition">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0">
-                <div className="font-semibold truncate">{a.name}</div>
-                <div className="text-xs text-muted-foreground">{a.phone ?? "No phone"}</div>
-              </div>
-              <Badge variant={a.is_active ? "default" : "secondary"}>{a.is_active ? "Active" : "Inactive"}</Badge>
-            </div>
-            <div className="mt-3 space-y-1 text-xs">
-              <div className="flex justify-between"><span className="text-muted-foreground">Rate</span><span className="font-medium tabular-nums">{fmtBdt(a.default_shipping_rate_per_kg_bdt)}/kg</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Default FX</span><span className="font-medium tabular-nums">{a.default_fx_rate} {a.default_currency ?? "CNY"}/BDT</span></div>
-            </div>
-            <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setEditing(a)}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
-          </Card>
-        ))}
+        {(agents as any[]).map((a) => <AgentCard key={a.id} agent={a} onEdit={() => setEditing(a)} onHistory={() => setHistoryFor(a)} />)}
       </div>
       {editing && (
         <AgentDialog
@@ -96,7 +83,116 @@ function AgentsTab({ brandId }: { brandId: string }) {
           }}
         />
       )}
+      {historyFor && (
+        <RateHistoryDialog agent={historyFor} onClose={() => setHistoryFor(null)} />
+      )}
     </>
+  );
+}
+
+function AgentCard({ agent: a, onEdit, onHistory }: { agent: any; onEdit: () => void; onHistory: () => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const latest = a.latest_rate as any | null;
+  const isToday = latest?.rate_date === today;
+  return (
+    <Card className="p-4 hover:border-primary/40 transition">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <div className="font-semibold truncate">{a.name}</div>
+          <div className="text-xs text-muted-foreground">{a.phone ?? "No phone"}</div>
+        </div>
+        <Badge variant={a.is_active ? "default" : "secondary"}>{a.is_active ? "Active" : "Inactive"}</Badge>
+      </div>
+
+      {/* Today's rate band */}
+      <div className={`mt-3 rounded-md border px-3 py-2 ${isToday ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-muted-foreground">
+            <CalendarDays className="h-3 w-3" />
+            {isToday ? "Today's Rate" : latest ? "Last Submitted" : "No rate submitted"}
+          </div>
+          {latest && (
+            <span className="text-[10px] text-muted-foreground">{latest.rate_date}</span>
+          )}
+        </div>
+        {latest ? (
+          <div className="mt-1 flex items-baseline justify-between gap-2">
+            <div>
+              <span className="text-lg font-bold tabular-nums">{Number(latest.shipping_rate_per_kg_bdt).toFixed(2)}</span>
+              <span className="text-xs text-muted-foreground ml-1">BDT/kg</span>
+            </div>
+            <div className="text-xs text-muted-foreground tabular-nums">FX {Number(latest.fx_rate).toFixed(2)}</div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground mt-1">Agent ekhono kono rate diy ni</div>
+        )}
+      </div>
+
+      <div className="mt-3 space-y-1 text-xs">
+        <div className="flex justify-between"><span className="text-muted-foreground">Default Rate</span><span className="font-medium tabular-nums">{fmtBdt(a.default_shipping_rate_per_kg_bdt)}/kg</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Default FX</span><span className="font-medium tabular-nums">{a.default_fx_rate} {a.default_currency ?? "CNY"}/BDT</span></div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" onClick={onHistory}><History className="h-3.5 w-3.5 mr-1" />History</Button>
+        <Button size="sm" variant="outline" onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
+      </div>
+    </Card>
+  );
+}
+
+function RateHistoryDialog({ agent, onClose }: { agent: any; onClose: () => void }) {
+  const fn = useServerFn(listCargoAgentRates);
+  const { data: rates = [], isLoading } = useQuery({
+    queryKey: ["imp-agent-rates", agent.id],
+    queryFn: () => fn({ data: { agentId: agent.id, limit: 90 } }),
+  });
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>{agent.name} — Rate History</DialogTitle></DialogHeader>
+        {isLoading ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : (rates as any[]).length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">Kono rate submit hoyni.</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted-foreground border-b border-border sticky top-0 bg-background">
+                <tr>
+                  <th className="text-left py-2 font-medium">Date</th>
+                  <th className="text-right py-2 font-medium">Shipping (BDT/kg)</th>
+                  <th className="text-right py-2 font-medium">FX</th>
+                  <th className="text-left py-2 font-medium pl-3">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(rates as any[]).map((r, idx, arr) => {
+                  const prev = arr[idx + 1];
+                  const delta = prev ? Number(r.shipping_rate_per_kg_bdt) - Number(prev.shipping_rate_per_kg_bdt) : 0;
+                  return (
+                    <tr key={r.id} className="border-b border-border/50 last:border-0">
+                      <td className="py-2 font-medium">{r.rate_date}</td>
+                      <td className="py-2 text-right tabular-nums">
+                        <span className="font-medium">{Number(r.shipping_rate_per_kg_bdt).toFixed(2)}</span>
+                        {prev && delta !== 0 && (
+                          <span className={`ml-2 inline-flex items-center text-[11px] ${delta > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                            {delta > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            {delta > 0 ? "+" : ""}{delta.toFixed(2)}
+                          </span>
+                        )}
+                        {prev && delta === 0 && <Minus className="inline h-3 w-3 ml-2 text-muted-foreground" />}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">{Number(r.fx_rate).toFixed(4)}</td>
+                      <td className="py-2 pl-3 text-muted-foreground truncate max-w-[240px]">{r.note ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -119,6 +119,38 @@ export const listCargoAgents = createServerFn({ method: "POST" })
       .eq("brand_id", data.brandId)
       .order("name");
     if (error) throw error;
+    const agents = rows ?? [];
+    if (agents.length === 0) return [];
+    // Attach latest daily rate for each agent
+    const ids = agents.map((a: any) => a.id);
+    const { data: rates } = await context.supabase
+      .from("imp_cargo_agent_rates")
+      .select("agent_id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, updated_at")
+      .in("agent_id", ids)
+      .order("rate_date", { ascending: false });
+    const latestByAgent = new Map<string, any>();
+    for (const r of rates ?? []) {
+      if (!latestByAgent.has(r.agent_id)) latestByAgent.set(r.agent_id, r);
+    }
+    return agents.map((a: any) => ({ ...a, latest_rate: latestByAgent.get(a.id) ?? null }));
+  });
+
+export const listCargoAgentRates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { agentId: string; limit?: number }) =>
+    z.object({
+      agentId: z.string().uuid(),
+      limit: z.number().int().min(1).max(365).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("imp_cargo_agent_rates")
+      .select("id, rate_date, shipping_rate_per_kg_bdt, currency, fx_rate, note, updated_at")
+      .eq("agent_id", data.agentId)
+      .order("rate_date", { ascending: false })
+      .limit(data.limit ?? 60);
+    if (error) throw error;
     return rows ?? [];
   });
 
