@@ -2862,6 +2862,14 @@ export type Database = {
       }
       hr_attendance: {
         Row: {
+          break_end: string | null
+          break_start: string | null
+          check_in_lat: number | null
+          check_in_lng: number | null
+          check_in_time: string | null
+          check_out_lat: number | null
+          check_out_lng: number | null
+          check_out_time: string | null
           created_at: string
           date: string
           early_leave_min: number
@@ -2875,13 +2883,23 @@ export type Database = {
           note: string | null
           ot_min: number
           out_time: string | null
+          selfie_url: string | null
           shift_id: string | null
           source: string
           status: string
+          total_hours: number | null
           updated_at: string
           work_min: number
         }
         Insert: {
+          break_end?: string | null
+          break_start?: string | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_in_time?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
+          check_out_time?: string | null
           created_at?: string
           date: string
           early_leave_min?: number
@@ -2895,13 +2913,23 @@ export type Database = {
           note?: string | null
           ot_min?: number
           out_time?: string | null
+          selfie_url?: string | null
           shift_id?: string | null
           source?: string
           status?: string
+          total_hours?: number | null
           updated_at?: string
           work_min?: number
         }
         Update: {
+          break_end?: string | null
+          break_start?: string | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_in_time?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
+          check_out_time?: string | null
           created_at?: string
           date?: string
           early_leave_min?: number
@@ -2915,9 +2943,11 @@ export type Database = {
           note?: string | null
           ot_min?: number
           out_time?: string | null
+          selfie_url?: string | null
           shift_id?: string | null
           source?: string
           status?: string
+          total_hours?: number | null
           updated_at?: string
           work_min?: number
         }
@@ -3036,36 +3066,48 @@ export type Database = {
           doc_type: string
           employee_id: string
           expiry_date: string | null
+          file_name: string | null
+          file_size: number | null
           file_url: string | null
           id: string
           issue_date: string | null
+          mime_type: string | null
           notes: string | null
           title: string | null
           updated_at: string
+          uploaded_by: string | null
         }
         Insert: {
           created_at?: string
           doc_type: string
           employee_id: string
           expiry_date?: string | null
+          file_name?: string | null
+          file_size?: number | null
           file_url?: string | null
           id?: string
           issue_date?: string | null
+          mime_type?: string | null
           notes?: string | null
           title?: string | null
           updated_at?: string
+          uploaded_by?: string | null
         }
         Update: {
           created_at?: string
           doc_type?: string
           employee_id?: string
           expiry_date?: string | null
+          file_name?: string | null
+          file_size?: number | null
           file_url?: string | null
           id?: string
           issue_date?: string | null
+          mime_type?: string | null
           notes?: string | null
           title?: string | null
           updated_at?: string
+          uploaded_by?: string | null
         }
         Relationships: [
           {
@@ -3166,6 +3208,7 @@ export type Database = {
           photo_url: string | null
           present_address: string | null
           probation_months: number | null
+          salary_structure: Json
           status: string
           tags: string[]
           tin: string | null
@@ -3217,6 +3260,7 @@ export type Database = {
           photo_url?: string | null
           present_address?: string | null
           probation_months?: number | null
+          salary_structure?: Json
           status?: string
           tags?: string[]
           tin?: string | null
@@ -3268,6 +3312,7 @@ export type Database = {
           photo_url?: string | null
           present_address?: string | null
           probation_months?: number | null
+          salary_structure?: Json
           status?: string
           tags?: string[]
           tin?: string | null
@@ -3581,6 +3626,132 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_payroll_runs: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          created_by: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          month: number
+          notes: string | null
+          status: string
+          total_employees: number
+          total_gross: number
+          total_net: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          month: number
+          notes?: string | null
+          status?: string
+          total_employees?: number
+          total_gross?: number
+          total_net?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          month?: number
+          notes?: string | null
+          status?: string
+          total_employees?: number
+          total_gross?: number
+          total_net?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      hr_payslips: {
+        Row: {
+          allowances: Json
+          basic: number
+          created_at: string
+          deductions: Json
+          employee_id: string
+          gross: number
+          id: string
+          net_pay: number
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_ref: string | null
+          payment_status: string
+          run_id: string
+          snapshot: Json
+          updated_at: string
+        }
+        Insert: {
+          allowances?: Json
+          basic?: number
+          created_at?: string
+          deductions?: Json
+          employee_id: string
+          gross?: number
+          id?: string
+          net_pay?: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_ref?: string | null
+          payment_status?: string
+          run_id: string
+          snapshot?: Json
+          updated_at?: string
+        }
+        Update: {
+          allowances?: Json
+          basic?: number
+          created_at?: string
+          deductions?: Json
+          employee_id?: string
+          gross?: number
+          id?: string
+          net_pay?: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_ref?: string | null
+          payment_status?: string
+          run_id?: string
+          snapshot?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslips_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_runs"
             referencedColumns: ["id"]
           },
         ]
