@@ -1,96 +1,160 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { BusinessSettings } from "@/components/erp/settings/business-settings";
-import { InvoiceSettings } from "@/components/erp/settings/invoice-settings";
-import { CourierMappingSettings } from "@/components/erp/settings/courier-mapping-settings";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Building, Building2, FileText, Truck, Wallet, Bell, Plug, Users, Database, AlertTriangle,
+} from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
-import { Building2 } from "lucide-react";
+import { BusinessSettings } from "@/components/erp/settings/business-settings";
+import { BrandsSection } from "@/components/erp/settings/sections/brands-section";
+import { InvoiceOrdersSection } from "@/components/erp/settings/sections/invoice-orders-section";
+import { CourierSection } from "@/components/erp/settings/sections/courier-section";
+import { FinanceSection } from "@/components/erp/settings/sections/finance-section";
+import { NotificationsSection } from "@/components/erp/settings/sections/notifications-section";
+import { IntegrationsSection } from "@/components/erp/settings/sections/integrations-section";
+import { UsersSection } from "@/components/erp/settings/sections/users-section";
+import { DataSystemSection } from "@/components/erp/settings/sections/data-system-section";
+import { DangerZoneSection } from "@/components/erp/settings/sections/danger-zone-section";
+import { cn } from "@/lib/utils";
+import { useCurrentRole } from "@/hooks/use-current-role";
 
 export const Route = createFileRoute("/_authenticated/erp/settings")({
   head: () => ({ meta: [{ title: "Settings — ERP" }] }),
   component: SettingsPage,
 });
 
+type SectionId =
+  | "business" | "brands" | "invoice" | "courier" | "finance"
+  | "notifications" | "integrations" | "users" | "data" | "danger";
+
+type SectionDef = {
+  id: SectionId;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  perBrand: boolean;
+  adminOnly?: boolean;
+};
+
+const SECTIONS: SectionDef[] = [
+  { id: "business",      label: "Business Profile", description: "Identity, contact, legal & defaults", icon: Building,       perBrand: true  },
+  { id: "brands",        label: "Brands",           description: "Add, edit, default brand",            icon: Building2,      perBrand: false },
+  { id: "invoice",       label: "Invoice & Orders", description: "Template, numbering, workflow",       icon: FileText,       perBrand: true  },
+  { id: "courier",       label: "Courier",          description: "Pathao, Steadfast, status mapping",   icon: Truck,          perBrand: true  },
+  { id: "finance",       label: "Finance",          description: "Accounting, FX, tax defaults",        icon: Wallet,         perBrand: true  },
+  { id: "notifications", label: "Notifications",    description: "Alerts, daily summaries",             icon: Bell,           perBrand: true  },
+  { id: "integrations",  label: "Integrations",     description: "Meta, Gemini, webhooks",              icon: Plug,           perBrand: true  },
+  { id: "users",         label: "Users",            description: "Roles & brand access",                icon: Users,          perBrand: false, adminOnly: true },
+  { id: "data",          label: "Data & System",    description: "Exports, activity, info",             icon: Database,       perBrand: true  },
+  { id: "danger",        label: "Danger Zone",      description: "Destructive actions",                 icon: AlertTriangle,  perBrand: true,  adminOnly: true },
+];
+
 function SettingsPage() {
-  const { brands, activeBrand, isAllBrands } = useBrand();
-  // Page-local brand selection — default to active brand, otherwise first.
-  const [selected, setSelected] = useState<string>(() => activeBrand?.id ?? brands[0]?.id ?? "");
+  const { brands, activeBrand } = useBrand();
+  const { isAdmin } = useCurrentRole();
+  const [section, setSection] = useState<SectionId>("business");
+  const [brandId, setBrandId] = useState<string>(() => activeBrand?.id ?? brands[0]?.id ?? "");
 
   useEffect(() => {
-    if (!selected && brands.length > 0) setSelected(activeBrand?.id ?? brands[0].id);
-    if (selected && !brands.some((b) => b.id === selected) && brands.length > 0) {
-      setSelected(brands[0].id);
+    if (brands.length === 0) return;
+    if (!brandId || !brands.some((b) => b.id === brandId)) {
+      setBrandId(activeBrand?.id ?? brands[0].id);
     }
-  }, [brands, activeBrand?.id, selected]);
+  }, [brands, activeBrand?.id, brandId]);
+
+  const visibleSections = useMemo(
+    () => SECTIONS.filter((s) => !s.adminOnly || isAdmin),
+    [isAdmin],
+  );
+  const currentDef = SECTIONS.find((s) => s.id === section)!;
 
   return (
-    <div className="p-4 md:p-6 bg-muted/20 min-h-screen">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className="min-h-screen bg-muted/20">
+      <header className="border-b bg-card">
+        <div className="px-4 md:px-6 py-4">
           <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Per-brand business, invoice and courier configuration
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">Configure brands, finance, integrations and team.</p>
         </div>
       </header>
 
-      {brands.length > 1 && (
-        <div className="mb-4 flex items-center gap-2 flex-wrap rounded-xl border bg-card p-2 shadow-sm">
-          <Building2 className="h-4 w-4 text-muted-foreground ml-1.5" />
-          <span className="text-xs font-medium text-muted-foreground mr-1">Editing brand:</span>
-          <div className="flex flex-wrap gap-1">
-            {brands.map((b) => {
-              const active = b.id === selected;
+      <div className="flex flex-col lg:flex-row gap-0 min-h-[calc(100vh-90px)]">
+        {/* LEFT NAV */}
+        <aside className="lg:w-64 lg:shrink-0 border-r bg-card lg:min-h-[calc(100vh-90px)]">
+          <nav className="p-2 space-y-0.5">
+            {visibleSections.map((s) => {
+              const Icon = s.icon;
+              const active = s.id === section;
               return (
                 <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setSelected(b.id)}
-                  className={
-                    "px-3 py-1.5 rounded-md text-xs font-semibold transition-colors " +
-                    (active
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-background border hover:bg-accent")
-                  }
+                  key={s.id}
+                  onClick={() => setSection(s.id)}
+                  className={cn(
+                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-md text-left transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "hover:bg-accent text-foreground/80",
+                  )}
                 >
-                  {b.name}
+                  <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", s.id === "danger" && "text-destructive")} />
+                  <span className="flex-1 min-w-0">
+                    <span className={cn("block text-sm font-medium", s.id === "danger" && "text-destructive")}>{s.label}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">{s.description}</span>
+                  </span>
                 </button>
               );
             })}
-          </div>
-          {isAllBrands && (
-            <span className="ml-auto text-[10px] text-muted-foreground italic pr-2">
-              All-Brands mode — change above to edit per brand
-            </span>
-          )}
-        </div>
-      )}
+          </nav>
+        </aside>
 
-      {!selected ? (
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          No brand available.
-        </div>
-      ) : (
-        <Tabs defaultValue="business" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="business">Business</TabsTrigger>
-            <TabsTrigger value="invoice">Invoice</TabsTrigger>
-            <TabsTrigger value="courier">Courier Mapping</TabsTrigger>
-          </TabsList>
-          {/* key={selected} forces a clean remount when switching brands so
-             cached form state from the previous brand doesn't leak in. */}
-          <TabsContent value="business">
-            <BusinessSettings key={selected} brandIdOverride={selected} />
-          </TabsContent>
-          <TabsContent value="invoice">
-            <InvoiceSettings key={selected} brandIdOverride={selected} />
-          </TabsContent>
-          <TabsContent value="courier">
-            <CourierMappingSettings key={selected} brandIdOverride={selected} />
-          </TabsContent>
-        </Tabs>
-      )}
+        {/* RIGHT CONTENT */}
+        <main className="flex-1 p-4 md:p-6 space-y-4 min-w-0">
+          {/* Per-brand picker — only when section is per-brand */}
+          {currentDef.perBrand && brands.length > 1 && (
+            <div className="flex items-center gap-2 flex-wrap rounded-lg border bg-card px-3 py-2 shadow-sm">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Editing brand:</span>
+              <div className="flex flex-wrap gap-1">
+                {brands.map((b) => {
+                  const a = b.id === brandId;
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => setBrandId(b.id)}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-semibold transition-colors",
+                        a ? "bg-primary text-primary-foreground" : "bg-background border hover:bg-accent",
+                      )}
+                    >
+                      {b.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {currentDef.perBrand && !brandId ? (
+            <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No brand available — create one in the Brands section.</div>
+          ) : (
+            <SectionRouter section={section} brandId={brandId} />
+          )}
+        </main>
+      </div>
     </div>
   );
+}
+
+function SectionRouter({ section, brandId }: { section: SectionId; brandId: string }) {
+  switch (section) {
+    case "business":      return <BusinessSettings key={brandId} brandIdOverride={brandId} />;
+    case "brands":        return <BrandsSection />;
+    case "invoice":       return <InvoiceOrdersSection key={brandId} brandId={brandId} />;
+    case "courier":       return <CourierSection key={brandId} brandId={brandId} />;
+    case "finance":       return <FinanceSection key={brandId} brandId={brandId} />;
+    case "notifications": return <NotificationsSection key={brandId} brandId={brandId} />;
+    case "integrations":  return <IntegrationsSection key={brandId} brandId={brandId} />;
+    case "users":         return <UsersSection />;
+    case "data":          return <DataSystemSection key={brandId} brandId={brandId} />;
+    case "danger":        return <DangerZoneSection key={brandId} brandId={brandId} />;
+    default:              return null;
+  }
 }
