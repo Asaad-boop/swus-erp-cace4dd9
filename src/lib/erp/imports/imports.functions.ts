@@ -115,7 +115,7 @@ export const listCargoAgents = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("imp_cargo_agents")
-      .select(`*, po_count:imp_purchase_orders(count)`)
+      .select(`*, po_count:imp_purchase_orders!imp_purchase_orders_cargo_agent_id_fkey(count)`)
       .eq("brand_id", data.brandId)
       .order("name");
     if (error) throw error;
