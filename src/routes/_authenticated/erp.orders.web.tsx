@@ -209,17 +209,19 @@ function AllItemsPopover({
 }
 
 function WebOrdersPage() {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
+  const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
+  const brandsKey = brandIds.join(",");
   const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
   const [incompletePage, setIncompletePage] = useState(0);
-  const { data: incompleteCount } = useAbandonedCartCount(activeBrand?.id ?? null);
+  const { data: incompleteCount } = useAbandonedCartCount(activeBrand?.id ?? null, brandIds);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["web-orders", activeBrand?.id, activeTab, search],
-    enabled: !!activeBrand?.id && activeTab !== "incomplete",
+    queryKey: ["web-orders", brandsKey, activeTab, search],
+    enabled: brandIds.length > 0 && activeTab !== "incomplete",
     queryFn: async () => {
       let q = supabase
         .from("orders")
@@ -227,7 +229,7 @@ function WebOrdersPage() {
           "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
-        .eq("brand_id", activeBrand!.id)
+        .in("brand_id", brandIds)
         .eq("source", "website")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -278,14 +280,14 @@ function WebOrdersPage() {
 
   // counts per status
   const { data: counts } = useQuery({
-    queryKey: ["web-orders-counts", activeBrand?.id],
-    enabled: !!activeBrand?.id,
+    queryKey: ["web-orders-counts", brandsKey],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       const result: Record<string, number> = { all: 0 };
       const { data, error } = await supabase
         .from("orders")
         .select("web_status")
-        .eq("brand_id", activeBrand!.id)
+        .in("brand_id", brandIds)
         .eq("source", "website")
         .limit(5000);
       if (error) throw error;
@@ -304,13 +306,13 @@ function WebOrdersPage() {
   const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
   const courierPhones = Array.from(new Set(phones.map(normalizePhone).filter(Boolean)));
   const { data: breakdowns } = useQuery({
-    queryKey: ["customer-breakdown", activeBrand?.id, phones.sort().join(",")],
-    enabled: !!activeBrand?.id && phones.length > 0,
+    queryKey: ["customer-breakdown", brandsKey, phones.sort().join(",")],
+    enabled: brandIds.length > 0 && phones.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("shipping_phone,guest_phone,web_status,status")
-        .eq("brand_id", activeBrand!.id)
+        .in("brand_id", brandIds)
         .or(phones.map((p) => `shipping_phone.eq.${p},guest_phone.eq.${p}`).join(","))
         .limit(5000);
       if (error) throw error;
@@ -337,7 +339,7 @@ function WebOrdersPage() {
   const fetchCourierHistory = useServerFn(fetchCourierHistoryFn);
   // FAST PATH: read DB-cached rows directly so cards appear instantly on reload
   const { data: cachedCourierHistory } = useQuery({
-    queryKey: ["courier-history-cache", activeBrand?.id, courierPhones.sort().join(",")],
+    queryKey: ["courier-history-cache", brandsKey, courierPhones.sort().join(",")],
     enabled: courierPhones.length > 0,
     staleTime: 60 * 60_000,
     queryFn: async () => {
@@ -367,7 +369,7 @@ function WebOrdersPage() {
   });
   // SLOW PATH: hits external couriers if cache stale; runs in background
   const { data: freshCourierHistory } = useQuery({
-    queryKey: ["courier-history", activeBrand?.id, courierPhones.sort().join(",")],
+    queryKey: ["courier-history", brandsKey, courierPhones.sort().join(",")],
     enabled: courierPhones.length > 0 && !!activeBrand?.id,
     staleTime: 5 * 60_000,
     queryFn: async () => {
