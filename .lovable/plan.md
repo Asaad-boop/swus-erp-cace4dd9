@@ -1,181 +1,102 @@
-## HRM Full Rebuild Plan
+# HRM Premium Redesign Plan
 
-Existing 13 tables + 16 routes keep থাকবে। Schema additive only — কোনো column/table drop হবে না।
+**Scope:** Visual only. No changes to routes, server functions, queries, mutations, or data shape. Only JSX/className/Tailwind, plus shared design tokens and small presentational helpers.
 
----
-
-### Phase 0 — Foundation (1 migration + helpers)
-
-**Migration 1: schema extensions + new tables + storage buckets**
-- `hr_attendance` → add `check_in_time timestamptz`, `check_out_time timestamptz`, `break_start timestamptz`, `break_end timestamptz`, `check_in_lat numeric`, `check_in_lng numeric`, `check_out_lat numeric`, `check_out_lng numeric`, `selfie_url text`, `total_hours numeric`
-- `hr_employees` → ensure `bank_name`, `bank_account_no` (already present per types) — add `bank_branch_code text` if missing; add `photo_url` index
-- `hr_documents` → ensure cols: `employee_id`, `doc_type`, `file_url`, `file_name`, `expiry_date`, `uploaded_by`, `notes` (audit existing → add missing)
-- `hr_employment_history` → ensure cols: `employee_id`, `event_type` (promotion/transfer/salary_revision/status_change), `from_value jsonb`, `to_value jsonb`, `effective_date`, `note`, `created_by`
-- **NEW** `hr_payroll_runs(id, month int, year int, brand_id uuid null, status text default 'draft', total_gross numeric, total_net numeric, total_employees int, finalized_at, finalized_by, created_at, updated_at)` — unique(month, year, brand_id)
-- **NEW** `hr_payslips(id, run_id fk, employee_id fk, basic numeric, allowances jsonb, deductions jsonb, gross numeric, net_pay numeric, payment_status text default 'pending', payment_method text, payment_ref text, paid_at, paid_by, snapshot jsonb /* employee info at time of run */, created_at, updated_at)` — unique(run_id, employee_id)
-- GRANTs + RLS for both new tables: SELECT/INSERT/UPDATE/DELETE TO authenticated gated by `has_hr_access`; finalize/delete gated by `has_hr_admin`
-- Storage buckets (via storage tool, separate calls): `hr-documents` (private), `hr-attendance-selfies` (private)
-- RLS policies on `storage.objects` for both buckets: authenticated read/write within `hr_*` prefix
-
-**Helpers**
-- `src/lib/erp/hr/role-gate.ts` — client hook `useHrAccess()` wrapping `useCurrentRole` + `has_role('admin'|'operations')` rpc check
-- `src/lib/erp/hr/storage.ts` — `uploadHrFile(bucket, path, file|blob)` + `getSignedUrl`
-- `src/lib/erp/hr/excel.ts` — generic `exportToXlsx(rows, sheetName, filename)` using existing `xlsx` dep
-- `src/lib/erp/hr/pdf.ts` — payslip rendered as printable HTML in a hidden iframe → `window.print()` (no new dep; matches existing `order-invoice.tsx` print pattern)
+**Approach:** Foundation first, then page-by-page in phases. Each phase ships independently so you can review.
 
 ---
 
-### Phase 1 — Employee Profile Tabs (rebuild `erp.hr.employees.$id.tsx`)
+## Phase 0 — Design Foundation (shared, ~1 step)
 
-Tabbed shell using shadcn `Tabs`:
-1. **Profile** — `EmployeeForm` (existing) + new `PhotoUpload` (uploads to `hr-documents/{id}/avatar.jpg`, writes `photo_url`)
-2. **Employment** — dept/designation/manager/joining/type/status (subset of form)
-3. **Salary** — basic, allowances JSON editor (house/transport/medical/other), deductions JSON (PF/tax/loan/other), gross + net preview — **admin/operations only**
-4. **Documents** — list from `hr_documents`, upload dialog (type select + file + optional expiry), download via signed URL, delete (admin)
-5. **History** — timeline from `hr_employment_history` + "Add entry" dialog (admin)
-6. **Attendance Summary** — last 30 days grid (calendar heatmap, color by status)
-7. **Leave Summary** — current year balance table (allocated/used/remaining per leave type)
+Create reusable presentational primitives so every HR page is consistent and we don't repeat Tailwind soup:
 
-**List upgrades (`erp.hr.employees.index.tsx`)**
-- URL search params via TanStack Router `validateSearch` (dept, status, designation, q)
-- Bulk select column + bulk actions menu: Deactivate, Change Department (dialog), Export CSV
-- Avatar in first column
-- Global search debounced 300ms
+- `src/components/erp/hr/ui/page-header.tsx` — title (24px semibold), subtitle, right-aligned action slot
+- `src/components/erp/hr/ui/section-label.tsx` — 13px uppercase tracked muted label
+- `src/components/erp/hr/ui/stat-card.tsx` — KPI card: label, big tabular number, trend chip, optional left-border accent color
+- `src/components/erp/hr/ui/status-pill.tsx` — unified badge map (Present/Absent/Late/Leave/Draft/Finalized/Paid/Pending → matching bg/text)
+- `src/components/erp/hr/ui/empty-state.tsx` — icon-in-rounded-tile + title + subtitle + optional CTA
+- `src/components/erp/hr/ui/skeleton-row.tsx` / `skeleton-card.tsx` — pulse loaders matching table/card shape
+- `src/components/erp/hr/ui/avatar.tsx` — 40/80 px avatar w/ initials fallback
+- `src/components/erp/hr/ui/filter-bar.tsx` — pill-style inline filter container
 
-**New server fns** (`src/lib/erp/hr/employees.functions.ts` or extend `hr.functions.ts`)
-- `bulkUpdateEmployees({ ids, patch })`, `exportEmployeesCsv` (returns rows)
-- `getEmployeeSummary({ employeeId })` → returns last 30 days attendance + current year leave balances
+Tokens via Tailwind utility classes per spec (indigo-600 primary, gray-50/100/200 borders, rounded-xl cards, shadow-sm → shadow-md hover, 150ms transitions). No global CSS rewrite — keep existing shadcn theme intact; new components compose on top.
+
+**Note:** Existing shadcn `Card`, `Button`, `Badge`, `Table`, `Input` stay in use; new HR primitives wrap or extend them so we don't fork the design system.
 
 ---
 
-### Phase 2 — Attendance Punch + GPS/Selfie
+## Phase 1 — HR Dashboard (`erp.hr.index.tsx`)
 
-**New server fns** (`attendance.functions.ts` extend)
-- `punchIn({ employeeId, lat?, lng?, selfieBase64? })` — uploads selfie to bucket, inserts/updates today's row, auto-status by shift start time + grace
-- `punchBreak({ employeeId, action: 'start'|'end' })`
-- `punchOut({ employeeId, lat?, lng? })` — sets out_time, computes total_hours
-- `getTodayPunchStatus({ employeeIds })` — bulk fetch
+- 4-card KPI hero (Present / Absent / On Leave / Late) with left-border accent + trend chip
+- Row 2: Pending Leaves (with inline approve/reject), Payroll Status (progress bar), Expiring Docs (alert)
+- Charts: full-width attendance line, donut + horizontal bar row
+- Bottom: Birthdays/Anniversaries + Recent Activity timeline
 
-**UI — `erp.hr.attendance.index.tsx`** keeps Manual mode, adds toggle:
-- "Live Mode" view: rows per employee with [Check In] [Break Start/End] [Check Out] buttons, status badge (Not Started / In / On Break / Out), elapsed hours
-- "Check In with Location" → `navigator.geolocation.getCurrentPosition`
-- "Selfie Check In" dialog → `getUserMedia({ video: true })` → canvas snap → base64 → server fn
+## Phase 2 — Employees list + profile
 
-**Muster Roll (`erp.hr.attendance.muster.tsx`)**
-- Columns: late count, absent count, OT hours (computed from rows)
-- Click cell → dialog: punch in/out time, total hours, selfie thumbnail (signed URL), "Open in Maps" link (`https://maps.google.com/?q={lat},{lng}`)
-- "Export Excel" button → full month grid via `exportToXlsx`
+- `erp.hr.employees.index.tsx`: header + filter bar + inline stat chips + avatar table + bulk-action floating bar + empty state
+- `erp.hr.employees.$id.tsx`: profile header card (80px avatar, quick-stats grid, edit menu) + sticky tab bar with icons; each tab content gets the new card treatment
 
----
+## Phase 3 — Attendance
 
-### Phase 3 — Shift Assignment
+- `erp.hr.attendance.index.tsx`: Manual/Live pill toggle; Live = employee cards with context-aware actions; Manual = clean date-picker table
+- `erp.hr.attendance.muster.tsx`: sticky-name column grid, colored cell chips, summary row/column, click-cell slide-over (Sheet) with punch + selfie
 
-New section in Employee Profile → Employment tab: "Current Shift" + history of `hr_employee_shifts`, "Assign Shift" dialog (shift + effective_from).
+## Phase 4 — Leave
 
-New page `/erp/hr/shifts/assign` (file `erp.hr.shifts.assign.tsx`) added to sub-nav under Shifts:
-- Table: all employees + current shift, bulk-assign by department
-- New server fns: `assignShift`, `bulkAssignShiftByDepartment`, `getCurrentShifts`
+- `erp.hr.leave.index.tsx`: card-style requests with avatar, leave-type color band, status pill, inline approve/reject
+- `erp.hr.leave.calendar.tsx`: clean month grid color-coded by leave type
+- `erp.hr.leave.policy.tsx`: matches new card pattern
 
----
+## Phase 5 — Payroll
 
-### Phase 4 — Payroll (new route `/erp/hr/payroll`)
+- `erp.hr.payroll.index.tsx`: month-run cards (month, employee count, total, status, actions)
+- `erp.hr.payroll.$runId.tsx`: data table with sticky summary footer (Gross / Deductions / Net), right-aligned tabular-nums, prominent Finalize with confirmation summary
+- `payslip-print.tsx`: cleaner print layout
 
-Files:
-- `erp.hr.payroll.tsx` — layout (Outlet)
-- `erp.hr.payroll.index.tsx` — list of runs (month/year/status/totals) + "New Run" button
-- `erp.hr.payroll.$runId.tsx` — editable payslip table for the run
-- `src/lib/erp/hr/payroll.functions.ts` — `listRuns`, `createRun({month, year})` (generates draft payslips from active employees + salary), `updatePayslip`, `finalizeRun` (locks status, stamps `finalized_at`), `markPayslipPaid({ id, method, ref })`, `getPayslip(id)`, `exportBankSheet(runId)` (xlsx: name | bank | account | amount)
-- `payslip-pdf.tsx` component → printable HTML (company header from `app_settings`, employee snapshot, earnings/deductions tables, net pay, signature) → triggers `window.print()` in hidden iframe
+## Phase 6 — Reports
 
-Generation logic: pulls `gross_salary` from employee → splits into basic/allowances per `hr_settings` ratio (default 60% basic / 30% house / 5% transport / 5% medical) — editable per row.
+- `erp.hr.reports.tsx`: horizontal pill tabs, per-tab filter bar + chart + table, always-visible Export top-right
 
-Add "Payroll" link to `hr-subnav.tsx`.
+## Phase 7 — Shifts, Holidays, Departments, Designations
 
----
+- `erp.hr.shifts.tsx`: card grid (name, time, grace, headcount, actions)
+- `erp.hr.shifts.assign.tsx`: cleaner two-column layout
+- `erp.hr.holidays.tsx`: month-grouped timeline list
+- `erp.hr.departments.tsx` + `erp.hr.designations.tsx`: two-column side-by-side lists with employee-count badges
 
-### Phase 5 — Documents UI
+## Phase 8 — Polish pass
 
-Already covered as Profile → Documents tab (Phase 1). Server fns:
-- `listEmployeeDocuments`, `uploadEmployeeDocument` (handles storage + row insert), `deleteEmployeeDocument` (admin), `getDocumentSignedUrl`
-- Expiry alert: query in dashboard "Documents expiring soon" widget (expiry_date between today and +30d)
+- Sub-nav (`hr-subnav.tsx`) restyle to match new header language
+- Skeleton + empty states wired everywhere
+- Micro-animations (hover lift, fade-in on mount via `animate-fade-in`)
+- Final consistency sweep (button sizes, focus rings, spacing scale)
 
 ---
 
-### Phase 6 — HR Reports (`/erp/hr/reports`)
+## Guardrails
 
-New file `erp.hr.reports.tsx` with tabbed reports:
-1. Headcount — group-by selector (dept/designation/type/status), bar chart + table
-2. Attendance — date range + employee filter, computed counts
-3. Leave Summary — year + employee filter, allocated/used/remaining
-4. Payroll — month/year, per-employee paid amounts
-5. Birthday & Anniversary — next 30 days
+- Zero changes to: server functions, query keys, mutations, route configs, table schemas, RLS, role gating logic
+- Zero changes to props of existing server-bound components (form payloads identical)
+- Existing `useHrAccess`, brand picker, role gates all preserved
+- Build verified after each phase
 
-Each tab: "Export Excel" via `exportToXlsx`. Add "Reports" to `hr-subnav.tsx`.
+## Build order
 
-Server fns in `src/lib/erp/hr/reports.functions.ts`.
+Phase 0 → 1 → 2 → 3 → 5 → 4 → 6 → 7 → 8 (Payroll before Leave because it's higher visual ROI for you).
 
----
+## What I need from you
 
-### Phase 7 — Dashboard Upgrade (`erp.hr.index.tsx`)
+1. **Confirm phased delivery is OK** (each phase = one turn, you review and say "next"). Or do you want one mega-turn?
+2. **Sub-nav styling:** keep current tab look or also restyle to underline-pill hybrid like Linear?
+3. **Charts:** keep current Recharts setup, just restyle axes/tooltip/colors — correct?
 
-Add KPI cards: Today's Present/Absent/Late/OnLeave (live from attendance + leave), Pending Leave Requests (with inline approve/reject), This-month Payroll Status, Documents Expiring Soon (count).
+Reply "go" + answers and I start Phase 0+1 together.  
+**Phased delivery OK** — phase by phase koro, ami review korbo
 
-Charts:
-- Attendance trend last 30 days — Recharts `LineChart` (existing dep)
-- Leave type distribution — `PieChart`
-- Keep dept-wise headcount bar
+1. **Sub-nav** — pill style (Linear er moto)
+2. **Charts** — Recharts keep, just restyle
 
-Widgets: "Birthdays this week", "Anniversaries this week" (separate from full 30-day list), Recent activity (last 5 from `activity_logs` filtered to HR tables).
+Phase 0 + 1 শুরু করো। 🚀
 
-New server fn `getHrDashboardExtras()` combining the above.
-
----
-
-### Phase 8 — Role Gating
-
-- `useHrAccess()` returns `{ canAccess, isAdmin, isOps, canSeeSalary, canApproveLeave, canMarkAttendance }`
-- Components gate via early-return "Locked" card for non-permitted users
-- Server fns already use `assertAccess`/`assertAdmin` — extend with `assertSalaryAccess` (admin or operations) for salary + payroll fns
-- Add `has_role` RPC checks where needed (admin/operations roles already in `app_role` enum)
-
----
-
-### Build Order (matches user's spec)
-
-1. Migration + storage buckets + role helpers (Phase 0 + 8)
-2. Employee profile tabs + list upgrades (Phase 1, includes Phase 5 Docs UI)
-3. Attendance punch + GPS/selfie + muster upgrade (Phase 2)
-4. Shift assignment (Phase 3)
-5. Payroll module + PDF + bank sheet (Phase 4)
-6. Reports page (Phase 6)
-7. Dashboard upgrade (Phase 7)
-
----
-
-### Technical Notes
-
-- **PDF**: existing project uses print-based PDFs (`order-invoice.tsx`) — same pattern for payslips, no new dep
-- **Excel**: `xlsx` (already installed) used for all exports
-- **Selfie/Camera**: `getUserMedia` runs client-side only — wrap in client component, no SSR
-- **GPS**: `navigator.geolocation` client-side, fail-soft if permission denied (still records punch)
-- **Storage**: private buckets, all reads via signed URLs (1-hour TTL)
-- **Brand scope**: HR explicitly global per user — no `applyBrandScope` on HR queries; payroll runs optionally tagged with brand_id for filtering
-- **No data deletion**: all migrations additive; existing rows untouched
-- **Realtime**: not added (out of scope)
-
----
-
-### Deliverables (after build)
-
-1. ✅/⚠️/❌ table per phase
-2. Migration files created
-3. Storage buckets created (`hr-documents`, `hr-attendance-selfies`)
-4. Manual setup: none expected — camera/GPS permissions are per-user browser prompts; no API keys needed
-
----
-
-### Open Questions Before Build
-
-1. **Payroll basic/allowance split default** — confirm 60/30/5/5 or different ratio? (Stored in `hr_settings`, editable later)
-2. **Selfie storage** — private bucket + signed URL (1h) OK, or public bucket for simpler muster viewing?
-3. **Existing role values** — confirm `app_role` enum has `operations` value, or should I use only `admin` + custom check?
+&nbsp;
