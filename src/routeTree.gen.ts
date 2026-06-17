@@ -51,6 +51,7 @@ import { Route as AuthenticatedErpMarketingAttributionRouteImport } from './rout
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
 import { Route as AuthenticatedErpImportsSettingsRouteImport } from './routes/_authenticated/erp.imports.settings'
 import { Route as AuthenticatedErpImportsReportsRouteImport } from './routes/_authenticated/erp.imports.reports'
+import { Route as AuthenticatedErpHrSettingsRouteImport } from './routes/_authenticated/erp.hr.settings'
 import { Route as AuthenticatedErpHrDesignationsRouteImport } from './routes/_authenticated/erp.hr.designations'
 import { Route as AuthenticatedErpHrDepartmentsRouteImport } from './routes/_authenticated/erp.hr.departments'
 import { Route as AuthenticatedErpFinanceWalletsRouteImport } from './routes/_authenticated/erp.finance.wallets'
@@ -315,6 +316,12 @@ const AuthenticatedErpImportsReportsRoute =
     path: '/reports',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpHrSettingsRoute =
+  AuthenticatedErpHrSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedErpHrRoute,
+  } as any)
 const AuthenticatedErpHrDesignationsRoute =
   AuthenticatedErpHrDesignationsRouteImport.update({
     id: '/designations',
@@ -514,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -576,6 +584,7 @@ export interface FileRoutesByTo {
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -648,6 +657,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/_authenticated/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
   '/_authenticated/erp/hr/designations': typeof AuthenticatedErpHrDesignationsRoute
+  '/_authenticated/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/_authenticated/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/_authenticated/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/erp/finance/wallets'
     | '/erp/hr/departments'
     | '/erp/hr/designations'
+    | '/erp/hr/settings'
     | '/erp/imports/reports'
     | '/erp/imports/settings'
     | '/erp/marketing/accounts'
@@ -782,6 +793,7 @@ export interface FileRouteTypes {
     | '/erp/finance/wallets'
     | '/erp/hr/departments'
     | '/erp/hr/designations'
+    | '/erp/hr/settings'
     | '/erp/imports/reports'
     | '/erp/imports/settings'
     | '/erp/marketing/accounts'
@@ -853,6 +865,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/finance/wallets'
     | '/_authenticated/erp/hr/departments'
     | '/_authenticated/erp/hr/designations'
+    | '/_authenticated/erp/hr/settings'
     | '/_authenticated/erp/imports/reports'
     | '/_authenticated/erp/imports/settings'
     | '/_authenticated/erp/marketing/accounts'
@@ -1196,6 +1209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsReportsRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/hr/settings': {
+      id: '/_authenticated/erp/hr/settings'
+      path: '/settings'
+      fullPath: '/erp/hr/settings'
+      preLoaderRoute: typeof AuthenticatedErpHrSettingsRouteImport
+      parentRoute: typeof AuthenticatedErpHrRoute
+    }
     '/_authenticated/erp/hr/designations': {
       id: '/_authenticated/erp/hr/designations'
       path: '/designations'
@@ -1455,6 +1475,7 @@ const AuthenticatedErpFinanceRouteWithChildren =
 interface AuthenticatedErpHrRouteChildren {
   AuthenticatedErpHrDepartmentsRoute: typeof AuthenticatedErpHrDepartmentsRoute
   AuthenticatedErpHrDesignationsRoute: typeof AuthenticatedErpHrDesignationsRoute
+  AuthenticatedErpHrSettingsRoute: typeof AuthenticatedErpHrSettingsRoute
   AuthenticatedErpHrIndexRoute: typeof AuthenticatedErpHrIndexRoute
   AuthenticatedErpHrEmployeesIdRoute: typeof AuthenticatedErpHrEmployeesIdRoute
   AuthenticatedErpHrEmployeesNewRoute: typeof AuthenticatedErpHrEmployeesNewRoute
@@ -1464,6 +1485,7 @@ interface AuthenticatedErpHrRouteChildren {
 const AuthenticatedErpHrRouteChildren: AuthenticatedErpHrRouteChildren = {
   AuthenticatedErpHrDepartmentsRoute: AuthenticatedErpHrDepartmentsRoute,
   AuthenticatedErpHrDesignationsRoute: AuthenticatedErpHrDesignationsRoute,
+  AuthenticatedErpHrSettingsRoute: AuthenticatedErpHrSettingsRoute,
   AuthenticatedErpHrIndexRoute: AuthenticatedErpHrIndexRoute,
   AuthenticatedErpHrEmployeesIdRoute: AuthenticatedErpHrEmployeesIdRoute,
   AuthenticatedErpHrEmployeesNewRoute: AuthenticatedErpHrEmployeesNewRoute,
