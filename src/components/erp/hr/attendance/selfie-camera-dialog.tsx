@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, RefreshCcw, Check, X, MapPin } from "lucide-react";
+import { Camera, RefreshCcw, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -10,16 +10,12 @@ interface Props {
   onConfirm: (data: { selfieBlob: Blob | null; lat: number | null; lng: number | null }) => Promise<void>;
   title?: string;
   requireSelfie?: boolean;
-  requireGps?: boolean;
 }
 
-export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In", requireSelfie = true, requireGps = false }: Props) {
+export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In", requireSelfie = true }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [captured, setCaptured] = useState<string | null>(null);
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [gpsErr, setGpsErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -35,13 +31,6 @@ export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In
           toast.error("Camera access denied: " + (e.message ?? "unknown"));
         }
       })();
-    }
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => { setLat(p.coords.latitude); setLng(p.coords.longitude); setGpsErr(null); },
-        (e) => setGpsErr(e.message),
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
     }
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -72,10 +61,6 @@ export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In
   };
 
   const confirm = async () => {
-    if (requireGps && (lat === null || lng === null)) {
-      toast.error("Location required");
-      return;
-    }
     if (requireSelfie && !captured) {
       toast.error("Capture a selfie first");
       return;
@@ -87,7 +72,7 @@ export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In
         const res = await fetch(captured);
         blob = await res.blob();
       }
-      await onConfirm({ selfieBlob: blob, lat, lng });
+      await onConfirm({ selfieBlob: blob, lat: null, lng: null });
       onClose();
     } catch (e: any) {
       toast.error(e.message ?? "Failed");
@@ -109,12 +94,6 @@ export function SelfieCameraDialog({ open, onClose, onConfirm, title = "Check In
               )}
             </div>
           )}
-          <div className="text-xs flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5" />
-            {lat !== null && lng !== null
-              ? <span>Location: {lat.toFixed(5)}, {lng.toFixed(5)}</span>
-              : gpsErr ? <span className="text-amber-600">GPS error: {gpsErr}</span> : <span className="text-muted-foreground">Acquiring GPS…</span>}
-          </div>
           {requireSelfie && (
             <div className="flex gap-2 justify-center">
               {captured ? (
