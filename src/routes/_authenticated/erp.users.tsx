@@ -517,18 +517,17 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 /* =================== Sub-components =================== */
 
-function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean; onClose: () => void; agents: any[]; onCreated: () => void }) {
+function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const fn = useServerFn(createAppUser);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [roles, setRoles] = useState<AppRole[]>([]);
-  const [cargoAgentId, setCargoAgentId] = useState<string>("");
 
-  const reset = () => { setEmail(""); setPassword(""); setDisplayName(""); setRoles([]); setCargoAgentId(""); };
+  const reset = () => { setEmail(""); setPassword(""); setDisplayName(""); setRoles([]); };
 
   const mut = useMutation({
-    mutationFn: () => fn({ data: { email, password, displayName: displayName || undefined, roles, cargoAgentId: cargoAgentId || null } }),
+    mutationFn: () => fn({ data: { email, password, displayName: displayName || undefined, roles } }),
     onSuccess: () => { toast.success("User created"); onCreated(); onClose(); reset(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
@@ -539,7 +538,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
     const s = Math.random().toString(36).slice(2, 10) + "A1!";
     setPassword(s); toast.success("Password generated");
   };
-  const freeAgents = agents.filter((a) => !a.user_id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -572,7 +570,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
               <div className="flex gap-1">
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["admin"])}>Admin</Button>
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["operations","warehouse_staff"])}>Ops+WH</Button>
-                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["cargo_agent"])}>Cargo</Button>
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setRoles([])}>Clear</Button>
               </div>
             </div>
@@ -586,26 +583,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
               ))}
             </div>
           </div>
-          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3">
-            <Label>Link to cargo agent profile</Label>
-            <Select
-              value={cargoAgentId}
-              onValueChange={(value) => {
-                setCargoAgentId(value);
-                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
-              }}
-            >
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select an unlinked agent…" /></SelectTrigger>
-              <SelectContent>
-                {freeAgents.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No unlinked agents</div>
-                ) : freeAgents.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">Agent select korlei Cargo Agent permission auto add hobe.</p>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -618,24 +595,20 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
   );
 }
 
-function EditUserDialog({ user, agents, onClose, onSaved }: { user: any; agents: any[]; onClose: () => void; onSaved: () => void }) {
+function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
   const rolesFn = useServerFn(updateUserRoles);
-  const linkFn = useServerFn(linkUserToCargoAgent);
 
   const [roles, setRoles] = useState<AppRole[]>(user.roles);
-  const [cargoAgentId, setCargoAgentId] = useState<string>(user.cargo_agent?.id ?? "");
 
   const mut = useMutation({
     mutationFn: async () => {
       await rolesFn({ data: { userId: user.id, roles } });
-      await linkFn({ data: { userId: user.id, cargoAgentId: roles.includes("cargo_agent") ? (cargoAgentId || null) : null } });
     },
     onSuccess: () => { toast.success("Saved"); onSaved(); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
   const toggleRole = (r: AppRole) => setRoles(c => c.includes(r) ? c.filter(x => x !== r) : [...c, r]);
-  const freeAgents = agents.filter((a) => !a.user_id || a.user_id === user.id);
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
@@ -656,25 +629,6 @@ function EditUserDialog({ user, agents, onClose, onSaved }: { user: any; agents:
                 </label>
               ))}
             </div>
-          </div>
-          <div>
-            <Label>Cargo agent profile</Label>
-            <Select
-              value={cargoAgentId}
-              onValueChange={(value) => {
-                setCargoAgentId(value);
-                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
-              <SelectContent>
-                {freeAgents.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No agents available</div>
-                ) : freeAgents.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
         <DialogFooter>
