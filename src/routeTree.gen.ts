@@ -23,6 +23,7 @@ import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
 import { Route as AuthenticatedErpImportsRouteImport } from './routes/_authenticated/erp.imports'
 import { Route as AuthenticatedErpFinanceRouteImport } from './routes/_authenticated/erp.finance'
+import { Route as AuthenticatedErpCrmRouteImport } from './routes/_authenticated/erp.crm'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
@@ -141,6 +142,11 @@ const AuthenticatedErpImportsRoute = AuthenticatedErpImportsRouteImport.update({
 const AuthenticatedErpFinanceRoute = AuthenticatedErpFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
+const AuthenticatedErpCrmRoute = AuthenticatedErpCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
 const AuthenticatedErpCourierRoute = AuthenticatedErpCourierRouteImport.update({
@@ -416,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
   '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/crm': typeof AuthenticatedErpCrmRoute
   '/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
@@ -475,6 +482,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/crm': typeof AuthenticatedErpCrmRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -532,6 +540,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/_authenticated/erp/crm': typeof AuthenticatedErpCrmRoute
   '/_authenticated/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/_authenticated/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
@@ -594,6 +603,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/erp'
     | '/erp/courier'
+    | '/erp/crm'
     | '/erp/finance'
     | '/erp/imports'
     | '/erp/inventory'
@@ -653,6 +663,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp/courier'
+    | '/erp/crm'
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
@@ -709,6 +720,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/erp'
     | '/_authenticated/erp/courier'
+    | '/_authenticated/erp/crm'
     | '/_authenticated/erp/finance'
     | '/_authenticated/erp/imports'
     | '/_authenticated/erp/inventory'
@@ -875,6 +887,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/erp/finance'
       preLoaderRoute: typeof AuthenticatedErpFinanceRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/crm': {
+      id: '/_authenticated/erp/crm'
+      path: '/crm'
+      fullPath: '/erp/crm'
+      preLoaderRoute: typeof AuthenticatedErpCrmRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/courier': {
@@ -1348,6 +1367,7 @@ const AuthenticatedErpReconciliationRouteWithChildren =
 
 interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
+  AuthenticatedErpCrmRoute: typeof AuthenticatedErpCrmRoute
   AuthenticatedErpFinanceRoute: typeof AuthenticatedErpFinanceRouteWithChildren
   AuthenticatedErpImportsRoute: typeof AuthenticatedErpImportsRouteWithChildren
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
@@ -1362,6 +1382,7 @@ interface AuthenticatedErpRouteChildren {
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpCourierRoute: AuthenticatedErpCourierRoute,
+  AuthenticatedErpCrmRoute: AuthenticatedErpCrmRoute,
   AuthenticatedErpFinanceRoute: AuthenticatedErpFinanceRouteWithChildren,
   AuthenticatedErpImportsRoute: AuthenticatedErpImportsRouteWithChildren,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
