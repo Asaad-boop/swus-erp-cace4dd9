@@ -90,6 +90,7 @@ export const getAgentPurchaseOrder = createServerFn({ method: "POST" })
         id, po_number, brand_id, order_date, status, currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, notes, created_at,
+        shipped_at, total_weight_kg,
         supplier:supplier_id ( id, name, phone )
       `)
       .eq("id", data.poId)
@@ -137,6 +138,42 @@ export const requestCartonRelease = createServerFn({ method: "POST" })
         release_request_note: data.note ?? null,
       })
       .eq("id", data.cartonId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+/** Cargo agent: mark PO as arrived in BD with shipping date and total weight */
+export const markPoArrivedBd = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { poId: string; shipped_at: string; total_weight_kg: number }) =>
+    z.object({
+      poId: z.string().uuid(),
+      shipped_at: z.string().min(1),
+      total_weight_kg: z.number().positive().max(100000),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const agent = await resolveAgentId(context.supabase, context.userId);
+    // Verify ownership + allowed pre-state
+    const { data: po, error: pErr } = await context.supabase
+      .from("imp_purchase_orders")
+      .select("id, status, cargo_agent_id")
+      .eq("id", data.poId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!po || (po as any).cargo_agent_id !== agent.id) throw new Error("PO not found");
+    const allowedFrom = ["ordered", "at_china_warehouse", "in_transit"];
+    if (!allowedFrom.includes((po as any).status)) {
+      throw new Error(`Ei status (${(po as any).status}) theke arrived_bd kora jabe na`);
+    }
+    const { error } = await context.supabase
+      .from("imp_purchase_orders")
+      .update({
+        status: "arrived_bd" as any,
+        shipped_at: data.shipped_at,
+        total_weight_kg: data.total_weight_kg,
+      })
+      .eq("id", data.poId);
     if (error) throw error;
     return { ok: true };
   });
