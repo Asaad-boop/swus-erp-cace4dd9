@@ -2755,192 +2755,6 @@ export type Database = {
         }
         Relationships: []
       }
-      imp_cargo_agent_ledger: {
-        Row: {
-          agent_id: string
-          amount_bdt: number
-          brand_id: string | null
-          carton_id: string | null
-          created_at: string
-          created_by: string | null
-          direction: Database["public"]["Enums"]["imp_agent_ledger_dir"]
-          entry_date: string
-          entry_type: Database["public"]["Enums"]["imp_agent_ledger_kind"]
-          id: string
-          note: string | null
-          po_id: string | null
-          reference: string | null
-          updated_at: string
-        }
-        Insert: {
-          agent_id: string
-          amount_bdt: number
-          brand_id?: string | null
-          carton_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          direction: Database["public"]["Enums"]["imp_agent_ledger_dir"]
-          entry_date?: string
-          entry_type?: Database["public"]["Enums"]["imp_agent_ledger_kind"]
-          id?: string
-          note?: string | null
-          po_id?: string | null
-          reference?: string | null
-          updated_at?: string
-        }
-        Update: {
-          agent_id?: string
-          amount_bdt?: number
-          brand_id?: string | null
-          carton_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          direction?: Database["public"]["Enums"]["imp_agent_ledger_dir"]
-          entry_date?: string
-          entry_type?: Database["public"]["Enums"]["imp_agent_ledger_kind"]
-          id?: string
-          note?: string | null
-          po_id?: string | null
-          reference?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "imp_cargo_agent_ledger_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "imp_cargo_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "imp_cargo_agent_ledger_brand_id_fkey"
-            columns: ["brand_id"]
-            isOneToOne: false
-            referencedRelation: "brands"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "imp_cargo_agent_ledger_carton_id_fkey"
-            columns: ["carton_id"]
-            isOneToOne: false
-            referencedRelation: "imp_cartons"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "imp_cargo_agent_ledger_po_id_fkey"
-            columns: ["po_id"]
-            isOneToOne: false
-            referencedRelation: "imp_purchase_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      imp_cargo_agent_rates: {
-        Row: {
-          agent_id: string
-          created_at: string
-          created_by: string | null
-          currency: string
-          fx_rate: number
-          id: string
-          note: string | null
-          rate_date: string
-          shipping_rate_per_kg_bdt: number
-          updated_at: string
-        }
-        Insert: {
-          agent_id: string
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          fx_rate: number
-          id?: string
-          note?: string | null
-          rate_date?: string
-          shipping_rate_per_kg_bdt: number
-          updated_at?: string
-        }
-        Update: {
-          agent_id?: string
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          fx_rate?: number
-          id?: string
-          note?: string | null
-          rate_date?: string
-          shipping_rate_per_kg_bdt?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "imp_cargo_agent_rates_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "imp_cargo_agents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      imp_cargo_agents: {
-        Row: {
-          address: string | null
-          brand_id: string
-          created_at: string
-          created_by: string | null
-          default_currency: string
-          default_fx_rate: number
-          default_shipping_rate_per_kg_bdt: number
-          id: string
-          is_active: boolean
-          name: string
-          notes: string | null
-          phone: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          address?: string | null
-          brand_id: string
-          created_at?: string
-          created_by?: string | null
-          default_currency?: string
-          default_fx_rate?: number
-          default_shipping_rate_per_kg_bdt?: number
-          id?: string
-          is_active?: boolean
-          name: string
-          notes?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          address?: string | null
-          brand_id?: string
-          created_at?: string
-          created_by?: string | null
-          default_currency?: string
-          default_fx_rate?: number
-          default_shipping_rate_per_kg_bdt?: number
-          id?: string
-          is_active?: boolean
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "imp_cargo_agents_brand_id_fkey"
-            columns: ["brand_id"]
-            isOneToOne: false
-            referencedRelation: "brands"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       imp_carton_items: {
         Row: {
           carton_id: string
@@ -3028,9 +2842,6 @@ export type Database = {
           posted_at: string | null
           qc_at: string | null
           received_at: string | null
-          release_request_note: string | null
-          release_requested_at: string | null
-          release_requested_by: string | null
           released_at: string | null
           shipping_charge_bdt: number
           status: Database["public"]["Enums"]["imp_carton_status"]
@@ -3052,9 +2863,6 @@ export type Database = {
           posted_at?: string | null
           qc_at?: string | null
           received_at?: string | null
-          release_request_note?: string | null
-          release_requested_at?: string | null
-          release_requested_by?: string | null
           released_at?: string | null
           shipping_charge_bdt?: number
           status?: Database["public"]["Enums"]["imp_carton_status"]
@@ -3076,9 +2884,6 @@ export type Database = {
           posted_at?: string | null
           qc_at?: string | null
           received_at?: string | null
-          release_request_note?: string | null
-          release_requested_at?: string | null
-          release_requested_by?: string | null
           released_at?: string | null
           shipping_charge_bdt?: number
           status?: Database["public"]["Enums"]["imp_carton_status"]
@@ -3107,10 +2912,6 @@ export type Database = {
       }
       imp_payments: {
         Row: {
-          agent_confirmed_at: string | null
-          agent_confirmed_by: string | null
-          agent_proof_note: string | null
-          agent_proof_url: string | null
           amount_bdt: number
           brand_id: string
           carton_id: string | null
@@ -3130,10 +2931,6 @@ export type Database = {
           wallet_id: string
         }
         Insert: {
-          agent_confirmed_at?: string | null
-          agent_confirmed_by?: string | null
-          agent_proof_note?: string | null
-          agent_proof_url?: string | null
           amount_bdt: number
           brand_id: string
           carton_id?: string | null
@@ -3153,10 +2950,6 @@ export type Database = {
           wallet_id: string
         }
         Update: {
-          agent_confirmed_at?: string | null
-          agent_confirmed_by?: string | null
-          agent_proof_note?: string | null
-          agent_proof_url?: string | null
           amount_bdt?: number
           brand_id?: string
           carton_id?: string | null
@@ -3316,7 +3109,6 @@ export type Database = {
       imp_purchase_orders: {
         Row: {
           brand_id: string
-          cargo_agent_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -3331,7 +3123,6 @@ export type Database = {
           po_number: string
           product_subtotal_bdt: number
           shipped_at: string | null
-          shipping_rate_per_kg_bdt: number | null
           shipping_total_bdt: number
           status: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id: string | null
@@ -3341,7 +3132,6 @@ export type Database = {
         }
         Insert: {
           brand_id: string
-          cargo_agent_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -3356,7 +3146,6 @@ export type Database = {
           po_number: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
-          shipping_rate_per_kg_bdt?: number | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
@@ -3366,7 +3155,6 @@ export type Database = {
         }
         Update: {
           brand_id?: string
-          cargo_agent_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -3381,7 +3169,6 @@ export type Database = {
           po_number?: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
-          shipping_rate_per_kg_bdt?: number | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
@@ -3395,20 +3182,6 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "imp_purchase_orders_cargo_agent_id_fkey"
-            columns: ["cargo_agent_id"]
-            isOneToOne: false
-            referencedRelation: "imp_cargo_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "imp_purchase_orders_submitted_by_agent_id_fkey"
-            columns: ["submitted_by_agent_id"]
-            isOneToOne: false
-            referencedRelation: "imp_cargo_agents"
             referencedColumns: ["id"]
           },
           {
@@ -5812,7 +5585,6 @@ export type Database = {
         }
         Returns: string
       }
-      current_cargo_agent_id: { Args: never; Returns: string }
       erp_profit_loss: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
@@ -5933,7 +5705,6 @@ export type Database = {
           status: string
         }[]
       }
-      get_cargo_agent_balance: { Args: { _agent_id: string }; Returns: number }
       get_courier_campaign_report: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
