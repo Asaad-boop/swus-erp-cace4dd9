@@ -759,24 +759,153 @@ export type Database = {
           },
         ]
       }
+      crm_activities: {
+        Row: {
+          body: string | null
+          brand_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_key: string
+          direction: string | null
+          duration_seconds: number | null
+          id: string
+          metadata: Json
+          title: string | null
+          type: string
+          updated_at: string
+          whatsapp_url: string | null
+        }
+        Insert: {
+          body?: string | null
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_key: string
+          direction?: string | null
+          duration_seconds?: number | null
+          id?: string
+          metadata?: Json
+          title?: string | null
+          type: string
+          updated_at?: string
+          whatsapp_url?: string | null
+        }
+        Update: {
+          body?: string | null
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_key?: string
+          direction?: string | null
+          duration_seconds?: number | null
+          id?: string
+          metadata?: Json
+          title?: string | null
+          type?: string
+          updated_at?: string
+          whatsapp_url?: string | null
+        }
+        Relationships: []
+      }
+      crm_custom_field_definitions: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          field_key: string
+          field_type: string
+          id: string
+          is_required: boolean
+          label: string
+          options: Json | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          field_key: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          field_key?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_customer_meta: {
         Row: {
+          churn_risk: string | null
+          churn_score: number | null
+          custom_fields: Json
           customer_key: string
           internal_email: string | null
+          is_merged: boolean
+          last_rfm_calculated_at: string | null
+          merged_into: string | null
+          rfm_frequency: number | null
+          rfm_frequency_score: number | null
+          rfm_monetary: number | null
+          rfm_monetary_score: number | null
+          rfm_recency: number | null
+          rfm_recency_score: number | null
+          rfm_score: number | null
+          rfm_segment: string | null
           status: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          churn_risk?: string | null
+          churn_score?: number | null
+          custom_fields?: Json
           customer_key: string
           internal_email?: string | null
+          is_merged?: boolean
+          last_rfm_calculated_at?: string | null
+          merged_into?: string | null
+          rfm_frequency?: number | null
+          rfm_frequency_score?: number | null
+          rfm_monetary?: number | null
+          rfm_monetary_score?: number | null
+          rfm_recency?: number | null
+          rfm_recency_score?: number | null
+          rfm_score?: number | null
+          rfm_segment?: string | null
           status?: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          churn_risk?: string | null
+          churn_score?: number | null
+          custom_fields?: Json
           customer_key?: string
           internal_email?: string | null
+          is_merged?: boolean
+          last_rfm_calculated_at?: string | null
+          merged_into?: string | null
+          rfm_frequency?: number | null
+          rfm_frequency_score?: number | null
+          rfm_monetary?: number | null
+          rfm_monetary_score?: number | null
+          rfm_recency?: number | null
+          rfm_recency_score?: number | null
+          rfm_score?: number | null
+          rfm_segment?: string | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -860,6 +989,87 @@ export type Database = {
           imported_by?: string | null
           name?: string | null
           source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_saved_filters: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          created_by: string | null
+          filters: Json
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_tasks: {
+        Row: {
+          assigned_to: string | null
+          brand_id: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          customer_key: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          brand_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_key: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          brand_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_key?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
@@ -6788,6 +6998,7 @@ export type Database = {
         Args: { p_brand_id: string }
         Returns: number
       }
+      calculate_rfm_all_brands: { Args: never; Returns: undefined }
       create_bill: {
         Args: {
           _amount: number
