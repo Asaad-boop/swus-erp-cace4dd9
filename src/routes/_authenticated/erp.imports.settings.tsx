@@ -23,12 +23,11 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 });
 
 function ImportsSettings() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
-
-  if (gate) return gate;
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <SuppliersTab brandId={brandId} />
     </div>
   );

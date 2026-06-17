@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/audit")({
 type Row = { id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; before_data: unknown; after_data: unknown; created_at: string };
 
 function AuditPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Row | null>(null);
 
@@ -41,10 +41,9 @@ function AuditPage() {
 
   const colorFor = (a: string) => a === "create" ? "text-emerald-600" : a === "void" ? "text-amber-600" : a === "delete" ? "text-red-600" : "text-blue-600";
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header className="flex flex-wrap justify-between items-end gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>

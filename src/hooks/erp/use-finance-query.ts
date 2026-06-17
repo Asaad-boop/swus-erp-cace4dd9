@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Account, Category, Transaction } from "@/lib/erp/finance";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 // Hooks accept brandIds[]; pass [] to skip, [id] for single brand, or
 // brands.map(b => b.id) for All-Brands mode.
@@ -9,11 +10,12 @@ export function useAccounts(brandIds: string[]) {
     queryKey: ["erp_accounts", brandIds],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_accounts")
-        .select("id,brand_id,name,account_type,account_number,opening_balance,current_balance,is_active,notes")
-        .in("brand_id", brandIds)
-        .order("name");
+      const { data, error } = await applyBrandScope(
+        supabase
+          .from("erp_accounts")
+          .select("id,brand_id,name,account_type,account_number,opening_balance,current_balance,is_active,notes"),
+        brandIds,
+      ).order("name");
       if (error) throw error;
       return (data ?? []) as Account[];
     },
@@ -25,11 +27,12 @@ export function useCategories(brandIds: string[]) {
     queryKey: ["erp_categories", brandIds],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_expense_categories")
-        .select("id,brand_id,name,kind,is_active")
-        .in("brand_id", brandIds)
-        .order("name");
+      const { data, error } = await applyBrandScope(
+        supabase
+          .from("erp_expense_categories")
+          .select("id,brand_id,name,kind,is_active"),
+        brandIds,
+      ).order("name");
       if (error) throw error;
       return (data ?? []) as Category[];
     },
@@ -51,10 +54,12 @@ export function useTransactions(filter: TxnFilter) {
     queryKey: ["erp_transactions", filter],
     enabled: filter.brandIds.length > 0,
     queryFn: async () => {
-      let q = supabase
-        .from("erp_transactions")
-        .select("id,brand_id,txn_type,category_id,account_id,to_account_id,amount,reference_type,reference_id,supplier_id,description,transaction_date,created_at")
-        .in("brand_id", filter.brandIds)
+      let q = applyBrandScope(
+        supabase
+          .from("erp_transactions")
+          .select("id,brand_id,txn_type,category_id,account_id,to_account_id,amount,reference_type,reference_id,supplier_id,description,transaction_date,created_at"),
+        filter.brandIds,
+      )
         .order("transaction_date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(filter.limit);

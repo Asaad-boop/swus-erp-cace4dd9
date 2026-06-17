@@ -13,6 +13,7 @@ import { fmtBdt, type Account } from "@/lib/erp/finance";
 import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
 import { cn } from "@/lib/utils";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/wallets")({
   head: () => ({ meta: [{ title: "Wallets — Finance" }] }),
@@ -44,10 +45,10 @@ function WalletsPage() {
     queryKey: ["wallets", brandIds],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_accounts")
-        .select("*")
-        .in("brand_id", brandIds)
+      const { data, error } = await applyBrandScope(
+        supabase.from("erp_accounts").select("*"),
+        brandIds,
+      )
         .eq("is_active", true)
         .order("name");
       if (error) throw error;

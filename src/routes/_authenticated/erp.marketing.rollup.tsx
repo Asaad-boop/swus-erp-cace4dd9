@@ -46,7 +46,7 @@ function fmtPct(n: number | null | undefined) {
 }
 
 function RollupPage() {
-  const { brandId: selectedBrandId, gate } = useBrandPicker();
+  const { brandId: selectedBrandId, picker } = useBrandPicker();
   const [days, setDays] = useState(30);
   const [search, setSearch] = useState("");
   const range = useMemo(() => dateRange(days), [days]);
@@ -65,8 +65,6 @@ function RollupPage() {
     enabled: !!selectedBrandId,
   });
 
-  if (gate) return gate;
-
   const totals = campaignsQ.data?.totals;
   const campRows = (campaignsQ.data?.rows ?? []).filter((r) =>
     search ? r.campaign_name.toLowerCase().includes(search.toLowerCase()) : true,
@@ -77,6 +75,7 @@ function RollupPage() {
 
   return (
     <div className="space-y-6">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Profit Rollup</h1>

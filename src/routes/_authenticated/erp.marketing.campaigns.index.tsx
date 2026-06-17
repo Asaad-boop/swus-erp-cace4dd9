@@ -39,7 +39,7 @@ function statusTone(s: string | null) {
 }
 
 function CampaignsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [rangeKey, setRangeKey] = useState("30d");
   const [q, setQ] = useState("");
 
@@ -81,10 +81,9 @@ function CampaignsPage() {
     );
   }, [filtered]);
 
-  if (gate) return gate;
-
   return (
     <div className="space-y-5">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Campaigns</h1>

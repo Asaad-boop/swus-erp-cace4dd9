@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand, type Brand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — ERP" }] }),
@@ -23,12 +24,12 @@ function DashboardPage() {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
       const [todayOrders, pendingOrders, deliveredOrders, monthRevenue, lowStock, accounts] = await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).gte("created_at", todayStart.toISOString()),
-        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
-        supabase.from("orders").select("id", { count: "exact", head: true }).in("brand_id", brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
-        supabase.from("orders").select("total").in("brand_id", brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
-        supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).in("brand_id", brandIds).eq("is_resolved", false),
-        supabase.from("erp_accounts").select("current_balance").in("brand_id", brandIds).eq("is_active", true),
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds).gte("created_at", todayStart.toISOString()),
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds).in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds).eq("is_resolved", false),
+        applyBrandScope(supabase.from("erp_accounts").select("current_balance"), brandIds).eq("is_active", true),
       ]);
 
       const revenue = (monthRevenue.data ?? []).reduce((s, r) => s + Number(r.total ?? 0), 0);

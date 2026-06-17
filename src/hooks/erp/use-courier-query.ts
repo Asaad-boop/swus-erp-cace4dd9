@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn } from "@/lib/erp/pathao.functions";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export type PathaoCity = { city_id: number; city_name: string };
 export type PathaoZone = { zone_id: number; zone_name: string };
@@ -32,7 +33,7 @@ export function useShipments() {
         .select("id, order_id, provider, consignment_id, tracking_code, status, delivery_fee, created_at, brand_id, orders(id, shipping_name, shipping_phone, total)")
         .order("created_at", { ascending: false })
         .limit(200);
-      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      q = applyBrandScope(q, brandIds);
       const { data, error } = await q;
       if (error) throw error;
       return (data as unknown as Shipment[]) ?? [];

@@ -22,6 +22,7 @@ import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
 import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders-table";
 import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
@@ -223,13 +224,15 @@ function WebOrdersPage() {
     queryKey: ["web-orders", brandsKey, activeTab, search],
     enabled: brandIds.length > 0 && activeTab !== "incomplete",
     queryFn: async () => {
-      let q = supabase
-        .from("orders")
-        .select(
-          "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
-          { count: "exact" },
-        )
-        .in("brand_id", brandIds)
+      let q = applyBrandScope(
+        supabase
+          .from("orders")
+          .select(
+            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
+            { count: "exact" },
+          ),
+        brandIds,
+      )
         .eq("source", "website")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -284,10 +287,10 @@ function WebOrdersPage() {
     enabled: brandIds.length > 0,
     queryFn: async () => {
       const result: Record<string, number> = { all: 0 };
-      const { data, error } = await supabase
-        .from("orders")
-        .select("web_status")
-        .in("brand_id", brandIds)
+      const { data, error } = await applyBrandScope(
+        supabase.from("orders").select("web_status"),
+        brandIds,
+      )
         .eq("source", "website")
         .limit(5000);
       if (error) throw error;
@@ -309,10 +312,10 @@ function WebOrdersPage() {
     queryKey: ["customer-breakdown", brandsKey, phones.sort().join(",")],
     enabled: brandIds.length > 0 && phones.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("shipping_phone,guest_phone,web_status,status")
-        .in("brand_id", brandIds)
+      const { data, error } = await applyBrandScope(
+        supabase.from("orders").select("shipping_phone,guest_phone,web_status,status"),
+        brandIds,
+      )
         .or(phones.map((p) => `shipping_phone.eq.${p},guest_phone.eq.${p}`).join(","))
         .limit(5000);
       if (error) throw error;

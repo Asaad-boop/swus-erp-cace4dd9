@@ -27,7 +27,7 @@ function monthStart() { const d = new Date(); return new Date(d.getFullYear(), d
 function today() { return new Date().toISOString().slice(0, 10); }
 
 function TaxesPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
@@ -84,10 +84,9 @@ function TaxesPage() {
     };
   }, [summaryQ.data]);
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header className="flex flex-wrap justify-between items-end gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Taxes (VAT / TDS)</h1>

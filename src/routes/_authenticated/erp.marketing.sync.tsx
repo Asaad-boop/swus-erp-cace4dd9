@@ -24,7 +24,7 @@ function statusBadge(s: string) {
 }
 
 function SyncLogPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const list = useServerFn(listSyncLog);
 
   const q = useQuery({
@@ -33,10 +33,10 @@ function SyncLogPage() {
     enabled: !!brandId,
   });
 
-  if (gate) return gate;
-
   return (
-    <Card>
+    <>
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">Sync Log</CardTitle>
         <Button variant="outline" size="sm" onClick={() => q.refetch()} className="gap-1.5">
@@ -84,6 +84,7 @@ function SyncLogPage() {
           </Table>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

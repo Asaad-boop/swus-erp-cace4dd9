@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
 });
 
 function SettingsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
 
   const lockQ = useQuery({
@@ -77,10 +77,9 @@ function SettingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Finance Settings</h1>
         <p className="text-sm text-muted-foreground">{effectiveBrand?.name}</p>

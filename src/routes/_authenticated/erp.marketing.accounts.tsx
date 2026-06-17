@@ -131,7 +131,7 @@ function statusPill(status: string) {
 
 function AdAccountsPage() {
   const qc = useQueryClient();
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const listFn = useServerFn(listConnectedAdAccounts);
   const toggleFn = useServerFn(toggleAdAccountStatus);
@@ -232,12 +232,11 @@ function AdAccountsPage() {
     }
   }
 
-  if (gate) return gate;
-
   const accounts = (q.data ?? []) as AccountRow[];
 
   return (
     <div className="space-y-6">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Meta Ads API Accounts</h1>

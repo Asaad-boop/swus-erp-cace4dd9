@@ -13,6 +13,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export const Route = createFileRoute("/_authenticated/erp/suppliers")({
   head: () => ({ meta: [{ title: "Suppliers — ERP" }] }),
@@ -37,11 +38,12 @@ function SuppliersPage() {
     queryKey: ["suppliers", brandIds.join(",")],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("erp_suppliers")
-        .select("id,name,contact_person,phone,email,address,opening_balance,current_due,notes,is_active,brand_id")
-        .in("brand_id", brandIds)
-        .order("name");
+      const { data, error } = await applyBrandScope(
+        supabase
+          .from("erp_suppliers")
+          .select("id,name,contact_person,phone,email,address,opening_balance,current_due,notes,is_active,brand_id"),
+        brandIds,
+      ).order("name");
       if (error) throw error;
       return data as Supplier[];
     },

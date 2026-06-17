@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export type AbandonedCartItem = {
   product_id?: string;
@@ -70,7 +71,7 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       .order("updated_at", { ascending: false });
 
     if (data.brandIds && data.brandIds.length > 0) {
-      q = q.in("brand_id", data.brandIds);
+      q = applyBrandScope(q, data.brandIds);
     } else if (data.brandId) {
       q = q.eq("brand_id", data.brandId);
     }
@@ -115,7 +116,7 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
       .not("customer_phone", "is", null)
       .gt("subtotal", 0);
     if (data.brandIds && data.brandIds.length > 0) {
-      q = q.in("brand_id", data.brandIds);
+      q = applyBrandScope(q, data.brandIds);
     } else if (data.brandId) {
       q = q.eq("brand_id", data.brandId);
     }

@@ -41,7 +41,7 @@ function bucketFor(age: number) {
 }
 
 function ReceivablesPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [bucket, setBucket] = useState<string>("all");
@@ -102,10 +102,9 @@ function ReceivablesPage() {
 
   const totalOutstanding = (arQ.data ?? []).reduce((s, r) => s + Number(r.outstanding), 0);
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header className="flex flex-wrap justify-between items-end gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Accounts Receivable</h1>

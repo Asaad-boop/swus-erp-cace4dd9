@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/erp/reconciliation/")({
 });
 
 function OverviewPage() {
-  const { brandId, gate } = useBrandPicker({
+  const { brandId, picker } = useBrandPicker({
     label: "Pick a brand",
     hint: "Brand wise reconciliation status dekhar jonno ekta brand select koro.",
   });
@@ -28,13 +28,12 @@ function OverviewPage() {
     enabled: !!brandId,
   });
 
-  if (gate) return gate;
-
   const s = q.data;
   const os = s?.orderStatus ?? {};
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reconciliation Overview</h1>

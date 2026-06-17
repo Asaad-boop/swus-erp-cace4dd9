@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/fx")({
 type FX = { id: string; from_ccy: string; to_ccy: string; rate: number; rate_date: string };
 
 function FxPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [form, setForm] = useState({ from_ccy: "USD", to_ccy: "BDT", rate: "", rate_date: new Date().toISOString().slice(0, 10) });
 
@@ -45,10 +45,9 @@ function FxPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">FX Rates</h1>
         <p className="text-sm text-muted-foreground">Currency conversion rates (BDT base). Used for foreign supplier bills & USD revenue.</p>

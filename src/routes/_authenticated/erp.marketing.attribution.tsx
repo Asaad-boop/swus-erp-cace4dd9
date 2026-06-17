@@ -44,7 +44,7 @@ const SOURCE_COLOR: Record<string, string> = {
 
 function AttributionPage() {
   const qc = useQueryClient();
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const [tab, setTab] = useState<"unattributed" | "attributed">("unattributed");
   const [days, setDays] = useState(30);
@@ -117,12 +117,11 @@ function AttributionPage() {
     );
   }, [ordersQ.data, search]);
 
-  if (gate) return gate;
-
   const campaigns = campsQ.data ?? [];
 
   return (
     <div className="space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <div>
