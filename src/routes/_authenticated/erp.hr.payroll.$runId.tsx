@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import {
   getPayrollRun, updatePayslip, finalizePayrollRun, markPayslipPaid, getPayslip,
@@ -122,7 +123,7 @@ function PayrollRunPage() {
               <TableHeader>
                 <TableRow className="border-gray-100 hover:bg-transparent">
                   <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</TableHead>
-                  {["Basic","Allowances","Deductions","Gross","Net"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
+                  {["Basic","Allowances","OT Earning","Absent Ded.","Late Ded.","Deductions","Gross","Net Pay"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
                   <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payment</TableHead>
                   <TableHead className="bg-gray-50/50"></TableHead>
                 </TableRow>
