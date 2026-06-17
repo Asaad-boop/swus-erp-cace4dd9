@@ -7,7 +7,6 @@ import { Plus, Lock, Trash2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listPayrollRuns, createPayrollRun, deletePayrollRun } from "@/lib/erp/hr/payroll.functions";
