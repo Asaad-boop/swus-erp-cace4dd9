@@ -21,7 +21,8 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
   const showBrandPicker = !brandId && !editing && brands.length > 1;
-  const effectiveBrandId = brandId ?? (editing?.brand_id ?? null) ?? pickedBrandId ?? null;
+  const effectiveBrandId: string | null =
+    brandId ?? editing?.brand_id ?? (pickedBrandId || null);
 
   useEffect(() => {
     if (open) {
