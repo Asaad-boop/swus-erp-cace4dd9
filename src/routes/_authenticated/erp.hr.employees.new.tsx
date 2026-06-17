@@ -29,18 +29,23 @@ function NewEmployee() {
   });
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
-        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to employees
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">New Employee</h1>
-        <EmployeeForm
-          onSubmit={async (d) => { await mut.mutateAsync(d); }}
-          submitting={mut.isPending}
-          submitLabel="Create Employee"
-        />
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">New Employee</h1>
+          <p className="text-sm text-gray-500 mt-1">Add a person to the directory.</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <EmployeeForm
+            onSubmit={async (d) => { await mut.mutateAsync(d); }}
+            submitting={mut.isPending}
+            submitLabel="Create Employee"
+          />
+        </div>
       </div>
     </div>
   );
