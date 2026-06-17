@@ -207,7 +207,7 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
 
     const { error: rowErr } = await supabase
       .from("erp_reconciliation_rows")
-      .insert(rowInserts);
+      .insert(rowInserts as never);
     if (rowErr) throw new Error(rowErr.message);
 
     // Update counts on run
@@ -390,7 +390,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           .update({
             applied_income_txn_id: incomeId,
             applied_expense_txn_id: expenseId,
-          })
+          } as never)
           .eq("id", r.id);
 
         applied++;
