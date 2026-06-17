@@ -33,8 +33,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   APP_ROLES, type AppRole,
-  listAppUsers, listAvailableCargoAgents,
-  createAppUser, updateUserRoles, linkUserToCargoAgent, setUserPassword, deleteAppUser,
+  listAppUsers,
+  createAppUser, updateUserRoles, setUserPassword, deleteAppUser,
   toggleUserBan, updateUserProfile, generateAuthLink, bulkDeleteUsers, bulkSetRole,
 } from "@/lib/erp/users.functions";
 
@@ -52,7 +52,6 @@ const ROLE_LABEL: Record<AppRole, string> = {
   customer_service: "Customer Service",
   marketing_manager: "Marketing",
   moderator: "Moderator",
-  cargo_agent: "Cargo Agent",
   customer: "Customer",
 };
 
@@ -65,13 +64,12 @@ const ROLE_DOT: Record<AppRole, string> = {
   customer_service: "bg-violet-500",
   marketing_manager: "bg-pink-500",
   moderator: "bg-slate-500",
-  cargo_agent: "bg-cyan-500",
   customer: "bg-zinc-400",
 };
 
 const TEAM_ROLES: AppRole[] = ["admin","operations","accountant","warehouse_staff","packer","customer_service","marketing_manager","moderator"];
 
-type Tab = "all" | "team" | "cargo_agent" | "customer" | "disabled" | "no_role";
+type Tab = "all" | "team" | "customer" | "disabled" | "no_role";
 type SortKey = "name" | "created" | "last_sign_in";
 
 function initials(s?: string | null) {
@@ -83,7 +81,6 @@ function initials(s?: string | null) {
 function UsersPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listAppUsers);
-  const agentsFn = useServerFn(listAvailableCargoAgents);
   const deleteFn = useServerFn(deleteAppUser);
   const banFn = useServerFn(toggleUserBan);
   const bulkDelFn = useServerFn(bulkDeleteUsers);
@@ -93,10 +90,6 @@ function UsersPage() {
   const { data: users = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["app-users"],
     queryFn: () => listFn({ data: undefined as any }),
-  });
-  const { data: agents = [] } = useQuery({
-    queryKey: ["available-cargo-agents"],
-    queryFn: () => agentsFn({ data: undefined as any }),
   });
 
   const [q, setQ] = useState("");
@@ -142,7 +135,6 @@ function UsersPage() {
     return {
       total: all.length,
       team: all.filter(u => u.roles.some((r: AppRole) => TEAM_ROLES.includes(r))).length,
-      cargo_agent: all.filter(u => u.roles.includes("cargo_agent")).length,
       customer: all.filter(u => u.roles.includes("customer") || u.roles.length === 0).length,
       disabled: all.filter(isDisabled).length,
       no_role: all.filter(u => u.roles.length === 0).length,
@@ -156,7 +148,6 @@ function UsersPage() {
     let arr = (users as any[]).filter((u) => {
       const disabled = u.banned_until && new Date(u.banned_until).getTime() > now;
       if (tab === "team" && !u.roles.some((r: AppRole) => TEAM_ROLES.includes(r))) return false;
-      if (tab === "cargo_agent" && !u.roles.includes("cargo_agent")) return false;
       if (tab === "customer" && !(u.roles.includes("customer") || u.roles.length === 0)) return false;
       if (tab === "disabled" && !disabled) return false;
       if (tab === "no_role" && u.roles.length !== 0) return false;
@@ -188,14 +179,13 @@ function UsersPage() {
   };
 
   const exportCsv = () => {
-    const rows = [["Email","Name","Roles","Cargo Agent","Status","Created","Last sign-in"]];
+    const rows = [["Email","Name","Roles","Status","Created","Last sign-in"]];
     filtered.forEach(u => {
       const disabled = u.banned_until && new Date(u.banned_until).getTime() > Date.now();
       rows.push([
         u.email ?? "",
         u.display_name ?? "",
         u.roles.join("|"),
-        u.cargo_agent?.name ?? "",
         disabled ? "Disabled" : (u.last_sign_in_at ? "Active" : "Never signed-in"),
         u.created_at ?? "",
         u.last_sign_in_at ?? "",
