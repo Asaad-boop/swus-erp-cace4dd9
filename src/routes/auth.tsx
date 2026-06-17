@@ -84,7 +84,10 @@ function AuthPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/10 ring-1 ring-primary-foreground/20 backdrop-blur">
             <Sparkles className="h-5 w-5" />
           </div>
-          <div className="text-lg font-semibold tracking-tight">SWUS ERP</div>
+          <div className="leading-tight">
+            <div className="text-lg font-semibold tracking-tight">SyncWithUs</div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-primary-foreground/60">ERP Platform</div>
+          </div>
         </div>
 
         <div className="relative space-y-8">
@@ -114,7 +117,7 @@ function AuthPage() {
         </div>
 
         <div className="relative text-xs text-primary-foreground/60">
-          © {new Date().getFullYear()} SWUS — Internal use only
+          © {new Date().getFullYear()} SyncWithUs — Internal use only
         </div>
       </div>
 
@@ -126,7 +129,7 @@ function AuthPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Sparkles className="h-4 w-4" />
             </div>
-            <span className="font-semibold tracking-tight">SWUS ERP</span>
+            <span className="font-semibold tracking-tight">SyncWithUs ERP</span>
           </div>
 
           <div className="space-y-2">
