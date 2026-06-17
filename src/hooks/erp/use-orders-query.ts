@@ -6,6 +6,7 @@ import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 
 export type OrdersFilter = {
   brandId: string | null;
+  brandIds?: string[];
   search: string;
   statuses: OrderStatus[];
   source: string | null;
@@ -17,9 +18,14 @@ export type OrdersFilter = {
 };
 
 export function useOrdersQuery(filter: OrdersFilter) {
+  const brandIds = filter.brandIds && filter.brandIds.length > 0
+    ? filter.brandIds
+    : filter.brandId
+      ? [filter.brandId]
+      : [];
   return useQuery({
     queryKey: ["orders", filter],
-    enabled: !!filter.brandId,
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       let q = supabase
         .from("orders")
@@ -27,7 +33,7 @@ export function useOrdersQuery(filter: OrdersFilter) {
           "id,invoice_no,created_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,items:order_items(id,name,image,quantity,variant_label,line_total)",
           { count: "exact" },
         )
-        .eq("brand_id", filter.brandId!)
+        .in("brand_id", brandIds)
         .order("created_at", { ascending: false });
 
       if (filter.statuses.length > 0) {
@@ -105,15 +111,20 @@ export function useStaffList() {
 // Counts per status for the status-tabs strip. Scoped to brand + global filters
 // (search/date/source/courier) but NOT to the active status filter so all tabs stay accurate.
 export function useOrderStatusCounts(filter: OrdersFilter) {
+  const brandIds = filter.brandIds && filter.brandIds.length > 0
+    ? filter.brandIds
+    : filter.brandId
+      ? [filter.brandId]
+      : [];
   return useQuery({
-    queryKey: ["orders-status-counts", filter.brandId, filter.search, filter.source, filter.courier, filter.dateFrom, filter.dateTo],
-    enabled: !!filter.brandId,
+    queryKey: ["orders-status-counts", brandIds, filter.search, filter.source, filter.courier, filter.dateFrom, filter.dateTo],
+    enabled: brandIds.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
       let q = supabase
         .from("orders")
         .select("status", { count: "exact" })
-        .eq("brand_id", filter.brandId!)
+        .in("brand_id", brandIds)
         .neq("status", "new")
         .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
         .limit(10000);
