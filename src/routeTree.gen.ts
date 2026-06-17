@@ -83,6 +83,7 @@ import { Route as AuthenticatedErpHrAttendanceIndexRouteImport } from './routes/
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_authenticated/erp.imports.orders.new'
 import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
+import { Route as AuthenticatedErpHrLeavePolicyRouteImport } from './routes/_authenticated/erp.hr.leave.policy'
 import { Route as AuthenticatedErpHrLeaveCalendarRouteImport } from './routes/_authenticated/erp.hr.leave.calendar'
 import { Route as AuthenticatedErpHrEmployeesNewRouteImport } from './routes/_authenticated/erp.hr.employees.new'
 import { Route as AuthenticatedErpHrEmployeesIdRouteImport } from './routes/_authenticated/erp.hr.employees.$id'
@@ -515,6 +516,12 @@ const AuthenticatedErpImportsOrdersOrderIdRoute =
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpHrLeavePolicyRoute =
+  AuthenticatedErpHrLeavePolicyRouteImport.update({
+    id: '/policy',
+    path: '/policy',
+    getParentRoute: () => AuthenticatedErpHrLeaveRoute,
+  } as any)
 const AuthenticatedErpHrLeaveCalendarRoute =
   AuthenticatedErpHrLeaveCalendarRouteImport.update({
     id: '/calendar',
@@ -610,6 +617,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/erp/hr/leave/calendar': typeof AuthenticatedErpHrLeaveCalendarRoute
+  '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -679,6 +687,7 @@ export interface FileRoutesByTo {
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/erp/hr/leave/calendar': typeof AuthenticatedErpHrLeaveCalendarRoute
+  '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -760,6 +769,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
   '/_authenticated/erp/hr/employees/new': typeof AuthenticatedErpHrEmployeesNewRoute
   '/_authenticated/erp/hr/leave/calendar': typeof AuthenticatedErpHrLeaveCalendarRoute
+  '/_authenticated/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/_authenticated/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -841,6 +851,7 @@ export interface FileRouteTypes {
     | '/erp/hr/employees/$id'
     | '/erp/hr/employees/new'
     | '/erp/hr/leave/calendar'
+    | '/erp/hr/leave/policy'
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
@@ -910,6 +921,7 @@ export interface FileRouteTypes {
     | '/erp/hr/employees/$id'
     | '/erp/hr/employees/new'
     | '/erp/hr/leave/calendar'
+    | '/erp/hr/leave/policy'
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
@@ -990,6 +1002,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr/employees/$id'
     | '/_authenticated/erp/hr/employees/new'
     | '/_authenticated/erp/hr/leave/calendar'
+    | '/_authenticated/erp/hr/leave/policy'
     | '/_authenticated/erp/imports/orders/$orderId'
     | '/_authenticated/erp/imports/orders/new'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
@@ -1532,6 +1545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/hr/leave/policy': {
+      id: '/_authenticated/erp/hr/leave/policy'
+      path: '/policy'
+      fullPath: '/erp/hr/leave/policy'
+      preLoaderRoute: typeof AuthenticatedErpHrLeavePolicyRouteImport
+      parentRoute: typeof AuthenticatedErpHrLeaveRoute
+    }
     '/_authenticated/erp/hr/leave/calendar': {
       id: '/_authenticated/erp/hr/leave/calendar'
       path: '/calendar'
@@ -1647,12 +1667,14 @@ const AuthenticatedErpHrAttendanceRouteWithChildren =
 
 interface AuthenticatedErpHrLeaveRouteChildren {
   AuthenticatedErpHrLeaveCalendarRoute: typeof AuthenticatedErpHrLeaveCalendarRoute
+  AuthenticatedErpHrLeavePolicyRoute: typeof AuthenticatedErpHrLeavePolicyRoute
   AuthenticatedErpHrLeaveIndexRoute: typeof AuthenticatedErpHrLeaveIndexRoute
 }
 
 const AuthenticatedErpHrLeaveRouteChildren: AuthenticatedErpHrLeaveRouteChildren =
   {
     AuthenticatedErpHrLeaveCalendarRoute: AuthenticatedErpHrLeaveCalendarRoute,
+    AuthenticatedErpHrLeavePolicyRoute: AuthenticatedErpHrLeavePolicyRoute,
     AuthenticatedErpHrLeaveIndexRoute: AuthenticatedErpHrLeaveIndexRoute,
   }
 
