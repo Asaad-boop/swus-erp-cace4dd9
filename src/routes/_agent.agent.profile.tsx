@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, TrendingUp, TrendingDown, Minus, Phone, MapPin, Truck, CalendarDays } from "lucide-react";
+import { CheckCircle2, Loader2, TrendingUp, TrendingDown, Minus, Phone, MapPin, Truck, CalendarDays, Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { getAgentMe, listMyRates, submitTodayRate } from "@/lib/erp/imports/agent.functions";
+import { getAgentMe, listMyRates, submitTodayRate, getMyAgentBalance } from "@/lib/erp/imports/agent.functions";
 
 export const Route = createFileRoute("/_agent/agent/profile")({
   head: () => ({ meta: [{ title: "Profile — Cargo Agent" }] }),
@@ -33,6 +33,7 @@ function AgentProfile() {
   const meFn = useServerFn(getAgentMe);
   const ratesFn = useServerFn(listMyRates);
   const submitFn = useServerFn(submitTodayRate);
+  const balanceFn = useServerFn(getMyAgentBalance);
 
   const { data: agent, isLoading } = useQuery({
     queryKey: ["agent-me"],
@@ -41,6 +42,10 @@ function AgentProfile() {
   const { data: rates = [] } = useQuery({
     queryKey: ["agent-my-rates"],
     queryFn: () => ratesFn({ data: { limit: 60 } }),
+  });
+  const { data: wallet } = useQuery({
+    queryKey: ["agent-my-balance"],
+    queryFn: () => balanceFn({ data: undefined as any }),
   });
 
   const today = new Date().toISOString().slice(0, 10);
@@ -113,6 +118,9 @@ function AgentProfile() {
           </div>
         </div>
       </Card>
+
+      {/* Balance / Wallet */}
+      <BalanceCard wallet={wallet} />
 
       {/* Today's rate submission */}
       <Card className="p-5 md:p-6 border-primary/30">
