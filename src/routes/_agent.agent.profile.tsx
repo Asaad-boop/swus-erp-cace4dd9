@@ -238,3 +238,88 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function fmtBdt(n: number | string | null | undefined) {
+  const v = Number(n ?? 0);
+  return v.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function BalanceCard({ wallet }: { wallet: any }) {
+  const balance = Number(wallet?.balance_bdt ?? 0);
+  const entries = (wallet?.entries ?? []) as any[];
+  const tone =
+    balance > 0
+      ? "from-emerald-500/15 to-emerald-500/5 border-emerald-500/30"
+      : balance < 0
+        ? "from-rose-500/15 to-rose-500/5 border-rose-500/30"
+        : "from-muted/40 to-muted/10 border-border";
+  return (
+    <Card className={`p-5 md:p-6 bg-gradient-to-br ${tone}`}>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-background/60 border border-border flex items-center justify-center">
+            <Wallet className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Current Balance</div>
+            <div className="text-3xl font-bold tabular-nums">৳ {fmtBdt(balance)}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {balance > 0
+                ? "Apnar kache importer er taka jomma ache"
+                : balance < 0
+                  ? "Apni importer er kaache eta amount paben (negative)"
+                  : "Balance shunno"}
+            </div>
+          </div>
+        </div>
+        <Badge variant="outline" className="gap-1"><CalendarDays className="h-3 w-3" />{entries.length} entries</Badge>
+      </div>
+
+      <div className="mt-5">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Recent Activity</div>
+        {entries.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-md">
+            Kono entry nei. Importer balance add korle ekhane dekhabe.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border/60 bg-background/40">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="text-left py-2 px-3 font-medium">Date</th>
+                  <th className="text-left py-2 px-3 font-medium">Type</th>
+                  <th className="text-right py-2 px-3 font-medium">Amount</th>
+                  <th className="text-left py-2 px-3 font-medium">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.slice(0, 20).map((e) => (
+                  <tr key={e.id} className="border-b border-border/40 last:border-0">
+                    <td className="py-2 px-3 whitespace-nowrap">{fmtDate(e.entry_date)}</td>
+                    <td className="py-2 px-3">
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        {e.direction === "credit" ? (
+                          <ArrowDownCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <ArrowUpCircle className="h-3.5 w-3.5 text-rose-600" />
+                        )}
+                        <span className="capitalize">{e.entry_type ?? (e.direction === "credit" ? "deposit" : "payment")}</span>
+                      </span>
+                    </td>
+                    <td className={`py-2 px-3 text-right font-semibold tabular-nums ${e.direction === "credit" ? "text-emerald-600" : "text-rose-600"}`}>
+                      {e.direction === "credit" ? "+" : "−"} ৳ {fmtBdt(e.amount_bdt)}
+                    </td>
+                    <td className="py-2 px-3 text-muted-foreground truncate max-w-[260px]">
+                      {e.reference ? <span className="font-medium text-foreground mr-1">{e.reference}</span> : null}
+                      {e.note ?? ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
