@@ -127,3 +127,144 @@ export interface HrSettings {
   next_employee_seq: number;
   fiscal_year_start_month: number;
 }
+
+/* ===== Phase 2: Attendance + Leave ===== */
+
+export type AttendanceStatus =
+  | "present"
+  | "absent"
+  | "late"
+  | "half_day"
+  | "leave"
+  | "holiday"
+  | "week_off";
+
+export type AttendanceSource = "manual" | "web" | "mobile" | "biometric" | "import";
+
+export interface HrShift {
+  id: string;
+  brand_id: string | null;
+  name: string;
+  code: string | null;
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  grace_minutes: number;
+  half_day_after_min: number;
+  is_night: boolean;
+  is_default: boolean;
+  is_active: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrEmployeeShift {
+  id: string;
+  employee_id: string;
+  shift_id: string;
+  effective_from: string;
+  effective_to: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrHoliday {
+  id: string;
+  brand_id: string | null;
+  date: string;
+  name: string;
+  type: string;
+  is_optional: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrAttendanceRow {
+  id: string;
+  employee_id: string;
+  date: string;
+  in_time: string | null;
+  out_time: string | null;
+  shift_id: string | null;
+  status: AttendanceStatus;
+  source: AttendanceSource;
+  late_min: number;
+  early_leave_min: number;
+  ot_min: number;
+  work_min: number;
+  note: string | null;
+  marked_by: string | null;
+  ip_address: string | null;
+  location: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface HrLeaveType {
+  id: string;
+  brand_id: string | null;
+  name: string;
+  code: string;
+  color: string;
+  is_paid: boolean;
+  default_days_per_year: number;
+  max_carry_forward: number;
+  requires_approval: boolean;
+  min_notice_days: number;
+  applies_to_gender: string | null;
+  is_active: boolean;
+  description: string | null;
+}
+
+export interface HrLeaveBalance {
+  id: string;
+  employee_id: string;
+  leave_type_id: string;
+  year: number;
+  allocated: number;
+  used: number;
+  carried: number;
+  encashed: number;
+}
+
+export interface HrLeaveRequest {
+  id: string;
+  employee_id: string;
+  leave_type_id: string;
+  from_date: string;
+  to_date: string;
+  days: number;
+  is_half_day: boolean;
+  half_day_part: string | null;
+  reason: string | null;
+  status: LeaveRequestStatus;
+  approver_id: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  attachment_url: string | null;
+  contact_during_leave: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceKpis {
+  totalEmployees: number;
+  present: number;
+  late: number;
+  absent: number;
+  onLeave: number;
+  avgWorkHours: number;
+  totalOtHours: number;
+}
+
+export interface LeaveKpis {
+  pending: number;
+  approvedThisMonth: number;
+  rejectedThisMonth: number;
+  onLeaveToday: number;
+  upcoming: { id: string; employee_name: string; from_date: string; to_date: string; days: number; type: string; color: string }[];
+}
