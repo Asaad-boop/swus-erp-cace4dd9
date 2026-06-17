@@ -127,7 +127,6 @@ function PoDetailPage() {
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary" />{po.supplier?.name ?? "—"}</span>
-              <span className="inline-flex items-center gap-1"><Truck className="h-3 w-3" />{po.agent?.name ?? "No agent"}</span>
               <span>📅 {po.order_date}</span>
               <span>$ FX {Number(po.fx_rate)} · {po.currency}</span>
             </div>
@@ -304,7 +303,7 @@ function PoDetailPage() {
 
       {/* Dialogs */}
       {arrivedOpen && brandId && (
-        <ArrivedDialog poId={po.id} agent={po.agent} onClose={() => setArrivedOpen(false)} brandId={brandId} />
+        <ArrivedDialog poId={po.id} onClose={() => setArrivedOpen(false)} brandId={brandId} />
       )}
       {paymentOpen && brandId && (
         <PaymentDialog
@@ -741,12 +740,12 @@ function RowsAutoCompute({ rows, setRows, carton }: { rows: any; setRows: any; c
 
 /* ============== Dialogs ============== */
 
-function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent: any; onClose: () => void; brandId: string }) {
+function ArrivedDialog({ poId, onClose, brandId }: { poId: string; onClose: () => void; brandId: string }) {
   const fn = useServerFn(markArrivedInBd);
   const qc = useQueryClient();
   const { data: wallets = [] } = useAccounts([brandId]);
   const [weight, setWeight] = useState<number>(0);
-  const [rate, setRate] = useState<number>(Number(agent?.default_shipping_rate_per_kg_bdt ?? 0));
+  const [rate, setRate] = useState<number>(0);
   const [payNow, setPayNow] = useState(false);
   const [amount, setAmount] = useState<number>(0);
   const [walletId, setWalletId] = useState("");
