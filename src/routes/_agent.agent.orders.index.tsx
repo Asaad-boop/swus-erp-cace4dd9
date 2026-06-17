@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_agent/agent/orders/")({
 function AgentOrdersList() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
+  const navigate = useNavigate();
 
   const fn = useServerFn(listAgentPurchaseOrders);
   const { data: rows = [], isLoading } = useQuery({
@@ -78,7 +79,11 @@ function AgentOrdersList() {
               <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Kono PO nei.</TableCell></TableRow>
             ) : (
               (rows as any[]).map((p) => (
-                <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50">
+                <TableRow
+                  key={p.id}
+                  className="cursor-pointer hover:bg-accent/50"
+                  onClick={() => navigate({ to: "/agent/orders/$orderId", params: { orderId: p.id } })}
+                >
                   <TableCell className="font-mono text-xs">
                     <Link to="/agent/orders/$orderId" params={{ orderId: p.id }} className="hover:underline">
                       {p.po_number}

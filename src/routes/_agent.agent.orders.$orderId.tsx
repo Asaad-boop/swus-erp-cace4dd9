@@ -23,9 +23,10 @@ function AgentOrderDetail() {
   const qc = useQueryClient();
   const fn = useServerFn(getAgentPurchaseOrder);
   const releaseFn = useServerFn(requestCartonRelease);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["agent-po", orderId],
     queryFn: () => fn({ data: { poId: orderId } }),
+    retry: false,
   });
 
   const [releaseCarton, setReleaseCarton] = useState<any | null>(null);
@@ -43,7 +44,27 @@ function AgentOrderDetail() {
   });
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
-  if (!data) return <div className="p-6">Not found.</div>;
+  if (error) {
+    return (
+      <div className="p-6 space-y-2">
+        <Link to="/agent/orders" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+          <ArrowLeft className="h-3 w-3" /> Back to orders
+        </Link>
+        <div className="text-sm text-destructive font-medium">PO load korte parlam na</div>
+        <div className="text-xs text-muted-foreground break-words">{(error as any)?.message ?? "Unknown error"}</div>
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="p-6 space-y-2">
+        <Link to="/agent/orders" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+          <ArrowLeft className="h-3 w-3" /> Back to orders
+        </Link>
+        <div className="text-sm">PO khuje paowa jayni.</div>
+      </div>
+    );
+  }
 
   const po = data.po as any;
   const items = data.items as any[];
