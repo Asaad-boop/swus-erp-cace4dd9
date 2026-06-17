@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { getHrSettings, updateHrSettings } from "@/lib/erp/hr/hr.functions";
 import { PageHeader } from "@/components/erp/hr/ui/page-header";
@@ -36,6 +37,12 @@ function HrSettings() {
       employee_code_prefix: f.employee_code_prefix,
       employee_code_padding: Number(f.employee_code_padding),
       fiscal_year_start_month: Number(f.fiscal_year_start_month),
+      working_days_per_month: Number(f.working_days_per_month),
+      absent_deduction_enabled: !!f.absent_deduction_enabled,
+      late_consecutive_threshold: Number(f.late_consecutive_threshold),
+      late_rate_per_min: Number(f.late_rate_per_min),
+      overtime_enabled: !!f.overtime_enabled,
+      overtime_rate_per_hour: Number(f.overtime_rate_per_hour),
     } as any }),
     onSuccess: () => { toast.success("Settings updated"); qc.invalidateQueries({ queryKey: ["hr-settings"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -83,6 +90,36 @@ function HrSettings() {
 
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <Button className="rounded-lg bg-gray-900 hover:bg-gray-800" onClick={() => mut.mutate()} disabled={mut.isPending}>{mut.isPending ? "Saving…" : "Save settings"}</Button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Payroll Rules</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Used when generating payroll runs from attendance.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div><Label className="text-xs text-gray-500">Working days / month</Label><Input className="mt-1 h-9 rounded-lg border-gray-200" type="number" min={1} max={31} value={f.working_days_per_month ?? 26} onChange={(e) => setF({ ...f, working_days_per_month: e.target.value })} /></div>
+            <div><Label className="text-xs text-gray-500">Late: consecutive-day threshold</Label><Input className="mt-1 h-9 rounded-lg border-gray-200" type="number" min={1} value={f.late_consecutive_threshold ?? 3} onChange={(e) => setF({ ...f, late_consecutive_threshold: e.target.value })} /></div>
+            <div><Label className="text-xs text-gray-500">Late rate (৳/min)</Label><Input className="mt-1 h-9 rounded-lg border-gray-200" type="number" min={0} step="0.01" value={f.late_rate_per_min ?? 50} onChange={(e) => setF({ ...f, late_rate_per_min: e.target.value })} /></div>
+            <div><Label className="text-xs text-gray-500">Overtime rate (৳/hour)</Label><Input className="mt-1 h-9 rounded-lg border-gray-200" type="number" min={0} step="0.01" value={f.overtime_rate_per_hour ?? 100} onChange={(e) => setF({ ...f, overtime_rate_per_hour: e.target.value })} /></div>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium text-gray-900">Absent deduction</div>
+              <div className="text-xs text-gray-500">Deduct one day's salary (basic / working days) per absent day.</div>
+            </div>
+            <Switch checked={!!f.absent_deduction_enabled} onCheckedChange={(v) => setF({ ...f, absent_deduction_enabled: v })} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium text-gray-900">Overtime earning</div>
+              <div className="text-xs text-gray-500">Pay overtime minutes at the configured hourly rate.</div>
+            </div>
+            <Switch checked={!!f.overtime_enabled} onCheckedChange={(v) => setF({ ...f, overtime_enabled: v })} />
+          </div>
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <Button className="rounded-lg bg-gray-900 hover:bg-gray-800" onClick={() => mut.mutate()} disabled={mut.isPending}>{mut.isPending ? "Saving…" : "Save payroll rules"}</Button>
           </div>
         </div>
       </div>
