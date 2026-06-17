@@ -61,6 +61,10 @@ async function loadAll(
       }
       throw error;
     }
+    if (source === "crm_customers_mv" && from === 0 && (!data || data.length === 0)) {
+      source = "crm_customers_v";
+      continue;
+    }
     if (!data || !data.length) break;
     all.push(...data);
     if (data.length < PAGE) break;
