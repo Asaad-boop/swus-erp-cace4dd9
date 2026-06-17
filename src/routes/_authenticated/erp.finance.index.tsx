@@ -1,19 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Wallet, Scale, AlertTriangle, FileText, ArrowRight, Banknote, Smartphone, Truck, Users, RotateCcw, Receipt, PiggyBank, Activity } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  Wallet, Package, TrendingUp, TrendingDown, Banknote, Smartphone, Truck, Users,
+  Receipt, AlertTriangle, FileText, ArrowRight, RotateCcw, Calendar, Building2,
+  PiggyBank, Activity, ArrowDownRight, ArrowUpRight,
+} from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, PieChart, Pie, Cell, Legend, Line, ComposedChart,
+} from "recharts";
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fmtBdt } from "@/lib/erp/finance";
+import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
-  head: () => ({ meta: [{ title: "Finance Overview — ERP" }] }),
+  head: () => ({ meta: [{ title: "Finance Dashboard — ERP" }] }),
   component: OverviewPage,
 });
 
@@ -22,7 +31,7 @@ type Preset = "today" | "7d" | "30d" | "this_month" | "last_month" | "this_year"
 function rangeFor(preset: Preset, customFrom?: string, customTo?: string) {
   const today = new Date();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const start = (d: Date) => { d.setHours(0,0,0,0); return d; };
+  const start = (d: Date) => { d.setHours(0, 0, 0, 0); return d; };
   switch (preset) {
     case "today": return { from: iso(today), to: iso(today) };
     case "7d": { const f = new Date(today); f.setDate(f.getDate() - 6); return { from: iso(f), to: iso(today) }; }
@@ -38,21 +47,12 @@ function rangeFor(preset: Preset, customFrom?: string, customTo?: string) {
   }
 }
 
-type DashboardData = {
-  today_sales: number; today_orders: number;
-  range_sales: number; range_orders: number;
-  cash: number; bank: number; mfs: number;
-  courier_cod_receivable: number; ar_due: number;
-  supplier_payable: number;
-  expense_total: number; other_income: number;
-  net_profit: number; refund_loss: number;
-  expense_by_category: Record<string, number>;
-  monthly_series: { month: string; revenue: number; expense: number }[];
-  accounts: { id: string; name: string; type: string; balance: number }[];
-  recent_transactions: { id: string; date: string; type: string; amount: number; description: string | null; account: string | null; category: string | null }[];
+const PROVIDER_LABEL: Record<string, string> = {
+  pathao: "Pathao", steadfast: "SteadFast", redx: "RedX",
+  paperfly: "Paperfly", ecourier: "eCourier", no_shipment: "No shipment", unknown: "Other",
 };
 
-const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8b5cf6", "#ef4444", "#84cc16", "#f97316", "#14b8a6"];
+const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8b5cf6", "#ef4444", "#84cc16"];
 
 function OverviewPage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
@@ -61,220 +61,29 @@ function OverviewPage() {
   const [customTo, setCustomTo] = useState("");
   const { from, to } = useMemo(() => rangeFor(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
-  const dashQ = useQuery({
-    queryKey: ["finance_dashboard", brandIds.join(","), from, to],
+  const fetchOverview = useServerFn(getFinanceOverview);
+
+  const q = useQuery({
+    queryKey: ["finance_overview", brandIds.join(","), from, to],
     enabled: brandIds.length > 0,
-    queryFn: async () => {
-      const todayIso = new Date().toISOString().slice(0, 10);
-      const brandEq = <T extends { in: (col: string, v: string[]) => T }>(q: T) => q.in("brand_id", brandIds);
-
-      // Today sales
-      const todayOrdersQ = supabase
-        .from("orders")
-        .select("total", { count: "exact" })
-        .in("status", ["delivered", "partial_delivered", "confirmed", "paid"])
-        .gte("created_at", `${todayIso}T00:00:00`)
-        .lte("created_at", `${todayIso}T23:59:59.999`);
-      // Range delivered
-      const rangeOrdersQ = supabase
-        .from("orders")
-        .select("total,created_at", { count: "exact" })
-        .in("status", ["delivered", "partial_delivered", "paid"])
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59.999`);
-      // Refund / loss
-      const refundOrdersQ = supabase
-        .from("orders")
-        .select("total")
-        .in("status", ["returned", "paid_return", "unpaid_return", "partial_return"])
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59.999`);
-      // Accounts
-      const accountsQ = supabase
-        .from("erp_accounts")
-        .select("id,name,account_type,current_balance")
-        .eq("is_active", true)
-        .order("current_balance", { ascending: false });
-      // Transactions in range
-      const txnQ = supabase
-        .from("erp_transactions")
-        .select("id,txn_type,amount,category_id,transaction_date,description,account_id")
-        .gte("transaction_date", from)
-        .lte("transaction_date", to);
-      // Recent 10 txns (no date filter)
-      const recentQ = supabase
-        .from("erp_transactions")
-        .select("id,txn_type,amount,transaction_date,description,category_id,account_id")
-        .order("transaction_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(10);
-      // 12 months series
-      const twelveStart = new Date();
-      twelveStart.setMonth(twelveStart.getMonth() - 11, 1);
-      const twelveStartIso = twelveStart.toISOString().slice(0, 10);
-      const monthlyOrdersQ = supabase
-        .from("orders")
-        .select("total,created_at")
-        .in("status", ["delivered", "partial_delivered", "paid"])
-        .gte("created_at", `${twelveStartIso}T00:00:00`);
-      const monthlyTxnQ = supabase
-        .from("erp_transactions")
-        .select("amount,transaction_date,txn_type")
-        .eq("txn_type", "expense")
-        .gte("transaction_date", twelveStartIso);
-      // Categories lookup
-      const catsQ = supabase.from("erp_expense_categories").select("id,name");
-
-      const [todayRes, rangeRes, refundRes, accRes, txnRes, recentRes, monOrdRes, monTxnRes, catsRes] = await Promise.all([
-        brandEq(todayOrdersQ),
-        brandEq(rangeOrdersQ),
-        brandEq(refundOrdersQ),
-        brandEq(accountsQ),
-        brandEq(txnQ),
-        brandEq(recentQ),
-        brandEq(monthlyOrdersQ),
-        brandEq(monthlyTxnQ),
-        brandEq(catsQ),
-      ]);
-      for (const r of [todayRes, rangeRes, refundRes, accRes, txnRes, recentRes, monOrdRes, monTxnRes, catsRes]) {
-        if (r.error) throw r.error;
-      }
-
-      const sum = (rows: { total?: number | null; amount?: number | null }[] | null, key: "total" | "amount" = "total") =>
-        (rows ?? []).reduce((a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0), 0);
-
-      const today_sales = sum(todayRes.data as { total: number }[], "total");
-      const today_orders = todayRes.count ?? (todayRes.data?.length ?? 0);
-      const range_sales = sum(rangeRes.data as { total: number }[], "total");
-      const range_orders = rangeRes.count ?? (rangeRes.data?.length ?? 0);
-      const refund_loss = sum(refundRes.data as { total: number }[], "total");
-
-      const accounts = (accRes.data ?? []).map((a) => ({
-        id: a.id,
-        name: a.name,
-        type: a.account_type,
-        balance: Number(a.current_balance ?? 0),
-      }));
-      const accMap = new Map(accounts.map((a) => [a.id, a]));
-      const cash = accounts.filter((a) => a.type === "cash").reduce((s, a) => s + a.balance, 0);
-      const bank = accounts.filter((a) => a.type === "bank").reduce((s, a) => s + a.balance, 0);
-      const mfs = accounts.filter((a) => ["bkash", "nagad", "rocket", "mfs"].includes(a.type)).reduce((s, a) => s + a.balance, 0);
-
-      const txns = (txnRes.data ?? []) as { txn_type: string; amount: number; category_id: string | null }[];
-      const expense_total = txns.filter((t) => t.txn_type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-      const other_income = txns.filter((t) => t.txn_type === "income").reduce((s, t) => s + Number(t.amount), 0);
-
-      const catMap = new Map((catsRes.data ?? []).map((c) => [c.id as string, c.name as string]));
-      const expense_by_category: Record<string, number> = {};
-      for (const t of txns) {
-        if (t.txn_type !== "expense") continue;
-        const name = (t.category_id && catMap.get(t.category_id)) || "Uncategorized";
-        expense_by_category[name] = (expense_by_category[name] ?? 0) + Number(t.amount);
-      }
-
-      // Monthly series
-      const months: { month: string; revenue: number; expense: number }[] = [];
-      const now = new Date();
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push({ month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, revenue: 0, expense: 0 });
-      }
-      const monthIdx = new Map(months.map((m, i) => [m.month, i]));
-      for (const o of (monOrdRes.data ?? []) as { total: number; created_at: string }[]) {
-        const k = o.created_at.slice(0, 7);
-        const i = monthIdx.get(k);
-        if (i != null) months[i].revenue += Number(o.total);
-      }
-      for (const t of (monTxnRes.data ?? []) as { amount: number; transaction_date: string }[]) {
-        const k = t.transaction_date.slice(0, 7);
-        const i = monthIdx.get(k);
-        if (i != null) months[i].expense += Number(t.amount);
-      }
-
-      // Courier COD receivable
-      let courier_cod_receivable = 0;
-      {
-        const codQ = supabase
-          .from("orders")
-          .select("total,id,courier_shipments!inner(id)")
-          .in("status", ["shipped", "delivered", "partial_delivered"]);
-        const { data: codRows, error: codErr } = await brandEq(codQ);
-        if (!codErr) courier_cod_receivable = sum(codRows as { total: number }[], "total");
-      }
-
-      // Supplier payable
-      let supplier_payable = 0;
-      {
-        const billQ = supabase.from("erp_bills").select("amount,paid_amount").in("status", ["open", "partial", "overdue"]);
-        const { data: bills, error: billErr } = await brandEq(billQ);
-        if (!billErr) supplier_payable = (bills ?? []).reduce((s, b) => s + (Number(b.amount) - Number(b.paid_amount ?? 0)), 0);
-      }
-
-      const recent_transactions = ((recentRes.data ?? []) as { id: string; txn_type: string; amount: number; transaction_date: string; description: string | null; category_id: string | null; account_id: string | null }[]).map((t) => ({
-        id: t.id,
-        date: t.transaction_date,
-        type: t.txn_type,
-        amount: Number(t.amount),
-        description: t.description,
-        account: t.account_id ? accMap.get(t.account_id)?.name ?? null : null,
-        category: t.category_id ? catMap.get(t.category_id) ?? null : null,
-      }));
-
-      const dashboard: DashboardData = {
-        today_sales, today_orders,
-        range_sales, range_orders,
-        cash, bank, mfs,
-        courier_cod_receivable,
-        ar_due: courier_cod_receivable,
-        supplier_payable,
-        expense_total, other_income,
-        net_profit: range_sales + other_income - expense_total,
-        refund_loss,
-        expense_by_category,
-        monthly_series: months,
-        accounts,
-        recent_transactions,
-      };
-      return dashboard;
-    },
+    queryFn: () => fetchOverview({ data: { brandIds, from, to } }),
   });
-
-  const periodLock = useQuery({
-    queryKey: ["erp_period_lock", activeBrand?.id ?? "all"],
-    enabled: !isAllBrands && !!activeBrand?.id,
-    queryFn: async () => {
-      const { data } = await supabase.from("erp_period_locks").select("locked_until").eq("brand_id", activeBrand!.id).maybeSingle();
-      return data;
-    },
-  });
-
-  const d = dashQ.data;
-  const expense = d?.expense_total ?? 0;
-  const profit = d?.net_profit ?? 0;
-
-  const topExpenses = useMemo(() => {
-    const obj = d?.expense_by_category ?? {};
-    return Object.entries(obj).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, 10);
-  }, [d]);
-
-  const monthly = useMemo(() => (d?.monthly_series ?? []).map((m) => ({
-    month: m.month.slice(5),
-    Revenue: Number(m.revenue),
-    Expense: Number(m.expense),
-  })), [d]);
-
-  const donutData = topExpenses.slice(0, 6).map(([name, value]) => ({ name, value: Number(value) }));
 
   if (brandIds.length === 0) {
     return <div className="p-6 text-muted-foreground">Loading brands…</div>;
   }
 
+  const d = q.data;
+
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Finance Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}</p>
+          <h1 className="text-2xl font-bold tracking-tight">Finance & Accounting</h1>
+          <p className="text-sm text-muted-foreground">
+            {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
           <div className="min-w-[160px]">
@@ -301,181 +110,408 @@ function OverviewPage() {
         </div>
       </header>
 
-      {periodLock.data?.locked_until && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200 px-3 py-2 text-sm">
-          <AlertTriangle className="h-4 w-4" />
-          Books locked until <strong>{periodLock.data.locked_until}</strong>. Entries on or before this date can't be edited.
-        </div>
+      {q.isLoading && <div className="text-sm text-muted-foreground">Loading dashboard…</div>}
+      {q.error && <div className="text-sm text-destructive">{(q.error as Error).message}</div>}
+
+      {d && (
+        <>
+          <CapitalStrip data={d} />
+          <PnlStrip data={d} />
+          <MoneyMap data={d} />
+          <TrendsRow data={d} />
+          <QuickLinks />
+          <RecentTxns data={d} />
+        </>
       )}
-
-      {/* Primary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <Kpi label="Today Sales" value={fmtBdt(d?.today_sales ?? 0)} sub={`${d?.today_orders ?? 0} orders`} icon={<TrendingUp className="h-4 w-4" />} accent="text-emerald-600" />
-        <Kpi label="Net Profit" value={fmtBdt(profit)} sub={d?.range_sales ? `${((profit / d.range_sales) * 100).toFixed(1)}% margin` : "—"} icon={<Scale className="h-4 w-4" />} accent={profit >= 0 ? "text-emerald-600" : "text-red-600"} />
-        <Kpi label="Range Revenue" value={fmtBdt(d?.range_sales ?? 0)} sub={`${d?.range_orders ?? 0} delivered`} icon={<Receipt className="h-4 w-4" />} />
-        <Kpi label="Total Expense" value={fmtBdt(expense)} icon={<TrendingDown className="h-4 w-4" />} accent="text-red-600" />
-        <Kpi label="Refund / Loss" value={fmtBdt(d?.refund_loss ?? 0)} icon={<RotateCcw className="h-4 w-4" />} accent="text-amber-600" />
-      </div>
-
-      {/* Wallet KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <Kpi label="Cash in Hand" value={fmtBdt(d?.cash ?? 0)} icon={<Banknote className="h-4 w-4" />} />
-        <Kpi label="Bank Balance" value={fmtBdt(d?.bank ?? 0)} icon={<PiggyBank className="h-4 w-4" />} />
-        <Kpi label="bKash / Nagad" value={fmtBdt(d?.mfs ?? 0)} icon={<Smartphone className="h-4 w-4" />} />
-        <Kpi label="Courier COD Due" value={fmtBdt(d?.courier_cod_receivable ?? 0)} icon={<Truck className="h-4 w-4" />} accent="text-blue-600" />
-        <Kpi label="Supplier Payable" value={fmtBdt(d?.supplier_payable ?? 0)} icon={<Users className="h-4 w-4" />} accent="text-orange-600" />
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Revenue vs Expense — last 12 months</CardTitle></CardHeader>
-          <CardContent>
-            {monthly.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No data.</p>
-            ) : (
-              <div style={{ width: "100%", height: 280 }}>
-                <ResponsiveContainer>
-                  <BarChart data={monthly}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => fmtBdt(v)} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Expense breakdown</CardTitle></CardHeader>
-          <CardContent>
-            {donutData.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No expenses.</p>
-            ) : (
-              <div style={{ width: "100%", height: 280 }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
-                      {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => fmtBdt(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detail row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Top expense categories</CardTitle>
-            <Button asChild size="sm" variant="ghost"><Link to="/erp/finance/reports">View reports <ArrowRight className="h-3 w-3 ml-1" /></Link></Button>
-          </CardHeader>
-          <CardContent>
-            {topExpenses.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No expenses in this period.</p>
-            ) : (
-              <div className="space-y-2">
-                {topExpenses.map(([name, amt]) => {
-                  const pct = expense ? (Number(amt) / expense) * 100 : 0;
-                  return (
-                    <div key={name}>
-                      <div className="flex justify-between text-sm">
-                        <span className="truncate">{name}</span>
-                        <span className="font-mono">{fmtBdt(Number(amt))}</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${Math.min(100, pct)}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Quick actions</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/journal"><FileText className="h-4 w-4 mr-2" />New Journal Entry</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/simple"><Wallet className="h-4 w-4 mr-2" />Quick Income / Expense</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/accounts"><FileText className="h-4 w-4 mr-2" />Chart of Accounts</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/payables"><Users className="h-4 w-4 mr-2" />Supplier Payables</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/reconciliation"><Activity className="h-4 w-4 mr-2" />Bank Reconciliation</Link></Button>
-            <Button asChild className="w-full justify-start" variant="outline"><Link to="/erp/finance/reports"><Scale className="h-4 w-4 mr-2" />Financial Reports</Link></Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Account balances</CardTitle></CardHeader>
-          <CardContent>
-            {(d?.accounts ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No accounts. <Link to="/erp/finance/simple" className="text-primary underline">Create one</Link>.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {(d?.accounts ?? []).slice(0, 8).map((a) => (
-                  <div key={a.id} className="flex justify-between items-center border rounded-md px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium">{a.name}</div>
-                      <div className="text-xs text-muted-foreground uppercase tracking-wider">{a.type}</div>
-                    </div>
-                    <div className="font-mono font-semibold">{fmtBdt(a.balance)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Recent transactions</CardTitle></CardHeader>
-          <CardContent>
-            {(d?.recent_transactions ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No transactions yet.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {(d?.recent_transactions ?? []).map((t) => (
-                  <div key={t.id} className="flex justify-between items-center border rounded-md px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{t.description || t.category || t.type}</div>
-                      <div className="text-xs text-muted-foreground">{t.date} · {t.account ?? "—"}</div>
-                    </div>
-                    <div className={`font-mono text-sm font-semibold ${t.type === "income" ? "text-emerald-600" : t.type === "expense" ? "text-red-600" : ""}`}>
-                      {t.type === "expense" ? "−" : t.type === "income" ? "+" : ""}{fmtBdt(t.amount)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
 
-function Kpi({ label, value, sub, icon, accent }: { label: string; value: string; sub?: string; icon?: React.ReactNode; accent?: string }) {
+/* ---------------- Zone 1: Capital ---------------- */
+function CapitalStrip({ data }: { data: FinanceOverview }) {
+  const { capital } = data;
+  return (
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <HeroKpi
+        icon={<PiggyBank className="size-5" />}
+        label="Total Capital"
+        value={capital.total}
+        tone="primary"
+        hint="Liquid + Inventory + Receivables − Payables"
+      />
+      <HeroKpi
+        icon={<Wallet className="size-5" />}
+        label="Liquid Cash"
+        value={capital.liquid}
+        tone="emerald"
+        hint={`Cash ${fmtBdt(capital.breakdown.cash)} · Bank ${fmtBdt(capital.breakdown.bank)} · MFS ${fmtBdt(capital.breakdown.mfs)}`}
+      />
+      <HeroKpi
+        icon={<Package className="size-5" />}
+        label="Inventory Value"
+        value={capital.inventory}
+        tone="amber"
+        hint={capital.productsMissingCost > 0 ? `${capital.productsMissingCost} product(s) missing cost` : "All stock costed"}
+        warn={capital.productsMissingCost > 0}
+      />
+      <HeroKpi
+        icon={capital.receivableNet >= 0 ? <ArrowDownRight className="size-5" /> : <ArrowUpRight className="size-5" />}
+        label={capital.receivableNet >= 0 ? "Net Receivable" : "Net Payable"}
+        value={Math.abs(capital.receivableNet)}
+        tone={capital.receivableNet >= 0 ? "sky" : "rose"}
+        hint={`COD ${fmtBdt(capital.breakdown.codReceivable)} + AR ${fmtBdt(capital.breakdown.arDue)} + Adv ${fmtBdt(capital.breakdown.importsAdvance)} − Pay ${fmtBdt(capital.breakdown.supplierPayable + capital.breakdown.importsDue)}`}
+      />
+    </section>
+  );
+}
+
+function HeroKpi({ icon, label, value, hint, tone, warn }: {
+  icon: React.ReactNode; label: string; value: number; hint?: string;
+  tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean;
+}) {
+  const toneClass = {
+    primary: "from-primary/15 to-primary/5 text-primary",
+    emerald: "from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400",
+    amber: "from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400",
+    sky: "from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400",
+    rose: "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400",
+  }[tone];
+  return (
+    <Card className={`bg-gradient-to-br ${toneClass} border-border/60`}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-muted-foreground">{label}</span>
+          <span className={`rounded-md p-1.5 bg-background/60`}>{icon}</span>
+        </div>
+        <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground">{fmtBdt(value)}</div>
+        {hint && (
+          <div className={`mt-1 text-[11px] ${warn ? "text-amber-600 dark:text-amber-400 flex items-center gap-1" : "text-muted-foreground"} truncate`} title={hint}>
+            {warn && <AlertTriangle className="size-3" />}{hint}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------------- Zone 2: P&L ---------------- */
+function PnlStrip({ data }: { data: FinanceOverview }) {
+  const { pnl } = data;
+  const items = [
+    { label: "Revenue", value: pnl.revenue, color: "text-foreground", icon: <Banknote className="size-4" /> },
+    { label: "COGS", value: pnl.cogs, color: "text-muted-foreground", icon: <Package className="size-4" /> },
+    { label: "Gross", value: pnl.gross, color: "text-foreground", icon: <TrendingUp className="size-4" /> },
+    { label: "Operating Exp.", value: pnl.expense, color: "text-rose-600 dark:text-rose-400", icon: <Receipt className="size-4" /> },
+    { label: "Refund Loss", value: pnl.refundLoss, color: "text-amber-600 dark:text-amber-400", icon: <RotateCcw className="size-4" /> },
+  ];
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <div className="grid grid-cols-1 md:grid-cols-12">
+          <div className="md:col-span-4 p-5 bg-gradient-to-br from-primary/10 to-transparent border-r border-border/60">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Activity className="size-4" /> Net Profit ({data.range.from} → {data.range.to})
+            </div>
+            <div className={`mt-1 text-3xl font-bold tabular-nums ${pnl.net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+              {pnl.net >= 0 ? "+" : ""}{fmtBdt(pnl.net)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Margin {pnl.margin.toFixed(1)}% · Other income {fmtBdt(pnl.otherIncome)}
+            </div>
+            <div className="mt-3 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={pnl.dailySeries.map(d => ({ ...d, net: d.net }))}>
+                  <defs>
+                    <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5}/>
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="net" stroke="hsl(var(--primary))" fill="url(#netGrad)" strokeWidth={1.5} />
+                  <Tooltip formatter={(v: number) => fmtBdt(v)} labelFormatter={(l) => `Day ${l}`} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 11 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="md:col-span-8 grid grid-cols-2 md:grid-cols-5 divide-x divide-border/60">
+            {items.map((it) => (
+              <div key={it.label} className="p-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{it.icon}{it.label}</div>
+                <div className={`mt-1 text-lg font-semibold tabular-nums ${it.color}`}>{fmtBdt(it.value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------------- Zone 3: Money Map ---------------- */
+function MoneyMap({ data }: { data: FinanceOverview }) {
+  return (
+    <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <WhereMoneyIs data={data} />
+      <MoneyComingIn data={data} />
+      <MoneyGoingOut data={data} />
+    </section>
+  );
+}
+
+function WhereMoneyIs({ data }: { data: FinanceOverview }) {
+  const grouped = useMemo(() => {
+    const groups: Record<string, { name: string; balance: number; icon: React.ReactNode; items: typeof data.accounts }> = {
+      cash: { name: "Cash", balance: 0, icon: <Banknote className="size-4" />, items: [] },
+      bank: { name: "Bank", balance: 0, icon: <Building2 className="size-4" />, items: [] },
+      mfs: { name: "Mobile Wallet", balance: 0, icon: <Smartphone className="size-4" />, items: [] },
+      other: { name: "Other", balance: 0, icon: <Wallet className="size-4" />, items: [] },
+    };
+    for (const a of data.accounts) {
+      const key = a.type === "cash" ? "cash" : a.type === "bank" ? "bank" : ["bkash","nagad","rocket","mfs"].includes(a.type) ? "mfs" : "other";
+      groups[key].balance += a.balance;
+      groups[key].items.push(a);
+    }
+    return groups;
+  }, [data.accounts]);
+
   return (
     <Card>
-      <CardHeader className="pb-1">
-        <CardTitle className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-          {icon}{label}
-        </CardTitle>
+      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Wallet className="size-4" /> Where my money is</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {Object.entries(grouped).filter(([,g]) => g.items.length > 0).map(([k, g]) => (
+          <div key={k}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1.5 font-medium">{g.icon}{g.name}</span>
+              <span className="tabular-nums font-semibold">{fmtBdt(g.balance)}</span>
+            </div>
+            <div className="mt-1 space-y-0.5 pl-5">
+              {g.items.slice(0, 5).map(a => (
+                <div key={a.id} className="flex justify-between text-xs text-muted-foreground">
+                  <span className="truncate">{a.name}</span>
+                  <span className="tabular-nums">{fmtBdt(a.balance)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {data.inventoryByBrand.length > 0 && (
+          <div className="pt-2 border-t border-border/60">
+            <div className="text-sm font-medium flex items-center gap-1.5 mb-1"><Package className="size-4" /> Inventory by brand</div>
+            {data.inventoryByBrand.slice(0, 6).map(b => (
+              <div key={b.brand_id} className="flex justify-between text-xs">
+                <span className="truncate text-muted-foreground">{b.brand} · {b.units} units</span>
+                <span className="tabular-nums">{fmtBdt(b.value)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <Link to="/erp/finance/accounts" className="text-xs text-primary inline-flex items-center gap-1 pt-1">View all accounts <ArrowRight className="size-3" /></Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MoneyComingIn({ data }: { data: FinanceOverview }) {
+  const { receivables, capital, pnl } = data;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><ArrowDownRight className="size-4" /> Money coming in</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <Section title="COD from courier" total={capital.breakdown.codReceivable} icon={<Truck className="size-4" />}>
+          {receivables.codByCourier.length === 0
+            ? <Empty>No shipped orders</Empty>
+            : receivables.codByCourier.map(c => (
+              <Row key={c.provider} label={`${PROVIDER_LABEL[c.provider] ?? c.provider} · ${c.orders}`} value={c.amount} />
+            ))}
+        </Section>
+        {receivables.arTop.length > 0 && (
+          <Section title="AR — top customers" total={capital.breakdown.arDue} icon={<Users className="size-4" />}>
+            {receivables.arTop.map(c => (
+              <Row key={c.phone ?? c.name} label={`${c.name} · ${c.orders}`} value={c.amount} sub={c.phone ?? undefined} />
+            ))}
+          </Section>
+        )}
+        {receivables.importsAdvanceTop.length > 0 && (
+          <Section title="Imports advance" total={capital.breakdown.importsAdvance} icon={<Package className="size-4" />}>
+            {receivables.importsAdvanceTop.map(p => (
+              <Row key={p.po} label={`${p.po} · ${p.supplier}`} value={p.amount} />
+            ))}
+          </Section>
+        )}
+        {pnl.otherIncome > 0 && (
+          <div className="flex justify-between text-sm pt-2 border-t border-border/60">
+            <span className="text-muted-foreground">Other income (range)</span>
+            <span className="tabular-nums font-medium">{fmtBdt(pnl.otherIncome)}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MoneyGoingOut({ data }: { data: FinanceOverview }) {
+  const { payables, capital } = data;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2 text-rose-600 dark:text-rose-400"><ArrowUpRight className="size-4" /> Money going out</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <Section title="Supplier payable" total={capital.breakdown.supplierPayable} icon={<Receipt className="size-4" />}
+          rightBadge={payables.overdueBills > 0 ? <Badge variant="destructive" className="text-[10px]">{fmtBdt(payables.overdueBills)} overdue</Badge> : undefined}>
+          {payables.supplierTop.length === 0
+            ? <Empty>No open bills</Empty>
+            : payables.supplierTop.map(s => <Row key={s.name} label={s.name} value={s.due} />)}
+        </Section>
+        {payables.importsDueTop.length > 0 && (
+          <Section title="Imports due" total={capital.breakdown.importsDue} icon={<Package className="size-4" />}>
+            {payables.importsDueTop.map(p => (
+              <Row key={p.po} label={`${p.po} · ${p.supplier}`} value={p.due} sub={p.status} />
+            ))}
+          </Section>
+        )}
+        {payables.upcomingRecurring.length > 0 && (
+          <Section title="Upcoming recurring (30d)" total={payables.upcomingRecurring.reduce((s, r) => s + r.amount, 0)} icon={<Calendar className="size-4" />}>
+            {payables.upcomingRecurring.slice(0, 6).map(r => (
+              <Row key={r.id} label={r.name} value={r.amount} sub={new Date(r.next_run).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} />
+            ))}
+          </Section>
+        )}
+        {payables.topExpenseCats.length > 0 && (
+          <Section title="Top expense categories" icon={<Activity className="size-4" />}>
+            {payables.topExpenseCats.map(c => <Row key={c.name} label={c.name} value={c.amount} />)}
+          </Section>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Section({ title, total, icon, children, rightBadge }: {
+  title: string; total?: number; icon?: React.ReactNode; children: React.ReactNode; rightBadge?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm font-medium">
+        <span className="flex items-center gap-1.5">{icon}{title}</span>
+        <span className="flex items-center gap-2">
+          {rightBadge}
+          {total != null && <span className="tabular-nums">{fmtBdt(total)}</span>}
+        </span>
+      </div>
+      <div className="mt-1 space-y-0.5 pl-5">{children}</div>
+    </div>
+  );
+}
+function Row({ label, value, sub }: { label: string; value: number; sub?: string }) {
+  return (
+    <div className="flex justify-between text-xs gap-2">
+      <span className="truncate text-muted-foreground">
+        {label}{sub && <span className="opacity-70"> · {sub}</span>}
+      </span>
+      <span className="tabular-nums shrink-0">{fmtBdt(value)}</span>
+    </div>
+  );
+}
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="text-xs text-muted-foreground italic">{children}</div>;
+}
+
+/* ---------------- Zone 4: Trends ---------------- */
+function TrendsRow({ data }: { data: FinanceOverview }) {
+  const monthly = data.monthlySeries.map(m => ({
+    month: m.month.slice(5),
+    Revenue: m.revenue, Expense: m.expense, Net: m.net,
+  }));
+  const donut = data.payables.topExpenseCats.map(c => ({ name: c.name, value: c.amount }));
+
+  return (
+    <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <Card className="lg:col-span-2">
+        <CardHeader className="pb-2"><CardTitle className="text-base">12 months · Revenue vs Expense vs Net</CardTitle></CardHeader>
+        <CardContent className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={monthly} margin={{ left: -10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
+              <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="Revenue" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
+              <Bar dataKey="Expense" fill="hsl(var(--destructive))" radius={[4,4,0,0]} />
+              <Line type="monotone" dataKey="Net" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Expense breakdown</CardTitle></CardHeader>
+        <CardContent className="h-72">
+          {donut.length === 0 ? <div className="text-sm text-muted-foreground text-center pt-12">No expenses in range</div> : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={40} outerRadius={80} paddingAngle={2}>
+                  {donut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+/* ---------------- Quick Links ---------------- */
+function QuickLinks() {
+  const links: { to: string; label: string; icon: React.ReactNode }[] = [
+    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" /> },
+    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" /> },
+    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" /> },
+    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" /> },
+    { to: "/erp/finance/reconciliation", label: "Reconciliation", icon: <FileText className="size-4" /> },
+    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" /> },
+    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" /> },
+    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" /> },
+    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" /> },
+  ];
+  return (
+    <section className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+      {links.map(l => (
+        <Link key={l.to} to={l.to} className="rounded-md border border-border/60 bg-card hover:bg-muted/50 transition px-3 py-2 text-xs flex items-center gap-1.5">
+          {l.icon}{l.label}
+        </Link>
+      ))}
+    </section>
+  );
+}
+
+/* ---------------- Recent Transactions ---------------- */
+function RecentTxns({ data }: { data: FinanceOverview }) {
+  if (data.recentTxns.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Recent transactions</CardTitle>
+        <Link to="/erp/finance/journal" className="text-xs text-primary inline-flex items-center gap-1">View journal <ArrowRight className="size-3" /></Link>
       </CardHeader>
-      <CardContent>
-        <div className={`text-xl font-bold ${accent ?? ""}`}>{value}</div>
-        {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+      <CardContent className="p-0">
+        <div className="divide-y divide-border/60">
+          {data.recentTxns.map(t => (
+            <div key={t.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+              <Badge variant={t.type === "income" ? "default" : t.type === "expense" ? "destructive" : "secondary"} className="text-[10px] capitalize">{t.type}</Badge>
+              <div className="flex-1 min-w-0">
+                <div className="truncate">{t.description || <span className="text-muted-foreground">—</span>}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t.date}{t.account && ` · ${t.account}`}{t.category && ` · ${t.category}`}
+                </div>
+              </div>
+              <div className={`tabular-nums font-medium ${t.type === "income" ? "text-emerald-600 dark:text-emerald-400" : t.type === "expense" ? "text-rose-600 dark:text-rose-400" : ""}`}>
+                {t.type === "expense" ? "-" : t.type === "income" ? "+" : ""}{fmtBdt(t.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
