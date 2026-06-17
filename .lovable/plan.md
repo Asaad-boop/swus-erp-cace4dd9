@@ -1,69 +1,95 @@
-## Goal
-Cargo agent jokhon PO ke "Arrived in BD" mark korbe — total KG ar **per-KG rate (BDT)** dibe. Eta theke total shipping cost calculate hobe ar **cartons-er upor weight-proportionally split** hoye jabe. Erpor admin/importer payment dibe, agent payment proof dekhe **release confirm** korbe.
+## CRM Module — Customer Relationship Management
 
----
+Users page (`/erp/users`) — staff/employee access — থাকবে যেমন আছে। CRM হবে আলাদা module `/erp/crm` — website customers (profiles + guest orders) দেখা ও manage করার জন্য।
 
-## Flow (step by step)
+### Scope
 
-1. **Agent → Mark Arrived in BD dialog** (extend kora):
-   - Shipping Date
-   - Total Weight (KG)
-   - **Per-KG Rate (BDT)** ← notun field
-   - Confirm korle:
-     - PO update: `status='arrived_bd'`, `shipped_at`, `total_weight_kg`, `shipping_rate_per_kg_bdt`, `shipping_total_bdt = total_weight × rate`
-     - **Cartons-e split**: jodi cartons-er `weight_kg` thake → proportional; na thakle quantity-proportional; eta o na thakle equal split. Per-carton update: `shipping_charge_bdt`, `total_landed_bdt = supplier_cost + shipping + local_courier`
-     - Status `at_china_warehouse` → `in_transit` cartons → `arrived_bd`
+**CRM = website customers** (profiles যারা account create করছে + guest orders যারা শুধু checkout করছে phone দিয়ে)। সব brand একসাথে, অথবা active brand অনুযায়ী filter (top brand-switcher use করবে)।
 
-2. **Admin/importer side (existing PO detail page)**:
-   - Carton list-e dekhabe je agent release request pathiyeche (already ase)
-   - Notun button: **"Pay agent & request release"** — admin payment record kore (existing imp_payments + cargo agent ledger debit). Payment-er sathe carton-ids attach kora jabe.
+### Pages
 
-3. **Agent panel → Payments section**:
-   - Notun action: prottek payment row-er pashe **"Confirm received"** + **proof upload** (URL/text reference). Confirm korle:
-     - Payment row: `agent_confirmed_at`, `agent_proof_url`, `agent_confirmed_by`
-     - Sob related cartons-e `released_at = now()`, `status='released'`
+1. **`/erp/crm` — Customer List**
+   - KPI cards: Total customers, New this month, Active (last 30d), Total LTV, Avg order value
+   - Table columns: Name, Phone, Email, Type (registered/guest), Brands shopped, Orders count, Total spent (LTV), Last order date, Status (active/at-risk/lost), Tags
+   - Filters: search (name/phone/email), customer type, brand, spend range, order count range, last-order date range, segment (VIP / repeat / one-time / at-risk / lost), tag
+   - Sort: LTV, orders, last-order, recent
+   - Bulk actions: tag, export CSV
+   - Export CSV button (respects current filters)
 
----
+2. **`/erp/crm/$customerId` — Customer Profile**
+   - Header: name, phone, email, registered/guest badge, segment badge, LTV, lifetime orders, avg AOV, first/last order date
+   - Tabs:
+     - **Overview**: KPIs, brand-wise spend breakdown, recent activity timeline
+     - **Orders**: full order history (status, brand, total, date) — link to `/erp/orders/$orderId`
+     - **Addresses**: saved addresses (registered users) + shipping addresses used
+     - **Notes**: internal CRM notes (add/edit/delete)
+     - **Tags**: assign/remove tags (VIP, blacklist, wholesale, etc.)
+   - Actions: edit display name/email/phone, merge customers (later), block
 
-## DB migration
+### Data model
 
-**`imp_purchase_orders`** — add column:
-- `shipping_rate_per_kg_bdt numeric` (per-KG rate agent provided)
+CRM doesn't need new "customer" table — it derives from `profiles` (registered) + `orders` (guest by phone). Use a server-side aggregator:
 
-**`imp_payments`** — add columns:
-- `agent_confirmed_at timestamptz`
-- `agent_confirmed_by uuid`
-- `agent_proof_url text`
-- `agent_proof_note text`
+- **`crm_customer_notes`** (new table): `id, customer_key (phone), profile_id?, brand_id?, note, created_by, created_at, updated_at`
+- **`crm_customer_tags`** (new table): `id, customer_key, tag, created_by, created_at` (unique on customer_key+tag)
+- **`crm_customer_meta`** (new table, optional): `customer_key (PK), status (active/at_risk/lost/blocked), internal_email, updated_at` — for blocked/manual overrides
 
-**RLS**: Cargo agent ke `imp_payments` row update korar permission dite hobe (only payments where the PO belongs to that agent, only proof + confirm columns).
+Customer identity = **normalized phone** (primary key for guest+registered unification). Registered profile linked when phone matches.
 
----
+### Server functions (`src/lib/erp/crm/crm.functions.ts`)
 
-## Server functions (`agent.functions.ts`)
+- `listCustomers({ brandIds, filters, sort, page, pageSize })` — aggregates from orders+profiles, returns rows + total + KPIs
+- `getCustomer({ customerKey })` — full profile, orders, addresses, notes, tags, brand breakdown
+- `exportCustomersCsv({ brandIds, filters })` — returns CSV string
+- `addNote`, `deleteNote`, `addTag`, `removeTag`, `setStatus`, `bulkAddTag`
 
-- **`markPoArrivedBd`** — extend: accept `per_kg_rate_bdt`. Compute `shipping_total_bdt`. In transaction-like sequence:
-  1. Fetch cartons for the PO
-  2. Compute weight (or qty) totals → per-carton allocation
-  3. Update each carton (`shipping_charge_bdt`, `total_landed_bdt`)
-  4. Update PO (status, shipping fields, weight, rate)
-- **`confirmAgentPayment`** (new) — input: `paymentId`, `proof_url`, `note?`. Verify the payment's PO belongs to this agent. Update payment + set `released_at` on cartons linked to the payment (or all release-requested cartons if no carton_id on payment).
+All gated by `requireSupabaseAuth` + admin/staff role.
 
----
+### Sidebar
 
-## UI changes
+Add **CRM** entry (Users icon) between Marketing and Users in `src/components/erp/erp-sidebar.tsx`. Users entry stays as-is for staff.
 
-- **`_agent.agent.orders.$orderId.tsx`**:
-  - Arrived dialog: add Per-KG Rate input, show live preview `Total = KG × rate`
-  - Payments table: add **Confirm + Proof** column with dialog (proof URL/text + note). Confirmed payments show ✓ with proof link.
-- **`_authenticated/erp.imports.orders.$orderId.tsx`** (importer side): mention je payments-e agent confirmation lagbe (badge "Awaiting agent confirm" / "Confirmed"). Release section-e agent confirm na hole carton "Released" badge na deye "Awaiting agent confirm" dekhabe. (Light-touch only; existing release/payment flows mostly already ase.)
+### Segments (computed)
 
----
+- **VIP**: LTV ≥ top 10% threshold OR ≥ 5 orders
+- **Repeat**: 2–4 orders
+- **One-time**: 1 order
+- **At-risk**: last order 60–120 days ago, was repeat
+- **Lost**: last order > 120 days ago
+- **New**: first order < 30 days ago
 
-## Out of scope (now)
-- File upload for proof image → ekhon shudhu URL/text reference. Pore Supabase storage add kora jabe.
-- Auto-journal posting on payment (existing system already handle korche).
+### Technical details
 
----
+- All queries server-side with `requireSupabaseAuth`, RLS-respecting via authenticated supabase client. For aggregation, lift to `supabaseAdmin` inside handler after admin role check (since aggregating across all orders needs full read).
+- Customer key = `normalize_phone(phone)` — strip non-digits, take last 11 digits (BD format).
+- CSV export uses standard `text/csv` blob, downloaded client-side.
+- Brand filter respects top `BrandContext` — passes `brandIds` to server fn.
 
-Confirm korle migration + code change ekshathe push korbo.
+### Migration
+
+Creates `crm_customer_notes`, `crm_customer_tags`, `crm_customer_meta` with proper GRANTs + RLS (admin/staff can manage). Adds index on `orders.shipping_phone` and `orders.guest_phone` for fast aggregation.
+
+### Files
+
+**New:**
+- `supabase/migrations/<ts>_crm_module.sql`
+- `src/lib/erp/crm/crm.functions.ts`
+- `src/lib/erp/crm/types.ts`
+- `src/lib/erp/crm/segments.ts` (pure helper)
+- `src/routes/_authenticated/erp.crm.tsx` (layout)
+- `src/routes/_authenticated/erp.crm.index.tsx` (list)
+- `src/routes/_authenticated/erp.crm.$customerId.tsx` (profile)
+- `src/components/erp/crm/customer-table.tsx`
+- `src/components/erp/crm/customer-filters.tsx`
+- `src/components/erp/crm/kpi-cards.tsx`
+- `src/components/erp/crm/notes-tab.tsx`
+- `src/components/erp/crm/tags-input.tsx`
+
+**Edited:**
+- `src/components/erp/erp-sidebar.tsx` — add CRM nav entry
+
+### Out of scope (later)
+- Email/SMS campaigns to segments
+- Customer merge UI
+- Loyalty points / rewards
+- Custom segment builder
