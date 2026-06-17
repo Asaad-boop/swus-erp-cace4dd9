@@ -3318,10 +3318,12 @@ export type Database = {
           paid_bdt: number
           po_number: string
           product_subtotal_bdt: number
+          shipped_at: string | null
           shipping_total_bdt: number
           status: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id: string | null
           supplier_id: string | null
+          total_weight_kg: number | null
           updated_at: string
         }
         Insert: {
@@ -3340,10 +3342,12 @@ export type Database = {
           paid_bdt?: number
           po_number: string
           product_subtotal_bdt?: number
+          shipped_at?: string | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null
+          total_weight_kg?: number | null
           updated_at?: string
         }
         Update: {
@@ -3362,10 +3366,12 @@ export type Database = {
           paid_bdt?: number
           po_number?: string
           product_subtotal_bdt?: number
+          shipped_at?: string | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null
+          total_weight_kg?: number | null
           updated_at?: string
         }
         Relationships: [
