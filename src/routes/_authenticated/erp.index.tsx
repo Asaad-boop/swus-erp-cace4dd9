@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, Package, Wallet, AlertCircle, TrendingUp, Users } from "lucide-react";
+import { ShoppingCart, Package, Wallet, AlertCircle, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrand, type Brand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -79,17 +79,73 @@ function DashboardPage() {
         ))}
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Phase 0 — Foundation Ready</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>✅ Multi-brand schema live (Hobby Shop + Toyora). Existing orders/products tagged to Hobby Shop.</p>
-          <p>✅ ERP tables: accounts, transactions, suppliers, supplier payments, settings, expense categories.</p>
-          <p>✅ Auth + role-aware RLS. Brand switcher in top-right.</p>
-          <p className="pt-2 text-foreground font-medium">Next phase: full Orders module (list, filters, drawer, manual order creation) — say <em>"phase 1 শুরু কর"</em> to continue.</p>
-        </CardContent>
-      </Card>
+      {isAllBrands && brands.length > 1 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Brand Performance</h2>
+            <p className="text-xs text-muted-foreground">Per-brand snapshot for today &amp; this month</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {brands.map((b) => (
+              <BrandPerformanceCard key={b.id} brand={b} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
+  );
+}
+
+function BrandPerformanceCard({ brand }: { brand: Brand }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard-brand-stats", brand.id],
+    queryFn: async () => {
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const [todayOrders, pending, delivered, monthRev, lowStock] = await Promise.all([
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).gte("created_at", todayStart.toISOString()),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        supabase.from("orders").select("total").eq("brand_id", brand.id).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).eq("brand_id", brand.id).eq("is_resolved", false),
+      ]);
+      const revenue = (monthRev.data ?? []).reduce((s, r) => s + Number(r.total ?? 0), 0);
+      return {
+        todayOrders: todayOrders.count ?? 0,
+        pending: pending.count ?? 0,
+        delivered: delivered.count ?? 0,
+        revenue,
+        lowStock: lowStock.count ?? 0,
+      };
+    },
+  });
+  const items: { label: string; value: string | number; accent: string }[] = [
+    { label: "Today", value: data?.todayOrders ?? 0, accent: "text-blue-600" },
+    { label: "Pending", value: data?.pending ?? 0, accent: "text-amber-600" },
+    { label: "Delivered (M)", value: data?.delivered ?? 0, accent: "text-emerald-600" },
+    { label: "Revenue (M)", value: `৳ ${(data?.revenue ?? 0).toLocaleString()}`, accent: "text-emerald-700" },
+    { label: "Low Stock", value: data?.lowStock ?? 0, accent: "text-red-600" },
+  ];
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          {brand.logo_url && <img src={brand.logo_url} alt="" className="h-6 w-6 rounded object-cover" />}
+          {brand.name}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {items.map((it) => (
+            <div key={it.label} className="space-y-0.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{it.label}</div>
+              {isLoading ? <Skeleton className="h-6 w-16" /> : (
+                <div className={`text-lg font-bold ${it.accent}`}>{it.value}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

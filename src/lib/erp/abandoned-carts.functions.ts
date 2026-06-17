@@ -39,6 +39,7 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
       brandId: z.string().uuid().nullable().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       search: z.string().optional(),
       page: z.number().int().min(0).default(0),
       pageSize: z.number().int().min(1).max(200).default(50),
@@ -68,7 +69,11 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       .gt("subtotal", 0)
       .order("updated_at", { ascending: false });
 
-    if (data.brandId) q = q.eq("brand_id", data.brandId);
+    if (data.brandIds && data.brandIds.length > 0) {
+      q = q.in("brand_id", data.brandIds);
+    } else if (data.brandId) {
+      q = q.eq("brand_id", data.brandId);
+    }
 
     if (data.search?.trim()) {
       const s = data.search.trim();
@@ -86,7 +91,10 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
 export const countAbandonedCartsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d),
+    z.object({
+      brandId: z.string().uuid().nullable().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const [admin, customerService, operations] = await Promise.all([
@@ -106,7 +114,11 @@ export const countAbandonedCartsFn = createServerFn({ method: "POST" })
       .eq("is_converted", false)
       .not("customer_phone", "is", null)
       .gt("subtotal", 0);
-    if (data.brandId) q = q.eq("brand_id", data.brandId);
+    if (data.brandIds && data.brandIds.length > 0) {
+      q = q.in("brand_id", data.brandIds);
+    } else if (data.brandId) {
+      q = q.eq("brand_id", data.brandId);
+    }
     const { count, error } = await q;
     if (error) throw new Error(error.message);
     return { count: count ?? 0 };

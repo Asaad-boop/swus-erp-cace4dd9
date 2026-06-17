@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ProductRow, StockMovementRow } from "@/lib/erp/inventory";
 
 export type InventoryFilter = {
-  brandId: string | null;
+  brandIds: string[];
   search: string;
   stockState: "all" | "in" | "low" | "out";
   page: number;
@@ -13,7 +13,7 @@ export type InventoryFilter = {
 export function useInventoryQuery(filter: InventoryFilter) {
   return useQuery({
     queryKey: ["inventory", filter],
-    enabled: !!filter.brandId,
+    enabled: filter.brandIds.length > 0,
     queryFn: async () => {
       let q = supabase
         .from("products")
@@ -22,7 +22,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
-      if (filter.brandId) q = q.eq("brand_id", filter.brandId);
+      if (filter.brandIds.length > 0) q = q.in("brand_id", filter.brandIds);
       if (filter.search.trim()) {
         const s = filter.search.trim();
         q = q.or(`title.ilike.%${s}%,sku.ilike.%${s}%,barcode.ilike.%${s}%,slug.ilike.%${s}%`);
@@ -46,12 +46,12 @@ export function useInventoryQuery(filter: InventoryFilter) {
       }
 
       // Fetch incoming quantities from imports view
-      if (rows.length > 0 && filter.brandId) {
+      if (rows.length > 0 && filter.brandIds.length > 0) {
         const ids = rows.map((r) => r.id);
         const { data: inc } = await supabase
           .from("v_product_incoming")
           .select("product_id,incoming")
-          .eq("brand_id", filter.brandId)
+          .in("brand_id", filter.brandIds)
           .in("product_id", ids);
         const map = new Map<string, number>();
         for (const r of (inc ?? []) as Array<{ product_id: string; incoming: number }>) {
@@ -65,35 +65,36 @@ export function useInventoryQuery(filter: InventoryFilter) {
   });
 }
 
-export function useLowStockAlerts(brandId: string | null) {
+export function useLowStockAlerts(brandIds: string[]) {
   return useQuery({
-    queryKey: ["low-stock", brandId],
-    enabled: !!brandId,
+    queryKey: ["low-stock", brandIds.join(",")],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("low_stock_alerts")
         .select("id,product_id,current_stock,threshold,created_at,is_resolved,products!inner(id,title,slug,image,brand_id,stock,low_stock_threshold)")
         .eq("is_resolved", false)
-        .eq("products.brand_id", brandId!)
         .order("created_at", { ascending: false })
         .limit(200);
+      if (brandIds.length > 0) q = q.in("products.brand_id", brandIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-export function useStockMovements(brandId: string | null, productId?: string | null) {
+export function useStockMovements(brandIds: string[], productId?: string | null) {
   return useQuery({
-    queryKey: ["stock-movements", brandId, productId ?? null],
-    enabled: !!brandId,
+    queryKey: ["stock-movements", brandIds.join(","), productId ?? null],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       let q = supabase
         .from("stock_movements")
         .select("id,created_at,product_id,user_id,delta,stock_before,stock_after,reason,note,brand_id")
         .order("created_at", { ascending: false })
         .limit(500);
-      if (brandId) q = q.eq("brand_id", brandId);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
       if (productId) q = q.eq("product_id", productId);
       const { data, error } = await q;
       if (error) throw error;

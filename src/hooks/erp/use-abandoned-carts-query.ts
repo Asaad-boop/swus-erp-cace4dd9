@@ -7,6 +7,7 @@ import {
 
 export function useAbandonedCartsQuery(args: {
   brandId: string | null;
+  brandIds?: string[];
   search: string;
   page: number;
   pageSize: number;
@@ -15,12 +16,20 @@ export function useAbandonedCartsQuery(args: {
   const listAbandonedCarts = useServerFn(listAbandonedCartsFn);
 
   return useQuery({
-    queryKey: ["abandoned-carts", args.brandId, args.search, args.page, args.pageSize],
+    queryKey: [
+      "abandoned-carts",
+      args.brandId,
+      (args.brandIds ?? []).join(","),
+      args.search,
+      args.page,
+      args.pageSize,
+    ],
     enabled: args.enabled,
     queryFn: async () => {
       return listAbandonedCarts({
         data: {
           brandId: args.brandId,
+          brandIds: args.brandIds,
           search: args.search,
           page: args.page,
           pageSize: args.pageSize,
@@ -30,15 +39,15 @@ export function useAbandonedCartsQuery(args: {
   });
 }
 
-export function useAbandonedCartCount(brandId: string | null) {
+export function useAbandonedCartCount(brandId: string | null, brandIds?: string[]) {
   const countAbandonedCarts = useServerFn(countAbandonedCartsFn);
 
   return useQuery({
-    queryKey: ["abandoned-carts-count", brandId],
+    queryKey: ["abandoned-carts-count", brandId, (brandIds ?? []).join(",")],
     enabled: true,
     staleTime: 30_000,
     queryFn: async () => {
-      const res = await countAbandonedCarts({ data: { brandId } });
+      const res = await countAbandonedCarts({ data: { brandId, brandIds } });
       return res.count;
     },
   });

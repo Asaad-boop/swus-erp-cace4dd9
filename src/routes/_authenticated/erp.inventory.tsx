@@ -35,28 +35,35 @@ export const Route = createFileRoute("/_authenticated/erp/inventory")({
 });
 
 function InventoryPage() {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<InventoryFilter>({
-    brandId: null, search: "", stockState: "all", page: 0, pageSize: 50,
+    brandIds: [], search: "", stockState: "all", page: 0, pageSize: 50,
   });
   const effective = useMemo<InventoryFilter>(
-    () => ({ ...filter, brandId: activeBrand?.id ?? null }),
-    [filter, activeBrand?.id],
+    () => ({ ...filter, brandIds }),
+    [filter, brandIds],
   );
 
   const { data, isLoading } = useInventoryQuery(effective);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const lowQuery = useLowStockAlerts(activeBrand?.id ?? null);
-  const movements = useStockMovements(activeBrand?.id ?? null);
+  const lowQuery = useLowStockAlerts(brandIds);
+  const movements = useStockMovements(brandIds);
+
+  const brandNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of brands) m.set(b.id, b.name);
+    return m;
+  }, [brands]);
 
   const [adjust, setAdjust] = useState<{ product: ProductRow; mode: "in" | "out" } | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductRow | null>(null);
 
   const handleExport = () => {
     const csv = exportProductsCsv(rows);
-    downloadCsv(`inventory-${activeBrand?.slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const slug = isAllBrands ? "all-brands" : activeBrand?.slug ?? "brand";
+    downloadCsv(`inventory-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
 
   const movementProductIds = useMemo(
@@ -85,7 +92,7 @@ function InventoryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBrand?.name} · {total.toLocaleString()} products
+            {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · {total.toLocaleString()} products
           </p>
         </div>
         <Button variant="outline" onClick={handleExport} disabled={!rows.length}>
@@ -166,7 +173,14 @@ function InventoryPage() {
                           {r.image && <img src={r.image} alt="" className="h-9 w-9 rounded object-cover" />}
                           <div className="min-w-0">
                             <div className="font-medium truncate max-w-[280px]">{r.title}</div>
-                            <div className="text-xs text-muted-foreground truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</div>
+                            <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                              {isAllBrands && r.brand_id && (
+                                <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-semibold">
+                                  {brandNameById.get(r.brand_id) ?? "Brand"}
+                                </Badge>
+                              )}
+                              <span className="truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</span>
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -335,7 +349,8 @@ function InventoryPage() {
 }
 
 function ProductHistorySheet({ product, onClose, brandId }: { product: ProductRow | null; onClose: () => void; brandId: string | null }) {
-  const { data, isLoading } = useStockMovements(brandId, product?.id);
+  const brandIds = brandId ? [brandId] : [];
+  const { data, isLoading } = useStockMovements(brandIds, product?.id);
   return (
     <Sheet open={!!product} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -453,8 +468,9 @@ function InlineNumberEdit({ value, prefix, onSave }: { value: number; prefix?: s
 function OpeningStockTab({ brandId }: { brandId: string | null }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const brandIds = brandId ? [brandId] : [];
   const { data, isLoading } = useInventoryQuery({
-    brandId, search, stockState: "all", page: 0, pageSize: 200,
+    brandIds, search, stockState: "all", page: 0, pageSize: 200,
   });
   const rows = data?.rows ?? [];
   const [counts, setCounts] = useState<Record<string, string>>({});
