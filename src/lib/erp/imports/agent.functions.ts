@@ -90,6 +90,7 @@ export const getAgentPurchaseOrder = createServerFn({ method: "POST" })
         id, po_number, brand_id, order_date, status, currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, notes, created_at,
+        shipped_at, total_weight_kg,
         supplier:supplier_id ( id, name, phone )
       `)
       .eq("id", data.poId)
