@@ -29,10 +29,10 @@ const nav: NavItem[] = [
 
 export function ErpSidebar() {
   const location = useLocation();
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
-  const { data: accounts = [] } = useAccounts(brandId);
-  const { data: categories = [] } = useCategories(brandId);
+  const { data: accounts = [] } = useAccounts(brandIds);
+  const { data: categories = [] } = useCategories(brandIds);
 
   const [txnOpen, setTxnOpen] = useState(false);
   const [txnType, setTxnType] = useState<TxnType>("expense");
@@ -87,7 +87,7 @@ export function ErpSidebar() {
               <button
                 key={label}
                 onClick={onClick}
-                disabled={!brandId}
+                disabled={brandIds.length === 0}
                 className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon className={cn("h-4 w-4", tone)} />
@@ -111,12 +111,13 @@ export function ErpSidebar() {
         v0.1 · Phase 0
       </div>
 
-      {brandId && (
+      {brandIds.length > 0 && (
         <>
           <TransactionForm
             open={txnOpen}
             onClose={() => setTxnOpen(false)}
-            brandId={brandId}
+            brandId={isAllBrands ? null : brandId}
+            brands={brands}
             accounts={accounts}
             categories={categories}
             defaultType={txnType}
@@ -124,7 +125,8 @@ export function ErpSidebar() {
           <TransferDialog
             open={transferOpen}
             onClose={() => setTransferOpen(false)}
-            brandId={brandId}
+            brandId={isAllBrands ? null : brandId}
+            brands={brands}
             accounts={accounts}
           />
         </>

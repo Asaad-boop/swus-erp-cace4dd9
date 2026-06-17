@@ -63,7 +63,7 @@ function NewPoPage() {
     queryKey: ["imp-agents", brandId], enabled: !!brandId,
     queryFn: () => agentsFn({ data: { brandId: brandId! } }),
   });
-  const { data: wallets = [] } = useAccounts(brandId);
+  const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
   // form state
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));

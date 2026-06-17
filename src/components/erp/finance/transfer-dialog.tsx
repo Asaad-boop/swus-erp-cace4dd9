@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
@@ -10,35 +10,58 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtBdt, type Account } from "@/lib/erp/finance";
+import type { Brand } from "@/contexts/brand-context";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  brandId: string;
+  brandId: string | null;
   accounts: Account[];
   defaultFromId?: string | null;
+  // When brandId is null and brands.length > 1, the dialog renders a brand picker.
+  brands?: Brand[];
 };
 
-export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId }: Props) {
+export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId, brands = [] }: Props) {
   const qc = useQueryClient();
   const [fromId, setFromId] = useState<string>(defaultFromId ?? "");
   const [toId, setToId] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState<string>("");
+  const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
-  const from = accounts.find((a) => a.id === fromId);
-  const to = accounts.find((a) => a.id === toId);
+  const showBrandPicker = !brandId && brands.length > 1;
+  const effectiveBrandId = brandId ?? pickedBrandId ?? null;
+
+  useEffect(() => {
+    if (open) {
+      setPickedBrandId(brandId ?? (brands.length === 1 ? brands[0].id : ""));
+    }
+  }, [open, brandId, brands]);
+
+  const scopedAccounts = useMemo(
+    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId) : []),
+    [accounts, effectiveBrandId],
+  );
+
+  useEffect(() => {
+    setFromId(defaultFromId ?? ""); setToId("");
+  }, [effectiveBrandId, defaultFromId]);
+
+  const from = scopedAccounts.find((a) => a.id === fromId);
+  const to = scopedAccounts.find((a) => a.id === toId);
   const amt = Number(amount || 0);
   const insufficient = from && amt > Number(from.current_balance);
 
   const mut = useMutation({
     mutationFn: async () => {
+      if (!effectiveBrandId) throw new Error("Select a brand");
       if (!fromId || !toId) throw new Error("Select both accounts");
       if (fromId === toId) throw new Error("From and To must be different");
       if (!amt || amt <= 0) throw new Error("Amount must be > 0");
       const { error } = await supabase.from("erp_transactions").insert({
-        brand_id: brandId,
+        brand_id: effectiveBrandId,
         txn_type: "transfer",
         account_id: fromId,
         to_account_id: toId,
@@ -67,12 +90,23 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
           <DialogTitle>Balance Transfer</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {showBrandPicker && (
+            <div>
+              <Label>Brand *</Label>
+              <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
+                <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
+                <SelectContent>
+                  {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>From account</Label>
-            <Select value={fromId} onValueChange={setFromId}>
+            <Select value={fromId} onValueChange={setFromId} disabled={!effectiveBrandId}>
               <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
               <SelectContent>
-                {accounts.map((a) => (
+                {scopedAccounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name} · {fmtBdt(a.current_balance)}</SelectItem>
                 ))}
               </SelectContent>
@@ -81,10 +115,10 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
           <div className="flex justify-center text-muted-foreground"><ArrowRight className="h-4 w-4" /></div>
           <div>
             <Label>To account</Label>
-            <Select value={toId} onValueChange={setToId}>
+            <Select value={toId} onValueChange={setToId} disabled={!effectiveBrandId}>
               <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
               <SelectContent>
-                {accounts.filter((a) => a.id !== fromId).map((a) => (
+                {scopedAccounts.filter((a) => a.id !== fromId).map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name} · {fmtBdt(a.current_balance)}</SelectItem>
                 ))}
               </SelectContent>

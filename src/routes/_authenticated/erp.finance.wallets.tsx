@@ -32,7 +32,7 @@ const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color
 ];
 
 function WalletsPage() {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
 
   const [transferOpen, setTransferOpen] = useState<{ open: boolean; fromId?: string | null }>({ open: false });
@@ -41,13 +41,13 @@ function WalletsPage() {
   const [statementFor, setStatementFor] = useState<Wallet | null>(null);
 
   const walletsQ = useQuery({
-    queryKey: ["wallets", brandId],
-    enabled: !!brandId,
+    queryKey: ["wallets", brandIds],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("erp_accounts")
         .select("*")
-        .eq("brand_id", brandId!)
+        .in("brand_id", brandIds)
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -56,6 +56,7 @@ function WalletsPage() {
   });
 
   const wallets = walletsQ.data ?? [];
+  const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
   const totals = useMemo(() => {
     const t: Record<string, number> = {};
     let liquid = 0;
@@ -78,7 +79,7 @@ function WalletsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Wallets &amp; Accounts</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
+            {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -91,11 +92,11 @@ function WalletsPage() {
         </div>
       </header>
 
-      {!brandId && <p className="text-sm text-muted-foreground">Select a brand to view wallets.</p>}
+      {brandIds.length === 0 && <p className="text-sm text-muted-foreground">No brands available.</p>}
 
       {walletsQ.isLoading && <p className="text-sm text-muted-foreground">Loading wallets…</p>}
 
-      {brandId && !walletsQ.isLoading && wallets.length === 0 && (
+      {brandIds.length > 0 && !walletsQ.isLoading && wallets.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <WalletIcon className="h-10 w-10 mx-auto text-muted-foreground" />
@@ -128,6 +129,9 @@ function WalletsPage() {
                       <CardTitle className="text-sm font-medium truncate">{w.name}</CardTitle>
                       <Icon className={cn("h-4 w-4 shrink-0", g.color)} />
                     </div>
+                    {isAllBrands && (
+                      <p className="text-[11px] text-muted-foreground truncate">{brandMap.get(w.brand_id) ?? "—"}</p>
+                    )}
                     {w.account_number && (
                       <p className="text-[11px] text-muted-foreground font-mono truncate">{w.account_number}</p>
                     )}
@@ -158,17 +162,18 @@ function WalletsPage() {
         );
       })}
 
-      {brandId && (
+      {brandIds.length > 0 && (
         <TransferDialog
           open={transferOpen.open}
           onClose={() => setTransferOpen({ open: false })}
-          brandId={brandId}
+          brandId={isAllBrands ? null : brandId}
+          brands={brands}
           accounts={wallets}
           defaultFromId={transferOpen.fromId ?? null}
         />
       )}
-      {brandId && <AccountForm open={newAcctOpen} onClose={() => setNewAcctOpen(false)} brandId={brandId} />}
-      {brandId && <AccountForm open={!!editWallet} onClose={() => setEditWallet(null)} brandId={brandId} editing={editWallet} />}
+      {brandIds.length > 0 && <AccountForm open={newAcctOpen} onClose={() => setNewAcctOpen(false)} brandId={isAllBrands ? null : brandId} brands={brands} />}
+      {brandIds.length > 0 && <AccountForm open={!!editWallet} onClose={() => setEditWallet(null)} brandId={editWallet?.brand_id ?? (isAllBrands ? null : brandId)} brands={brands} editing={editWallet} />}
       <StatementDialog wallet={statementFor} onClose={() => setStatementFor(null)} />
     </div>
   );
