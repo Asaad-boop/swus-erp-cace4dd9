@@ -20,13 +20,11 @@ export const Route = createFileRoute("/_authenticated/erp/finance/reports")({
 });
 
 function ReportsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
-
-  if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -36,6 +34,7 @@ function ReportsPage() {
           <p className="text-sm text-muted-foreground">{effectiveBrand?.name}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
+          {picker}
           <div><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><Label className="text-xs">To / As of</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <Button variant="outline" size="icon" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>

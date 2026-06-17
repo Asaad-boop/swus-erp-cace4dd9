@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/orders/")({
 type SortKey = "date" | "total" | "due" | "status";
 
 function PoListPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [status, setStatus] = useState<string>("all");
   const [q, setQ] = useState("");
   const [payState, setPayState] = useState<"all" | "paid" | "partial" | "unpaid">("all");
@@ -84,16 +84,19 @@ function PoListPage() {
   const clearFilters = () => { setQ(""); setStatus("all"); setPayState("all"); };
   const hasFilters = q.trim() || status !== "all" || payState !== "all";
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2"><Package className="h-5 w-5 text-primary" />Purchase Orders</h2>
-          <p className="text-sm text-muted-foreground">{filtered.length} of {(data as any[]).length} POs</p>
+          <p className="text-sm text-muted-foreground">
+            {effectiveBrand?.name ?? "—"} · {filtered.length} of {(data as any[]).length} POs
+          </p>
         </div>
-        <Link to="/erp/imports/orders/new"><Button><Plus className="h-4 w-4 mr-1" />New PO</Button></Link>
+        <div className="flex items-center gap-2">
+          {picker}
+          <Link to="/erp/imports/orders/new"><Button><Plus className="h-4 w-4 mr-1" />New PO</Button></Link>
+        </div>
       </div>
 
       {/* KPI strip */}

@@ -31,7 +31,7 @@ function shiftIso(iso: string, deltaDays: number) {
 }
 
 function ImportsDashboard() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
 
   const statsFn = useServerFn(getImportsDashboardStats);
@@ -110,15 +110,16 @@ function ImportsDashboard() {
     return Object.entries(counts).map(([k, v]) => ({ status: k as ImpPoStatus, count: v }));
   }, [pos]);
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DateRangePicker value={range} onChange={setRange} />
-        <Link to="/erp/imports/orders/new">
-          <Button><Plus className="h-4 w-4 mr-1" />New Purchase Order</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {picker}
+          <Link to="/erp/imports/orders/new">
+            <Button><Plus className="h-4 w-4 mr-1" />New Purchase Order</Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPIs */}

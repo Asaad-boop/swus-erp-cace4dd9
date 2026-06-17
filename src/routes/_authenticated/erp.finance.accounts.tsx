@@ -41,7 +41,7 @@ const TYPE_COLOR: Record<COA["account_type"], string> = {
 };
 
 function AccountsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -109,16 +109,17 @@ function AccountsPage() {
     return m;
   }, [filtered]);
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap justify-between items-end gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Chart of Accounts</h1>
-          <p className="text-sm text-muted-foreground">Hierarchical account ledger · {filtered.length} shown</p>
+          <p className="text-sm text-muted-foreground">
+            {effectiveBrand?.name ?? "—"} · {filtered.length} accounts
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {picker}
           {(q.data ?? []).length === 0 && (
             <Button variant="default" size="sm" onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
               <Sparkles className="h-4 w-4 mr-1" />Seed default accounts

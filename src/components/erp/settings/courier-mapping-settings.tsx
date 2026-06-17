@@ -35,9 +35,9 @@ function buildRows(provider: CourierProvider, overrides: CourierStatusMappingOve
     }));
 }
 
-export function CourierMappingSettings() {
+export function CourierMappingSettings({ brandIdOverride }: { brandIdOverride?: string | null } = {}) {
   const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id;
+  const brandId = brandIdOverride ?? activeBrand?.id;
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
