@@ -153,6 +153,16 @@ function localPick(address: string, items: PickItem[]): { id: number; name: stri
   return best && best.score >= 6 ? { id: best.id, name: best.name } : null;
 }
 
+function pickByCommonAliases(address: string, items: PickItem[], aliases: Record<string, string[]>) {
+  const addr = " " + normalizeText(address) + " ";
+  for (const [canonical, terms] of Object.entries(aliases)) {
+    if (!terms.some((term) => addr.includes(` ${normalizeText(term)} `) || addr.includes(normalizeText(term)))) continue;
+    const found = items.find((item) => normalizeText(item.name) === normalizeText(canonical));
+    if (found) return { id: found.id, name: found.name };
+  }
+  return null;
+}
+
 async function aiPickFromList(opts: {
   address: string;
   stage: "city" | "zone" | "area";
@@ -160,11 +170,27 @@ async function aiPickFromList(opts: {
   items: PickItem[];
 }): Promise<{ id: number | null; name: string | null; confidence: number }> {
   // 1) Try ultra-fast local match first
-  const local = localPick(opts.address, opts.items);
+  const local =
+    localPick(opts.address, opts.items) ??
+    (opts.stage === "city"
+      ? pickByCommonAliases(opts.address, opts.items, {
+          Dhaka: ["dhaka", "ঢাকা", "dacca"],
+          Chattogram: ["chattogram", "chittagong", "ctg", "চট্টগ্রাম"],
+          Cumilla: ["cumilla", "comilla", "কুমিল্লা"],
+          Gazipur: ["gazipur", "গাজীপুর"],
+          Narayanganj: ["narayanganj", "নারায়ণগঞ্জ", "নারায়ণগঞ্জ"],
+          Sylhet: ["sylhet", "সিলেট"],
+          Rajshahi: ["rajshahi", "রাজশাহী"],
+          Khulna: ["khulna", "খুলনা"],
+          Barishal: ["barishal", "barisal", "বরিশাল"],
+          Rangpur: ["rangpur", "রংপুর"],
+          Mymensingh: ["mymensingh", "ময়মনসিংহ", "ময়মনসিংহ"],
+        })
+      : null);
   if (local) return { id: local.id, name: local.name, confidence: 0.95 };
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  if (!apiKey) return { id: null, name: null, confidence: 0 };
   const useGemini = !!process.env.GEMINI_API_KEY;
 
   const stageLabel = opts.stage === "city"
