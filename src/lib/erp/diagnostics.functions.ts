@@ -54,31 +54,25 @@ export const runDiagnostics = createServerFn({ method: "POST" })
       .select("id,name,is_active")
       .order("name");
 
-    // CRM probe: try MV first, then live view
+    // CRM probe: verify the same authenticated/RLS path that CRM pages use.
     let canRead = false;
     let mvCount: number | null = null;
     let mvErr: string | null = null;
     let liveErr: string | null = null;
     let topErr: string | null = null;
     try {
-      const { supabaseAdmin, isSupabaseAdminConfigured } =
-        await import("@/integrations/supabase/client.server");
-      if (!isSupabaseAdminConfigured()) {
-        topErr = "SUPABASE_SERVICE_ROLE_KEY is missing on this server";
-      } else {
-        const mv = await supabaseAdmin
-          .from("crm_customers_mv")
-          .select("customer_key", { count: "exact", head: true });
-        if (mv.error) mvErr = mv.error.message;
-        else { mvCount = mv.count ?? 0; canRead = true; }
+      const mv = await supabase
+        .from("crm_customers_mv")
+        .select("customer_key", { count: "exact", head: true });
+      if (mv.error) mvErr = mv.error.message;
+      else { mvCount = mv.count ?? 0; canRead = true; }
 
-        if (!canRead) {
-          const lv = await supabaseAdmin
-            .from("crm_customers_v")
-            .select("customer_key", { count: "exact", head: true });
-          if (lv.error) liveErr = lv.error.message;
-          else canRead = true;
-        }
+      if (!canRead || mvCount === 0) {
+        const lv = await supabase
+          .from("crm_customers_v")
+          .select("customer_key", { count: "exact", head: true });
+        if (lv.error) liveErr = lv.error.message;
+        else canRead = true;
       }
     } catch (e: any) {
       topErr = e?.message ?? String(e);
