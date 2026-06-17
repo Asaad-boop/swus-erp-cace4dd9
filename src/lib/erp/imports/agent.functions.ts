@@ -145,19 +145,19 @@ export const requestCartonRelease = createServerFn({ method: "POST" })
 /** Cargo agent: mark PO as arrived in BD with shipping date and total weight */
 export const markPoArrivedBd = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { poId: string; shipped_at: string; total_weight_kg: number }) =>
+  .inputValidator((d: { poId: string; shipped_at: string; total_weight_kg: number; per_kg_rate_bdt: number }) =>
     z.object({
       poId: z.string().uuid(),
       shipped_at: z.string().min(1),
       total_weight_kg: z.number().positive().max(100000),
+      per_kg_rate_bdt: z.number().positive().max(100000),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const agent = await resolveAgentId(context.supabase, context.userId);
-    // Verify ownership + allowed pre-state
     const { data: po, error: pErr } = await context.supabase
       .from("imp_purchase_orders")
-      .select("id, status, cargo_agent_id")
+      .select("id, status, cargo_agent_id, product_subtotal_bdt, local_courier_total_bdt, paid_bdt")
       .eq("id", data.poId)
       .maybeSingle();
     if (pErr) throw pErr;
@@ -166,15 +166,115 @@ export const markPoArrivedBd = createServerFn({ method: "POST" })
     if (!allowedFrom.includes((po as any).status)) {
       throw new Error(`Ei status (${(po as any).status}) theke arrived_bd kora jabe na`);
     }
+
+    const shippingTotal = +(data.total_weight_kg * data.per_kg_rate_bdt).toFixed(2);
+
+    // Fetch cartons for split
+    const { data: cartons, error: cErr } = await context.supabase
+      .from("imp_cartons")
+      .select("id, weight_kg, expected_quantity, supplier_cost_bdt, local_courier_bdt")
+      .eq("po_id", data.poId);
+    if (cErr) throw cErr;
+
+    const list = cartons ?? [];
+    if (list.length > 0) {
+      const totalWeight = list.reduce((s: number, c: any) => s + Number(c.weight_kg ?? 0), 0);
+      const totalQty = list.reduce((s: number, c: any) => s + Number(c.expected_quantity ?? 0), 0);
+      const mode: "weight" | "qty" | "equal" =
+        totalWeight > 0 ? "weight" : totalQty > 0 ? "qty" : "equal";
+
+      let allocated = 0;
+      const updates = list.map((c: any, idx: number) => {
+        let share = 0;
+        if (mode === "weight") share = Number(c.weight_kg ?? 0) / totalWeight;
+        else if (mode === "qty") share = Number(c.expected_quantity ?? 0) / totalQty;
+        else share = 1 / list.length;
+        let shipping = +(shippingTotal * share).toFixed(2);
+        // last carton absorbs rounding
+        if (idx === list.length - 1) shipping = +(shippingTotal - allocated).toFixed(2);
+        allocated += shipping;
+        const supplier = Number(c.supplier_cost_bdt ?? 0);
+        const local = Number(c.local_courier_bdt ?? 0);
+        const landed = +(supplier + shipping + local).toFixed(2);
+        return { id: c.id, shipping_charge_bdt: shipping, total_landed_bdt: landed };
+      });
+
+      for (const u of updates) {
+        const { error: uErr } = await context.supabase
+          .from("imp_cartons")
+          .update({ shipping_charge_bdt: u.shipping_charge_bdt, total_landed_bdt: u.total_landed_bdt })
+          .eq("id", u.id);
+        if (uErr) throw uErr;
+      }
+    }
+
+    const grandTotal = +(Number((po as any).product_subtotal_bdt ?? 0) + shippingTotal + Number((po as any).local_courier_total_bdt ?? 0)).toFixed(2);
+    const due = +(grandTotal - Number((po as any).paid_bdt ?? 0)).toFixed(2);
+
     const { error } = await context.supabase
       .from("imp_purchase_orders")
       .update({
         status: "arrived_bd" as any,
         shipped_at: data.shipped_at,
         total_weight_kg: data.total_weight_kg,
+        shipping_rate_per_kg_bdt: data.per_kg_rate_bdt,
+        shipping_total_bdt: shippingTotal,
+        grand_total_bdt: grandTotal,
+        due_bdt: due,
       })
       .eq("id", data.poId);
     if (error) throw error;
+    return { ok: true, shipping_total_bdt: shippingTotal };
+  });
+
+/** Cargo agent: confirm a payment with proof; releases linked cartons */
+export const confirmAgentPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { paymentId: string; proof_url?: string; note?: string }) =>
+    z.object({
+      paymentId: z.string().uuid(),
+      proof_url: z.string().max(1000).optional(),
+      note: z.string().max(1000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const agent = await resolveAgentId(context.supabase, context.userId);
+    const { data: pay, error: pErr } = await context.supabase
+      .from("imp_payments")
+      .select("id, po_id, carton_id, imp_purchase_orders!inner(cargo_agent_id)")
+      .eq("id", data.paymentId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!pay || (pay as any).imp_purchase_orders?.cargo_agent_id !== agent.id) {
+      throw new Error("Payment not found");
+    }
+    const nowIso = new Date().toISOString();
+    const { error: upErr } = await context.supabase
+      .from("imp_payments")
+      .update({
+        agent_confirmed_at: nowIso,
+        agent_confirmed_by: context.userId,
+        agent_proof_url: data.proof_url ?? null,
+        agent_proof_note: data.note ?? null,
+      })
+      .eq("id", data.paymentId);
+    if (upErr) throw upErr;
+
+    // Release linked cartons
+    if ((pay as any).carton_id) {
+      await context.supabase
+        .from("imp_cartons")
+        .update({ released_at: nowIso, status: "released" as any })
+        .eq("id", (pay as any).carton_id);
+    } else {
+      // Release all release-requested but not-yet-released cartons of this PO
+      await context.supabase
+        .from("imp_cartons")
+        .update({ released_at: nowIso, status: "released" as any })
+        .eq("po_id", (pay as any).po_id)
+        .not("release_requested_at", "is", null)
+        .is("released_at", null);
+    }
     return { ok: true };
   });
 
