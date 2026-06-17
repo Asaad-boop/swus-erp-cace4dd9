@@ -98,7 +98,7 @@ function CourierPage() {
           <h1 className="text-2xl font-bold tracking-tight">Courier</h1>
           <p className="text-sm text-muted-foreground">Pathao &amp; Steadfast consignments. Book from any order's detail page.</p>
         </div>
-        <Link to="/erp/courier/reconciliation">
+        <Link to="/erp/reconciliation/invoice">
           <Button variant="outline" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" />
             Invoice Reconciliation

@@ -58,8 +58,8 @@ import {
   searchOrdersForMatch,
 } from "@/lib/erp/reconciliation.functions";
 
-export const Route = createFileRoute("/_authenticated/erp/courier/reconciliation")({
-  head: () => ({ meta: [{ title: "Pathao Invoice Reconciliation — ERP" }] }),
+export const Route = createFileRoute("/_authenticated/erp/reconciliation/invoice")({
+  head: () => ({ meta: [{ title: "Invoice Reconciliation — ERP" }] }),
   component: ReconciliationPage,
 });
 
