@@ -435,6 +435,64 @@ export const bulkAddCrmTag = createServerFn({ method: "POST" })
     return { ok: true, count: rows.length };
   });
 
+export const bulkRemoveCrmTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[]; tag: string }) =>
+    z.object({ customerKeys: z.array(z.string().min(1)).min(1).max(2000), tag: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const tag = data.tag.trim().toLowerCase();
+    const keys = data.customerKeys.map((k) => normalizePhone(k) ?? k);
+    const { error } = await context.supabase.from("crm_customer_tags")
+      .delete().in("customer_key", keys).eq("tag", tag);
+    if (error) throw error;
+    return { ok: true, count: keys.length };
+  });
+
+export const bulkSetCrmStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[]; status: "active" | "at_risk" | "lost" | "blocked" | "vip" }) =>
+    z.object({
+      customerKeys: z.array(z.string().min(1)).min(1).max(2000),
+      status: z.enum(["active", "at_risk", "lost", "blocked", "vip"]),
+    }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const rows = data.customerKeys.map((k) => ({
+      customer_key: normalizePhone(k) ?? k,
+      status: data.status,
+      updated_by: context.userId,
+    }));
+    const { error } = await context.supabase.from("crm_customer_meta")
+      .upsert(rows, { onConflict: "customer_key" });
+    if (error) throw error;
+    return { ok: true, count: rows.length };
+  });
+
+/**
+ * Removes a customer from the CRM list. Only removes CRM-side data
+ * (imported entry, tags, notes, meta). Actual order/profile rows are
+ * untouched — customers with orders will reappear because the view
+ * derives from orders.
+ */
+export const bulkDeleteCrmCustomers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKeys: string[] }) =>
+    z.object({ customerKeys: z.array(z.string().min(1)).min(1).max(2000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const keys = data.customerKeys.map((k) => normalizePhone(k) ?? k);
+    const [a, b, c, d2] = await Promise.all([
+      context.supabase.from("crm_imported_customers").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_tags").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_notes").delete().in("customer_key", keys),
+      context.supabase.from("crm_customer_meta").delete().in("customer_key", keys),
+    ]);
+    const err = a.error || b.error || c.error || d2.error;
+    if (err) throw err;
+    return { ok: true, count: keys.length };
+  });
+
 /* =================== STATUS =================== */
 export const setCrmStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
