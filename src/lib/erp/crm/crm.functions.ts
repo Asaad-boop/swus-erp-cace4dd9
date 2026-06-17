@@ -268,7 +268,7 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     });
 
     // Orders for this customer (by phone in shipping or guest)
-    const { data: orders, error: ordersErr } = await supabaseAdmin
+    const { data: orders, error: ordersErr } = await context.supabase
       .from("orders")
       .select("id, total, status, created_at, brand_id, payment_method, shipping_city, shipping_phone, guest_phone, shipping_name, guest_name")
       .or(`shipping_phone.like.%${key},guest_phone.like.%${key}`)
@@ -279,7 +279,7 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     // Addresses for registered user
     let addresses: any[] = [];
     if (v.user_id) {
-      const { data: addr } = await supabaseAdmin
+      const { data: addr } = await context.supabase
         .from("addresses")
         .select("id, label, full_name, phone, address_line, city, district, postal_code, is_default")
         .eq("user_id", v.user_id)
@@ -334,10 +334,9 @@ export const exportCrmCustomersCsv = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<{ csv: string; count: number }> => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [raw, tagMap] = await Promise.all([
-      loadAll(supabaseAdmin, data.filters.brandIds),
-      loadTags(supabaseAdmin),
+      loadAll(context.supabase, data.filters.brandIds),
+      loadTags(context.supabase),
     ]);
     const enriched = enrich(raw, tagMap);
     const filtered = applyFilters(enriched, data.filters);
