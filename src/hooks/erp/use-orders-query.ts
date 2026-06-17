@@ -28,14 +28,15 @@ export function useOrdersQuery(filter: OrdersFilter) {
     queryKey: ["orders", filter],
     enabled: brandIds.length > 0,
     queryFn: async () => {
-      let q = supabase
-        .from("orders")
-        .select(
-          "id,invoice_no,created_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,items:order_items(id,name,image,quantity,variant_label,line_total)",
-          { count: "exact" },
-        )
-        applyBrandScope(, brandIds)
-        .order("created_at", { ascending: false });
+      let q = applyBrandScope(
+        supabase
+          .from("orders")
+          .select(
+            "id,invoice_no,created_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,items:order_items(id,name,image,quantity,variant_label,line_total)",
+            { count: "exact" },
+          ),
+        brandIds,
+      ).order("created_at", { ascending: false });
 
       if (filter.statuses.length > 0) {
         q = q.in("status", filter.statuses);
@@ -122,10 +123,10 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
     enabled: brandIds.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
-      let q = supabase
-        .from("orders")
-        .select("status", { count: "exact" })
-        applyBrandScope(, brandIds)
+      let q = applyBrandScope(
+        supabase.from("orders").select("status", { count: "exact" }),
+        brandIds,
+      )
         .neq("status", "new")
         .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
         .limit(10000);

@@ -49,11 +49,10 @@ export function useInventoryQuery(filter: InventoryFilter) {
       // Fetch incoming quantities from imports view
       if (rows.length > 0 && filter.brandIds.length > 0) {
         const ids = rows.map((r) => r.id);
-        const { data: inc } = await supabase
-          .from("v_product_incoming")
-          .select("product_id,incoming")
-          applyBrandScope(, filter.brandIds)
-          .in("product_id", ids);
+        const { data: inc } = await applyBrandScope(
+          supabase.from("v_product_incoming").select("product_id,incoming"),
+          filter.brandIds,
+        ).in("product_id", ids);
         const map = new Map<string, number>();
         for (const r of (inc ?? []) as Array<{ product_id: string; incoming: number }>) {
           map.set(r.product_id, Number(r.incoming) || 0);
