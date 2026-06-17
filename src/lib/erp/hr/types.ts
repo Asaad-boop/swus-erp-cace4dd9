@@ -85,7 +85,7 @@ export interface HrEmployee {
   emergency_phone: string | null;
   tags: string[];
   notes: string | null;
-  meta: Record<string, unknown>;
+  meta: Record<string, any>;
   created_at: string;
   updated_at: string;
 }
