@@ -75,6 +75,7 @@ function RollupPage() {
 
   return (
     <div className="space-y-6">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Profit Rollup</h1>

@@ -47,6 +47,7 @@ function FxPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">FX Rates</h1>
         <p className="text-sm text-muted-foreground">Currency conversion rates (BDT base). Used for foreign supplier bills & USD revenue.</p>

@@ -251,6 +251,7 @@ function ReconciliationPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Pathao Invoice Reconciliation</h1>
         <p className="text-sm text-muted-foreground">

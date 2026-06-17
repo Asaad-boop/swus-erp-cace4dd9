@@ -79,6 +79,7 @@ function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Finance Settings</h1>
         <p className="text-sm text-muted-foreground">{effectiveBrand?.name}</p>

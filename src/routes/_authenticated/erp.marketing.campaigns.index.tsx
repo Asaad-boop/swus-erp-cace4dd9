@@ -83,6 +83,7 @@ function CampaignsPage() {
 
   return (
     <div className="space-y-5">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Campaigns</h1>

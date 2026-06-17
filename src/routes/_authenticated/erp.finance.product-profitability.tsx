@@ -191,6 +191,7 @@ function ProductProfitabilityPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       {/* Header */}
       <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/10 via-background to-emerald-500/5 p-5 md:p-6">
         <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />

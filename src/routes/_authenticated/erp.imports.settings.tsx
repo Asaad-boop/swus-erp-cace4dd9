@@ -27,6 +27,7 @@ function ImportsSettings() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <SuppliersTab brandId={brandId} />
     </div>
   );

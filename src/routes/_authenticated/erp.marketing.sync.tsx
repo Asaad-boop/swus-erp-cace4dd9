@@ -34,7 +34,9 @@ function SyncLogPage() {
   });
 
   return (
-    <Card>
+    <>
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">Sync Log</CardTitle>
         <Button variant="outline" size="sm" onClick={() => q.refetch()} className="gap-1.5">
@@ -82,6 +84,7 @@ function SyncLogPage() {
           </Table>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

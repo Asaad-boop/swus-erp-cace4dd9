@@ -77,6 +77,7 @@ function ImportsReports() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 print:p-0 print:space-y-3" id="imports-report-print">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <style>{`@media print { @page { size: A4; margin: 12mm; } .no-print { display:none !important; } body { background: white; } #imports-report-print { color: #000; } .print-title { display:block !important; } }`}</style>
       <div className="hidden print-title print:block">
         <h1 className="text-xl font-bold">{effectiveBrand?.name ?? ""} — Imports Report</h1>
