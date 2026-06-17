@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Sparkles, X, Search } from "lucide-react";
 import { format } from "date-fns";
 
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,8 +44,7 @@ const SOURCE_COLOR: Record<string, string> = {
 
 function AttributionPage() {
   const qc = useQueryClient();
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
 
   const [tab, setTab] = useState<"unattributed" | "attributed">("unattributed");
   const [days, setDays] = useState(30);
@@ -118,15 +117,7 @@ function AttributionPage() {
     );
   }, [ordersQ.data, search]);
 
-  if (!brandId) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Select a brand first.
-        </CardContent>
-      </Card>
-    );
-  }
+  if (gate) return gate;
 
   const campaigns = campsQ.data ?? [];
 

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { formatDistanceToNow, format } from "date-fns";
 import { Loader2, RefreshCw } from "lucide-react";
 
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,7 @@ function statusBadge(s: string) {
 }
 
 function SyncLogPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const list = useServerFn(listSyncLog);
 
   const q = useQuery({
@@ -34,15 +33,7 @@ function SyncLogPage() {
     enabled: !!brandId,
   });
 
-  if (!brandId) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Brand select korun.
-        </CardContent>
-      </Card>
-    );
-  }
+  if (gate) return gate;
 
   return (
     <Card>

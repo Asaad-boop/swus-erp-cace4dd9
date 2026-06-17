@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { format, subDays } from "date-fns";
 import { Loader2, ExternalLink, Search } from "lucide-react";
 
-import { useBrand } from "@/contexts/brand-context";
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +39,7 @@ function statusTone(s: string | null) {
 }
 
 function CampaignsPage() {
-  const { activeBrand } = useBrand();
-  const brandId = activeBrand?.id ?? null;
+  const { brandId, effectiveBrand, gate } = useBrandPicker();
   const [rangeKey, setRangeKey] = useState("30d");
   const [q, setQ] = useState("");
 
@@ -82,9 +81,7 @@ function CampaignsPage() {
     );
   }, [filtered]);
 
-  if (!brandId) {
-    return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Brand select korun.</CardContent></Card>;
-  }
+  if (gate) return gate;
 
   return (
     <div className="space-y-5">
