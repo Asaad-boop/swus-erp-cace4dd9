@@ -9,14 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ACCOUNT_TYPES, type Account } from "@/lib/erp/finance";
+import type { Brand } from "@/contexts/brand-context";
 
-export function AccountForm({ open, onClose, brandId, editing }: { open: boolean; onClose: () => void; brandId: string | null; editing?: Account | null }) {
+export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { open: boolean; onClose: () => void; brandId: string | null; editing?: Account | null; brands?: Brand[] }) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("cash");
   const [number, setNumber] = useState("");
   const [opening, setOpening] = useState("0");
   const [notes, setNotes] = useState("");
+  const [pickedBrandId, setPickedBrandId] = useState<string>("");
+
+  const showBrandPicker = !brandId && !editing && brands.length > 1;
+  const effectiveBrandId = brandId ?? (editing?.brand_id ?? null) ?? pickedBrandId ?? null;
 
   useEffect(() => {
     if (open) {
@@ -29,8 +34,9 @@ export function AccountForm({ open, onClose, brandId, editing }: { open: boolean
       } else {
         setName(""); setType("cash"); setNumber(""); setOpening("0"); setNotes("");
       }
+      setPickedBrandId(brandId ?? (brands.length === 1 ? brands[0].id : ""));
     }
-  }, [open, editing]);
+  }, [open, editing, brandId, brands]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["erp_accounts"] });
@@ -39,7 +45,7 @@ export function AccountForm({ open, onClose, brandId, editing }: { open: boolean
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!brandId) throw new Error("No brand");
+      if (!effectiveBrandId) throw new Error("Select a brand");
       if (!name.trim()) throw new Error("Name required");
       const ob = Number(opening) || 0;
       if (editing) {
@@ -52,7 +58,7 @@ export function AccountForm({ open, onClose, brandId, editing }: { open: boolean
         if (error) throw error;
       } else {
         const { error } = await supabase.from("erp_accounts").insert({
-          brand_id: brandId, name: name.trim(), account_type: type,
+          brand_id: effectiveBrandId, name: name.trim(), account_type: type,
           account_number: number || null,
           opening_balance: ob, current_balance: ob,
           notes: notes || null, is_active: true,
@@ -96,6 +102,17 @@ export function AccountForm({ open, onClose, brandId, editing }: { open: boolean
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{editing ? "Edit Account" : "New Account"}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
+          {showBrandPicker && (
+            <div className="space-y-1.5">
+              <Label>Brand *</Label>
+              <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
+                <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
+                <SelectContent>
+                  {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office Cash" /></div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
