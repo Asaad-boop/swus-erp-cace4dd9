@@ -117,8 +117,6 @@ function AttributionPage() {
     );
   }, [ordersQ.data, search]);
 
-  if (gate) return gate;
-
   const campaigns = campsQ.data ?? [];
 
   return (

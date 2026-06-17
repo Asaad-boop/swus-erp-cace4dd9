@@ -28,8 +28,6 @@ function OverviewPage() {
     enabled: !!brandId,
   });
 
-  if (gate) return gate;
-
   const s = q.data;
   const os = s?.orderStatus ?? {};
 

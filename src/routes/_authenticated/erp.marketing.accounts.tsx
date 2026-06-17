@@ -232,8 +232,6 @@ function AdAccountsPage() {
     }
   }
 
-  if (gate) return gate;
-
   const accounts = (q.data ?? []) as AccountRow[];
 
   return (

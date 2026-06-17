@@ -85,8 +85,6 @@ function RecurringPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (gate) return gate;
-
   const today = new Date().toISOString().slice(0, 10);
 
   return (

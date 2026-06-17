@@ -65,8 +65,6 @@ function RollupPage() {
     enabled: !!selectedBrandId,
   });
 
-  if (gate) return gate;
-
   const totals = campaignsQ.data?.totals;
   const campRows = (campaignsQ.data?.rows ?? []).filter((r) =>
     search ? r.campaign_name.toLowerCase().includes(search.toLowerCase()) : true,

@@ -75,8 +75,6 @@ function ImportsReports() {
     URL.revokeObjectURL(url);
   };
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-5 print:p-0 print:space-y-3" id="imports-report-print">
       <style>{`@media print { @page { size: A4; margin: 12mm; } .no-print { display:none !important; } body { background: white; } #imports-report-print { color: #000; } .print-title { display:block !important; } }`}</style>

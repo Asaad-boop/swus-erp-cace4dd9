@@ -45,8 +45,6 @@ function FxPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header>

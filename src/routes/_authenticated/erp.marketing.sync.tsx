@@ -33,8 +33,6 @@ function SyncLogPage() {
     enabled: !!brandId,
   });
 
-  if (gate) return gate;
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">

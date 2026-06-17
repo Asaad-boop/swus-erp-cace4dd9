@@ -25,8 +25,6 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 function ImportsSettings() {
   const { brandId, effectiveBrand, gate } = useBrandPicker();
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       <SuppliersTab brandId={brandId} />

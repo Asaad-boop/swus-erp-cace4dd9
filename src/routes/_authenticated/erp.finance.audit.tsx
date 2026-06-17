@@ -41,8 +41,6 @@ function AuditPage() {
 
   const colorFor = (a: string) => a === "create" ? "text-emerald-600" : a === "void" ? "text-amber-600" : a === "delete" ? "text-red-600" : "text-blue-600";
 
-  if (gate) return gate;
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap justify-between items-end gap-3">
