@@ -40,18 +40,27 @@ async function loadAll(
   supabaseAdmin: any,
   brandIds: string[] | undefined,
 ): Promise<any[]> {
-  // Fetch view rows. If brandIds passed, filter via overlap on brand_ids.
+  // Read from the materialized view (fast snapshot). Fall back to live view
+  // if the MV doesn't exist yet (older deployments).
   const PAGE = 1000;
   const all: any[] = [];
   let from = 0;
+  let source: "crm_customers_mv" | "crm_customers_v" = "crm_customers_mv";
   for (;;) {
     let q = supabaseAdmin
-      .from("crm_customers_v")
+      .from(source)
       .select("*")
       .range(from, from + PAGE - 1);
     if (brandIds && brandIds.length) q = q.overlaps("brand_ids", brandIds);
     const { data, error } = await q;
-    if (error) throw error;
+    if (error) {
+      // MV missing or not yet refreshed → fall back to the live view once.
+      if (source === "crm_customers_mv" && from === 0) {
+        source = "crm_customers_v";
+        continue;
+      }
+      throw error;
+    }
     if (!data || !data.length) break;
     all.push(...data);
     if (data.length < PAGE) break;
