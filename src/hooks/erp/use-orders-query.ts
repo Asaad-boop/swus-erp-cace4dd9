@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export type OrdersFilter = {
   brandId: string | null;
@@ -33,7 +34,7 @@ export function useOrdersQuery(filter: OrdersFilter) {
           "id,invoice_no,created_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,items:order_items(id,name,image,quantity,variant_label,line_total)",
           { count: "exact" },
         )
-        .in("brand_id", brandIds)
+        applyBrandScope(, brandIds)
         .order("created_at", { ascending: false });
 
       if (filter.statuses.length > 0) {
@@ -124,7 +125,7 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
       let q = supabase
         .from("orders")
         .select("status", { count: "exact" })
-        .in("brand_id", brandIds)
+        applyBrandScope(, brandIds)
         .neq("status", "new")
         .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
         .limit(10000);

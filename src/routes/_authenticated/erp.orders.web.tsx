@@ -22,6 +22,7 @@ import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-filter-bar";
 import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders-table";
 import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
@@ -229,7 +230,7 @@ function WebOrdersPage() {
           "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
           { count: "exact" },
         )
-        .in("brand_id", brandIds)
+        applyBrandScope(, brandIds)
         .eq("source", "website")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -287,7 +288,7 @@ function WebOrdersPage() {
       const { data, error } = await supabase
         .from("orders")
         .select("web_status")
-        .in("brand_id", brandIds)
+        applyBrandScope(, brandIds)
         .eq("source", "website")
         .limit(5000);
       if (error) throw error;
@@ -312,7 +313,7 @@ function WebOrdersPage() {
       const { data, error } = await supabase
         .from("orders")
         .select("shipping_phone,guest_phone,web_status,status")
-        .in("brand_id", brandIds)
+        applyBrandScope(, brandIds)
         .or(phones.map((p) => `shipping_phone.eq.${p},guest_phone.eq.${p}`).join(","))
         .limit(5000);
       if (error) throw error;

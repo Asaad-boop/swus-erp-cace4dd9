@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProductRow, StockMovementRow } from "@/lib/erp/inventory";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export type InventoryFilter = {
   brandIds: string[];
@@ -22,7 +23,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
-      if (filter.brandIds.length > 0) q = q.in("brand_id", filter.brandIds);
+      q = applyBrandScope(q, filter.brandIds);
       if (filter.search.trim()) {
         const s = filter.search.trim();
         q = q.or(`title.ilike.%${s}%,sku.ilike.%${s}%,barcode.ilike.%${s}%,slug.ilike.%${s}%`);
@@ -51,7 +52,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
         const { data: inc } = await supabase
           .from("v_product_incoming")
           .select("product_id,incoming")
-          .in("brand_id", filter.brandIds)
+          applyBrandScope(, filter.brandIds)
           .in("product_id", ids);
         const map = new Map<string, number>();
         for (const r of (inc ?? []) as Array<{ product_id: string; incoming: number }>) {
@@ -94,7 +95,7 @@ export function useStockMovements(brandIds: string[], productId?: string | null)
         .select("id,created_at,product_id,user_id,delta,stock_before,stock_after,reason,note,brand_id")
         .order("created_at", { ascending: false })
         .limit(500);
-      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      q = applyBrandScope(q, brandIds);
       if (productId) q = q.eq("product_id", productId);
       const { data, error } = await q;
       if (error) throw error;
