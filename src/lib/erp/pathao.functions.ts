@@ -246,10 +246,9 @@ async function aiPickFromList(opts: {
   }
   if (!res) throw new Error("AI request failed");
 
-  if (res.status === 429) throw new Error("AI rate limit exceeded. Try again shortly.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits to continue.");
+  if (res.status === 429 || res.status === 402) return { id: null, name: null, confidence: 0 };
   if (!res.ok) {
-    throw new Error(`AI service busy (${res.status}). Try again. ${lastErrTxt.slice(0, 150)}`);
+    return { id: null, name: null, confidence: 0 };
   }
 
   const json = await res.json();
