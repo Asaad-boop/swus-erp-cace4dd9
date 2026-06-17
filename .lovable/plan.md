@@ -1,71 +1,69 @@
-# Brand UX Simplification Plan
-
 ## Goal
-Brand switching ke simple kora. Default e sob page e **dui brand er data ekshathe** dekhabe. Prottek row/card e ekta **brand badge/tag** thakbe (e.g. "Hobby Shop" / "Toyara") jate bujha jay konta kar. User chaile uporer brand switcher diye filter korte parbe — kintu default thakbe "All Brands".
+Cargo agent jokhon PO ke "Arrived in BD" mark korbe — total KG ar **per-KG rate (BDT)** dibe. Eta theke total shipping cost calculate hobe ar **cartons-er upor weight-proportionally split** hoye jabe. Erpor admin/importer payment dibe, agent payment proof dekhe **release confirm** korbe.
 
-## Behavior Changes
+---
 
-### 1. Default = All Brands (everywhere)
-- App load e default active brand = `all` (already supported in `brand-context`, but localStorage e purono single brand thakte pare).
-- First-time load e localStorage e kichu na thakle "all" set hobe (already correct). Jodi user explicitly switch kore, sheta remember hobe.
-- **`useBrandPicker` gate component remove/bypass**: Je sob page e currently "single brand required" bole gate dekhay (PO create, imports, etc.), shegula ke **optional** kora hobe. Default = all brands; user ekta specific brand pick korte parbe form er bhitor theke.
+## Flow (step by step)
 
-### 2. List pages e Brand Badge
-Notun ekta chhoto component: `<BrandBadge brandId={...} />` — color-coded chip (Hobby Shop = ek color, Toyara = arek color, brand er logo/initial soho).
+1. **Agent → Mark Arrived in BD dialog** (extend kora):
+   - Shipping Date
+   - Total Weight (KG)
+   - **Per-KG Rate (BDT)** ← notun field
+   - Confirm korle:
+     - PO update: `status='arrived_bd'`, `shipped_at`, `total_weight_kg`, `shipping_rate_per_kg_bdt`, `shipping_total_bdt = total_weight × rate`
+     - **Cartons-e split**: jodi cartons-er `weight_kg` thake → proportional; na thakle quantity-proportional; eta o na thakle equal split. Per-carton update: `shipping_charge_bdt`, `total_landed_bdt = supplier_cost + shipping + local_courier`
+     - Status `at_china_warehouse` → `in_transit` cartons → `arrived_bd`
 
-Apply korbo eishob list/table e:
-- **Orders list** (`erp.orders.list.tsx` / `orders-table.tsx`) — order row e brand badge column
-- **Imports / Purchase Orders list** — PO row e brand badge
-- **Inventory** — product row e brand badge
-- **Finance transactions / journal** — entry te brand badge
-- **Reconciliation overview & invoice rows** — matched order er brand badge
-- **Marketing campaigns** — campaign row e brand badge
-- **Suppliers / Cargo agents** (jodi brand-scoped hoy)
-- **Abandoned carts**
+2. **Admin/importer side (existing PO detail page)**:
+   - Carton list-e dekhabe je agent release request pathiyeche (already ase)
+   - Notun button: **"Pay agent & request release"** — admin payment record kore (existing imp_payments + cargo agent ledger debit). Payment-er sathe carton-ids attach kora jabe.
 
-### 3. Brand Switcher = Filter only
-- Top-right er `BrandSwitcher` already ache. Default "All Brands" thakbe.
-- Ekta brand select korle shudhu shei brand er data dekhabe (current behavior, just default change).
-- Visual hint: jokhon "All Brands" mode e, switcher er pashe chhoto text "Showing all brands" — clarity er jonno.
+3. **Agent panel → Payments section**:
+   - Notun action: prottek payment row-er pashe **"Confirm received"** + **proof upload** (URL/text reference). Confirm korle:
+     - Payment row: `agent_confirmed_at`, `agent_proof_url`, `agent_confirmed_by`
+     - Sob related cartons-e `released_at = now()`, `status='released'`
 
-### 4. Create/New forms e Brand Selector inline
-Je sob form e ekta specific brand dorkar (Purchase Order, New Order, New Campaign, etc.):
-- Gate diye block korar bodole, **form er bhitor ekta "Brand" dropdown** thakbe.
-- Default: active brand (jodi single select kora thake), nahole user ke pick korte hobe (required field, but inline — alada page block na).
-- PO er khetre: user chaile "applies to both brands" option o pabe (jodi brand-agnostic PO support kora ache schema te — check kore decide korbo; na thakle just required brand picker).
+---
 
-## Technical Details
+## DB migration
 
-### Files to add
-- `src/components/erp/brand-badge.tsx` — reusable badge: brand name + color (color brand record theke ba deterministic hash).
+**`imp_purchase_orders`** — add column:
+- `shipping_rate_per_kg_bdt numeric` (per-KG rate agent provided)
 
-### Files to edit (high level)
-- `src/contexts/brand-context.tsx` — confirm default = "all" when no localStorage entry; add a derived `brandColorMap`.
-- `src/components/erp/brand-picker-gate.tsx` — relax: instead of full-page gate, expose a lightweight `<BrandPickerInline />` for forms.
-- `src/components/erp/orders/orders-table.tsx` — add Brand column with `<BrandBadge />`.
-- `src/components/erp/orders/incomplete-orders-table.tsx` — same.
-- `src/routes/_authenticated/erp.imports.orders.index.tsx` + `.new.tsx` — add badge to list, inline brand picker in new-PO form.
-- `src/routes/_authenticated/erp.inventory.tsx` — badge column.
-- `src/routes/_authenticated/erp.finance.journal.tsx` + transactions list — badge column.
-- `src/routes/_authenticated/erp.marketing.campaigns.index.tsx` — badge column.
-- `src/routes/_authenticated/erp.reconciliation.invoice.tsx` & `.index.tsx` — badge on matched rows.
-- `src/components/erp/erp-sidebar.tsx` ba header (`erp.tsx`) — small "All Brands" hint label beside switcher.
+**`imp_payments`** — add columns:
+- `agent_confirmed_at timestamptz`
+- `agent_confirmed_by uuid`
+- `agent_proof_url text`
+- `agent_proof_note text`
 
-### Data fetching
-- Already `useOrdersQuery` ityadi `brandIds` filter support kore via `apply-brand-scope`. "All" mode e shob brand er data ashe — that's exactly what we want. No backend change needed.
-- Brand info join: orders/POs/etc. e already `brand_id` ache. List queries e brand name/slug join kora lagbe (jodi na already ashche). `BrandBadge` `brandId` nibe ar `useBrand()` theke local brands array theke name+color resolve korbe — kono extra query lagbe na.
+**RLS**: Cargo agent ke `imp_payments` row update korar permission dite hobe (only payments where the PO belongs to that agent, only proof + confirm columns).
 
-### Color assignment
-- Brand record e `logo_url` ache but no `color` column. Deterministic color: brand id/slug theke hash → pre-defined palette theke ekta color pick. (Future: brands table e `color` column add kora jay; ekhon skip.)
+---
 
-## Out of Scope (ei plan e nai)
-- Brand-level permission (user ke specific brand e restrict kora).
-- "Multi-brand PO" schema change — jodi user explicitly chay, alada turn e.
-- Brand wise dashboard split (already ache via switcher).
+## Server functions (`agent.functions.ts`)
 
-## Verify
-- Build pass + preview e Orders list e dui brand er order ekshathe, prottek e badge.
-- PO new form e brand dropdown inline, gate page nai.
-- Brand switcher e Hobby Shop select korle shudhu Hobby Shop, Toyara select korle shudhu Toyara, "All Brands" e dui-i.
+- **`markPoArrivedBd`** — extend: accept `per_kg_rate_bdt`. Compute `shipping_total_bdt`. In transaction-like sequence:
+  1. Fetch cartons for the PO
+  2. Compute weight (or qty) totals → per-carton allocation
+  3. Update each carton (`shipping_charge_bdt`, `total_landed_bdt`)
+  4. Update PO (status, shipping fields, weight, rate)
+- **`confirmAgentPayment`** (new) — input: `paymentId`, `proof_url`, `note?`. Verify the payment's PO belongs to this agent. Update payment + set `released_at` on cartons linked to the payment (or all release-requested cartons if no carton_id on payment).
 
-Confirm korle implement kori. Kono particular page priority diye start korte chao (e.g. age Orders + Imports, baki gula porer turn)?
+---
+
+## UI changes
+
+- **`_agent.agent.orders.$orderId.tsx`**:
+  - Arrived dialog: add Per-KG Rate input, show live preview `Total = KG × rate`
+  - Payments table: add **Confirm + Proof** column with dialog (proof URL/text + note). Confirmed payments show ✓ with proof link.
+- **`_authenticated/erp.imports.orders.$orderId.tsx`** (importer side): mention je payments-e agent confirmation lagbe (badge "Awaiting agent confirm" / "Confirmed"). Release section-e agent confirm na hole carton "Released" badge na deye "Awaiting agent confirm" dekhabe. (Light-touch only; existing release/payment flows mostly already ase.)
+
+---
+
+## Out of scope (now)
+- File upload for proof image → ekhon shudhu URL/text reference. Pore Supabase storage add kora jabe.
+- Auto-journal posting on payment (existing system already handle korche).
+
+---
+
+Confirm korle migration + code change ekshathe push korbo.
