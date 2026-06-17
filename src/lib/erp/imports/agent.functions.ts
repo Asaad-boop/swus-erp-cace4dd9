@@ -101,7 +101,7 @@ export const getAgentPurchaseOrder = createServerFn({ method: "POST" })
     const [itemsRes, cartonsRes, paymentsRes] = await Promise.all([
       context.supabase.from("imp_po_items").select("id, sku_snapshot, name_snapshot, image_snapshot, quantity, unit_cost_foreign, unit_cost_bdt, subtotal_bdt").eq("po_id", data.poId).order("created_at"),
       context.supabase.from("imp_cartons").select("id, carton_number, barcode, expected_quantity, weight_kg, status, supplier_cost_bdt, shipping_charge_bdt, total_landed_bdt, release_requested_at, release_request_note, released_at").eq("po_id", data.poId).order("carton_number"),
-      context.supabase.from("imp_payments").select("id, paid_on, amount_bdt, method, payee_type, notes").eq("po_id", data.poId).order("paid_on", { ascending: false }),
+      context.supabase.from("imp_payments").select("id, payment_date, amount_bdt, payment_type, reference, notes").eq("po_id", data.poId).order("payment_date", { ascending: false }),
     ]);
     if (itemsRes.error) throw itemsRes.error;
     if (cartonsRes.error) throw cartonsRes.error;
