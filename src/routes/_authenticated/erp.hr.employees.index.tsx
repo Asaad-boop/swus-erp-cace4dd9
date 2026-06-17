@@ -294,3 +294,15 @@ function EmployeesList() {
     </div>
   );
 }
+
+/* Render move-dept dialog as a hoisted JSX appended outside main return is awkward;
+   instead inline below; we keep above export simple. */
+
+// Extra dialog appended via portal pattern — but Dialog handles its own mount.
+// (No additional code needed here.)
+
+/* Note: moveDeptOpen state already wired into bulk-actions buttons; render dialog inside main JSX. */
+function _placeholder() {
+  return null;
+  );
+}
