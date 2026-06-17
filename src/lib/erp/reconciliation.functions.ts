@@ -296,6 +296,8 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
     if (runErr) throw new Error(runErr.message);
     if (!run) throw new Error("Run not found");
     if (run.status === "applied") throw new Error("Already applied");
+    if (!run.brand_id) throw new Error("Run has no brand assigned");
+    const brandId = run.brand_id;
 
     const allowedStatuses = data.includeMismatch
       ? ["matched", "amount_mismatch"]
@@ -325,7 +327,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           const { data: inc, error: incErr } = await supabase
             .from("erp_transactions")
             .insert({
-              brand_id: run.brand_id,
+              brand_id: brandId,
               txn_type: "income",
               account_id: data.walletAccountId,
               amount: r.collected,
@@ -347,7 +349,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           const { data: exp, error: expErr } = await supabase
             .from("erp_transactions")
             .insert({
-              brand_id: run.brand_id,
+              brand_id: brandId,
               txn_type: "expense",
               account_id: data.walletAccountId,
               category_id: data.feeCategoryId ?? null,
@@ -381,7 +383,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
             .from("courier_shipments")
             .update({ delivery_fee: r.total_fee, status: "Delivered" })
             .eq("consignment_id", r.consignment_id)
-            .eq("brand_id", run.brand_id);
+            .eq("brand_id", brandId);
         }
 
         // Mark row applied
