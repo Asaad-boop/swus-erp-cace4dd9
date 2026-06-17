@@ -44,10 +44,15 @@ function ShiftsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Shifts</h1>
             <p className="text-sm text-muted-foreground">Work schedule templates</p>
           </div>
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
-            <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)}><Plus className="h-4 w-4 mr-2" />New shift</Button></DialogTrigger>
-            <ShiftDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["hr-shifts"] }); }} upFn={upFn} />
-          </Dialog>
+          <div className="flex gap-2">
+            <a href="/erp/hr/shifts/assign" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border hover:bg-accent">
+              Assign Shifts
+            </a>
+            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
+              <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)}><Plus className="h-4 w-4 mr-2" />New shift</Button></DialogTrigger>
+              <ShiftDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["hr-shifts"] }); }} upFn={upFn} />
+            </Dialog>
+          </div>
         </div>
 
         <Card><CardContent className="p-0">
