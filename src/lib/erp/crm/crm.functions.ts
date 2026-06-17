@@ -69,9 +69,9 @@ async function loadAll(
   return all;
 }
 
-async function loadTags(supabaseAdmin: any): Promise<Map<string, string[]>> {
+async function loadTags(supabaseClient: any): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabaseClient
     .from("crm_customer_tags")
     .select("customer_key, tag");
   if (error) throw error;
@@ -248,12 +248,15 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const key = normalizePhone(data.customerKey) ?? data.customerKey;
 
-    const [viewRes, tagsRes, notesRes, metaRes] = await Promise.all([
+    const [initialViewRes, tagsRes, notesRes, metaRes] = await Promise.all([
       context.supabase.from("crm_customers_mv").select("*").eq("customer_key", key).maybeSingle(),
       context.supabase.from("crm_customer_tags").select("id, tag, created_at").eq("customer_key", key).order("created_at", { ascending: false }),
       context.supabase.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
       context.supabase.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
     ]);
+    const viewRes = initialViewRes.error
+      ? await context.supabase.from("crm_customers_v").select("*").eq("customer_key", key).maybeSingle()
+      : initialViewRes;
     if (viewRes.error) throw viewRes.error;
     if (!viewRes.data) throw new Error("Customer not found");
 
