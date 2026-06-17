@@ -27,17 +27,21 @@ export const Route = createFileRoute("/_authenticated/erp/orders/list")({
 
 function OrdersPage() {
   const qc = useQueryClient();
-  const { activeBrand } = useBrand();
+  const { activeBrand, brandIds, isAllBrands } = useBrand();
   const [filter, setFilter] = useState<OrdersFilter>({
-    brandId: null, search: "", statuses: [], source: null,
+    brandId: null, brandIds: [], search: "", statuses: [], source: null,
     dateFrom: null, dateTo: null, courier: null, page: 0, pageSize: 50,
   });
   const [view, setView] = useState<"orders" | "incomplete">("orders");
   const [incompletePage, setIncompletePage] = useState(0);
 
   const effective = useMemo<OrdersFilter>(
-    () => ({ ...filter, brandId: activeBrand?.id ?? null }),
-    [filter, activeBrand?.id],
+    () => ({
+      ...filter,
+      brandId: activeBrand?.id ?? null,
+      brandIds: isAllBrands ? brandIds : activeBrand ? [activeBrand.id] : [],
+    }),
+    [filter, activeBrand?.id, isAllBrands, brandIds, activeBrand],
   );
 
   const { data, isLoading, isFetching } = useOrdersQuery(effective);
