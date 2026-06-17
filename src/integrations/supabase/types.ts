@@ -2870,8 +2870,10 @@ export type Database = {
           check_out_lat: number | null
           check_out_lng: number | null
           check_out_time: string | null
+          consecutive_late_count: number
           created_at: string
           date: string
+          deduction_amount: number
           early_leave_min: number
           employee_id: string
           id: string
@@ -2883,6 +2885,7 @@ export type Database = {
           note: string | null
           ot_min: number
           out_time: string | null
+          overtime_amount: number
           selfie_url: string | null
           shift_id: string | null
           source: string
@@ -2900,8 +2903,10 @@ export type Database = {
           check_out_lat?: number | null
           check_out_lng?: number | null
           check_out_time?: string | null
+          consecutive_late_count?: number
           created_at?: string
           date: string
+          deduction_amount?: number
           early_leave_min?: number
           employee_id: string
           id?: string
@@ -2913,6 +2918,7 @@ export type Database = {
           note?: string | null
           ot_min?: number
           out_time?: string | null
+          overtime_amount?: number
           selfie_url?: string | null
           shift_id?: string | null
           source?: string
@@ -2930,8 +2936,10 @@ export type Database = {
           check_out_lat?: number | null
           check_out_lng?: number | null
           check_out_time?: string | null
+          consecutive_late_count?: number
           created_at?: string
           date?: string
+          deduction_amount?: number
           early_leave_min?: number
           employee_id?: string
           id?: string
@@ -2943,6 +2951,7 @@ export type Database = {
           note?: string | null
           ot_min?: number
           out_time?: string | null
+          overtime_amount?: number
           selfie_url?: string | null
           shift_id?: string | null
           source?: string
@@ -3683,6 +3692,8 @@ export type Database = {
       }
       hr_payslips: {
         Row: {
+          absent_days: number
+          absent_deduction: number
           allowances: Json
           basic: number
           created_at: string
@@ -3690,8 +3701,12 @@ export type Database = {
           employee_id: string
           gross: number
           id: string
+          late_deduction: number
+          late_total_minutes: number
           net_pay: number
           notes: string | null
+          overtime_earning: number
+          overtime_total_minutes: number
           paid_at: string | null
           paid_by: string | null
           payment_method: string | null
@@ -3699,9 +3714,13 @@ export type Database = {
           payment_status: string
           run_id: string
           snapshot: Json
+          total_deductions_breakdown: Json
+          total_earnings_breakdown: Json
           updated_at: string
         }
         Insert: {
+          absent_days?: number
+          absent_deduction?: number
           allowances?: Json
           basic?: number
           created_at?: string
@@ -3709,8 +3728,12 @@ export type Database = {
           employee_id: string
           gross?: number
           id?: string
+          late_deduction?: number
+          late_total_minutes?: number
           net_pay?: number
           notes?: string | null
+          overtime_earning?: number
+          overtime_total_minutes?: number
           paid_at?: string | null
           paid_by?: string | null
           payment_method?: string | null
@@ -3718,9 +3741,13 @@ export type Database = {
           payment_status?: string
           run_id: string
           snapshot?: Json
+          total_deductions_breakdown?: Json
+          total_earnings_breakdown?: Json
           updated_at?: string
         }
         Update: {
+          absent_days?: number
+          absent_deduction?: number
           allowances?: Json
           basic?: number
           created_at?: string
@@ -3728,8 +3755,12 @@ export type Database = {
           employee_id?: string
           gross?: number
           id?: string
+          late_deduction?: number
+          late_total_minutes?: number
           net_pay?: number
           notes?: string | null
+          overtime_earning?: number
+          overtime_total_minutes?: number
           paid_at?: string | null
           paid_by?: string | null
           payment_method?: string | null
@@ -3737,6 +3768,8 @@ export type Database = {
           payment_status?: string
           run_id?: string
           snapshot?: Json
+          total_deductions_breakdown?: Json
+          total_earnings_breakdown?: Json
           updated_at?: string
         }
         Relationships: [
@@ -3758,6 +3791,7 @@ export type Database = {
       }
       hr_settings: {
         Row: {
+          absent_deduction_enabled: boolean
           brand_id: string | null
           created_at: string
           default_currency: string
@@ -3765,14 +3799,20 @@ export type Database = {
           employee_code_prefix: string
           fiscal_year_start_month: number
           id: string
+          late_consecutive_threshold: number
+          late_rate_per_min: number
           meta: Json
           next_employee_seq: number
+          overtime_enabled: boolean
+          overtime_rate_per_hour: number
           probation_months: number
           updated_at: string
           weekly_off_days: number[]
           work_hours_per_day: number
+          working_days_per_month: number
         }
         Insert: {
+          absent_deduction_enabled?: boolean
           brand_id?: string | null
           created_at?: string
           default_currency?: string
@@ -3780,14 +3820,20 @@ export type Database = {
           employee_code_prefix?: string
           fiscal_year_start_month?: number
           id?: string
+          late_consecutive_threshold?: number
+          late_rate_per_min?: number
           meta?: Json
           next_employee_seq?: number
+          overtime_enabled?: boolean
+          overtime_rate_per_hour?: number
           probation_months?: number
           updated_at?: string
           weekly_off_days?: number[]
           work_hours_per_day?: number
+          working_days_per_month?: number
         }
         Update: {
+          absent_deduction_enabled?: boolean
           brand_id?: string | null
           created_at?: string
           default_currency?: string
@@ -3795,12 +3841,17 @@ export type Database = {
           employee_code_prefix?: string
           fiscal_year_start_month?: number
           id?: string
+          late_consecutive_threshold?: number
+          late_rate_per_min?: number
           meta?: Json
           next_employee_seq?: number
+          overtime_enabled?: boolean
+          overtime_rate_per_hour?: number
           probation_months?: number
           updated_at?: string
           weekly_off_days?: number[]
           work_hours_per_day?: number
+          working_days_per_month?: number
         }
         Relationships: []
       }
