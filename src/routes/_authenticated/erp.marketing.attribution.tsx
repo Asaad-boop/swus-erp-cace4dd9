@@ -121,6 +121,7 @@ function AttributionPage() {
 
   return (
     <div className="space-y-4">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <div>
