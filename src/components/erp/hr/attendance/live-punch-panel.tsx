@@ -167,7 +167,6 @@ export function LivePunchPanel() {
         onConfirm={cameraConfirm}
         title={cameraEmp ? `Check In — ${cameraEmp.name}` : "Check In"}
         requireSelfie={mode === "selfie"}
-        requireGps={mode === "gps" || mode === "selfie"}
       />
     </Card>
   );
