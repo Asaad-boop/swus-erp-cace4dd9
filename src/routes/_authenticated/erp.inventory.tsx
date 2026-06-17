@@ -342,7 +342,8 @@ function InventoryPage() {
 }
 
 function ProductHistorySheet({ product, onClose, brandId }: { product: ProductRow | null; onClose: () => void; brandId: string | null }) {
-  const { data, isLoading } = useStockMovements(brandId, product?.id);
+  const brandIds = brandId ? [brandId] : [];
+  const { data, isLoading } = useStockMovements(brandIds, product?.id);
   return (
     <Sheet open={!!product} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
