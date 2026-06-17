@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Pencil, Truck, Users, Loader2, History, TrendingUp, TrendingDown, Minus, CalendarDays, Wallet, ArrowDownCircle, ArrowUpCircle, Trash2 } from "lucide-react";
+import { Plus, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card } from "@/components/ui/card";
@@ -10,15 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  listCargoAgents, upsertCargoAgent,
   listImportSuppliers, upsertImportSupplier,
-  listCargoAgentRates,
 } from "@/lib/erp/imports/imports.functions";
-import { getAgentLedger, addAgentLedgerEntry, deleteAgentLedgerEntry } from "@/lib/erp/imports/agent.functions";
 import { fmtBdt } from "@/lib/erp/imports/types";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
@@ -28,22 +24,12 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 
 function ImportsSettings() {
   const { brandId, effectiveBrand, gate } = useBrandPicker();
-  const [tab, setTab] = useState<"agents" | "suppliers">("agents");
 
   if (gate) return gate;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="inline-flex rounded-lg border border-border bg-card p-1">
-        <button onClick={() => setTab("agents")} className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md ${tab === "agents" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <Truck className="h-4 w-4" />Cargo Agents
-        </button>
-        <button onClick={() => setTab("suppliers")} className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md ${tab === "suppliers" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <Users className="h-4 w-4" />Import Suppliers
-        </button>
-      </div>
-
-      {tab === "agents" ? <AgentsTab brandId={brandId} /> : <SuppliersTab brandId={brandId} />}
+      <SuppliersTab brandId={brandId} />
     </div>
   );
 }
