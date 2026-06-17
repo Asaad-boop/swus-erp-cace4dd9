@@ -44,8 +44,15 @@ function AuthPage() {
       }
       await router.invalidate();
       const { data: u } = await supabase.auth.getUser();
-      if (u.user) navigate({ to: "/erp" });
-      else navigate({ to: "/erp" });
+      if (u.user) {
+        navigate({ to: "/erp" });
+      } else if (mode === "signup") {
+        // Sign-up succeeded but email confirmation required — stay on page.
+        toast.message("Please confirm your email, then sign in.");
+      } else {
+        // Defensive: no session after sign-in — surface as error, do NOT redirect.
+        toast.error("Sign-in failed. Please try again.");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
