@@ -9,6 +9,12 @@ export function BrandSwitcher() {
   const label = isAllBrands ? `All Brands (${brands.length})` : (activeBrand?.name ?? "Select brand");
 
   return (
+    <div className="flex items-center gap-2">
+      {isAllBrands && (
+        <span className="hidden md:inline text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+          Showing all brands
+        </span>
+      )}
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="gap-2 min-w-[180px] justify-between">
@@ -35,5 +41,6 @@ export function BrandSwitcher() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+    </div>
   );
 }
