@@ -135,7 +135,7 @@ function PayrollRunPage() {
                     isFinalized={isFinalized}
                     deptName={dmap.get(p.hr_employees?.department_id ?? p.snapshot?.department_id ?? "") ?? ""}
                     desigName={dsmap.get(p.hr_employees?.designation_id ?? p.snapshot?.designation_id ?? "") ?? ""}
-                    onSave={(patch) => updMut.mutate({ id: p.id, ...patch })}
+                    onSave={(patch: any) => updMut.mutate({ id: p.id, ...patch })}
                     onPrint={async () => {
                       const slip = await slipFn({ data: { id: p.id } });
                       printPayslip({
