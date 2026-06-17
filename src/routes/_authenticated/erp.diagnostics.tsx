@@ -145,9 +145,10 @@ function DiagnosticsPage() {
           <ul className="list-disc pl-5 space-y-1 text-xs">
             <li><code>VITE_SUPABASE_URL</code> = https://bgsspipkjeuceftuatue.supabase.co</li>
             <li><code>VITE_SUPABASE_PUBLISHABLE_KEY</code> = anon key (publishable)</li>
+            <li><code>VITE_SUPABASE_ANON_KEY</code> = same anon key (if older Vite naming is used)</li>
             <li><code>SUPABASE_URL</code> = same URL (server-side)</li>
             <li><code>SUPABASE_PUBLISHABLE_KEY</code> = same anon key (server-side)</li>
-            <li><code>SUPABASE_SERVICE_ROLE_KEY</code> = service role key (Supabase Dashboard → Project Settings → API)</li>
+            <li><code>SUPABASE_SERVICE_ROLE_KEY</code> = service role key (only needed for admin-only maintenance actions)</li>
           </ul>
           <p className="text-muted-foreground mt-3">Supabase Auth → URL Configuration:</p>
           <ul className="list-disc pl-5 space-y-1 text-xs">
