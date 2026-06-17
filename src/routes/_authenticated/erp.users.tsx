@@ -310,7 +310,6 @@ function UsersPage() {
               </TableHead>
               <TableHead>Roles</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Cargo agent</TableHead>
               <TableHead>
                 <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("last_sign_in")}>
                   Last sign-in <ArrowUpDown className="h-3 w-3" />
