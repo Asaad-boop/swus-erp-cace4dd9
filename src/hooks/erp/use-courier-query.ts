@@ -22,17 +22,17 @@ export type Shipment = {
 };
 
 export function useShipments() {
-  const { activeBrand } = useBrand();
-  const activeBrandId = activeBrand?.id ?? null;
+  const { brandIds } = useBrand();
   return useQuery({
-    queryKey: ["courier-shipments", activeBrandId],
+    queryKey: ["courier-shipments", brandIds.join(",")],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       let q = supabase
         .from("courier_shipments")
         .select("id, order_id, provider, consignment_id, tracking_code, status, delivery_fee, created_at, brand_id, orders(id, shipping_name, shipping_phone, total)")
         .order("created_at", { ascending: false })
         .limit(200);
-      if (activeBrandId) q = q.eq("brand_id", activeBrandId);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
       const { data, error } = await q;
       if (error) throw error;
       return (data as unknown as Shipment[]) ?? [];
