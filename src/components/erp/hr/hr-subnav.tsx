@@ -19,25 +19,27 @@ const items = [
 export function HrSubnav() {
   const { pathname } = useLocation();
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-card px-4">
-      {items.map((it) => {
-        const active = it.exact ? pathname === it.to : pathname.startsWith(it.to);
-        return (
-          <Link
-            key={it.to}
-            to={it.to as never}
-            className={cn(
-              "inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              active
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <it.icon className="h-4 w-4" />
-            {it.label}
-          </Link>
-        );
-      })}
+    <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+      <div className="flex items-center gap-1 overflow-x-auto px-3 py-2 scrollbar-thin">
+        {items.map((it) => {
+          const active = it.exact ? pathname === it.to : pathname.startsWith(it.to);
+          return (
+            <Link
+              key={it.to}
+              to={it.to as never}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150 whitespace-nowrap",
+                active
+                  ? "bg-gray-900 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+              )}
+            >
+              <it.icon className="h-3.5 w-3.5" />
+              {it.label}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
