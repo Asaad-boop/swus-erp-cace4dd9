@@ -461,8 +461,9 @@ function InlineNumberEdit({ value, prefix, onSave }: { value: number; prefix?: s
 function OpeningStockTab({ brandId }: { brandId: string | null }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const brandIds = brandId ? [brandId] : [];
   const { data, isLoading } = useInventoryQuery({
-    brandId, search, stockState: "all", page: 0, pageSize: 200,
+    brandIds, search, stockState: "all", page: 0, pageSize: 200,
   });
   const rows = data?.rows ?? [];
   const [counts, setCounts] = useState<Record<string, string>>({});
