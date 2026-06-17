@@ -5,15 +5,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, Lock, Trash2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listPayrollRuns, createPayrollRun, deletePayrollRun } from "@/lib/erp/hr/payroll.functions";
 import { useHrAccess } from "@/lib/erp/hr/role-gate";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
+import { StatusPill, type StatusTone } from "@/components/erp/hr/ui/status-pill";
+import { EmptyState } from "@/components/erp/hr/ui/empty-state";
+import { Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/payroll/")({
   head: () => ({ meta: [{ title: "Payroll — HR" }] }),
@@ -52,74 +54,65 @@ function PayrollIndex() {
   });
 
   if (!access.isLoading && !access.canManagePayroll) {
-    return <div><HrSubnav /><div className="p-6 text-sm text-muted-foreground"><Lock className="h-5 w-5 inline mr-2" />Payroll is restricted to admin and operations roles.</div></div>;
+    return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-sm text-gray-500"><Lock className="h-5 w-5 inline mr-2" />Payroll is restricted to admin and operations roles.</div></div>;
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Payroll</h1>
-            <p className="text-sm text-muted-foreground">Monthly payroll runs and payslips</p>
-          </div>
-          <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> New Run</Button>
-        </div>
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title="Payroll"
+          subtitle="Monthly payroll runs and payslips"
+          actions={<Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" /> New Run</Button>}
+        />
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Employees</TableHead>
-                  <TableHead className="text-right">Total Gross</TableHead>
-                  <TableHead className="text-right">Total Net</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-                ) : (runs as any[]).length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No payroll runs yet.</TableCell></TableRow>
-                ) : (runs as any[]).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <Link to="/erp/hr/payroll/$runId" params={{ runId: r.id }} className="font-medium hover:underline">
-                        {MONTHS[r.month - 1]} {r.year}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {r.status === "finalized"
-                        ? <Badge className="bg-emerald-100 text-emerald-800"><Lock className="h-3 w-3 mr-1" />Finalized</Badge>
-                        : r.status === "cancelled"
-                          ? <Badge variant="outline">Cancelled</Badge>
-                          : <Badge className="bg-amber-100 text-amber-800">Draft</Badge>}
-                    </TableCell>
-                    <TableCell className="text-right">{r.total_employees}</TableCell>
-                    <TableCell className="text-right">৳{Number(r.total_gross).toLocaleString("en-BD")}</TableCell>
-                    <TableCell className="text-right font-semibold">৳{Number(r.total_net).toLocaleString("en-BD")}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex gap-1">
-                        <Link to="/erp/hr/payroll/$runId" params={{ runId: r.id }}>
-                          <Button size="sm" variant="ghost"><ArrowRight className="h-4 w-4" /></Button>
-                        </Link>
-                        {r.status === "draft" && access.isAdmin && (
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { if (confirm("Delete this draft run?")) delMut.mutate(r.id); }}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center text-gray-400">Loading…</div>
+        ) : (runs as any[]).length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <EmptyState icon={Wallet} title="No payroll runs yet" description="Generate the first monthly payroll run to get started." action={
+              <Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" />New Run</Button>
+            } />
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {(runs as any[]).map((r) => {
+              const tone: StatusTone = r.status === "finalized" ? "finalized" : r.status === "cancelled" ? "inactive" : "draft";
+              return (
+                <Link key={r.id} to="/erp/hr/payroll/$runId" params={{ runId: r.id }} className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all p-5 flex items-center gap-6">
+                  <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-600 font-bold text-sm shrink-0">
+                    {MONTHS[r.month - 1]}
+                    <span className="sr-only">{r.year}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="text-base font-semibold text-gray-900">{MONTHS[r.month - 1]} {r.year}</div>
+                      <StatusPill tone={tone} dot>{r.status === "finalized" ? <><Lock className="h-3 w-3" />Finalized</> : r.status}</StatusPill>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{r.total_employees} employees</div>
+                  </div>
+                  <div className="hidden sm:block text-right">
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Gross</div>
+                    <div className="text-sm font-semibold text-gray-700 tabular-nums">৳{Number(r.total_gross).toLocaleString("en-BD")}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Net</div>
+                    <div className="text-base font-bold text-gray-900 tabular-nums">৳{Number(r.total_net).toLocaleString("en-BD")}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {r.status === "draft" && access.isAdmin && (
+                      <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={(ev) => { ev.preventDefault(); if (confirm("Delete this draft run?")) delMut.mutate(r.id); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
