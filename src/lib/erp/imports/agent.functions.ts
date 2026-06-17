@@ -197,3 +197,125 @@ export const listMyRates = createServerFn({ method: "POST" })
     if (error) throw error;
     return rows ?? [];
   });
+
+/* ============= Cargo Agent Balance / Wallet ============= */
+
+async function assertFinanceStaff(supabase: any, userId: string) {
+  const roles = ["admin", "operations", "accountant"] as const;
+  const results = await Promise.all(
+    roles.map((r) => supabase.rpc("has_role", { _user_id: userId, _role: r })),
+  );
+  if (!results.some((r: any) => r.data === true)) throw new Error("Not authorized");
+}
+
+/** Cargo agent: own balance + ledger */
+export const getMyAgentBalance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const agent = await resolveAgentId(context.supabase, context.userId);
+    const { data: bal, error: bErr } = await context.supabase.rpc("get_cargo_agent_balance", { _agent_id: agent.id });
+    if (bErr) throw bErr;
+    const { data: rows, error } = await context.supabase
+      .from("imp_cargo_agent_ledger")
+      .select("id, entry_date, direction, entry_type, amount_bdt, reference, note, po_id, created_at")
+      .eq("agent_id", agent.id)
+      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return { agent_id: agent.id, balance_bdt: Number(bal ?? 0), entries: rows ?? [] };
+  });
+
+/** Admin/finance: list any agent's ledger + balance */
+export const getAgentLedger = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { agentId: string; limit?: number }) =>
+    z.object({
+      agentId: z.string().uuid(),
+      limit: z.number().int().min(1).max(1000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertFinanceStaff(context.supabase, context.userId);
+    const { data: bal, error: bErr } = await context.supabase.rpc("get_cargo_agent_balance", { _agent_id: data.agentId });
+    if (bErr) throw bErr;
+    const { data: rows, error } = await context.supabase
+      .from("imp_cargo_agent_ledger")
+      .select("id, entry_date, direction, entry_type, amount_bdt, reference, note, po_id, created_at, created_by")
+      .eq("agent_id", data.agentId)
+      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 200);
+    if (error) throw error;
+    return { agent_id: data.agentId, balance_bdt: Number(bal ?? 0), entries: rows ?? [] };
+  });
+
+/** Admin/finance: add a ledger entry (deposit / payment / adjustment / refund) */
+export const addAgentLedgerEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    agentId: string;
+    direction: "credit" | "debit";
+    entry_type?: "deposit" | "payment" | "adjustment" | "refund" | "opening_balance";
+    amount_bdt: number;
+    entry_date?: string;
+    reference?: string;
+    note?: string;
+    po_id?: string;
+  }) =>
+    z.object({
+      agentId: z.string().uuid(),
+      direction: z.enum(["credit", "debit"]),
+      entry_type: z.enum(["deposit", "payment", "adjustment", "refund", "opening_balance"]).optional(),
+      amount_bdt: z.number().positive(),
+      entry_date: z.string().optional(),
+      reference: z.string().max(200).optional(),
+      note: z.string().max(1000).optional(),
+      po_id: z.string().uuid().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertFinanceStaff(context.supabase, context.userId);
+    // Look up agent's brand_id for context
+    const { data: agent, error: aErr } = await context.supabase
+      .from("imp_cargo_agents")
+      .select("id, brand_id")
+      .eq("id", data.agentId)
+      .maybeSingle();
+    if (aErr) throw aErr;
+    if (!agent) throw new Error("Agent not found");
+
+    const defaultType = data.direction === "credit" ? "deposit" : "payment";
+    const { data: row, error } = await context.supabase
+      .from("imp_cargo_agent_ledger")
+      .insert({
+        agent_id: data.agentId,
+        brand_id: agent.brand_id,
+        direction: data.direction,
+        entry_type: data.entry_type ?? defaultType,
+        amount_bdt: data.amount_bdt,
+        entry_date: data.entry_date ?? new Date().toISOString().slice(0, 10),
+        reference: data.reference ?? null,
+        note: data.note ?? null,
+        po_id: data.po_id ?? null,
+        created_by: context.userId,
+      })
+      .select("id, entry_date, direction, entry_type, amount_bdt, reference, note, po_id, created_at")
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+/** Admin/finance: delete a ledger entry */
+export const deleteAgentLedgerEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertFinanceStaff(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("imp_cargo_agent_ledger")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
