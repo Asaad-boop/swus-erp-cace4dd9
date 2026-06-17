@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Users, UserPlus, UserMinus, Wallet, Cake, PartyPopper, ShieldAlert, Activity } from "lucide-react";
+import { Users, UserPlus, UserMinus, Wallet, Cake, PartyPopper, ShieldAlert, Activity, Clock, AlertTriangle, FileText } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { getHrKpis } from "@/lib/erp/hr/hr.functions";
+import { getHrDashboardExtras } from "@/lib/erp/hr/reports.functions";
+import { getCurrentMonthPayrollStatus } from "@/lib/erp/hr/payroll.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/")({
   head: () => ({ meta: [{ title: "HR Dashboard" }] }),
@@ -18,7 +21,13 @@ function fmtBdt(n: number) {
 
 function HrDashboard() {
   const kpisFn = useServerFn(getHrKpis);
+  const extrasFn = useServerFn(getHrDashboardExtras);
+  const payStatusFn = useServerFn(getCurrentMonthPayrollStatus);
   const { data: k, isLoading } = useQuery({ queryKey: ["hr-kpis"], queryFn: () => kpisFn() });
+  const { data: extras } = useQuery({ queryKey: ["hr-dashboard-extras"], queryFn: () => extrasFn() });
+  const { data: payStatus } = useQuery({ queryKey: ["hr-pay-status"], queryFn: () => payStatusFn() });
+
+  const todayCounts = extras?.todayCounts ?? { present: 0, late: 0, absent: 0, on_leave: 0 };
 
   return (
     <div>
@@ -39,12 +48,96 @@ function HrDashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard icon={Users} label="Headcount" value={k?.headcount ?? 0} loading={isLoading} />
-          <StatCard icon={Activity} label="Active" value={k?.active ?? 0} tone="text-emerald-600" loading={isLoading} />
-          <StatCard icon={ShieldAlert} label="Probation" value={k?.probation ?? 0} tone="text-amber-600" loading={isLoading} />
-          <StatCard icon={UserMinus} label="On Leave" value={k?.onLeave ?? 0} tone="text-blue-600" loading={isLoading} />
-          <StatCard icon={UserPlus} label="New this month" value={k?.newThisMonth ?? 0} tone="text-emerald-600" loading={isLoading} />
+          <StatCard icon={Activity} label="Today Present" value={todayCounts.present} tone="text-emerald-600" />
+          <StatCard icon={Clock} label="Today Late" value={todayCounts.late} tone="text-amber-600" />
+          <StatCard icon={UserMinus} label="On Leave" value={todayCounts.on_leave} tone="text-blue-600" />
+          <StatCard icon={ShieldAlert} label="Pending Leaves" value={extras?.pendingLeaves?.length ?? 0} tone="text-amber-600" />
           <StatCard icon={Wallet} label="Monthly payroll" value={fmtBdt(k?.totalMonthlyPayroll ?? 0)} loading={isLoading} />
         </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard icon={UserPlus} label="New this month" value={k?.newThisMonth ?? 0} tone="text-emerald-600" />
+          <StatCard icon={Wallet} label={`Payroll ${new Date().toLocaleString("en", { month: "short" })}`} value={payStatus?.exists ? (payStatus.status === "finalized" ? "Finalized" : "Draft") : "Not generated"} tone={payStatus?.exists ? "text-emerald-600" : "text-amber-600"} />
+          <StatCard icon={FileText} label="Documents expiring" value={extras?.expiringDocs?.length ?? 0} tone="text-amber-600" />
+          <StatCard icon={AlertTriangle} label="Today Absent" value={todayCounts.absent} tone="text-red-600" />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2">
+            <CardContent className="p-5">
+              <div className="text-sm font-semibold mb-3">Attendance trend (last 30 days)</div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={extras?.trend ?? []}>
+                    <XAxis dataKey="date" hide />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="text-sm font-semibold mb-3">Leave type distribution</div>
+              {(extras?.leaveDistribution ?? []).length === 0 ? (
+                <div className="text-sm text-muted-foreground">No approved leaves yet.</div>
+              ) : (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={extras?.leaveDistribution ?? []} dataKey="count" nameKey="name" outerRadius={70} label>
+                        {(extras?.leaveDistribution ?? []).map((d: any, i: number) => (
+                          <Cell key={i} fill={d.color || `hsl(${i * 60}, 70%, 50%)`} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {(extras?.pendingLeaves ?? []).length > 0 && (
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex justify-between items-center mb-3">
+                <div className="text-sm font-semibold">Pending leave requests</div>
+                <Link to="/erp/hr/leave" className="text-xs text-primary hover:underline">Manage →</Link>
+              </div>
+              <div className="space-y-1.5">
+                {(extras?.pendingLeaves ?? []).map((l: any) => (
+                  <div key={l.id} className="flex justify-between items-center text-sm border-l-2 border-amber-500 pl-2 py-1">
+                    <div>
+                      <div className="font-medium">{l.hr_employees?.full_name ?? "—"}</div>
+                      <div className="text-xs text-muted-foreground">{l.from_date} to {l.to_date} · {l.days} days</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {(extras?.expiringDocs ?? []).length > 0 && (
+          <Card className="border-amber-300 bg-amber-50/40">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-2">
+                <AlertTriangle className="h-4 w-4" /> Documents expiring within 30 days
+              </div>
+              <div className="space-y-1 text-sm">
+                {(extras?.expiringDocs ?? []).map((d: any) => (
+                  <Link key={d.id} to="/erp/hr/employees/$id" params={{ id: d.employee_id }} className="block hover:underline">
+                    {d.title} <span className="text-xs text-muted-foreground">· expires {d.expiry_date}</span>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-4">
           <Card>

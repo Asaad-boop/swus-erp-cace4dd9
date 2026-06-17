@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, UserPlus, Upload, Download, Phone, Mail, Trash2, Filter } from "lucide-react";
+import { Search, UserPlus, Upload, Download, Phone, Mail, Trash2, UserMinus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ import { EmployeeImportDialog } from "@/components/erp/hr/employee-import-dialog
 import {
   listEmployees, listDepartments, listDesignations, deleteEmployee,
 } from "@/lib/erp/hr/hr.functions";
+import { bulkUpdateEmployees } from "@/lib/erp/hr/profile.functions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useHrAccess } from "@/lib/erp/hr/role-gate";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/employees/")({
   head: () => ({ meta: [{ title: "Employees — HR" }] }),
@@ -38,10 +41,12 @@ const STATUS_TONES: Record<string, string> = {
 function EmployeesList() {
   const { brandIds } = useBrand();
   const qc = useQueryClient();
+  const access = useHrAccess();
   const listFn = useServerFn(listEmployees);
   const deptsFn = useServerFn(listDepartments);
   const desigsFn = useServerFn(listDesignations);
   const delFn = useServerFn(deleteEmployee);
+  const bulkFn = useServerFn(bulkUpdateEmployees);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -50,6 +55,8 @@ function EmployeesList() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [moveDeptOpen, setMoveDeptOpen] = useState(false);
+  const [moveToDept, setMoveToDept] = useState<string>("");
 
   const { data: depts = [] } = useQuery({ queryKey: ["hr-depts"], queryFn: () => deptsFn() });
   const { data: desigs = [] } = useQuery({ queryKey: ["hr-desigs"], queryFn: () => desigsFn() });
@@ -99,6 +106,26 @@ function EmployeesList() {
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["hr-employees"] });
       qc.invalidateQueries({ queryKey: ["hr-kpis"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deactivateMut = useMutation({
+    mutationFn: () => bulkFn({ data: { ids: Array.from(selected), patch: { status: "terminated" } } }),
+    onSuccess: () => {
+      toast.success(`Deactivated ${selected.size}`);
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["hr-employees"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const moveDeptMut = useMutation({
+    mutationFn: () => bulkFn({ data: { ids: Array.from(selected), patch: { department_id: moveToDept || null } } }),
+    onSuccess: () => {
+      toast.success(`Moved ${selected.size}`);
+      setSelected(new Set()); setMoveDeptOpen(false); setMoveToDept("");
+      qc.invalidateQueries({ queryKey: ["hr-employees"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -167,11 +194,23 @@ function EmployeesList() {
                 <Button variant="outline" size="sm" onClick={exportCsv}>
                   <Download className="h-4 w-4 mr-1.5" /> Export selected
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => {
-                  if (confirm(`Delete ${selected.size} employees? This cannot be undone.`)) delMut.mutate();
-                }} disabled={delMut.isPending}>
-                  <Trash2 className="h-4 w-4 mr-1.5" /> Delete
-                </Button>
+                {access.canManageEmployees && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setMoveDeptOpen(true)}>
+                      <Building2 className="h-4 w-4 mr-1.5" /> Change dept
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => { if (confirm(`Deactivate ${selected.size} employees?`)) deactivateMut.mutate(); }}>
+                      <UserMinus className="h-4 w-4 mr-1.5" /> Deactivate
+                    </Button>
+                  </>
+                )}
+                {access.canDelete && (
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    if (confirm(`Delete ${selected.size} employees? This cannot be undone.`)) delMut.mutate();
+                  }} disabled={delMut.isPending}>
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -184,6 +223,7 @@ function EmployeesList() {
                 <TableHeader className="sticky top-0 bg-card z-10">
                   <TableRow>
                     <TableHead className="w-[40px]"><Checkbox checked={allSelected} onCheckedChange={toggleAll} /></TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Designation</TableHead>
@@ -196,9 +236,9 @@ function EmployeesList() {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">No employees yet.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">No employees yet.</TableCell></TableRow>
                   ) : rows.map((r) => (
                     <TableRow key={r.id} className="group">
                       <TableCell><Checkbox checked={selected.has(r.id)} onCheckedChange={() => {
@@ -206,6 +246,11 @@ function EmployeesList() {
                         if (n.has(r.id)) n.delete(r.id); else n.add(r.id);
                         setSelected(n);
                       }} /></TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden">
+                          {r.full_name.split(" ").slice(0,2).map((w) => w.charAt(0).toUpperCase()).join("")}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{r.employee_code}</TableCell>
                       <TableCell>
                         <Link to="/erp/hr/employees/$id" params={{ id: r.id }} className="font-medium hover:underline">
@@ -245,6 +290,26 @@ function EmployeesList() {
         )}
 
         <EmployeeImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+
+        <Dialog open={moveDeptOpen} onOpenChange={setMoveDeptOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Change Department</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">Move {selected.size} employees to:</div>
+              <Select value={moveToDept} onValueChange={setMoveToDept}>
+                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No department</SelectItem>
+                  {(depts as any[]).map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMoveDeptOpen(false)}>Cancel</Button>
+              <Button onClick={() => moveDeptMut.mutate()} disabled={moveDeptMut.isPending}>Move</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
