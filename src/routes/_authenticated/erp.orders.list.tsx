@@ -96,7 +96,7 @@ function OrdersPage() {
 
   const handleExport = () => {
     const csv = exportOrdersCsv(rows);
-    downloadCsv(`orders-${activeBrand?.slug}-${new Date().toISOString().slice(0,10)}.csv`, csv);
+    downloadCsv(`orders-${activeBrand?.slug ?? "all"}-${new Date().toISOString().slice(0,10)}.csv`, csv);
   };
 
   const handleRefresh = () => {
