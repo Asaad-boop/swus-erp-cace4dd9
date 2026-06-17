@@ -31,7 +31,6 @@ import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
 import { Route as AuthenticatedErpImportsIndexRouteImport } from './routes/_authenticated/erp.imports.index'
 import { Route as AuthenticatedErpHrIndexRouteImport } from './routes/_authenticated/erp.hr.index'
-import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
 import { Route as AuthenticatedErpCrmIndexRouteImport } from './routes/_authenticated/erp.crm.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
 import { Route as ApiPublicMktTrackerDotjsRouteImport } from './routes/api/public/mkt.tracker[.]js'
@@ -207,12 +206,6 @@ const AuthenticatedErpHrIndexRoute = AuthenticatedErpHrIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedErpHrRoute,
 } as any)
-const AuthenticatedErpFinanceIndexRoute =
-  AuthenticatedErpFinanceIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
 const AuthenticatedErpCrmIndexRoute =
   AuthenticatedErpCrmIndexRouteImport.update({
     id: '/',
@@ -607,7 +600,6 @@ export interface FileRoutesByFullPath {
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/crm/': typeof AuthenticatedErpCrmIndexRoute
-  '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr/': typeof AuthenticatedErpHrIndexRoute
   '/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
@@ -631,6 +623,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
+  '/erp/finance': typeof AuthenticatedErpFinanceRouteWithChildren
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -677,7 +670,6 @@ export interface FileRoutesByTo {
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/erp/crm': typeof AuthenticatedErpCrmIndexRoute
-  '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr': typeof AuthenticatedErpHrIndexRoute
   '/erp/imports': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
@@ -759,7 +751,6 @@ export interface FileRoutesById {
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
   '/_authenticated/erp/crm/': typeof AuthenticatedErpCrmIndexRoute
-  '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/hr/': typeof AuthenticatedErpHrIndexRoute
   '/_authenticated/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
@@ -841,7 +832,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/erp/crm/'
-    | '/erp/finance/'
     | '/erp/hr/'
     | '/erp/imports/'
     | '/erp/marketing/'
@@ -865,6 +855,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp/courier'
+    | '/erp/finance'
     | '/erp/inventory'
     | '/erp/settings'
     | '/erp/suppliers'
@@ -911,7 +902,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/erp/crm'
-    | '/erp/finance'
     | '/erp/hr'
     | '/erp/imports'
     | '/erp/marketing'
@@ -992,7 +982,6 @@ export interface FileRouteTypes {
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
     | '/_authenticated/erp/crm/'
-    | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/hr/'
     | '/_authenticated/erp/imports/'
     | '/_authenticated/erp/marketing/'
@@ -1180,13 +1169,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/hr/'
       preLoaderRoute: typeof AuthenticatedErpHrIndexRouteImport
       parentRoute: typeof AuthenticatedErpHrRoute
-    }
-    '/_authenticated/erp/finance/': {
-      id: '/_authenticated/erp/finance/'
-      path: '/'
-      fullPath: '/erp/finance/'
-      preLoaderRoute: typeof AuthenticatedErpFinanceIndexRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
     }
     '/_authenticated/erp/crm/': {
       id: '/_authenticated/erp/crm/'
@@ -1613,7 +1595,6 @@ interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceSimpleRoute: typeof AuthenticatedErpFinanceSimpleRoute
   AuthenticatedErpFinanceTaxesRoute: typeof AuthenticatedErpFinanceTaxesRoute
   AuthenticatedErpFinanceWalletsRoute: typeof AuthenticatedErpFinanceWalletsRoute
-  AuthenticatedErpFinanceIndexRoute: typeof AuthenticatedErpFinanceIndexRoute
 }
 
 const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren =
@@ -1639,7 +1620,6 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
     AuthenticatedErpFinanceSimpleRoute: AuthenticatedErpFinanceSimpleRoute,
     AuthenticatedErpFinanceTaxesRoute: AuthenticatedErpFinanceTaxesRoute,
     AuthenticatedErpFinanceWalletsRoute: AuthenticatedErpFinanceWalletsRoute,
-    AuthenticatedErpFinanceIndexRoute: AuthenticatedErpFinanceIndexRoute,
   }
 
 const AuthenticatedErpFinanceRouteWithChildren =
