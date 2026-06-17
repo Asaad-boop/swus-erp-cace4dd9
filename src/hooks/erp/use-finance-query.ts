@@ -2,15 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Account, Category, Transaction } from "@/lib/erp/finance";
 
-export function useAccounts(brandId: string | null) {
+// Hooks accept brandIds[]; pass [] to skip, [id] for single brand, or
+// brands.map(b => b.id) for All-Brands mode.
+export function useAccounts(brandIds: string[]) {
   return useQuery({
-    queryKey: ["erp_accounts", brandId],
-    enabled: !!brandId,
+    queryKey: ["erp_accounts", brandIds],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("erp_accounts")
         .select("id,brand_id,name,account_type,account_number,opening_balance,current_balance,is_active,notes")
-        .eq("brand_id", brandId!)
+        .in("brand_id", brandIds)
         .order("name");
       if (error) throw error;
       return (data ?? []) as Account[];
@@ -18,15 +20,15 @@ export function useAccounts(brandId: string | null) {
   });
 }
 
-export function useCategories(brandId: string | null) {
+export function useCategories(brandIds: string[]) {
   return useQuery({
-    queryKey: ["erp_categories", brandId],
-    enabled: !!brandId,
+    queryKey: ["erp_categories", brandIds],
+    enabled: brandIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("erp_expense_categories")
         .select("id,brand_id,name,kind,is_active")
-        .eq("brand_id", brandId!)
+        .in("brand_id", brandIds)
         .order("name");
       if (error) throw error;
       return (data ?? []) as Category[];
@@ -35,7 +37,7 @@ export function useCategories(brandId: string | null) {
 }
 
 export type TxnFilter = {
-  brandId: string | null;
+  brandIds: string[];
   type: "all" | "income" | "expense" | "transfer" | "adjustment";
   accountId: string | null;
   from: string | null;
@@ -47,12 +49,12 @@ export type TxnFilter = {
 export function useTransactions(filter: TxnFilter) {
   return useQuery({
     queryKey: ["erp_transactions", filter],
-    enabled: !!filter.brandId,
+    enabled: filter.brandIds.length > 0,
     queryFn: async () => {
       let q = supabase
         .from("erp_transactions")
         .select("id,brand_id,txn_type,category_id,account_id,to_account_id,amount,reference_type,reference_id,supplier_id,description,transaction_date,created_at")
-        .eq("brand_id", filter.brandId!)
+        .in("brand_id", filter.brandIds)
         .order("transaction_date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(filter.limit);
@@ -77,18 +79,43 @@ export type PnL = {
   profit: number;
 };
 
-export function useProfitLoss(brandId: string | null, from: string, to: string) {
+export function useProfitLoss(brandIds: string[], from: string, to: string) {
   return useQuery({
-    queryKey: ["erp_pnl", brandId, from, to],
-    enabled: !!brandId && !!from && !!to,
+    queryKey: ["erp_pnl", brandIds, from, to],
+    enabled: brandIds.length > 0 && !!from && !!to,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("erp_profit_loss", {
-        _brand_id: brandId!,
-        _from: from,
-        _to: to,
-      });
-      if (error) throw error;
-      return data as unknown as PnL;
+      // RPC is single-brand; aggregate when in All-Brands mode.
+      const results = await Promise.all(
+        brandIds.map(async (bid) => {
+          const { data, error } = await supabase.rpc("erp_profit_loss", {
+            _brand_id: bid,
+            _from: from,
+            _to: to,
+          });
+          if (error) throw error;
+          return data as unknown as PnL;
+        }),
+      );
+      if (results.length === 1) return results[0];
+      const acc: PnL = {
+        revenue: 0,
+        delivered_orders: 0,
+        other_income: 0,
+        expense_total: 0,
+        expense_by_category: {},
+        profit: 0,
+      };
+      for (const r of results) {
+        acc.revenue += Number(r.revenue || 0);
+        acc.delivered_orders += Number(r.delivered_orders || 0);
+        acc.other_income += Number(r.other_income || 0);
+        acc.expense_total += Number(r.expense_total || 0);
+        acc.profit += Number(r.profit || 0);
+        for (const [k, v] of Object.entries(r.expense_by_category ?? {})) {
+          acc.expense_by_category[k] = (acc.expense_by_category[k] ?? 0) + Number(v || 0);
+        }
+      }
+      return acc;
     },
   });
 }
