@@ -49,6 +49,22 @@ function attachRuntimeEnv(env: unknown) {
       process.env.SUPABASE_SERVICE_ROLE_KEY = adminKey;
     }
   }
+
+  if (!globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_URL) {
+    const viteUrl = runtimeEnv.VITE_SUPABASE_URL;
+    if (typeof viteUrl === "string" && viteUrl.length > 0) {
+      globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_URL = viteUrl;
+      process.env.SUPABASE_URL = viteUrl;
+    }
+  }
+
+  if (!globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY) {
+    const viteKey = runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY ?? runtimeEnv.VITE_SUPABASE_ANON_KEY;
+    if (typeof viteKey === "string" && viteKey.length > 0) {
+      globalThis.__LOVABLE_RUNTIME_ENV__.SUPABASE_PUBLISHABLE_KEY = viteKey;
+      process.env.SUPABASE_PUBLISHABLE_KEY = viteKey;
+    }
+  }
 }
 
 async function getServerEntry(): Promise<ServerEntry> {
