@@ -834,6 +834,36 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_imported_customers: {
+        Row: {
+          created_at: string
+          customer_key: string
+          email: string | null
+          imported_by: string | null
+          name: string | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_key: string
+          email?: string | null
+          imported_by?: string | null
+          name?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_key?: string
+          email?: string | null
+          imported_by?: string | null
+          name?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       erp_accounts: {
         Row: {
           account_number: string | null

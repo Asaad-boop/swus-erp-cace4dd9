@@ -438,3 +438,60 @@ export const listCrmTags = createServerFn({ method: "POST" })
     (data ?? []).forEach((r: any) => set.add(r.tag));
     return Array.from(set).sort();
   });
+
+/* =================== IMPORT =================== */
+export const importCrmCustomers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { rows: Array<{ phone: string; name?: string; email?: string }>; source?: string }) =>
+    z.object({
+      rows: z.array(z.object({
+        phone: z.string().min(1),
+        name: z.string().optional(),
+        email: z.string().optional(),
+      })).min(1).max(10000),
+      source: z.string().max(40).optional(),
+    }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const source = data.source?.trim() || "csv";
+    const seen = new Set<string>();
+    const cleaned: Array<{ customer_key: string; name: string | null; email: string | null; source: string; imported_by: string }> = [];
+    let skipped = 0;
+    for (const r of data.rows) {
+      const key = normalizePhone(r.phone);
+      if (!key || seen.has(key)) { skipped++; continue; }
+      seen.add(key);
+      cleaned.push({
+        customer_key: key,
+        name: (r.name ?? "").trim() || null,
+        email: (r.email ?? "").trim() || null,
+        source,
+        imported_by: context.userId,
+      });
+    }
+    if (!cleaned.length) return { inserted: 0, skipped, tagged: 0 };
+
+    // Upsert imported customers (chunked)
+    const CHUNK = 500;
+    for (let i = 0; i < cleaned.length; i += CHUNK) {
+      const slice = cleaned.slice(i, i + CHUNK);
+      const { error } = await context.supabase.from("crm_imported_customers")
+        .upsert(slice, { onConflict: "customer_key" });
+      if (error) throw error;
+    }
+
+    // Tag every imported customer with "imported"
+    const tagRows = cleaned.map((c) => ({
+      customer_key: c.customer_key,
+      tag: "imported",
+      created_by: context.userId,
+    }));
+    for (let i = 0; i < tagRows.length; i += CHUNK) {
+      const slice = tagRows.slice(i, i + CHUNK);
+      const { error } = await context.supabase.from("crm_customer_tags")
+        .upsert(slice, { onConflict: "customer_key,tag" });
+      if (error) throw error;
+    }
+
+    return { inserted: cleaned.length, skipped, tagged: tagRows.length };
+  });

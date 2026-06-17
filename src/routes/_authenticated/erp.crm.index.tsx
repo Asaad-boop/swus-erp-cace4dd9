@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Search, Tag as TagIcon, Users } from "lucide-react";
+import { Download, Search, Tag as TagIcon, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { CrmKpiCards } from "@/components/erp/crm/kpi-cards";
+import { CrmImportDialog } from "@/components/erp/crm/import-dialog";
 import { SEGMENT_LABELS, SEGMENT_TONES } from "@/lib/erp/crm/segments";
 import { listCrmCustomers, exportCrmCustomersCsv, listCrmTags, bulkAddCrmTag } from "@/lib/erp/crm/crm.functions";
 import type { CrmFilters, CrmSort, CrmSegment } from "@/lib/erp/crm/types";
@@ -53,6 +54,7 @@ function CrmListPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const [bulkTagValue, setBulkTagValue] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const brandNameById = useMemo(() => new Map(brands.map((b) => [b.id, b.name] as const)), [brands]);
 
@@ -138,6 +140,10 @@ function CrmListPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-1.5" />
+            Import CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={() => exportMut.mutate()} disabled={exportMut.isPending}>
             <Download className="h-4 w-4 mr-1.5" />
             {exportMut.isPending ? "Exporting…" : "Export CSV"}
@@ -315,6 +321,8 @@ function CrmListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CrmImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
