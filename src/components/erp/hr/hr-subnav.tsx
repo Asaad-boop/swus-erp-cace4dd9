@@ -1,10 +1,14 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Building2, BadgeCheck, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, Users, Building2, BadgeCheck, Settings as SettingsIcon, CalendarCheck, CalendarDays, Clock, PalmtreeIcon, Palmtree } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/erp/hr", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/erp/hr/employees", label: "Employees", icon: Users },
+  { to: "/erp/hr/attendance", label: "Attendance", icon: CalendarCheck },
+  { to: "/erp/hr/leave", label: "Leave", icon: CalendarDays },
+  { to: "/erp/hr/shifts", label: "Shifts", icon: Clock },
+  { to: "/erp/hr/holidays", label: "Holidays", icon: Palmtree },
   { to: "/erp/hr/departments", label: "Departments", icon: Building2 },
   { to: "/erp/hr/designations", label: "Designations", icon: BadgeCheck },
   { to: "/erp/hr/settings", label: "Settings", icon: SettingsIcon },
