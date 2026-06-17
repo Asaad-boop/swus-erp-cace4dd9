@@ -331,6 +331,10 @@ export const updatePayslip = createServerFn({ method: "POST" })
     }
     const gross = Number(data.basic) + sumValues(data.allowances);
     const net_pay = gross - sumValues(data.deductions);
+    const allow = data.allowances ?? {};
+    const ded = data.deductions ?? {};
+    const total_earnings_breakdown = { basic: Number(data.basic), ...allow };
+    const total_deductions_breakdown = { ...ded };
     const { error } = await context.supabase
       .from("hr_payslips")
       .update({
@@ -339,6 +343,11 @@ export const updatePayslip = createServerFn({ method: "POST" })
         deductions: data.deductions,
         gross,
         net_pay,
+        total_earnings_breakdown,
+        total_deductions_breakdown,
+        overtime_earning: Number(allow.overtime ?? 0),
+        absent_deduction: Number(ded.absent ?? 0),
+        late_deduction: Number(ded.late ?? 0),
         notes: data.notes ?? null,
       })
       .eq("id", data.id);
