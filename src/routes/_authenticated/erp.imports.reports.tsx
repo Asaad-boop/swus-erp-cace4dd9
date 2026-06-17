@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/reports")({
 });
 
 function ImportsReports() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
 

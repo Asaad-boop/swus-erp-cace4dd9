@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 });
 
 function ImportsSettings() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   return (
     <div className="p-4 md:p-6 space-y-4">

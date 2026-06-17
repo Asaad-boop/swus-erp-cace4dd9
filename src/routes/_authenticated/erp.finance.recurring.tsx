@@ -30,7 +30,7 @@ type Rule = {
 type COA = { id: string; code: string; name: string; account_type: string };
 
 function RecurringPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 

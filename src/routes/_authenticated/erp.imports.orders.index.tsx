@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/erp/imports/orders/")({
 type SortKey = "date" | "total" | "due" | "status";
 
 function PoListPage() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker( = useBrandPicker();
   const [status, setStatus] = useState<string>("all");
   const [q, setQ] = useState("");
   const [payState, setPayState] = useState<"all" | "paid" | "partial" | "unpaid">("all");

@@ -58,7 +58,7 @@ function parseCsv(text: string) {
 }
 
 function ReconPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [accountId, setAccountId] = useState<string>("");
   const [importOpen, setImportOpen] = useState(false);

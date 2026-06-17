@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/fx")({
 type FX = { id: string; from_ccy: string; to_ccy: string; rate: number; rate_date: string };
 
 function FxPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [form, setForm] = useState({ from_ccy: "USD", to_ccy: "BDT", rate: "", rate_date: new Date().toISOString().slice(0, 10) });
 

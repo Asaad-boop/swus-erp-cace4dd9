@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/erp/reconciliation/")({
 });
 
 function OverviewPage() {
-  const { brandId, gate } = useBrandPicker({
+  const { brandId, picker } = useBrandPicker({
     label: "Pick a brand",
     hint: "Brand wise reconciliation status dekhar jonno ekta brand select koro.",
   });

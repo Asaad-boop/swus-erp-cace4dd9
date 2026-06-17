@@ -24,7 +24,7 @@ function statusBadge(s: string) {
 }
 
 function SyncLogPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const list = useServerFn(listSyncLog);
 
   const q = useQuery({

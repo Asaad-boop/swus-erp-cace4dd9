@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/audit")({
 type Row = { id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; before_data: unknown; after_data: unknown; created_at: string };
 
 function AuditPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Row | null>(null);
 

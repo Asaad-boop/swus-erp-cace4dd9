@@ -39,7 +39,7 @@ function statusTone(s: string | null) {
 }
 
 function CampaignsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [rangeKey, setRangeKey] = useState("30d");
   const [q, setQ] = useState("");
 

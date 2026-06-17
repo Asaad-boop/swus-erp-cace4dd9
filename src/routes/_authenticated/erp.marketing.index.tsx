@@ -139,7 +139,7 @@ const DECISIONS: Record<
 // ─────────────────────────── page ───────────────────────────
 
 function PerformanceDashboard() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker( = useBrandPicker();
   const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");

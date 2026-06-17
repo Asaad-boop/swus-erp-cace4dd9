@@ -23,7 +23,7 @@ function monthStart(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1)
 function monthEnd(d: Date) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10); }
 
 function BudgetsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [month, setMonth] = useState(() => monthStart(new Date()).slice(0, 7));
   const monthDate = month + "-01";

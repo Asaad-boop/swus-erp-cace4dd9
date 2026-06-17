@@ -30,7 +30,7 @@ type Entry = {
 type COA = { id: string; code: string; name: string; account_type: string };
 
 function JournalPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "posted" | "void" | "draft">("all");

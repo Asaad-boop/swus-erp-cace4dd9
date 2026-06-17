@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
 });
 
 function SettingsPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
 
   const lockQ = useQuery({

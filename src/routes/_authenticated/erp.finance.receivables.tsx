@@ -41,7 +41,7 @@ function bucketFor(age: number) {
 }
 
 function ReceivablesPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [bucket, setBucket] = useState<string>("all");

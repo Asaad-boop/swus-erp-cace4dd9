@@ -131,7 +131,7 @@ function statusPill(status: string) {
 
 function AdAccountsPage() {
   const qc = useQueryClient();
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const listFn = useServerFn(listConnectedAdAccounts);
   const toggleFn = useServerFn(toggleAdAccountStatus);

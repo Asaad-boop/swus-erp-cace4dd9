@@ -89,7 +89,7 @@ function downloadCsv(filename: string, rows: (string | number | null)[][]) {
 }
 
 function ProductProfitabilityPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const [productId, setProductId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<string>(daysAgoIso(30));

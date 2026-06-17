@@ -169,7 +169,7 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
 // ----- Page -----
 
 function ReconciliationPage() {
-  const { brandId, gate } = useBrandPicker({
+  const { brandId, picker } = useBrandPicker({
     label: "Pick a brand",
     hint: "Invoice reconciliation brand-specific. Ekta brand select koro.",
   });

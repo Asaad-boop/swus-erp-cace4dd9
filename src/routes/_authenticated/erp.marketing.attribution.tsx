@@ -44,7 +44,7 @@ const SOURCE_COLOR: Record<string, string> = {
 
 function AttributionPage() {
   const qc = useQueryClient();
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const [tab, setTab] = useState<"unattributed" | "attributed">("unattributed");
   const [days, setDays] = useState(30);

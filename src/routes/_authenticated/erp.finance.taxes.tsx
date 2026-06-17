@@ -27,7 +27,7 @@ function monthStart() { const d = new Date(); return new Date(d.getFullYear(), d
 function today() { return new Date().toISOString().slice(0, 10); }
 
 function TaxesPage() {
-  const { brandId, effectiveBrand, gate } = useBrandPicker();
+  const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
