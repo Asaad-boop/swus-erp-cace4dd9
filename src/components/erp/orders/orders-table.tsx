@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
+import { BrandBadge } from "@/components/erp/brand-badge";
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   confirmed: "ready_to_pack",
@@ -108,6 +109,10 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
           </div>
         );
       },
+    },
+    {
+      header: "Brand",
+      cell: ({ row }) => <BrandBadge brandId={row.original.brand_id} />,
     },
     {
       header: "Products",
