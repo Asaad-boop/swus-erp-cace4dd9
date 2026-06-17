@@ -54,7 +54,15 @@ type DeliveryMethod = "pathao" | "steadfast" | "manual";
 function NewOrderPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands, isAllBrands } = useBrand();
+  const [pickedBrandId, setPickedBrandId] = useState<string>("");
+  // In All-Brands mode user must pick a target brand for the new order.
+  // Outside of that mode, the active brand wins.
+  const effectiveBrand = useMemo(
+    () => activeBrand ?? brands.find((b) => b.id === pickedBrandId) ?? null,
+    [activeBrand, brands, pickedBrandId],
+  );
+  const effectiveBrandId = effectiveBrand?.id ?? null;
 
   // ── customer & shipping ───────────────────────────────────────────────
   const [phone, setPhone] = useState("");
@@ -70,13 +78,13 @@ function NewOrderPage() {
 
   // ── brand-defined order sources ───────────────────────────────────────
   const { data: brandSources = [] } = useQuery({
-    queryKey: ["brand-order-sources", activeBrand?.id],
-    enabled: !!activeBrand?.id,
+    queryKey: ["brand-order-sources", effectiveBrandId],
+    enabled: !!effectiveBrandId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brands")
         .select("settings")
-        .eq("id", activeBrand!.id)
+        .eq("id", effectiveBrandId!)
         .maybeSingle();
       if (error) throw error;
       const s = (data?.settings ?? {}) as { order_sources?: string[] };
@@ -115,13 +123,13 @@ function NewOrderPage() {
 
   // Past orders breakdown for this phone in this brand
   const { data: pastOrders } = useQuery({
-    queryKey: ["new-order-customer-history", activeBrand?.id, debouncedPhone],
-    enabled: !!activeBrand?.id && !!debouncedPhone,
+    queryKey: ["new-order-customer-history", effectiveBrandId, debouncedPhone],
+    enabled: !!effectiveBrandId && !!debouncedPhone,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("id,total,status,created_at,shipping_name,shipping_address,shipping_city,pathao_city_id,pathao_city_name,pathao_zone_id,pathao_zone_name,pathao_area_id,pathao_area_name")
-        .eq("brand_id", activeBrand!.id)
+        .eq("brand_id", effectiveBrandId!)
         .or(`shipping_phone.eq.${debouncedPhone},guest_phone.eq.${debouncedPhone}`)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -138,11 +146,11 @@ function NewOrderPage() {
   // Courier history (Pathao + Steadfast)
   const historyFn = useServerFn(fetchCourierHistoryFn);
   const { data: courier, isFetching: courierFetching } = useQuery({
-    queryKey: ["new-order-courier-history", activeBrand?.id, debouncedPhone],
-    enabled: !!activeBrand?.id && !!debouncedPhone,
+    queryKey: ["new-order-courier-history", effectiveBrandId, debouncedPhone],
+    enabled: !!effectiveBrandId && !!debouncedPhone,
     staleTime: 60 * 60_000,
     queryFn: async () => {
-      const r = await historyFn({ data: { phones: [debouncedPhone], brandId: activeBrand!.id } });
+      const r = await historyFn({ data: { phones: [debouncedPhone], brandId: effectiveBrandId! } });
       return r.results[debouncedPhone] ?? null;
     },
   });
@@ -162,7 +170,7 @@ function NewOrderPage() {
   const detect = useMutation({
     mutationFn: async () => {
       if (!address.trim()) throw new Error("Address likhun age");
-      return detectFn({ data: { address: address.trim(), brandId: activeBrand?.id } });
+      return detectFn({ data: { address: address.trim(), brandId: effectiveBrandId ?? undefined } });
     },
     onSuccess: (r) => {
       if (r.city) { setCityId(r.city.id); setCityName(r.city.name ?? ""); }
@@ -219,13 +227,13 @@ function NewOrderPage() {
   const [featuredOnly, setFeaturedOnly] = useState(false);
 
   const { data: products = [], isFetching: searching } = useQuery({
-    queryKey: ["new-order-products", activeBrand?.id, nameQuery, skuQuery, featuredOnly],
-    enabled: !!activeBrand,
+    queryKey: ["new-order-products", effectiveBrandId, nameQuery, skuQuery, featuredOnly],
+    enabled: !!effectiveBrandId,
     queryFn: async () => {
       let q = supabase
         .from("products")
         .select("id,title,price,image,stock,is_featured")
-        .eq("brand_id", activeBrand!.id)
+        .eq("brand_id", effectiveBrandId!)
         .eq("is_active", true)
         .order("is_featured", { ascending: false })
         .order("updated_at", { ascending: false })
@@ -283,7 +291,7 @@ function NewOrderPage() {
   // ── submit ────────────────────────────────────────────────────────────
   const create = useMutation({
     mutationFn: async () => {
-      if (!activeBrand) throw new Error("Brand select korun");
+      if (!effectiveBrand) throw new Error("Brand select korun");
       if (!name.trim() || !phone.trim()) throw new Error("Name & Mobile lagbe");
       if (!address.trim()) throw new Error("Address lagbe");
       if (items.length === 0) throw new Error("At least 1 product add korun");
@@ -295,7 +303,7 @@ function NewOrderPage() {
       const { data: orderData, error: orderErr } = await supabase
         .from("orders")
         .insert({
-          brand_id: activeBrand.id,
+          brand_id: effectiveBrand.id,
           status: "confirmed",
           confirmation_status: "confirmed",
           source: "manual",
@@ -364,12 +372,22 @@ function NewOrderPage() {
               <h1 className="text-lg font-bold tracking-tight md:text-xl">
                 New Order <span className="ml-1 font-normal text-muted-foreground">— নতুন অর্ডার</span>
               </h1>
-              <div className="text-[11px] text-muted-foreground">{activeBrand?.name ?? "Select a brand"}</div>
+              <div className="text-[11px] text-muted-foreground">{effectiveBrand?.name ?? (isAllBrands ? "Pick a brand for this order" : "Select a brand")}</div>
             </div>
           </div>
-          <div className="hidden items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground md:flex">
-            <Info className="h-3.5 w-3.5 text-sky-500" />
-            Address likhle field গুলো auto-fill হবে।
+          <div className="flex items-center gap-2">
+            {isAllBrands && (
+              <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
+                <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Choose brand *" /></SelectTrigger>
+                <SelectContent>
+                  {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="hidden items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground md:flex">
+              <Info className="h-3.5 w-3.5 text-sky-500" />
+              Address likhle field গুলো auto-fill হবে।
+            </div>
           </div>
         </div>
       </div>
