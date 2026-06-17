@@ -6345,6 +6345,9 @@ export type Database = {
         | "marketing_manager"
         | "warehouse_staff"
         | "cargo_agent"
+        | "hr_admin"
+        | "hr_manager"
+        | "employee"
       call_status:
         | "not_called"
         | "attempting"
@@ -6588,6 +6591,9 @@ export const Constants = {
         "marketing_manager",
         "warehouse_staff",
         "cargo_agent",
+        "hr_admin",
+        "hr_manager",
+        "employee",
       ],
       call_status: [
         "not_called",
