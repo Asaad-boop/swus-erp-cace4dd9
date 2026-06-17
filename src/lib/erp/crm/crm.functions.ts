@@ -228,10 +228,9 @@ export const listCrmCustomers = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<CrmListResponse> => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [raw, tagMap] = await Promise.all([
-      loadAll(supabaseAdmin, data.filters.brandIds),
-      loadTags(supabaseAdmin),
+      loadAll(context.supabase, data.filters.brandIds),
+      loadTags(context.supabase),
     ]);
     const enriched = enrich(raw, tagMap);
     const kpis = computeKpis(enriched);
@@ -247,14 +246,13 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
   .inputValidator((d: { customerKey: string }) => z.object({ customerKey: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = normalizePhone(data.customerKey) ?? data.customerKey;
 
     const [viewRes, tagsRes, notesRes, metaRes] = await Promise.all([
-      supabaseAdmin.from("crm_customers_v").select("*").eq("customer_key", key).maybeSingle(),
-      supabaseAdmin.from("crm_customer_tags").select("id, tag, created_at").eq("customer_key", key).order("created_at", { ascending: false }),
-      supabaseAdmin.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
-      supabaseAdmin.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
+      context.supabase.from("crm_customers_mv").select("*").eq("customer_key", key).maybeSingle(),
+      context.supabase.from("crm_customer_tags").select("id, tag, created_at").eq("customer_key", key).order("created_at", { ascending: false }),
+      context.supabase.from("crm_customer_notes").select("id, note, created_at, updated_at, created_by").eq("customer_key", key).order("created_at", { ascending: false }),
+      context.supabase.from("crm_customer_meta").select("*").eq("customer_key", key).maybeSingle(),
     ]);
     if (viewRes.error) throw viewRes.error;
     if (!viewRes.data) throw new Error("Customer not found");
