@@ -2860,6 +2860,418 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_departments: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          head_employee_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          head_employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          head_employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_departments_head_fk"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_departments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_designations: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          level: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_designations_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          employee_id: string
+          expiry_date: string | null
+          file_url: string | null
+          id: string
+          issue_date: string | null
+          notes: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          employee_id: string
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          employee_id?: string
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employees: {
+        Row: {
+          alt_phone: string | null
+          bank_account_no: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          bank_routing: string | null
+          blood_group: string | null
+          brand_ids: string[]
+          confirmation_date: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          date_of_birth: string | null
+          department_id: string | null
+          designation_id: string | null
+          display_name: string | null
+          email: string | null
+          emergency_name: string | null
+          emergency_phone: string | null
+          emergency_relation: string | null
+          employee_code: string
+          employment_type: string | null
+          exit_date: string | null
+          exit_reason: string | null
+          full_name: string
+          gender: string | null
+          gross_salary: number | null
+          id: string
+          joining_date: string
+          manager_id: string | null
+          marital_status: string | null
+          meta: Json
+          mfs_number: string | null
+          mfs_provider: string | null
+          nationality: string | null
+          nid: string | null
+          notes: string | null
+          passport: string | null
+          permanent_address: string | null
+          phone: string | null
+          photo_url: string | null
+          present_address: string | null
+          probation_months: number | null
+          status: string
+          tags: string[]
+          tin: string | null
+          updated_at: string
+          user_id: string | null
+          work_email: string | null
+          work_location: string | null
+        }
+        Insert: {
+          alt_phone?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          bank_routing?: string | null
+          blood_group?: string | null
+          brand_ids?: string[]
+          confirmation_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date_of_birth?: string | null
+          department_id?: string | null
+          designation_id?: string | null
+          display_name?: string | null
+          email?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relation?: string | null
+          employee_code: string
+          employment_type?: string | null
+          exit_date?: string | null
+          exit_reason?: string | null
+          full_name: string
+          gender?: string | null
+          gross_salary?: number | null
+          id?: string
+          joining_date?: string
+          manager_id?: string | null
+          marital_status?: string | null
+          meta?: Json
+          mfs_number?: string | null
+          mfs_provider?: string | null
+          nationality?: string | null
+          nid?: string | null
+          notes?: string | null
+          passport?: string | null
+          permanent_address?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          present_address?: string | null
+          probation_months?: number | null
+          status?: string
+          tags?: string[]
+          tin?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_email?: string | null
+          work_location?: string | null
+        }
+        Update: {
+          alt_phone?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          bank_routing?: string | null
+          blood_group?: string | null
+          brand_ids?: string[]
+          confirmation_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date_of_birth?: string | null
+          department_id?: string | null
+          designation_id?: string | null
+          display_name?: string | null
+          email?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relation?: string | null
+          employee_code?: string
+          employment_type?: string | null
+          exit_date?: string | null
+          exit_reason?: string | null
+          full_name?: string
+          gender?: string | null
+          gross_salary?: number | null
+          id?: string
+          joining_date?: string
+          manager_id?: string | null
+          marital_status?: string | null
+          meta?: Json
+          mfs_number?: string | null
+          mfs_provider?: string | null
+          nationality?: string | null
+          nid?: string | null
+          notes?: string | null
+          passport?: string | null
+          permanent_address?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          present_address?: string | null
+          probation_months?: number | null
+          status?: string
+          tags?: string[]
+          tin?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_email?: string | null
+          work_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employees_designation_id_fkey"
+            columns: ["designation_id"]
+            isOneToOne: false
+            referencedRelation: "hr_designations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employment_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          event_date: string
+          event_type: string
+          from_value: Json | null
+          id: string
+          notes: string | null
+          to_value: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          event_date?: string
+          event_type: string
+          from_value?: Json | null
+          id?: string
+          notes?: string | null
+          to_value?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          event_date?: string
+          event_type?: string
+          from_value?: Json | null
+          id?: string
+          notes?: string | null
+          to_value?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employment_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_settings: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          default_currency: string
+          employee_code_padding: number
+          employee_code_prefix: string
+          fiscal_year_start_month: number
+          id: string
+          meta: Json
+          next_employee_seq: number
+          probation_months: number
+          updated_at: string
+          weekly_off_days: number[]
+          work_hours_per_day: number
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          default_currency?: string
+          employee_code_padding?: number
+          employee_code_prefix?: string
+          fiscal_year_start_month?: number
+          id?: string
+          meta?: Json
+          next_employee_seq?: number
+          probation_months?: number
+          updated_at?: string
+          weekly_off_days?: number[]
+          work_hours_per_day?: number
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          default_currency?: string
+          employee_code_padding?: number
+          employee_code_prefix?: string
+          fiscal_year_start_month?: number
+          id?: string
+          meta?: Json
+          next_employee_seq?: number
+          probation_months?: number
+          updated_at?: string
+          weekly_off_days?: number[]
+          work_hours_per_day?: number
+        }
+        Relationships: []
+      }
       imp_carton_items: {
         Row: {
           carton_id: string
@@ -5936,6 +6348,8 @@ export type Database = {
         Args: { _brand_id: string; _user_id?: string }
         Returns: boolean
       }
+      has_hr_access: { Args: { _user_id: string }; Returns: boolean }
+      has_hr_admin: { Args: { _user_id: string }; Returns: boolean }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
@@ -5948,6 +6362,7 @@ export type Database = {
         Returns: boolean
       }
       heartbeat_order_lock: { Args: { _order_id: string }; Returns: undefined }
+      hr_next_employee_code: { Args: never; Returns: string }
       imp_create_po: { Args: { _payload: Json }; Returns: Json }
       imp_get_or_create_account: {
         Args: {
