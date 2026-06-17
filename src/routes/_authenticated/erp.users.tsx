@@ -33,8 +33,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   APP_ROLES, type AppRole,
-  listAppUsers, listAvailableCargoAgents,
-  createAppUser, updateUserRoles, linkUserToCargoAgent, setUserPassword, deleteAppUser,
+  listAppUsers,
+  createAppUser, updateUserRoles, setUserPassword, deleteAppUser,
   toggleUserBan, updateUserProfile, generateAuthLink, bulkDeleteUsers, bulkSetRole,
 } from "@/lib/erp/users.functions";
 
@@ -52,7 +52,6 @@ const ROLE_LABEL: Record<AppRole, string> = {
   customer_service: "Customer Service",
   marketing_manager: "Marketing",
   moderator: "Moderator",
-  cargo_agent: "Cargo Agent",
   customer: "Customer",
 };
 
@@ -65,13 +64,12 @@ const ROLE_DOT: Record<AppRole, string> = {
   customer_service: "bg-violet-500",
   marketing_manager: "bg-pink-500",
   moderator: "bg-slate-500",
-  cargo_agent: "bg-cyan-500",
   customer: "bg-zinc-400",
 };
 
 const TEAM_ROLES: AppRole[] = ["admin","operations","accountant","warehouse_staff","packer","customer_service","marketing_manager","moderator"];
 
-type Tab = "all" | "team" | "cargo_agent" | "customer" | "disabled" | "no_role";
+type Tab = "all" | "team" | "customer" | "disabled" | "no_role";
 type SortKey = "name" | "created" | "last_sign_in";
 
 function initials(s?: string | null) {
@@ -83,7 +81,6 @@ function initials(s?: string | null) {
 function UsersPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listAppUsers);
-  const agentsFn = useServerFn(listAvailableCargoAgents);
   const deleteFn = useServerFn(deleteAppUser);
   const banFn = useServerFn(toggleUserBan);
   const bulkDelFn = useServerFn(bulkDeleteUsers);
@@ -93,10 +90,6 @@ function UsersPage() {
   const { data: users = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["app-users"],
     queryFn: () => listFn({ data: undefined as any }),
-  });
-  const { data: agents = [] } = useQuery({
-    queryKey: ["available-cargo-agents"],
-    queryFn: () => agentsFn({ data: undefined as any }),
   });
 
   const [q, setQ] = useState("");
@@ -142,7 +135,6 @@ function UsersPage() {
     return {
       total: all.length,
       team: all.filter(u => u.roles.some((r: AppRole) => TEAM_ROLES.includes(r))).length,
-      cargo_agent: all.filter(u => u.roles.includes("cargo_agent")).length,
       customer: all.filter(u => u.roles.includes("customer") || u.roles.length === 0).length,
       disabled: all.filter(isDisabled).length,
       no_role: all.filter(u => u.roles.length === 0).length,
@@ -156,7 +148,6 @@ function UsersPage() {
     let arr = (users as any[]).filter((u) => {
       const disabled = u.banned_until && new Date(u.banned_until).getTime() > now;
       if (tab === "team" && !u.roles.some((r: AppRole) => TEAM_ROLES.includes(r))) return false;
-      if (tab === "cargo_agent" && !u.roles.includes("cargo_agent")) return false;
       if (tab === "customer" && !(u.roles.includes("customer") || u.roles.length === 0)) return false;
       if (tab === "disabled" && !disabled) return false;
       if (tab === "no_role" && u.roles.length !== 0) return false;
@@ -188,14 +179,13 @@ function UsersPage() {
   };
 
   const exportCsv = () => {
-    const rows = [["Email","Name","Roles","Cargo Agent","Status","Created","Last sign-in"]];
+    const rows = [["Email","Name","Roles","Status","Created","Last sign-in"]];
     filtered.forEach(u => {
       const disabled = u.banned_until && new Date(u.banned_until).getTime() > Date.now();
       rows.push([
         u.email ?? "",
         u.display_name ?? "",
         u.roles.join("|"),
-        u.cargo_agent?.name ?? "",
         disabled ? "Disabled" : (u.last_sign_in_at ? "Active" : "Never signed-in"),
         u.created_at ?? "",
         u.last_sign_in_at ?? "",
@@ -225,7 +215,7 @@ function UsersPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><UserCog className="h-6 w-6" /> Users</h1>
-          <p className="text-sm text-muted-foreground">Team members, cargo agents, ar permission centrally manage korun.</p>
+          <p className="text-sm text-muted-foreground">Team members ar permission centrally manage korun.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
@@ -254,7 +244,6 @@ function UsersPage() {
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">All <span className="ml-1.5 text-xs opacity-60">{counts.total}</span></TabsTrigger>
             <TabsTrigger value="team">Team <span className="ml-1.5 text-xs opacity-60">{counts.team}</span></TabsTrigger>
-            <TabsTrigger value="cargo_agent">Cargo Agents <span className="ml-1.5 text-xs opacity-60">{counts.cargo_agent}</span></TabsTrigger>
             <TabsTrigger value="customer">Customers <span className="ml-1.5 text-xs opacity-60">{counts.customer}</span></TabsTrigger>
             <TabsTrigger value="no_role">No role <span className="ml-1.5 text-xs opacity-60">{counts.no_role}</span></TabsTrigger>
             <TabsTrigger value="disabled">Disabled <span className="ml-1.5 text-xs opacity-60">{counts.disabled}</span></TabsTrigger>
@@ -398,9 +387,6 @@ function UsersPage() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {u.cargo_agent ? u.cargo_agent.name : <span className="text-xs text-muted-foreground">—</span>}
-                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                     {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "Never"}
                   </TableCell>
@@ -463,15 +449,13 @@ function UsersPage() {
       <CreateUserDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        agents={agents as any[]}
         onCreated={invalidate}
       />
       {editUser && (
         <EditUserDialog
           user={editUser}
-          agents={agents as any[]}
           onClose={() => setEditUser(null)}
-          onSaved={() => { invalidate(); qc.invalidateQueries({ queryKey: ["available-cargo-agents"] }); }}
+          onSaved={() => { invalidate(); }}
         />
       )}
       {pwUser && <PasswordDialog user={pwUser} onClose={() => setPwUser(null)} />}
@@ -490,7 +474,7 @@ function UsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete user?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{confirmDel?.email}</strong> permanently delete hobe. Auth account, roles ar cargo agent link sob remove hobe.
+              <strong>{confirmDel?.email}</strong> permanently delete hobe. Auth account ar roles sob remove hobe.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -533,18 +517,17 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 /* =================== Sub-components =================== */
 
-function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean; onClose: () => void; agents: any[]; onCreated: () => void }) {
+function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const fn = useServerFn(createAppUser);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [roles, setRoles] = useState<AppRole[]>([]);
-  const [cargoAgentId, setCargoAgentId] = useState<string>("");
 
-  const reset = () => { setEmail(""); setPassword(""); setDisplayName(""); setRoles([]); setCargoAgentId(""); };
+  const reset = () => { setEmail(""); setPassword(""); setDisplayName(""); setRoles([]); };
 
   const mut = useMutation({
-    mutationFn: () => fn({ data: { email, password, displayName: displayName || undefined, roles, cargoAgentId: cargoAgentId || null } }),
+    mutationFn: () => fn({ data: { email, password, displayName: displayName || undefined, roles } }),
     onSuccess: () => { toast.success("User created"); onCreated(); onClose(); reset(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
@@ -555,7 +538,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
     const s = Math.random().toString(36).slice(2, 10) + "A1!";
     setPassword(s); toast.success("Password generated");
   };
-  const freeAgents = agents.filter((a) => !a.user_id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -588,7 +570,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
               <div className="flex gap-1">
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["admin"])}>Admin</Button>
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["operations","warehouse_staff"])}>Ops+WH</Button>
-                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => applyPreset(["cargo_agent"])}>Cargo</Button>
                 <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setRoles([])}>Clear</Button>
               </div>
             </div>
@@ -602,26 +583,6 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
               ))}
             </div>
           </div>
-          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3">
-            <Label>Link to cargo agent profile</Label>
-            <Select
-              value={cargoAgentId}
-              onValueChange={(value) => {
-                setCargoAgentId(value);
-                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
-              }}
-            >
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select an unlinked agent…" /></SelectTrigger>
-              <SelectContent>
-                {freeAgents.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No unlinked agents</div>
-                ) : freeAgents.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">Agent select korlei Cargo Agent permission auto add hobe.</p>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -634,24 +595,20 @@ function CreateUserDialog({ open, onClose, agents, onCreated }: { open: boolean;
   );
 }
 
-function EditUserDialog({ user, agents, onClose, onSaved }: { user: any; agents: any[]; onClose: () => void; onSaved: () => void }) {
+function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
   const rolesFn = useServerFn(updateUserRoles);
-  const linkFn = useServerFn(linkUserToCargoAgent);
 
   const [roles, setRoles] = useState<AppRole[]>(user.roles);
-  const [cargoAgentId, setCargoAgentId] = useState<string>(user.cargo_agent?.id ?? "");
 
   const mut = useMutation({
     mutationFn: async () => {
       await rolesFn({ data: { userId: user.id, roles } });
-      await linkFn({ data: { userId: user.id, cargoAgentId: roles.includes("cargo_agent") ? (cargoAgentId || null) : null } });
     },
     onSuccess: () => { toast.success("Saved"); onSaved(); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
   const toggleRole = (r: AppRole) => setRoles(c => c.includes(r) ? c.filter(x => x !== r) : [...c, r]);
-  const freeAgents = agents.filter((a) => !a.user_id || a.user_id === user.id);
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
@@ -672,25 +629,6 @@ function EditUserDialog({ user, agents, onClose, onSaved }: { user: any; agents:
                 </label>
               ))}
             </div>
-          </div>
-          <div>
-            <Label>Cargo agent profile</Label>
-            <Select
-              value={cargoAgentId}
-              onValueChange={(value) => {
-                setCargoAgentId(value);
-                if (value && !roles.includes("cargo_agent")) setRoles((current) => [...current, "cargo_agent"]);
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
-              <SelectContent>
-                {freeAgents.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No agents available</div>
-                ) : freeAgents.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} {a.brands?.name ? `· ${a.brands.name}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
         <DialogFooter>
@@ -800,12 +738,6 @@ function UserDetailSheet({ user, onClose, onChanged, onEdit, onPassword }: {
             </div>
           </div>
 
-          {user.cargo_agent && (
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">Linked cargo agent</div>
-              <div className="font-medium">{user.cargo_agent.name}</div>
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>

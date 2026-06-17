@@ -23,10 +23,9 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
+    supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return;
-      const { data: isAgent } = await supabase.rpc("has_role", { _user_id: data.user.id, _role: "cargo_agent" });
-      navigate({ to: isAgent ? "/agent" : "/erp" });
+      navigate({ to: "/erp" });
     });
   }, [navigate]);
 
@@ -45,12 +44,8 @@ function AuthPage() {
       }
       await router.invalidate();
       const { data: u } = await supabase.auth.getUser();
-      if (u.user) {
-        const { data: isAgent } = await supabase.rpc("has_role", { _user_id: u.user.id, _role: "cargo_agent" });
-        navigate({ to: isAgent ? "/agent" : "/erp" });
-      } else {
-        navigate({ to: "/erp" });
-      }
+      if (u.user) navigate({ to: "/erp" });
+      else navigate({ to: "/erp" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {

@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  createImportPo, listCargoAgents, listImportSuppliers,
+  createImportPo, listImportSuppliers,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
@@ -57,22 +57,16 @@ function NewPoPage() {
   const brandId = effectiveBrand?.id ?? null;
 
   const suppliersFn = useServerFn(listImportSuppliers);
-  const agentsFn = useServerFn(listCargoAgents);
   const createFn = useServerFn(createImportPo);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
     queryFn: () => suppliersFn({ data: { brandId: brandId! } }),
   });
-  const { data: agents = [] } = useQuery({
-    queryKey: ["imp-agents", brandId], enabled: !!brandId,
-    queryFn: () => agentsFn({ data: { brandId: brandId! } }),
-  });
   const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
   // form state
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
-  const [agentId, setAgentId] = useState<string>("");
   const [supplierId, setSupplierId] = useState<string>("");
   const [currency, setCurrency] = useState("CNY");
   const [fxRate, setFxRate] = useState<number>(14);
@@ -149,7 +143,6 @@ function NewPoPage() {
   const submitMut = useMutation({
     mutationFn: async () => {
       if (!brandId) throw new Error("No brand");
-      if (!agentId) throw new Error("Cargo agent required");
       if (items.some((i) => !i.picked.title.trim() || i.quantity <= 0)) throw new Error("Each item needs a name & quantity > 0");
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
@@ -173,7 +166,6 @@ function NewPoPage() {
 
       const payload: any = {
         brand_id: brandId,
-        cargo_agent_id: agentId,
         order_date: orderDate,
         currency,
         fx_rate: fxRate,
@@ -226,7 +218,7 @@ function NewPoPage() {
   const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
   const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const itemsValid = items.length > 0 && items.every((i) => i.picked.title.trim() && i.quantity > 0);
-  const canSubmit = !!agentId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
+  const canSubmit = itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto pb-24">
@@ -257,16 +249,6 @@ function NewPoPage() {
               <div>
                 <Label className="text-xs">Order date</Label>
                 <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Cargo agent *</Label>
-                <Select value={agentId} onValueChange={setAgentId}>
-                  <SelectTrigger><SelectValue placeholder="Select cargo agent" /></SelectTrigger>
-                  <SelectContent>
-                    {(agents as any[]).length === 0 && <div className="px-2 py-3 text-xs text-muted-foreground">No cargo agents. Add in Settings.</div>}
-                    {(agents as any[]).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
               <div>
                 <Label className="text-xs">Supplier <span className="text-muted-foreground">(optional)</span></Label>
@@ -404,7 +386,7 @@ function NewPoPage() {
               <SectionTitle icon={Wallet} title="Advance payment (optional)" />
               <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={payEnabled} onChange={(e) => setPayEnabled(e.target.checked)} className="rounded" />
-                Pay cargo agent advance now
+                Pay supplier advance now
               </label>
             </div>
             {payEnabled && (
@@ -454,7 +436,6 @@ function NewPoPage() {
 
           <Card className="p-4 space-y-2.5 text-sm">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Summary</div>
-            <SideRow label="Cargo agent" value={(agents as any[]).find((a) => a.id === agentId)?.name ?? <span className="text-muted-foreground italic">Not set</span>} />
             <SideRow label="Supplier" value={supplierId ? ((suppliers as any[]).find((s) => s.id === supplierId)?.name ?? "—") : <span className="text-muted-foreground italic">None</span>} />
             <SideRow label="Order date" value={orderDate} />
             <SideRow label="Currency" value={`${currency} @ ${fxRate}`} />

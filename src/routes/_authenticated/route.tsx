@@ -68,12 +68,6 @@ function AuthGate() {
 
   const { roles } = status;
   const hasErpAccess = roles.some((r) => ERP_ROLES.has(r));
-  const isCargoAgent = roles.includes("cargo_agent");
-
-  // Cargo agent without ERP backoffice access → push to agent portal
-  if (!hasErpAccess && isCargoAgent) {
-    return <Navigate to="/agent" replace />;
-  }
 
   if (!hasErpAccess) {
     return (
