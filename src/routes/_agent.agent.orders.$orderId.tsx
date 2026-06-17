@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, PackageCheck, CheckCircle2, PlaneLanding } from "lucide-react";
+import { ArrowLeft, PackageCheck, CheckCircle2, PlaneLanding, ShieldCheck, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAgentPurchaseOrder, requestCartonRelease, markPoArrivedBd } from "@/lib/erp/imports/agent.functions";
+import { getAgentPurchaseOrder, requestCartonRelease, markPoArrivedBd, confirmAgentPayment } from "@/lib/erp/imports/agent.functions";
 import { PO_STATUS_LABEL, CARTON_STATUS_LABEL, fmtBdt, type ImpPoStatus, type ImpCartonStatus } from "@/lib/erp/imports/types";
 
 export const Route = createFileRoute("/_agent/agent/orders/$orderId")({
@@ -26,6 +26,7 @@ function AgentOrderDetail() {
   const fn = useServerFn(getAgentPurchaseOrder);
   const releaseFn = useServerFn(requestCartonRelease);
   const arrivedFn = useServerFn(markPoArrivedBd);
+  const confirmFn = useServerFn(confirmAgentPayment);
   const { data, isLoading, error } = useQuery({
     queryKey: ["agent-po", orderId],
     queryFn: () => fn({ data: { poId: orderId } }),
@@ -37,6 +38,10 @@ function AgentOrderDetail() {
   const [arrivedOpen, setArrivedOpen] = useState(false);
   const [shippedAt, setShippedAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [weightKg, setWeightKg] = useState<string>("");
+  const [rateBdt, setRateBdt] = useState<string>("");
+  const [confirmPay, setConfirmPay] = useState<any | null>(null);
+  const [proofUrl, setProofUrl] = useState("");
+  const [proofNote, setProofNote] = useState("");
 
   const releaseMut = useMutation({
     mutationFn: (vars: { cartonId: string; note?: string }) => releaseFn({ data: vars }),
@@ -50,14 +55,28 @@ function AgentOrderDetail() {
   });
 
   const arrivedMut = useMutation({
-    mutationFn: (vars: { poId: string; shipped_at: string; total_weight_kg: number }) =>
+    mutationFn: (vars: { poId: string; shipped_at: string; total_weight_kg: number; per_kg_rate_bdt: number }) =>
       arrivedFn({ data: vars }),
     onSuccess: () => {
       toast.success("PO mark kora hoyeche as Arrived in BD");
       setArrivedOpen(false);
       setWeightKg("");
+      setRateBdt("");
       qc.invalidateQueries({ queryKey: ["agent-po", orderId] });
       qc.invalidateQueries({ queryKey: ["agent-pos"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const confirmMut = useMutation({
+    mutationFn: (vars: { paymentId: string; proof_url?: string; note?: string }) =>
+      confirmFn({ data: vars }),
+    onSuccess: () => {
+      toast.success("Payment confirm + cartons released");
+      setConfirmPay(null);
+      setProofUrl("");
+      setProofNote("");
+      qc.invalidateQueries({ queryKey: ["agent-po", orderId] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
@@ -229,11 +248,12 @@ function AgentOrderDetail() {
               <TableHead>Reference</TableHead>
               <TableHead>Note</TableHead>
               <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-right">Confirm</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {payments.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Akhono kono payment nei.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">Akhono kono payment nei.</TableCell></TableRow>
             ) : payments.map((p) => (
               <TableRow key={p.id}>
                 <TableCell className="text-sm">{p.payment_date}</TableCell>
@@ -241,6 +261,22 @@ function AgentOrderDetail() {
                 <TableCell className="text-sm">{p.reference ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{p.notes ?? ""}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium text-emerald-600">{fmtBdt(p.amount_bdt)}</TableCell>
+                <TableCell className="text-right">
+                  {p.agent_confirmed_at ? (
+                    <div className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                      <CheckCircle2 className="h-3 w-3" /> Confirmed
+                      {p.agent_proof_url && (
+                        <a href={p.agent_proof_url} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-0.5 underline">
+                          proof <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => setConfirmPay(p)}>
+                      <ShieldCheck className="h-3 w-3 mr-1" /> Confirm
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -293,18 +329,75 @@ function AgentOrderDetail() {
                 onChange={(e) => setWeightKg(e.target.value)}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rate_bdt">Per-KG Rate (BDT)</Label>
+              <Input
+                id="rate_bdt"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 850"
+                value={rateBdt}
+                onChange={(e) => setRateBdt(e.target.value)}
+              />
+            </div>
+            {Number(weightKg) > 0 && Number(rateBdt) > 0 && (
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm flex justify-between">
+                <span className="text-muted-foreground">Total Shipping</span>
+                <span className="font-semibold tabular-nums">{fmtBdt(Number(weightKg) * Number(rateBdt))}</span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setArrivedOpen(false)}>Cancel</Button>
             <Button
-              disabled={arrivedMut.isPending || !shippedAt || !weightKg || Number(weightKg) <= 0}
+              disabled={arrivedMut.isPending || !shippedAt || !weightKg || Number(weightKg) <= 0 || !rateBdt || Number(rateBdt) <= 0}
               onClick={() => arrivedMut.mutate({
                 poId: po.id,
                 shipped_at: shippedAt,
                 total_weight_kg: Number(weightKg),
+                per_kg_rate_bdt: Number(rateBdt),
               })}
             >
               {arrivedMut.isPending ? "Saving…" : "Confirm Arrival"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmPay} onOpenChange={(o) => { if (!o) { setConfirmPay(null); setProofUrl(""); setProofNote(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm payment received</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm">
+              Amount <b className="text-emerald-600">{confirmPay && fmtBdt(confirmPay.amount_bdt)}</b>
+              {confirmPay?.payment_date && <span className="text-muted-foreground"> · {confirmPay.payment_date}</span>}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Confirm korle related cartons auto-release hoye jabe.
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="proof_url">Proof URL (receipt / screenshot link)</Label>
+              <Input id="proof_url" placeholder="https://…" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="proof_note">Note (optional)</Label>
+              <Textarea id="proof_note" rows={2} value={proofNote} onChange={(e) => setProofNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmPay(null)}>Cancel</Button>
+            <Button
+              disabled={confirmMut.isPending}
+              onClick={() => confirmPay && confirmMut.mutate({
+                paymentId: confirmPay.id,
+                proof_url: proofUrl || undefined,
+                note: proofNote || undefined,
+              })}
+            >
+              {confirmMut.isPending ? "Saving…" : "Confirm & Release"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3107,6 +3107,10 @@ export type Database = {
       }
       imp_payments: {
         Row: {
+          agent_confirmed_at: string | null
+          agent_confirmed_by: string | null
+          agent_proof_note: string | null
+          agent_proof_url: string | null
           amount_bdt: number
           brand_id: string
           carton_id: string | null
@@ -3126,6 +3130,10 @@ export type Database = {
           wallet_id: string
         }
         Insert: {
+          agent_confirmed_at?: string | null
+          agent_confirmed_by?: string | null
+          agent_proof_note?: string | null
+          agent_proof_url?: string | null
           amount_bdt: number
           brand_id: string
           carton_id?: string | null
@@ -3145,6 +3153,10 @@ export type Database = {
           wallet_id: string
         }
         Update: {
+          agent_confirmed_at?: string | null
+          agent_confirmed_by?: string | null
+          agent_proof_note?: string | null
+          agent_proof_url?: string | null
           amount_bdt?: number
           brand_id?: string
           carton_id?: string | null
@@ -3319,6 +3331,7 @@ export type Database = {
           po_number: string
           product_subtotal_bdt: number
           shipped_at: string | null
+          shipping_rate_per_kg_bdt: number | null
           shipping_total_bdt: number
           status: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id: string | null
@@ -3343,6 +3356,7 @@ export type Database = {
           po_number: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
+          shipping_rate_per_kg_bdt?: number | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
@@ -3367,6 +3381,7 @@ export type Database = {
           po_number?: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
+          shipping_rate_per_kg_bdt?: number | null
           shipping_total_bdt?: number
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
