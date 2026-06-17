@@ -193,6 +193,11 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
   const dedSum = useMemo(() => Object.values(ded).reduce((a, b) => a + Number(b || 0), 0), [ded]);
   const gross = basic + allowSum;
   const net = gross - dedSum;
+  const otEarn = Number(allow.overtime ?? p.overtime_earning ?? 0);
+  const absentDed = Number(ded.absent ?? p.absent_deduction ?? 0);
+  const lateDed = Number(ded.late ?? p.late_deduction ?? 0);
+  const earningsBd = { basic, ...allow };
+  const deductionsBd = { ...ded };
 
   return (
     <TableRow className="border-gray-100 hover:bg-gray-50/60">
@@ -233,7 +238,27 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
         </details>
       </TableCell>
       <TableCell className="text-right tabular-nums text-gray-700">৳{gross.toLocaleString("en-BD")}</TableCell>
-      <TableCell className="text-right font-bold tabular-nums text-gray-900">৳{net.toLocaleString("en-BD")}</TableCell>
+      <TableCell className="text-right">
+        <TooltipProvider delayDuration={120}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="font-bold tabular-nums text-gray-900 cursor-help underline decoration-dotted decoration-gray-300">৳{net.toLocaleString("en-BD")}</span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs max-w-xs">
+              <div className="font-semibold mb-1">Earnings</div>
+              {Object.entries(earningsBd).filter(([,v]) => Number(v) > 0).map(([k,v]) => (
+                <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
+              ))}
+              <div className="font-semibold mt-2 mb-1">Deductions</div>
+              {Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).length === 0 ? <div className="text-gray-400">None</div> :
+                Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).map(([k,v]) => (
+                  <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
+                ))
+              }
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </TableCell>
       <TableCell>
         <StatusPill tone={(p.payment_status === "paid" ? "paid" : "pending") as StatusTone} dot>{p.payment_status}</StatusPill>
         {p.payment_method && <div className="text-[10px] text-gray-500 mt-1">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}
