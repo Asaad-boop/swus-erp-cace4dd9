@@ -465,7 +465,7 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
 function InlineReleaseForm({ carton, brandId, poId, poPaid, poSupplierTotal }: { carton: any; brandId: string; poId: string; poPaid: number; poSupplierTotal: number }) {
   const fn = useServerFn(releaseCarton);
   const qc = useQueryClient();
-  const { data: wallets = [] } = useAccounts(brandId);
+  const { data: wallets = [] } = useAccounts([brandId]);
   // Prorate PO advance against this carton's supplier share — user pays only the remaining due + this carton's shipping
   const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
   const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
@@ -530,7 +530,7 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
   const whFn = useServerFn(listWarehouses);
   const qc = useQueryClient();
   const { data: warehouses = [] } = useQuery({ queryKey: ["imp-wh", brandId], queryFn: () => whFn({ data: { brandId } }) });
-  const { data: wallets = [] } = useAccounts(brandId);
+  const { data: wallets = [] } = useAccounts([brandId]);
 
   const [rows, setRows] = useState<Record<string, { ok: number; damaged: number; missing: number }>>(() => {
     const init: any = {};
@@ -745,7 +745,7 @@ function RowsAutoCompute({ rows, setRows, carton }: { rows: any; setRows: any; c
 function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent: any; onClose: () => void; brandId: string }) {
   const fn = useServerFn(markArrivedInBd);
   const qc = useQueryClient();
-  const { data: wallets = [] } = useAccounts(brandId);
+  const { data: wallets = [] } = useAccounts([brandId]);
   const [weight, setWeight] = useState<number>(0);
   const [rate, setRate] = useState<number>(Number(agent?.default_shipping_rate_per_kg_bdt ?? 0));
   const [payNow, setPayNow] = useState(false);
@@ -812,7 +812,7 @@ function ArrivedDialog({ poId, agent, onClose, brandId }: { poId: string; agent:
 function PaymentDialog({ poId, brandId, grandTotal, dueAmount, onClose }: { poId: string; brandId: string; grandTotal: number; dueAmount: number; onClose: () => void }) {
   const fn = useServerFn(recordImportPayment);
   const qc = useQueryClient();
-  const { data: wallets = [] } = useAccounts(brandId);
+  const { data: wallets = [] } = useAccounts([brandId]);
   const [amount, setAmount] = useState<number>(0);
   const [walletId, setWalletId] = useState("");
   const [type, setType] = useState("supplier_payment");
