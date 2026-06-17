@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Building2, BadgeCheck, Settings as SettingsIcon, CalendarCheck, CalendarDays, Clock, PalmtreeIcon, Palmtree } from "lucide-react";
+import { LayoutDashboard, Users, Building2, BadgeCheck, Settings as SettingsIcon, CalendarCheck, CalendarDays, Clock, Palmtree } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
