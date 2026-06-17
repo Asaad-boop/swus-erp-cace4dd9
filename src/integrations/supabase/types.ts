@@ -2860,6 +2860,84 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_attendance: {
+        Row: {
+          created_at: string
+          date: string
+          early_leave_min: number
+          employee_id: string
+          id: string
+          in_time: string | null
+          ip_address: string | null
+          late_min: number
+          location: Json | null
+          marked_by: string | null
+          note: string | null
+          ot_min: number
+          out_time: string | null
+          shift_id: string | null
+          source: string
+          status: string
+          updated_at: string
+          work_min: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          early_leave_min?: number
+          employee_id: string
+          id?: string
+          in_time?: string | null
+          ip_address?: string | null
+          late_min?: number
+          location?: Json | null
+          marked_by?: string | null
+          note?: string | null
+          ot_min?: number
+          out_time?: string | null
+          shift_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          work_min?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          early_leave_min?: number
+          employee_id?: string
+          id?: string
+          in_time?: string | null
+          ip_address?: string | null
+          late_min?: number
+          location?: Json | null
+          marked_by?: string | null
+          note?: string | null
+          ot_min?: number
+          out_time?: string | null
+          shift_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          work_min?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_departments: {
         Row: {
           code: string | null
@@ -2995,6 +3073,51 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employee_shifts: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          employee_id: string
+          id: string
+          shift_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from: string
+          effective_to?: string | null
+          employee_id: string
+          id?: string
+          shift_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string
+          id?: string
+          shift_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_shifts_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
             referencedColumns: ["id"]
           },
         ]
@@ -3224,6 +3347,244 @@ export type Database = {
           },
         ]
       }
+      hr_holidays: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          is_optional: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          is_optional?: boolean
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          is_optional?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_holidays_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_balances: {
+        Row: {
+          allocated: number
+          carried: number
+          created_at: string
+          employee_id: string
+          encashed: number
+          id: string
+          leave_type_id: string
+          updated_at: string
+          used: number
+          year: number
+        }
+        Insert: {
+          allocated?: number
+          carried?: number
+          created_at?: string
+          employee_id: string
+          encashed?: number
+          id?: string
+          leave_type_id: string
+          updated_at?: string
+          used?: number
+          year: number
+        }
+        Update: {
+          allocated?: number
+          carried?: number
+          created_at?: string
+          employee_id?: string
+          encashed?: number
+          id?: string
+          leave_type_id?: string
+          updated_at?: string
+          used?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_requests: {
+        Row: {
+          approver_id: string | null
+          attachment_url: string | null
+          contact_during_leave: string | null
+          created_at: string
+          created_by: string | null
+          days: number
+          decided_at: string | null
+          decision_note: string | null
+          employee_id: string
+          from_date: string
+          half_day_part: string | null
+          id: string
+          is_half_day: boolean
+          leave_type_id: string
+          reason: string | null
+          status: string
+          to_date: string
+          updated_at: string
+        }
+        Insert: {
+          approver_id?: string | null
+          attachment_url?: string | null
+          contact_during_leave?: string | null
+          created_at?: string
+          created_by?: string | null
+          days: number
+          decided_at?: string | null
+          decision_note?: string | null
+          employee_id: string
+          from_date: string
+          half_day_part?: string | null
+          id?: string
+          is_half_day?: boolean
+          leave_type_id: string
+          reason?: string | null
+          status?: string
+          to_date: string
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string | null
+          attachment_url?: string | null
+          contact_during_leave?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number
+          decided_at?: string | null
+          decision_note?: string | null
+          employee_id?: string
+          from_date?: string
+          half_day_part?: string | null
+          id?: string
+          is_half_day?: boolean
+          leave_type_id?: string
+          reason?: string | null
+          status?: string
+          to_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_types: {
+        Row: {
+          applies_to_gender: string | null
+          brand_id: string | null
+          code: string
+          color: string
+          created_at: string
+          default_days_per_year: number
+          description: string | null
+          id: string
+          is_active: boolean
+          is_paid: boolean
+          max_carry_forward: number
+          min_notice_days: number
+          name: string
+          requires_approval: boolean
+          updated_at: string
+        }
+        Insert: {
+          applies_to_gender?: string | null
+          brand_id?: string | null
+          code: string
+          color?: string
+          created_at?: string
+          default_days_per_year?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_paid?: boolean
+          max_carry_forward?: number
+          min_notice_days?: number
+          name: string
+          requires_approval?: boolean
+          updated_at?: string
+        }
+        Update: {
+          applies_to_gender?: string | null
+          brand_id?: string | null
+          code?: string
+          color?: string
+          created_at?: string
+          default_days_per_year?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_paid?: boolean
+          max_carry_forward?: number
+          min_notice_days?: number
+          name?: string
+          requires_approval?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_types_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_settings: {
         Row: {
           brand_id: string | null
@@ -3271,6 +3632,68 @@ export type Database = {
           work_hours_per_day?: number
         }
         Relationships: []
+      }
+      hr_shifts: {
+        Row: {
+          brand_id: string | null
+          break_minutes: number
+          code: string | null
+          created_at: string
+          description: string | null
+          end_time: string
+          grace_minutes: number
+          half_day_after_min: number
+          id: string
+          is_active: boolean
+          is_default: boolean
+          is_night: boolean
+          name: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          break_minutes?: number
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          grace_minutes?: number
+          half_day_after_min?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          is_night?: boolean
+          name: string
+          start_time?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          break_minutes?: number
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          grace_minutes?: number
+          half_day_after_min?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          is_night?: boolean
+          name?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_shifts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       imp_carton_items: {
         Row: {
@@ -6362,6 +6785,10 @@ export type Database = {
         Returns: boolean
       }
       heartbeat_order_lock: { Args: { _order_id: string }; Returns: undefined }
+      hr_count_working_days: {
+        Args: { _from: string; _to: string; _weekly_off?: number[] }
+        Returns: number
+      }
       hr_next_employee_code: { Args: never; Returns: string }
       imp_create_po: { Args: { _payload: Json }; Returns: Json }
       imp_get_or_create_account: {
