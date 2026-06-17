@@ -163,8 +163,9 @@ async function aiPickFromList(opts: {
   const local = localPick(opts.address, opts.items);
   if (local) return { id: local.id, name: local.name, confidence: 0.95 };
 
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+  const apiKey = process.env.GEMINI_API_KEY || process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  const useGemini = !!process.env.GEMINI_API_KEY;
 
   const stageLabel = opts.stage === "city"
     ? "Pathao city/district"
@@ -187,14 +188,17 @@ async function aiPickFromList(opts: {
     `Customer address:\n"""${opts.address}"""\n\n` +
     `Pick the best ${stageLabel} from this list (format: <id>\\t<name>):\n${list}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const url = useGemini
+    ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-3.1-flash-lite-preview",
+      model: useGemini ? "gemini-2.5-flash-lite" : "google/gemini-3.1-flash-lite-preview",
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
