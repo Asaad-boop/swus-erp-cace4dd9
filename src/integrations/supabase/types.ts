@@ -5784,7 +5784,9 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_finance_staff: { Args: { _uid: string }; Returns: boolean }
       is_guest_order: { Args: { _order_id: string }; Returns: boolean }
+      is_marketing_staff: { Args: { _uid: string }; Returns: boolean }
       is_recent_guest_order: { Args: { _order_id: string }; Returns: boolean }
       log_order_view: { Args: { p_order_id: string }; Returns: undefined }
       mark_abandoned_cart_converted: {
