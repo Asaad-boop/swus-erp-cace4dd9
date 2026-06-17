@@ -3,11 +3,9 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Lock, Download, Printer, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, Lock, Download, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -19,6 +17,7 @@ import {
 import { exportToXlsx } from "@/lib/erp/hr/excel";
 import { printPayslip } from "@/components/erp/hr/payroll/payslip-print";
 import { useHrAccess } from "@/lib/erp/hr/role-gate";
+import { StatusPill, type StatusTone } from "@/components/erp/hr/ui/status-pill";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/payroll/$runId")({
   head: () => ({ meta: [{ title: "Payroll Run — HR" }] }),
@@ -60,9 +59,9 @@ function PayrollRunPage() {
   });
 
   if (!access.isLoading && !access.canManagePayroll) {
-    return <div><HrSubnav /><div className="p-6 text-sm text-muted-foreground"><Lock className="h-5 w-5 inline mr-2" />Restricted.</div></div>;
+    return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-sm text-gray-500"><Lock className="h-5 w-5 inline mr-2" />Restricted.</div></div>;
   }
-  if (isLoading || !data) return <div><HrSubnav /><div className="p-6 text-muted-foreground">Loading…</div></div>;
+  if (isLoading || !data) return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-gray-400">Loading…</div></div>;
   const { run, payslips, departments, designations } = data;
   const isFinalized = run.status === "finalized";
 
@@ -85,46 +84,47 @@ function PayrollRunPage() {
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <Link to="/erp/hr/payroll" className="text-sm text-muted-foreground inline-flex items-center gap-1.5 hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <Link to="/erp/hr/payroll" className="text-sm text-gray-500 inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to payroll
         </Link>
 
-        <Card>
-          <CardContent className="p-5 flex justify-between items-center flex-wrap gap-3">
-            <div>
-              <h1 className="text-xl font-bold">{MONTHS[run.month - 1]} {run.year}</h1>
-              <div className="text-sm text-muted-foreground">
-                {run.total_employees} employees · Gross ৳{Number(run.total_gross).toLocaleString("en-BD")} · Net ৳{Number(run.total_net).toLocaleString("en-BD")} · Paid {paidCount}/{(payslips as any[]).length}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="h-16 bg-gradient-to-r from-indigo-600 to-violet-600" />
+          <div className="px-6 py-5 flex justify-between items-end flex-wrap gap-4 -mt-8">
+            <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-gray-900">{MONTHS[run.month - 1]} {run.year}</h1>
+                {isFinalized && <StatusPill tone="finalized" dot><Lock className="h-3 w-3" />Finalized</StatusPill>}
               </div>
+              <div className="text-xs text-gray-500 mt-1">{run.total_employees} employees · Paid {paidCount}/{(payslips as any[]).length}</div>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={exportBankSheet}><Download className="h-4 w-4 mr-1.5" /> Bank Sheet</Button>
+            <div className="flex gap-2 pb-1">
+              <Button size="sm" variant="outline" onClick={exportBankSheet} className="rounded-lg"><Download className="h-4 w-4 mr-1.5" /> Bank Sheet</Button>
               {!isFinalized && access.isAdmin && (
-                <Button size="sm" onClick={() => { if (confirm("Finalize this run? You cannot edit after finalizing.")) finMut.mutate(); }}>
+                <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800" onClick={() => { if (confirm("Finalize this run? You cannot edit after finalizing.")) finMut.mutate(); }}>
                   <Lock className="h-4 w-4 mr-1.5" /> Finalize
                 </Button>
               )}
-              {isFinalized && <Badge className="bg-emerald-100 text-emerald-800"><Lock className="h-3 w-3 mr-1" />Finalized</Badge>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="px-6 pb-5 grid grid-cols-3 gap-4">
+            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Gross</div><div className="text-lg font-bold text-gray-900 tabular-nums mt-1">৳{Number(run.total_gross).toLocaleString("en-BD")}</div></div>
+            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Net</div><div className="text-lg font-bold text-gray-900 tabular-nums mt-1">৳{Number(run.total_net).toLocaleString("en-BD")}</div></div>
+            <div className="rounded-xl bg-emerald-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold">Paid</div><div className="text-lg font-bold text-emerald-700 tabular-nums mt-1">{paidCount}/{(payslips as any[]).length}</div></div>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+          <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Basic</TableHead>
-                  <TableHead className="text-right">Allowances</TableHead>
-                  <TableHead className="text-right">Deductions</TableHead>
-                  <TableHead className="text-right">Gross</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead></TableHead>
+                <TableRow className="border-gray-100 hover:bg-transparent">
+                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</TableHead>
+                  {["Basic","Allowances","Deductions","Gross","Net"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
+                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payment</TableHead>
+                  <TableHead className="bg-gray-50/50"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,8 +150,7 @@ function PayrollRunPage() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
       <Dialog open={!!payOpen} onOpenChange={(o) => !o && setPayOpen(null)}>
@@ -195,59 +194,57 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
   const net = gross - dedSum;
 
   return (
-    <TableRow>
+    <TableRow className="border-gray-100 hover:bg-gray-50/60">
       <TableCell>
-        <div className="font-medium text-sm">{p.hr_employees?.full_name ?? p.snapshot?.full_name ?? "—"}</div>
-        <div className="text-xs text-muted-foreground">{p.hr_employees?.employee_code ?? p.snapshot?.employee_code ?? ""} · {desigName} · {deptName}</div>
+        <div className="font-semibold text-sm text-gray-900">{p.hr_employees?.full_name ?? p.snapshot?.full_name ?? "—"}</div>
+        <div className="text-xs text-gray-500">{p.hr_employees?.employee_code ?? p.snapshot?.employee_code ?? ""} · {desigName} · {deptName}</div>
       </TableCell>
       <TableCell className="text-right">
-        <Input type="number" value={basic} disabled={isFinalized} className="w-24 text-right h-7"
+        <Input type="number" value={basic} disabled={isFinalized} className="w-24 text-right h-8 rounded-md border-gray-200 tabular-nums"
           onChange={(e) => { setBasic(Number(e.target.value) || 0); setDirty(true); }} />
       </TableCell>
       <TableCell className="text-right text-xs">
-        <div>৳{allowSum.toLocaleString("en-BD")}</div>
+        <div className="font-medium tabular-nums text-gray-700">৳{allowSum.toLocaleString("en-BD")}</div>
         <details>
-          <summary className="cursor-pointer text-primary text-[10px]">edit</summary>
+          <summary className="cursor-pointer text-indigo-600 text-[10px] hover:underline">edit</summary>
           {Object.keys(allow).length === 0 && ["house","transport","medical","other"].map((k) => allow[k] = allow[k] ?? 0)}
           {Object.entries(allow).map(([k, v]) => (
             <div key={k} className="flex items-center gap-1 mt-1">
-              <span className="w-16 capitalize text-[10px]">{k}</span>
-              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-6 text-right"
+              <span className="w-16 capitalize text-[10px] text-gray-500">{k}</span>
+              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-gray-200 tabular-nums"
                 onChange={(e) => { setAllow({ ...allow, [k]: Number(e.target.value) || 0 }); setDirty(true); }} />
             </div>
           ))}
         </details>
       </TableCell>
       <TableCell className="text-right text-xs">
-        <div>৳{dedSum.toLocaleString("en-BD")}</div>
+        <div className="font-medium tabular-nums text-gray-700">৳{dedSum.toLocaleString("en-BD")}</div>
         <details>
-          <summary className="cursor-pointer text-primary text-[10px]">edit</summary>
+          <summary className="cursor-pointer text-indigo-600 text-[10px] hover:underline">edit</summary>
           {Object.keys(ded).length === 0 && ["pf","tax","loan","other"].map((k) => ded[k] = ded[k] ?? 0)}
           {Object.entries(ded).map(([k, v]) => (
             <div key={k} className="flex items-center gap-1 mt-1">
-              <span className="w-16 capitalize text-[10px]">{k}</span>
-              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-6 text-right"
+              <span className="w-16 capitalize text-[10px] text-gray-500">{k}</span>
+              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-gray-200 tabular-nums"
                 onChange={(e) => { setDed({ ...ded, [k]: Number(e.target.value) || 0 }); setDirty(true); }} />
             </div>
           ))}
         </details>
       </TableCell>
-      <TableCell className="text-right">৳{gross.toLocaleString("en-BD")}</TableCell>
-      <TableCell className="text-right font-semibold">৳{net.toLocaleString("en-BD")}</TableCell>
+      <TableCell className="text-right tabular-nums text-gray-700">৳{gross.toLocaleString("en-BD")}</TableCell>
+      <TableCell className="text-right font-bold tabular-nums text-gray-900">৳{net.toLocaleString("en-BD")}</TableCell>
       <TableCell>
-        {p.payment_status === "paid"
-          ? <Badge className="bg-emerald-100 text-emerald-800"><CheckCircle2 className="h-3 w-3 mr-1" />Paid</Badge>
-          : <Badge variant="outline">{p.payment_status}</Badge>}
-        {p.payment_method && <div className="text-[10px] text-muted-foreground mt-0.5">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}
+        <StatusPill tone={(p.payment_status === "paid" ? "paid" : "pending") as StatusTone} dot>{p.payment_status}</StatusPill>
+        {p.payment_method && <div className="text-[10px] text-gray-500 mt-1">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}
       </TableCell>
       <TableCell>
         <div className="inline-flex gap-1">
           {!isFinalized && dirty && (
-            <Button size="sm" variant="outline" onClick={() => { onSave({ basic, allowances: allow, deductions: ded }); setDirty(false); }}>Save</Button>
+            <Button size="sm" className="rounded-md h-7 bg-gray-900 hover:bg-gray-800" onClick={() => { onSave({ basic, allowances: allow, deductions: ded }); setDirty(false); }}>Save</Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onPrint}><Printer className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onPrint}><Printer className="h-3.5 w-3.5" /></Button>
           {isFinalized && p.payment_status !== "paid" && (
-            <Button size="sm" variant="outline" onClick={onMarkPaid}>Pay</Button>
+            <Button size="sm" variant="outline" className="rounded-md h-7" onClick={onMarkPaid}>Pay</Button>
           )}
         </div>
       </TableCell>

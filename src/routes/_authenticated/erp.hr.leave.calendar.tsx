@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listLeaveRequests } from "@/lib/erp/hr/leave.functions";
 import { listHolidays } from "@/lib/erp/hr/attendance.functions";
@@ -61,48 +60,48 @@ function LeaveCalendar() {
   const holsByDate = useMemo(() => new Map((hols as any[]).map((h: any) => [h.date, h])), [hols]);
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Leave Calendar</h1>
-            <p className="text-sm text-muted-foreground">Team-wide approved leaves and holidays</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Leave Calendar</h1>
+            <p className="text-sm text-gray-500 mt-1">Team-wide approved leaves and holidays</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="icon" variant="outline" onClick={() => { if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1); }}><ChevronLeft className="h-4 w-4" /></Button>
-            <div className="text-sm font-semibold w-40 text-center">{new Date(year, month).toLocaleString("en", { month: "long", year: "numeric" })}</div>
-            <Button size="icon" variant="outline" onClick={() => { if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1); }}><ChevronRight className="h-4 w-4" /></Button>
+          <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl shadow-sm p-1.5">
+            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => { if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1); }}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="text-sm font-semibold w-40 text-center text-gray-900">{new Date(year, month).toLocaleString("en", { month: "long", year: "numeric" })}</div>
+            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => { if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1); }}><ChevronRight className="h-4 w-4" /></Button>
           </div>
         </div>
 
-        <Card><CardContent className="p-3">
-          <div className="grid grid-cols-7 gap-1 text-xs">
-            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (<div key={d} className="text-center text-muted-foreground font-medium py-2">{d}</div>))}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="grid grid-cols-7 gap-1.5 text-xs">
+            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (<div key={d} className="text-center text-gray-500 font-semibold py-2 text-[11px] uppercase tracking-wider">{d}</div>))}
             {grid.map((c, i) => {
-              if (!c.date) return <div key={i} className="bg-muted/30 rounded min-h-[110px]" />;
+              if (!c.date) return <div key={i} className="bg-gray-50/50 rounded-lg min-h-[110px]" />;
               const evs = eventsByDate.get(c.date) ?? [];
               const hol: any = holsByDate.get(c.date);
               const dow = new Date(c.date).getDay();
               return (
-                <div key={i} className={`rounded border min-h-[110px] p-1.5 ${dow === 5 ? "bg-slate-50" : ""} ${hol ? "bg-violet-50 border-violet-200" : ""}`}>
-                  <div className="flex items-center justify-between text-[11px] mb-1">
-                    <span className="font-semibold">{c.d}</span>
+                <div key={i} className={`rounded-lg border min-h-[110px] p-2 transition-colors ${hol ? "bg-violet-50 border-violet-100" : dow === 5 ? "bg-slate-50 border-gray-100" : "border-gray-100 hover:bg-gray-50/50"}`}>
+                  <div className="flex items-center justify-between text-[11px] mb-1.5">
+                    <span className="font-semibold text-gray-900">{c.d}</span>
                     {hol && <span className="text-violet-700 truncate text-[10px]" title={hol.name}>{hol.name}</span>}
                   </div>
                   <div className="space-y-0.5">
                     {evs.slice(0, 3).map((e: any) => (
-                      <div key={e.id} className="text-[10px] px-1 py-0.5 rounded truncate" title={`${e.employee?.full_name} — ${e.leave_type?.name}`} style={{ backgroundColor: `${e.leave_type?.color}22`, color: e.leave_type?.color }}>
+                      <div key={e.id} className="text-[10px] px-1.5 py-0.5 rounded font-medium truncate" title={`${e.employee?.full_name} — ${e.leave_type?.name}`} style={{ backgroundColor: `${e.leave_type?.color}22`, color: e.leave_type?.color }}>
                         {e.employee?.full_name}
                       </div>
                     ))}
-                    {evs.length > 3 && <div className="text-[10px] text-muted-foreground">+{evs.length - 3} more</div>}
+                    {evs.length > 3 && <div className="text-[10px] text-gray-500 px-1">+{evs.length - 3} more</div>}
                   </div>
                 </div>
               );
             })}
           </div>
-        </CardContent></Card>
+        </div>
       </div>
     </div>
   );

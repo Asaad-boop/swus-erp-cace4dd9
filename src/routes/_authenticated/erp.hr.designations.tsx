@@ -2,18 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Briefcase } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listDesignations, listDepartments, upsertDesignation, deleteDesignation } from "@/lib/erp/hr/hr.functions";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
+import { EmptyState } from "@/components/erp/hr/ui/empty-state";
+import { StatusPill } from "@/components/erp/hr/ui/status-pill";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/designations")({
   head: () => ({ meta: [{ title: "Designations — HR" }] }),
@@ -56,46 +57,40 @@ function Designations() {
   });
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">Designations</h1>
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-1.5" /> Add Designation</Button>
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(rows as any[]).length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No designations yet.</TableCell></TableRow>
-                ) : (rows as any[]).map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell className="font-medium">{d.title}</TableCell>
-                    <TableCell>{deptMap.get(d.department_id ?? "") ?? "—"}</TableCell>
-                    <TableCell>{d.level ?? "—"}</TableCell>
-                    <TableCell>{d.is_active ? "Active" : "Inactive"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(d)}><Edit2 className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Delete ${d.title}?`)) delMut.mutate(d.id); }}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+        <PageHeader
+          title="Designations"
+          subtitle="Job titles & seniority levels"
+          actions={<Button size="sm" onClick={openNew} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" /> Add Designation</Button>}
+        />
+        {(rows as any[]).length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <EmptyState icon={Briefcase} title="No designations yet" description="Create job titles employees can be assigned to." />
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
+            {(rows as any[]).map((d) => (
+              <div key={d.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+                <div className="h-10 w-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                  <Briefcase className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900">{d.title}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{deptMap.get(d.department_id ?? "") ?? "No department"}{d.level ? ` · Level ${d.level}` : ""}</div>
+                </div>
+                <StatusPill tone={d.is_active ? "active" : "inactive"} dot>{d.is_active ? "Active" : "Inactive"}</StatusPill>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(d)}><Edit2 className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => { if (confirm(`Delete ${d.title}?`)) delMut.mutate(d.id); }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>

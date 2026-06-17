@@ -2,18 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Pencil, Trash2, Clock, Moon } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listShifts, upsertShift, deleteShift } from "@/lib/erp/hr/attendance.functions";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
+import { EmptyState } from "@/components/erp/hr/ui/empty-state";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/shifts")({
   head: () => ({ meta: [{ title: "Shifts — HR" }] }),
@@ -36,55 +36,64 @@ function ShiftsPage() {
   });
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Shifts</h1>
-            <p className="text-sm text-muted-foreground">Work schedule templates</p>
-          </div>
-          <div className="flex gap-2">
-            <a href="/erp/hr/shifts/assign" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border hover:bg-accent">
-              Assign Shifts
-            </a>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
-              <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)}><Plus className="h-4 w-4 mr-2" />New shift</Button></DialogTrigger>
-              <ShiftDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["hr-shifts"] }); }} upFn={upFn} />
-            </Dialog>
-          </div>
-        </div>
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title="Shifts"
+          subtitle="Work schedule templates"
+          actions={
+            <>
+              <a href="/erp/hr/shifts/assign"><Button variant="outline" size="sm" className="rounded-lg">Assign Shifts</Button></a>
+              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
+                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />New shift</Button></DialogTrigger>
+                <ShiftDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["hr-shifts"] }); }} upFn={upFn} />
+              </Dialog>
+            </>
+          }
+        />
 
-        <Card><CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Name</TableHead><TableHead>Start</TableHead><TableHead>End</TableHead>
-              <TableHead>Break</TableHead><TableHead>Grace</TableHead><TableHead>Type</TableHead><TableHead></TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {(rows as any[]).length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No shifts yet</TableCell></TableRow>
-              ) : (rows as any[]).map((s: any) => (
-                <TableRow key={s.id}>
-                  <TableCell><div className="font-medium">{s.name}</div>{s.code && <div className="text-xs text-muted-foreground">{s.code}</div>}</TableCell>
-                  <TableCell className="font-mono text-sm">{s.start_time}</TableCell>
-                  <TableCell className="font-mono text-sm">{s.end_time}</TableCell>
-                  <TableCell>{s.break_minutes}m</TableCell>
-                  <TableCell>{s.grace_minutes}m</TableCell>
-                  <TableCell className="flex gap-1">
-                    {s.is_night && <Badge variant="secondary"><Moon className="h-3 w-3 mr-1" />Night</Badge>}
-                    {s.is_default && <Badge>Default</Badge>}
-                    {!s.is_active && <Badge variant="outline">Inactive</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="icon" variant="ghost" onClick={() => { setEdit(s); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => delMut.mutate(s.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent></Card>
+        {(rows as any[]).length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <EmptyState icon={Clock} title="No shifts yet" description="Create a shift template (e.g. General 9–6, Night 10–7)." />
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(rows as any[]).map((s: any) => (
+              <div key={s.id} className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${s.is_night ? "bg-indigo-50 text-indigo-600" : "bg-amber-50 text-amber-600"}`}>
+                      {s.is_night ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{s.name}</div>
+                      {s.code && <div className="text-[11px] text-gray-500 font-mono">{s.code}</div>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEdit(s); setOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-red-50 hover:text-red-600" onClick={() => delMut.mutate(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-gray-900 tabular-nums tracking-tight">{s.start_time}</span>
+                  <span className="text-gray-400">→</span>
+                  <span className="text-2xl font-bold text-gray-900 tabular-nums tracking-tight">{s.end_time}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
+                  <span>Break <span className="font-semibold text-gray-700">{s.break_minutes}m</span></span>
+                  <span>Grace <span className="font-semibold text-gray-700">{s.grace_minutes}m</span></span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {s.is_default && <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">Default</Badge>}
+                  {s.is_night && <Badge variant="secondary" className="bg-violet-50 text-violet-700">Night</Badge>}
+                  {!s.is_active && <Badge variant="outline">Inactive</Badge>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

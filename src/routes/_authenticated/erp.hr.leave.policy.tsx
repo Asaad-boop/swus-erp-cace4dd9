@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
 import { listLeaveTypes, upsertLeaveType, deleteLeaveType, allocateYearlyBalances } from "@/lib/erp/hr/leave.functions";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/leave/policy")({
   head: () => ({ meta: [{ title: "Leave Policy — HR" }] }),
@@ -44,67 +44,67 @@ function PolicyPage() {
   });
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Leave Policy</h1>
-            <p className="text-sm text-muted-foreground">Leave types & yearly allocation rules</p>
-          </div>
-          <div className="flex gap-2 items-end">
-            <div>
-              <Label className="text-xs">Allocate for year</Label>
+      <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+        <PageHeader
+          title="Leave Policy"
+          subtitle="Leave types & yearly allocation rules"
+          actions={
+            <>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                 </SelectContent>
               </Select>
-            </div>
-            <Button variant="outline" disabled={allocMut.isPending} onClick={() => allocMut.mutate()}><Sparkles className="h-4 w-4 mr-2" />{allocMut.isPending ? "Allocating…" : "Allocate balances"}</Button>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
-              <DialogTrigger asChild><Button onClick={() => setEdit(null)}><Plus className="h-4 w-4 mr-2" />New type</Button></DialogTrigger>
-              <TypeDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["leave-types"] }); }} upFn={upFn} />
-            </Dialog>
-          </div>
-        </div>
+              <Button variant="outline" size="sm" disabled={allocMut.isPending} onClick={() => allocMut.mutate()} className="rounded-lg"><Sparkles className="h-4 w-4 mr-2" />{allocMut.isPending ? "Allocating…" : "Allocate"}</Button>
+              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
+                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />New type</Button></DialogTrigger>
+                <TypeDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["leave-types"] }); }} upFn={upFn} />
+              </Dialog>
+            </>
+          }
+        />
 
-        <Card><CardContent className="p-0">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <Table>
-            <TableHeader><TableRow>
-              <TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead className="text-right">Days/yr</TableHead>
-              <TableHead className="text-right">Carry fwd</TableHead><TableHead className="text-right">Notice</TableHead>
-              <TableHead>Status</TableHead><TableHead></TableHead>
+            <TableHeader><TableRow className="border-gray-100 hover:bg-transparent">
+              {["Name","Code"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
+              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Days/yr</TableHead>
+              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Carry fwd</TableHead>
+              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Notice</TableHead>
+              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Status</TableHead>
+              <TableHead className="bg-gray-50/50"></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {(rows as any[]).length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No leave types</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No leave types</TableCell></TableRow>
               ) : (rows as any[]).map((t: any) => (
-                <TableRow key={t.id}>
+                <TableRow key={t.id} className="border-gray-100 hover:bg-gray-50/60">
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="inline-block w-3 h-3 rounded-full" style={{ background: t.color }} />
-                      <span className="font-medium">{t.name}</span>
+                      <span className="font-semibold text-gray-900">{t.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell><Badge variant="outline">{t.code}</Badge></TableCell>
-                  <TableCell className="text-right">{t.default_days_per_year}</TableCell>
-                  <TableCell className="text-right">{t.max_carry_forward}</TableCell>
-                  <TableCell className="text-right">{t.min_notice_days}d</TableCell>
+                  <TableCell><Badge variant="outline" className="font-mono rounded-md">{t.code}</Badge></TableCell>
+                  <TableCell className="text-right tabular-nums">{t.default_days_per_year}</TableCell>
+                  <TableCell className="text-right tabular-nums">{t.max_carry_forward}</TableCell>
+                  <TableCell className="text-right tabular-nums">{t.min_notice_days}d</TableCell>
                   <TableCell className="flex gap-1">
                     {t.is_paid ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">Paid</Badge> : <Badge variant="outline">Unpaid</Badge>}
                     {!t.is_active && <Badge variant="outline">Inactive</Badge>}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="icon" variant="ghost" onClick={() => { setEdit(t); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => delMut.mutate(t.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setEdit(t); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => delMut.mutate(t.id)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </CardContent></Card>
+        </div>
       </div>
     </div>
   );

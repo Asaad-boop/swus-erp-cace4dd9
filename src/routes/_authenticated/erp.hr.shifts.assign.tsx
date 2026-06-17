@@ -7,7 +7,6 @@ import { Save, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -17,6 +16,8 @@ import { listEmployees, listDepartments } from "@/lib/erp/hr/hr.functions";
 import { listShifts } from "@/lib/erp/hr/attendance.functions";
 import { assignShift, bulkAssignShiftByDepartment, getCurrentShiftMap } from "@/lib/erp/hr/profile.functions";
 import { useHrAccess } from "@/lib/erp/hr/role-gate";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
+import { HrAvatar } from "@/components/erp/hr/ui/avatar";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/shifts/assign")({
   head: () => ({ meta: [{ title: "Assign Shifts — HR" }] }),
@@ -69,59 +70,60 @@ function ShiftsAssignPage() {
   });
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Assign Shifts</h1>
-            <p className="text-sm text-muted-foreground">Set the working shift for each employee</p>
-          </div>
-          {access.canManageEmployees && (
-            <Button onClick={() => setBulkOpen(true)} variant="outline" size="sm">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title="Assign Shifts"
+          subtitle="Set the working shift for each employee"
+          actions={access.canManageEmployees ? (
+            <Button onClick={() => setBulkOpen(true)} variant="outline" size="sm" className="rounded-lg">
               <Users className="h-4 w-4 mr-1.5" /> Bulk by department
             </Button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <Input placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <Input placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm h-9 rounded-lg border-gray-200" />
+          <div className="border border-gray-100 rounded-xl overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Current Shift</TableHead>
-                  <TableHead>Assign New</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                <TableRow className="border-gray-100 hover:bg-transparent">
+                  {["Employee","Current Shift","Assign New"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
+                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {emps.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No employees.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-gray-400 py-10">No employees.</TableCell></TableRow>
                 ) : emps.map((e: any) => {
                   const cur = (shiftMap as any)[e.id];
                   return (
-                    <TableRow key={e.id}>
+                    <TableRow key={e.id} className="border-gray-100 hover:bg-gray-50/60">
                       <TableCell>
-                        <div className="font-medium text-sm">{e.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{e.employee_code}</div>
+                        <div className="flex items-center gap-3">
+                          <HrAvatar name={e.full_name} src={e.photo_url} size={32} />
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900">{e.full_name}</div>
+                            <div className="text-xs text-gray-500 font-mono">{e.employee_code}</div>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         {cur?.hr_shifts ? (
-                          <Badge variant="outline">{cur.hr_shifts.name} · {cur.hr_shifts.start_time}–{cur.hr_shifts.end_time}</Badge>
-                        ) : <span className="text-muted-foreground text-sm">—</span>}
+                          <Badge variant="outline" className="rounded-md font-medium">{cur.hr_shifts.name} · {cur.hr_shifts.start_time}–{cur.hr_shifts.end_time}</Badge>
+                        ) : <span className="text-gray-400 text-sm">—</span>}
                       </TableCell>
                       <TableCell>
                         <Select value={pending[e.id] ?? ""} onValueChange={(v) => setPending({ ...pending, [e.id]: v })}>
-                          <SelectTrigger className="w-48"><SelectValue placeholder="Select shift" /></SelectTrigger>
+                          <SelectTrigger className="w-56 h-9 rounded-lg border-gray-200"><SelectValue placeholder="Select shift" /></SelectTrigger>
                           <SelectContent>
                             {shiftOpts.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" disabled={!pending[e.id] || !access.canManageEmployees} onClick={() => assignMut.mutate({ emp: e.id, shift: pending[e.id] })}>
+                        <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 h-8" disabled={!pending[e.id] || !access.canManageEmployees} onClick={() => assignMut.mutate({ emp: e.id, shift: pending[e.id] })}>
                           <Save className="h-3 w-3 mr-1" /> Save
                         </Button>
                       </TableCell>
@@ -130,8 +132,8 @@ function ShiftsAssignPage() {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>

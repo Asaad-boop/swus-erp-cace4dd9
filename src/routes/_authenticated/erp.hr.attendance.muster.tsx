@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Download, FileSpreadsheet, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HrSubnav } from "@/components/erp/hr/hr-subnav";
@@ -14,6 +13,7 @@ import { listDepartments } from "@/lib/erp/hr/hr.functions";
 import { exportAoaXlsx } from "@/lib/erp/hr/excel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/erp/hr/ui/page-header";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/attendance/muster")({
   head: () => ({ meta: [{ title: "Muster Roll — HR" }] }),
@@ -96,24 +96,26 @@ function MusterPage() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <HrSubnav />
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Muster Roll</h1>
-            <p className="text-sm text-muted-foreground">Monthly attendance grid</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-2" />Export CSV</Button>
-          <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Export Excel</Button>
-        </div>
+      <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6">
+        <PageHeader
+          title="Muster Roll"
+          subtitle="Monthly attendance grid · click any cell for details"
+          actions={
+            <>
+              <Button variant="outline" size="sm" onClick={exportCsv} className="rounded-lg"><Download className="h-4 w-4 mr-2" />CSV</Button>
+              <Button variant="outline" size="sm" onClick={exportExcel} className="rounded-lg"><FileSpreadsheet className="h-4 w-4 mr-2" />Excel</Button>
+            </>
+          }
+        />
 
-        <Card><CardContent className="p-4 space-y-3">
-          <div className="flex gap-2 items-end flex-wrap">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex gap-3 items-end flex-wrap">
             <div>
               <Label className="text-xs">Year</Label>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                 </SelectContent>
@@ -122,7 +124,7 @@ function MusterPage() {
             <div>
               <Label className="text-xs">Month</Label>
               <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-36 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (<SelectItem key={m} value={String(m)}>{new Date(2000, m-1).toLocaleString("en", { month: "long" })}</SelectItem>))}
                 </SelectContent>
@@ -131,51 +133,51 @@ function MusterPage() {
             <div>
               <Label className="text-xs">Department</Label>
               <Select value={dept} onValueChange={setDept}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-48 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   {(depts as any[]).map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-xs text-muted-foreground ml-auto flex gap-3 flex-wrap">
-              {Object.entries(CODE).map(([k, v]) => (<span key={k} className={`px-1.5 py-0.5 rounded ${v.tone}`}>{v.code} = {k}</span>))}
+            <div className="text-[11px] ml-auto flex gap-1.5 flex-wrap">
+              {Object.entries(CODE).map(([k, v]) => (<span key={k} className={`px-2 py-0.5 rounded-md font-medium ${v.tone}`}>{v.code} <span className="opacity-60">{k}</span></span>))}
             </div>
           </div>
 
-          <div className="overflow-auto border rounded-md max-h-[70vh]">
+          <div className="overflow-auto border border-gray-100 rounded-xl max-h-[70vh]">
             <table className="text-xs w-full">
-              <thead className="sticky top-0 bg-card z-10">
-                <tr className="border-b">
-                  <th className="px-2 py-2 text-left sticky left-0 bg-card z-20 min-w-[160px]">Employee</th>
+              <thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10">
+                <tr className="border-b border-gray-100">
+                  <th className="px-3 py-2.5 text-left sticky left-0 bg-gray-50/95 z-20 min-w-[180px] text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</th>
                   {days.map((d) => {
                     const dateStr = `${data?.from.slice(0,7) ?? ""}-${String(d).padStart(2,"0")}`;
                     const isHol = !!(data?.holidays as any)?.[dateStr];
                     const dow = data ? new Date(dateStr).getDay() : 0;
                     return (
-                      <th key={d} className={`px-1 py-2 text-center min-w-[28px] ${isHol ? "bg-violet-50" : dow === 5 ? "bg-slate-50" : ""}`}>
+                      <th key={d} className={`px-1 py-2.5 text-center min-w-[30px] font-semibold text-gray-600 ${isHol ? "bg-violet-50" : dow === 5 ? "bg-slate-50" : ""}`}>
                         {d}
                       </th>
                     );
                   })}
-                  <th className="px-2 py-2 text-center bg-emerald-50">P</th>
-                  <th className="px-2 py-2 text-center bg-red-50">A</th>
-                  <th className="px-2 py-2 text-center bg-blue-50">L</th>
+                  <th className="px-3 py-2.5 text-center bg-emerald-50 text-emerald-700 font-semibold">P</th>
+                  <th className="px-3 py-2.5 text-center bg-red-50 text-red-700 font-semibold">A</th>
+                  <th className="px-3 py-2.5 text-center bg-blue-50 text-blue-700 font-semibold">L</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td className="text-center py-8 text-muted-foreground" colSpan={days.length + 4}>Loading…</td></tr>
+                  <tr><td className="text-center py-10 text-gray-400" colSpan={days.length + 4}>Loading…</td></tr>
                 ) : (data?.employees ?? []).length === 0 ? (
-                  <tr><td className="text-center py-8 text-muted-foreground" colSpan={days.length + 4}>No employees</td></tr>
+                  <tr><td className="text-center py-10 text-gray-400" colSpan={days.length + 4}>No employees</td></tr>
                 ) : (data?.employees as any[]).map((e: any) => {
                   const att = (data?.attendance as any)?.[e.id] ?? {};
                   let p = 0, a = 0, l = 0;
                   return (
-                    <tr key={e.id} className="border-b hover:bg-accent/30">
-                      <td className="px-2 py-1.5 sticky left-0 bg-card font-medium">
+                    <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50/60">
+                      <td className="px-3 py-2 sticky left-0 bg-white font-medium text-gray-900">
                         {e.full_name}
-                        <div className="text-[10px] text-muted-foreground">{e.employee_code}</div>
+                        <div className="text-[10px] text-gray-500 font-mono">{e.employee_code}</div>
                       </td>
                       {days.map((d) => {
                         const dateStr = `${data!.from.slice(0,7)}-${String(d).padStart(2,"0")}`;
@@ -190,28 +192,28 @@ function MusterPage() {
                           <td key={d} className="px-1 py-1 text-center">
                             {code ? (
                               <button
-                                className={`inline-block w-6 rounded ${code.tone} hover:ring-2 ring-primary cursor-pointer`}
+                                className={`inline-flex items-center justify-center min-w-[24px] h-6 px-1 rounded-md text-[10px] font-semibold ${code.tone} hover:ring-2 hover:ring-gray-900 transition-all`}
                                 title={r.note ?? r.status}
                                 onClick={() => setCellOpen({ empId: e.id, date: dateStr, name: e.full_name })}
                               >
                                 {code.code}
                               </button>
                             ) : (
-                              <span className="text-muted-foreground">·</span>
+                              <span className="text-gray-300">·</span>
                             )}
                           </td>
                         );
                       })}
-                      <td className="text-center font-medium text-emerald-700">{p}</td>
-                      <td className="text-center font-medium text-red-700">{a}</td>
-                      <td className="text-center font-medium text-blue-700">{l}</td>
+                      <td className="text-center font-semibold text-emerald-700 bg-emerald-50/30">{p}</td>
+                      <td className="text-center font-semibold text-red-700 bg-red-50/30">{a}</td>
+                      <td className="text-center font-semibold text-blue-700 bg-blue-50/30">{l}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        </CardContent></Card>
+        </div>
       </div>
       {cellOpen && <CellDetailDialog data={cellOpen} onClose={() => setCellOpen(null)} />}
     </div>
