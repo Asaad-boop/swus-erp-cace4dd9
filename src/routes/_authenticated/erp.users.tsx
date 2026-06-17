@@ -215,7 +215,7 @@ function UsersPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><UserCog className="h-6 w-6" /> Users</h1>
-          <p className="text-sm text-muted-foreground">Team members, cargo agents, ar permission centrally manage korun.</p>
+          <p className="text-sm text-muted-foreground">Team members ar permission centrally manage korun.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
@@ -474,7 +474,7 @@ function UsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete user?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{confirmDel?.email}</strong> permanently delete hobe. Auth account, roles ar cargo agent link sob remove hobe.
+              <strong>{confirmDel?.email}</strong> permanently delete hobe. Auth account ar roles sob remove hobe.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -738,12 +738,6 @@ function UserDetailSheet({ user, onClose, onChanged, onEdit, onPassword }: {
             </div>
           </div>
 
-          {user.cargo_agent && (
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">Linked cargo agent</div>
-              <div className="font-medium">{user.cargo_agent.name}</div>
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
