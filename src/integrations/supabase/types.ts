@@ -759,6 +759,81 @@ export type Database = {
           },
         ]
       }
+      crm_customer_meta: {
+        Row: {
+          customer_key: string
+          internal_email: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          customer_key: string
+          internal_email?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          customer_key?: string
+          internal_email?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      crm_customer_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_key: string
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_key: string
+          id?: string
+          note: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_key?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_customer_tags: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_key: string
+          id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_key: string
+          id?: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_key?: string
+          id?: string
+          tag?: string
+        }
+        Relationships: []
+      }
       erp_accounts: {
         Row: {
           account_number: string | null
@@ -5264,6 +5339,25 @@ export type Database = {
       }
     }
     Views: {
+      crm_customers_v: {
+        Row: {
+          avg_order_value: number | null
+          brand_ids: string[] | null
+          customer_key: string | null
+          email: string | null
+          first_order_at: string | null
+          is_registered: boolean | null
+          last_order_at: string | null
+          lifetime_value: number | null
+          meta_status: string | null
+          name: string | null
+          orders_count: number | null
+          profile_segment: string | null
+          user_id: string | null
+          valid_orders_count: number | null
+        }
+        Relationships: []
+      }
       customer_stats_by_phone: {
         Row: {
           cancelled_orders: number | null
@@ -5585,6 +5679,7 @@ export type Database = {
         }
         Returns: string
       }
+      crm_normalize_phone: { Args: { p: string }; Returns: string }
       erp_profit_loss: {
         Args: { _brand_id: string; _from: string; _to: string }
         Returns: Json
