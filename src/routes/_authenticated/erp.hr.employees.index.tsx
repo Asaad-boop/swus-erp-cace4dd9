@@ -290,19 +290,27 @@ function EmployeesList() {
         )}
 
         <EmployeeImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+
+        <Dialog open={moveDeptOpen} onOpenChange={setMoveDeptOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Change Department</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">Move {selected.size} employees to:</div>
+              <Select value={moveToDept} onValueChange={setMoveToDept}>
+                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No department</SelectItem>
+                  {(depts as any[]).map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMoveDeptOpen(false)}>Cancel</Button>
+              <Button onClick={() => moveDeptMut.mutate()} disabled={moveDeptMut.isPending}>Move</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
-  );
-}
-
-/* Render move-dept dialog as a hoisted JSX appended outside main return is awkward;
-   instead inline below; we keep above export simple. */
-
-// Extra dialog appended via portal pattern — but Dialog handles its own mount.
-// (No additional code needed here.)
-
-/* Note: moveDeptOpen state already wired into bulk-actions buttons; render dialog inside main JSX. */
-function _placeholder() {
-  return null;
   );
 }
