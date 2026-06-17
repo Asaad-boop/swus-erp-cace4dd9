@@ -288,7 +288,7 @@ export const findCrmDuplicates = createServerFn({ method: "POST" })
         .eq("is_merged", true);
       (merged ?? []).forEach((m: any) => mergedSet.add(m.customer_key));
     }
-    const active = (rows ?? []).filter((r: any) => !mergedSet.has(r.customer_key));
+    const active: any[] = (rows ?? []).filter((r: any) => r.customer_key && !mergedSet.has(r.customer_key));
 
     // Phone groups (same key would not happen post-normalization, so skip).
     // Group by name similarity.
@@ -367,12 +367,12 @@ export const mergeCrmCustomers = createServerFn({ method: "POST" })
       .from("crm_customer_meta")
       .select("customer_key, custom_fields")
       .in("customer_key", [primary, ...dupes]);
-    const primaryFields = (metas ?? []).find((m: any) => m.customer_key === primary)?.custom_fields ?? {};
+    const primaryFields = ((metas ?? []).find((m: any) => m.customer_key === primary)?.custom_fields ?? {}) as Record<string, any>;
     let merged: Record<string, any> = {};
     (metas ?? [])
       .filter((m: any) => m.customer_key !== primary)
       .forEach((m: any) => {
-        merged = { ...(m.custom_fields ?? {}), ...merged };
+        merged = { ...((m.custom_fields ?? {}) as Record<string, any>), ...merged };
       });
     const finalFields = { ...merged, ...primaryFields };
 
