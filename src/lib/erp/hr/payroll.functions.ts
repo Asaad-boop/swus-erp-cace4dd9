@@ -242,11 +242,44 @@ export const createPayrollRun = createServerFn({ method: "POST" })
         },
       };
     });
-    if (payslips.length) {
-      const { error: pe } = await context.supabase.from("hr_payslips").insert(payslips);
+    // Attendance-based deductions + OT
+    const settings = await loadPayrollSettings(context.supabase);
+    const enriched: any[] = [];
+    for (let i = 0; i < (emps ?? []).length; i++) {
+      const e = (emps as any[])[i];
+      const base = payslips[i];
+      const impact = await computeAttendanceImpact(
+        context.supabase, e.id, data.year, data.month, settings, Number(base.basic) || 0,
+      );
+      const allowances = { ...base.allowances, overtime: impact.overtime_earning };
+      const deductions = { ...base.deductions, absent: impact.absent_deduction, late: impact.late_deduction };
+      const allowSum = sumValues(allowances);
+      const dedSum = sumValues(deductions);
+      const gross = Number(base.basic) + allowSum;
+      const net_pay = gross - dedSum;
+      const total_earnings_breakdown = { basic: Number(base.basic), ...base.allowances, overtime: impact.overtime_earning };
+      const total_deductions_breakdown = { ...base.deductions, absent: impact.absent_deduction, late: impact.late_deduction };
+      enriched.push({
+        ...base,
+        allowances,
+        deductions,
+        gross,
+        net_pay,
+        absent_days: impact.absent_days,
+        late_total_minutes: impact.late_total_minutes,
+        overtime_total_minutes: impact.overtime_total_minutes,
+        absent_deduction: impact.absent_deduction,
+        late_deduction: impact.late_deduction,
+        overtime_earning: impact.overtime_earning,
+        total_earnings_breakdown,
+        total_deductions_breakdown,
+      });
+    }
+    if (enriched.length) {
+      const { error: pe } = await context.supabase.from("hr_payslips").insert(enriched);
       if (pe) throw pe;
     }
-    const totals = computeTotals(payslips);
+    const totals = computeTotals(enriched);
     await context.supabase.from("hr_payroll_runs").update(totals).eq("id", run.id);
     return { ...run, ...totals };
   });
