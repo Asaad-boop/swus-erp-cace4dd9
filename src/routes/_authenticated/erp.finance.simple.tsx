@@ -26,11 +26,11 @@ export const Route = createFileRoute("/_authenticated/erp/finance/simple")({
 });
 
 function FinancePage() {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
 
-  const accountsQ = useAccounts(brandId);
-  const categoriesQ = useCategories(brandId);
+  const accountsQ = useAccounts(brandIds);
+  const categoriesQ = useCategories(brandIds);
 
   const [txnOpen, setTxnOpen] = useState<{ open: boolean; type: TxnType }>({ open: false, type: "income" });
   const [acctOpen, setAcctOpen] = useState(false);
@@ -44,7 +44,7 @@ function FinancePage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
-          <p className="text-sm text-muted-foreground">{activeBrand?.name} · Cash on hand: <span className="font-semibold text-foreground">{fmtBdt(totalCash)}</span></p>
+          <p className="text-sm text-muted-foreground">{isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Cash on hand: <span className="font-semibold text-foreground">{fmtBdt(totalCash)}</span></p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setTxnOpen({ open: true, type: "income" })}><TrendingUp className="h-4 w-4 mr-1" />Income</Button>
@@ -91,27 +91,28 @@ function FinancePage() {
         </TabsContent>
 
         <TabsContent value="transactions" className="mt-3">
-          <TransactionsTab brandId={brandId} />
+          <TransactionsTab brandIds={brandIds} brands={brands} isAllBrands={isAllBrands} />
         </TabsContent>
 
         <TabsContent value="categories" className="mt-3">
-          <CategoriesTab brandId={brandId} />
+          <CategoriesTab brandId={brandId} brands={brands} isAllBrands={isAllBrands} />
         </TabsContent>
 
         <TabsContent value="reports" className="mt-3">
-          <ReportsTab brandId={brandId} />
+          <ReportsTab brandIds={brandIds} />
         </TabsContent>
       </Tabs>
 
       <TransactionForm
         open={txnOpen.open}
         onClose={() => setTxnOpen({ ...txnOpen, open: false })}
-        brandId={brandId}
+        brandId={isAllBrands ? null : brandId}
+        brands={brands}
         accounts={accounts}
         categories={categories}
         defaultType={txnOpen.type}
       />
-      <AccountForm open={acctOpen} onClose={() => setAcctOpen(false)} brandId={brandId} />
+      <AccountForm open={acctOpen} onClose={() => setAcctOpen(false)} brandId={isAllBrands ? null : brandId} brands={brands} />
     </div>
   );
 }
@@ -158,18 +159,19 @@ function AdjustButton({ accountId }: { accountId: string }) {
   );
 }
 
-function TransactionsTab({ brandId }: { brandId: string | null }) {
+function TransactionsTab({ brandIds, brands, isAllBrands }: { brandIds: string[]; brands: { id: string; name: string }[]; isAllBrands: boolean }) {
   const qc = useQueryClient();
-  const accountsQ = useAccounts(brandId);
-  const categoriesQ = useCategories(brandId);
+  const accountsQ = useAccounts(brandIds);
+  const categoriesQ = useCategories(brandIds);
   const [filter, setFilter] = useState<TxnFilter>({
-    brandId: null, type: "all", accountId: null, from: null, to: null, search: "", limit: 200,
+    brandIds: [], type: "all", accountId: null, from: null, to: null, search: "", limit: 200,
   });
-  const effective = useMemo<TxnFilter>(() => ({ ...filter, brandId }), [filter, brandId]);
+  const effective = useMemo<TxnFilter>(() => ({ ...filter, brandIds }), [filter, brandIds]);
   const { data: rows = [], isLoading } = useTransactions(effective);
 
   const catMap = useMemo(() => new Map((categoriesQ.data ?? []).map((c) => [c.id, c.name])), [categoriesQ.data]);
   const accMap = useMemo(() => new Map((accountsQ.data ?? []).map((a) => [a.id, a.name])), [accountsQ.data]);
+  const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
 
   const handleExport = () => {
     const csv = exportTransactionsCsv(rows, catMap, accMap);
@@ -228,6 +230,7 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              {isAllBrands && <TableHead>Brand</TableHead>}
               <TableHead>Type</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Account</TableHead>
@@ -237,14 +240,15 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>}
-            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={isAllBrands ? 8 : 7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>}
+            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={isAllBrands ? 8 : 7} className="text-center py-8 text-muted-foreground">No transactions</TableCell></TableRow>}
             {rows.map((t) => {
               const meta = TXN_TYPE_LABEL[t.txn_type] ?? { label: t.txn_type, className: "" };
               const sign = t.txn_type === "expense" ? -1 : 1;
               return (
                 <TableRow key={t.id}>
                   <TableCell className="text-xs whitespace-nowrap">{t.transaction_date}</TableCell>
+                  {isAllBrands && <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{brandMap.get(t.brand_id) ?? "—"}</TableCell>}
                   <TableCell><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meta.className}`}>{meta.label}</span></TableCell>
                   <TableCell className="text-xs">{t.category_id ? catMap.get(t.category_id) ?? "—" : "—"}</TableCell>
                   <TableCell className="text-xs">
@@ -277,18 +281,27 @@ function TransactionsTab({ brandId }: { brandId: string | null }) {
   );
 }
 
-function CategoriesTab({ brandId }: { brandId: string | null }) {
+function CategoriesTab({ brandId, brands, isAllBrands }: { brandId: string | null; brands: { id: string; name: string }[]; isAllBrands: boolean }) {
   const qc = useQueryClient();
-  const { data: cats = [], isLoading } = useCategories(brandId);
+  const brandIds = isAllBrands ? brands.map((b) => b.id) : brandId ? [brandId] : [];
+  const { data: cats = [], isLoading } = useCategories(brandIds);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("expense");
+  const [newBrandId, setNewBrandId] = useState<string>(brandId ?? (brands.length === 1 ? brands[0].id : ""));
+
+  useEffect(() => {
+    if (!isAllBrands && brandId) setNewBrandId(brandId);
+  }, [brandId, isAllBrands]);
+
+  const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
 
   const add = useMutation({
     mutationFn: async () => {
-      if (!brandId) throw new Error("No brand");
+      const targetBrandId = isAllBrands ? newBrandId : brandId;
+      if (!targetBrandId) throw new Error("Select a brand");
       if (!name.trim()) throw new Error("Name required");
       const { error } = await supabase.from("erp_expense_categories").insert({
-        brand_id: brandId, name: name.trim(), kind, is_active: true,
+        brand_id: targetBrandId, name: name.trim(), kind, is_active: true,
       });
       if (error) throw error;
     },
@@ -308,6 +321,15 @@ function CategoriesTab({ brandId }: { brandId: string | null }) {
   return (
     <div className="space-y-3 max-w-2xl">
       <div className="flex gap-2 items-end">
+        {isAllBrands && (
+          <div className="min-w-[160px]">
+            <Label className="text-xs">Brand</Label>
+            <Select value={newBrandId} onValueChange={setNewBrandId}>
+              <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
+              <SelectContent>{brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex-1"><Label className="text-xs">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marketing" /></div>
         <div className="min-w-[140px]">
           <Label className="text-xs">Kind</Label>
@@ -324,13 +346,14 @@ function CategoriesTab({ brandId }: { brandId: string | null }) {
 
       <div className="rounded-md border bg-card">
         <Table>
-          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Kind</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Name</TableHead>{isAllBrands && <TableHead>Brand</TableHead>}<TableHead>Kind</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>}
-            {!isLoading && cats.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">No categories</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={isAllBrands ? 4 : 3} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>}
+            {!isLoading && cats.length === 0 && <TableRow><TableCell colSpan={isAllBrands ? 4 : 3} className="text-center py-6 text-muted-foreground">No categories</TableCell></TableRow>}
             {cats.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
+                {isAllBrands && <TableCell className="text-xs text-muted-foreground">{brandMap.get(c.brand_id) ?? "—"}</TableCell>}
                 <TableCell className="text-xs uppercase tracking-wider text-muted-foreground">{c.kind}</TableCell>
                 <TableCell className="text-right">
                   <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)} disabled={remove.isPending}>Delete</Button>
@@ -344,12 +367,12 @@ function CategoriesTab({ brandId }: { brandId: string | null }) {
   );
 }
 
-function ReportsTab({ brandId }: { brandId: string | null }) {
+function ReportsTab({ brandIds }: { brandIds: string[] }) {
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
-  const { data, isLoading } = useProfitLoss(brandId, from, to);
+  const { data, isLoading } = useProfitLoss(brandIds, from, to);
 
   return (
     <div className="space-y-4">
