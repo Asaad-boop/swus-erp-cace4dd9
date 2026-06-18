@@ -625,11 +625,11 @@ function PillTab({ value, icon, badge, children }: { value: string; icon: React.
 }
 
 type KpiAccent = "blue" | "purple" | "green" | "red";
-const ACCENT_STYLES: Record<KpiAccent, { border: string; icon: string; bg: string }> = {
-  blue:   { border: "border-l-blue-500",   icon: "text-blue-600   bg-blue-50   dark:bg-blue-950/50",   bg: "" },
-  purple: { border: "border-l-purple-500", icon: "text-purple-600 bg-purple-50 dark:bg-purple-950/50", bg: "" },
-  green:  { border: "border-l-emerald-500",icon: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50", bg: "" },
-  red:    { border: "border-l-red-500",    icon: "text-red-600    bg-red-50    dark:bg-red-950/50",    bg: "" },
+const ACCENT_STYLES: Record<KpiAccent, { border: string; icon: string; bg: string; ring: string }> = {
+  blue:   { border: "border-l-blue-500",    icon: "text-blue-600 bg-blue-50 dark:bg-blue-950/50",       bg: "bg-gradient-to-br from-blue-50/60 via-card to-card dark:from-blue-950/20",         ring: "ring-blue-500/10" },
+  purple: { border: "border-l-purple-500",  icon: "text-purple-600 bg-purple-50 dark:bg-purple-950/50", bg: "bg-gradient-to-br from-purple-50/60 via-card to-card dark:from-purple-950/20",     ring: "ring-purple-500/10" },
+  green:  { border: "border-l-emerald-500", icon: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50", bg: "bg-gradient-to-br from-emerald-50/60 via-card to-card dark:from-emerald-950/20", ring: "ring-emerald-500/10" },
+  red:    { border: "border-l-red-500",     icon: "text-red-600 bg-red-50 dark:bg-red-950/50",         bg: "bg-gradient-to-br from-red-50/60 via-card to-card dark:from-red-950/20",           ring: "ring-red-500/10" },
 };
 
 function KpiCard({ icon, label, value, hint, accent, emphasize }: {
@@ -637,20 +637,23 @@ function KpiCard({ icon, label, value, hint, accent, emphasize }: {
 }) {
   const s = ACCENT_STYLES[accent];
   return (
-    <Card className={cn("border-l-4 transition-shadow hover:shadow-md animate-fade-in", s.border)}>
+    <Card className={cn(
+      "border-l-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 animate-fade-in ring-1",
+      s.border, s.bg, s.ring,
+    )}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1 min-w-0">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</div>
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
             <div className={cn(
-              "text-2xl font-bold tabular-nums",
+              "text-2xl font-bold tabular-nums tracking-tight",
               emphasize && accent === "red" && "text-red-600 dark:text-red-400",
             )}>
               {value}
             </div>
             {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
           </div>
-          <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.icon)}>
+          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ring-1 ring-border/50", s.icon)}>
             {icon}
           </div>
         </div>
