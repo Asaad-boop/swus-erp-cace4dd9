@@ -33,6 +33,7 @@ const groups: NavGroup[] = [
     label: "Operations",
     items: [
       { to: "/erp/inventory", label: "Inventory", icon: Boxes },
+      { to: "/erp/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
       { to: "/erp/courier", label: "Courier", icon: Truck },
       { to: "/erp/reconciliation", label: "Reconciliation", icon: FileSpreadsheet },
       { to: "/erp/suppliers", label: "Suppliers", icon: Users },
