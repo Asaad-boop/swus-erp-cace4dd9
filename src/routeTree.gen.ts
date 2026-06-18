@@ -20,6 +20,7 @@ import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
+import { Route as AuthenticatedErpInventoryReportsRouteImport } from './routes/_authenticated/erp.inventory-reports'
 import { Route as AuthenticatedErpInventoryRouteImport } from './routes/_authenticated/erp.inventory'
 import { Route as AuthenticatedErpImportsRouteImport } from './routes/_authenticated/erp.imports'
 import { Route as AuthenticatedErpHrRouteImport } from './routes/_authenticated/erp.hr'
@@ -154,6 +155,12 @@ const AuthenticatedErpMarketingRoute =
   AuthenticatedErpMarketingRouteImport.update({
     id: '/marketing',
     path: '/marketing',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpInventoryReportsRoute =
+  AuthenticatedErpInventoryReportsRouteImport.update({
+    id: '/inventory-reports',
+    path: '/inventory-reports',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpInventoryRoute =
@@ -621,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr': typeof AuthenticatedErpHrRouteWithChildren
   '/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
+  '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
@@ -705,6 +713,7 @@ export interface FileRoutesByTo {
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
+  '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
@@ -790,6 +799,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr': typeof AuthenticatedErpHrRouteWithChildren
   '/_authenticated/erp/imports': typeof AuthenticatedErpImportsRouteWithChildren
   '/_authenticated/erp/inventory': typeof AuthenticatedErpInventoryRoute
+  '/_authenticated/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/_authenticated/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
@@ -881,6 +891,7 @@ export interface FileRouteTypes {
     | '/erp/hr'
     | '/erp/imports'
     | '/erp/inventory'
+    | '/erp/inventory-reports'
     | '/erp/marketing'
     | '/erp/orders'
     | '/erp/reconciliation'
@@ -965,6 +976,7 @@ export interface FileRouteTypes {
     | '/erp/courier'
     | '/erp/diagnostics'
     | '/erp/inventory'
+    | '/erp/inventory-reports'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
@@ -1049,6 +1061,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr'
     | '/_authenticated/erp/imports'
     | '/_authenticated/erp/inventory'
+    | '/_authenticated/erp/inventory-reports'
     | '/_authenticated/erp/marketing'
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/reconciliation'
@@ -1217,6 +1230,13 @@ declare module '@tanstack/react-router' {
       path: '/marketing'
       fullPath: '/erp/marketing'
       preLoaderRoute: typeof AuthenticatedErpMarketingRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/inventory-reports': {
+      id: '/_authenticated/erp/inventory-reports'
+      path: '/inventory-reports'
+      fullPath: '/erp/inventory-reports'
+      preLoaderRoute: typeof AuthenticatedErpInventoryReportsRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/inventory': {
@@ -2035,6 +2055,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpHrRoute: typeof AuthenticatedErpHrRouteWithChildren
   AuthenticatedErpImportsRoute: typeof AuthenticatedErpImportsRouteWithChildren
   AuthenticatedErpInventoryRoute: typeof AuthenticatedErpInventoryRoute
+  AuthenticatedErpInventoryReportsRoute: typeof AuthenticatedErpInventoryReportsRoute
   AuthenticatedErpMarketingRoute: typeof AuthenticatedErpMarketingRouteWithChildren
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpReconciliationRoute: typeof AuthenticatedErpReconciliationRouteWithChildren
@@ -2055,6 +2076,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpHrRoute: AuthenticatedErpHrRouteWithChildren,
   AuthenticatedErpImportsRoute: AuthenticatedErpImportsRouteWithChildren,
   AuthenticatedErpInventoryRoute: AuthenticatedErpInventoryRoute,
+  AuthenticatedErpInventoryReportsRoute: AuthenticatedErpInventoryReportsRoute,
   AuthenticatedErpMarketingRoute: AuthenticatedErpMarketingRouteWithChildren,
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
   AuthenticatedErpReconciliationRoute:
