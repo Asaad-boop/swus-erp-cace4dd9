@@ -755,6 +755,8 @@ function CrmListPage() {
       </AlertDialog>
 
       <CrmImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <FindDuplicatesSheet open={dupesOpen} onOpenChange={setDupesOpen} brandId={activeBrand?.id} />
+      <PushToMetaDialog open={metaPushOpen} onOpenChange={setMetaPushOpen} brandId={activeBrand?.id} />
     </div>
   );
 }
