@@ -146,7 +146,7 @@ function StocktakeDetailPage() {
       "Variance Value": it.counted_qty != null ? Number(it.variance_value || 0) : "",
       Notes: it.notes ?? "",
     }));
-    exportToXlsx(rows, `stocktake-${session?.name ?? sessionId}.xlsx`);
+    exportToXlsx(rows, "Stocktake", `stocktake-${session?.name ?? sessionId}.xlsx`);
   };
 
   const [addPick, setAddPick] = useState<PickedProduct>({ id: null, title: "" });
