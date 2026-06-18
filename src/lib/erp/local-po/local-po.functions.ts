@@ -255,7 +255,7 @@ export const receiveLocalPo = createServerFn({ method: "POST" })
           _delta: inp.received_qty,
           _reason: "purchase_order",
           _note: `Local PO receipt`,
-          _unit_cost: cost > 0 ? cost : null,
+          _unit_cost: cost > 0 ? cost : undefined,
           _source: "local_po",
           _reference_type: "local_po_receipt",
           _reference_id: receipt.id,
