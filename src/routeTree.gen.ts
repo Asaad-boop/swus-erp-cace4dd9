@@ -18,6 +18,7 @@ import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpReorderQueueRouteImport } from './routes/_authenticated/erp.reorder-queue'
+import { Route as AuthenticatedErpAnalyticsLiveRouteImport } from './routes/_authenticated/erp.analytics.live'
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
@@ -149,6 +150,12 @@ const AuthenticatedErpReorderQueueRoute =
   AuthenticatedErpReorderQueueRouteImport.update({
     id: '/reorder-queue',
     path: '/reorder-queue',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpAnalyticsLiveRoute =
+  AuthenticatedErpAnalyticsLiveRouteImport.update({
+    id: '/analytics/live',
+    path: '/analytics/live',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpReconciliationRoute =
