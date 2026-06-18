@@ -2437,6 +2437,8 @@ export type Database = {
           return_type: string
           sku: string | null
           status: string
+          stock_restored: boolean
+          stock_restored_at: string | null
           updated_at: string
           variant_id: string | null
         }
@@ -2461,6 +2463,8 @@ export type Database = {
           return_type: string
           sku?: string | null
           status?: string
+          stock_restored?: boolean
+          stock_restored_at?: string | null
           updated_at?: string
           variant_id?: string | null
         }
@@ -2485,6 +2489,8 @@ export type Database = {
           return_type?: string
           sku?: string | null
           status?: string
+          stock_restored?: boolean
+          stock_restored_at?: string | null
           updated_at?: string
           variant_id?: string | null
         }
