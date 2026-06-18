@@ -14,21 +14,44 @@ export type ProductRow = {
   sku?: string | null;
   barcode?: string | null;
   reorder_point?: number | null;
+  reorder_qty?: number | null;
+  reserved_stock?: number | null;
+  available_stock?: number | null;
+  weighted_avg_cost?: number | null;
   variant_skus?: string[];
+  variants?: VariantRow[];
   incoming?: number;
+};
+
+export type VariantRow = {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  reorder_point: number;
+  weighted_avg_cost: number;
+  is_active: boolean;
+  label?: string | null;
 };
 
 export type StockMovementRow = {
   id: string;
   created_at: string;
   product_id: string;
+  variant_id?: string | null;
   user_id: string | null;
   delta: number;
   stock_before: number;
   stock_after: number;
+  running_stock?: number | null;
   reason: string;
   note: string | null;
   brand_id: string | null;
+  unit_cost_bdt?: number | null;
+  total_cost_bdt?: number | null;
+  movement_source?: string | null;
 };
 
 export const STOCK_REASONS = [
@@ -39,6 +62,20 @@ export const STOCK_REASONS = [
   { value: "damage", label: "Damaged" },
   { value: "return", label: "Customer Return" },
 ] as const;
+
+export const MOVEMENT_SOURCES = [
+  { value: "manual", label: "Manual", tone: "bg-zinc-100 text-zinc-700" },
+  { value: "order", label: "Order", tone: "bg-blue-100 text-blue-700" },
+  { value: "return", label: "Return", tone: "bg-orange-100 text-orange-700" },
+  { value: "import", label: "Import", tone: "bg-purple-100 text-purple-700" },
+  { value: "transfer", label: "Transfer", tone: "bg-cyan-100 text-cyan-700" },
+  { value: "stocktake", label: "Stocktake", tone: "bg-amber-100 text-amber-700" },
+  { value: "local_po", label: "Local PO", tone: "bg-emerald-100 text-emerald-700" },
+] as const;
+
+export function sourceBadge(src: string | null | undefined) {
+  return MOVEMENT_SOURCES.find((m) => m.value === src) ?? { value: src ?? "", label: src ?? "—", tone: "bg-zinc-100 text-zinc-700" };
+}
 
 export function stockBadge(stock: number, threshold: number | null) {
   const t = threshold ?? 5;

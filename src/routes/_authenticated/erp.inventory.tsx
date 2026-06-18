@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
-import { Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes, AlertTriangle, Wallet } from "lucide-react";
+import { useMemo, useState, useEffect, Fragment } from "react";
+import { Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes, AlertTriangle, Wallet, ChevronRight, ChevronDown } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,7 @@ import {
   stockBadge,
   exportProductsCsv,
   STOCK_REASONS,
+  sourceBadge,
   type ProductRow,
 } from "@/lib/erp/inventory";
 import { downloadCsv } from "@/lib/erp/orders";
@@ -59,6 +60,11 @@ function InventoryPage() {
 
   const [adjust, setAdjust] = useState<{ product: ProductRow; mode: "in" | "out" } | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductRow | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => setExpanded((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const [adjustVariant, setAdjustVariant] = useState<string | null>(null);
 
   const handleExport = () => {
     const csv = exportProductsCsv(rows);
@@ -76,14 +82,15 @@ function InventoryPage() {
 
   // Stock valuation across all rows in current page (for summary card we use full count via separate query when needed)
   const summary = useMemo(() => {
-    let units = 0, value = 0, low = 0, out = 0;
+    let units = 0, value = 0, low = 0, out = 0, reserved = 0;
     for (const r of rows) {
       units += r.stock;
-      value += (Number(r.cost_price ?? 0)) * r.stock;
+      value += (Number(r.weighted_avg_cost ?? r.cost_price ?? 0)) * r.stock;
+      reserved += Number(r.reserved_stock ?? 0);
       if (r.stock <= 0) out += 1;
       else if (r.stock <= (r.low_stock_threshold ?? 5)) low += 1;
     }
-    return { units, value, low, out };
+    return { units, value, low, out, reserved };
   }, [rows]);
 
   return (
@@ -102,8 +109,8 @@ function InventoryPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={<Package className="h-4 w-4" />} label="Products (page)" value={rows.length.toLocaleString()} hint={`${total.toLocaleString()} total`} />
-        <StatCard icon={<Boxes className="h-4 w-4" />} label="Stock units (page)" value={summary.units.toLocaleString()} />
-        <StatCard icon={<Wallet className="h-4 w-4" />} label="Stock value (page)" value={`৳${summary.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} hint="cost × stock" />
+        <StatCard icon={<Boxes className="h-4 w-4" />} label="Stock units (page)" value={summary.units.toLocaleString()} hint={summary.reserved > 0 ? `${summary.reserved.toLocaleString()} reserved` : undefined} />
+        <StatCard icon={<Wallet className="h-4 w-4" />} label="Stock value (page)" value={`৳${summary.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} hint="WAC × stock" />
         <StatCard icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} label="Low / Out (page)" value={`${summary.low} / ${summary.out}`} hint={lowQuery.data?.length ? `${lowQuery.data.length} alerts total` : undefined} />
       </div>
 
@@ -147,11 +154,15 @@ function InventoryPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">WAC</TableHead>
+                  <TableHead className="text-right">In Stock</TableHead>
+                  <TableHead className="text-right">Reserved</TableHead>
+                  <TableHead className="text-right">Available</TableHead>
+                  <TableHead className="text-right">Incoming</TableHead>
                   <TableHead className="text-right">Threshold</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -159,15 +170,29 @@ function InventoryPage() {
               </TableHeader>
               <TableBody>
                 {isLoading && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 )}
                 {!isLoading && rows.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No products</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No products</TableCell></TableRow>
                 )}
                 {rows.map((r) => {
                   const b = stockBadge(r.stock, r.low_stock_threshold);
+                  const variants = r.variants ?? [];
+                  const hasVariants = variants.length > 0;
+                  const isOpen = expanded.has(r.id);
+                  const reserved = Number(r.reserved_stock ?? 0);
+                  const available = Number(r.available_stock ?? (r.stock - reserved));
+                  const wac = Number(r.weighted_avg_cost ?? r.cost_price ?? 0);
                   return (
-                    <TableRow key={r.id}>
+                    <Fragment key={r.id}>
+                    <TableRow>
+                      <TableCell className="p-1">
+                        {hasVariants ? (
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleExpand(r.id)}>
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {r.image && <img src={r.image} alt="" className="h-9 w-9 rounded object-cover" />}
@@ -180,6 +205,7 @@ function InventoryPage() {
                                 </Badge>
                               )}
                               <span className="truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</span>
+                              {hasVariants && <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{variants.length} variants</Badge>}
                             </div>
                           </div>
                         </div>
@@ -187,26 +213,17 @@ function InventoryPage() {
                       <TableCell>
                         <div className="space-y-1">
                           <InlineTextEdit value={r.sku ?? ""} placeholder="SKU" onSave={(v) => updateInventoryField(r.id, { sku: v })} />
-                          {r.variant_skus && r.variant_skus.length > 0 && (
-                            <div className="flex flex-wrap gap-1 max-w-[180px]">
-                              {r.variant_skus.map((s) => (
-                                <span key={s} className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">{s}</span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">৳{Number(r.price).toLocaleString()}</TableCell>
                       <TableCell className="text-right">
-                        <InlineNumberEdit value={Number(r.cost_price ?? 0)} onSave={(v) => updateInventoryField(r.id, { cost_price: v })} prefix="৳" />
+                        <div className="font-mono text-xs">৳{wac.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        <div className="flex flex-col items-end leading-tight">
-                          <span>{r.stock}</span>
-                          {Number(r.incoming) > 0 && (
-                            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-normal">+{r.incoming} incoming</span>
-                          )}
-                        </div>
+                      <TableCell className="text-right font-mono">{r.stock}</TableCell>
+                      <TableCell className={`text-right font-mono ${reserved > 0 ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>{reserved}</TableCell>
+                      <TableCell className={`text-right font-mono font-semibold ${available <= 0 ? "text-red-600" : ""}`}>{available}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {Number(r.incoming) > 0 ? <span className="text-blue-600 dark:text-blue-400">+{r.incoming}</span> : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-right">
                         <InlineNumberEdit value={r.low_stock_threshold ?? 5} onSave={(v) => updateInventoryField(r.id, { low_stock_threshold: v })} />
@@ -226,6 +243,38 @@ function InventoryPage() {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {hasVariants && isOpen && variants.map((v) => {
+                      const vAvail = v.available_stock;
+                      return (
+                        <TableRow key={`${r.id}__${v.id}`} className="bg-muted/30">
+                          <TableCell></TableCell>
+                          <TableCell className="pl-10 text-xs">
+                            <span className="text-muted-foreground">↳</span> <span className="font-medium">{v.sku ?? v.id.slice(0,8)}</span>
+                            {!v.is_active && <Badge variant="outline" className="ml-2 h-4 px-1 text-[10px]">inactive</Badge>}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono">{v.sku}</TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right font-mono text-xs">৳{Number(v.weighted_avg_cost).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{v.stock}</TableCell>
+                          <TableCell className={`text-right font-mono text-xs ${v.reserved_stock > 0 ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>{v.reserved_stock}</TableCell>
+                          <TableCell className={`text-right font-mono text-xs font-semibold ${vAvail <= 0 ? "text-red-600" : ""}`}>{vAvail}</TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">RP: {v.reorder_point}</TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right">
+                            <div className="inline-flex gap-1">
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAdjustVariant(v.id); setAdjust({ product: r, mode: "in" }); }}>
+                                <ArrowUp className="h-3 w-3 mr-1" />In
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAdjustVariant(v.id); setAdjust({ product: r, mode: "out" }); }}>
+                                <ArrowDown className="h-3 w-3 mr-1" />Out
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -302,31 +351,38 @@ function InventoryPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>Variant</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead className="text-right">Delta</TableHead>
                   <TableHead className="text-right">Before → After</TableHead>
+                  <TableHead className="text-right">Unit Cost</TableHead>
                   <TableHead>Note</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {movements.isLoading && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 )}
                 {!movements.isLoading && (movements.data?.length ?? 0) === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No movements yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No movements yet</TableCell></TableRow>
                 )}
                 {(movements.data ?? []).map((m) => {
                   const t = titles.data?.get(m.product_id);
                   const reasonLabel = STOCK_REASONS.find((x) => x.value === m.reason)?.label ?? m.reason;
+                  const src = sourceBadge(m.movement_source);
                   return (
                     <TableRow key={m.id}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{new Date(m.created_at).toLocaleString()}</TableCell>
                       <TableCell className="truncate max-w-[260px]">{t?.title ?? m.product_id.slice(0, 8)}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{m.variant_id ? m.variant_id.slice(0, 8) : "—"}</TableCell>
+                      <TableCell><span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${src.tone}`}>{src.label}</span></TableCell>
                       <TableCell>{reasonLabel}</TableCell>
                       <TableCell className={`text-right font-mono ${m.delta < 0 ? "text-red-600" : "text-emerald-600"}`}>
                         {m.delta > 0 ? "+" : ""}{m.delta}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">{m.stock_before} → {m.stock_after}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{m.unit_cost_bdt ? `৳${Number(m.unit_cost_bdt).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground truncate max-w-[240px]">{m.note ?? ""}</TableCell>
                     </TableRow>
                   );
@@ -340,7 +396,8 @@ function InventoryPage() {
       <StockAdjustDialog
         product={adjust?.product ?? null}
         mode={adjust?.mode ?? "in"}
-        onClose={() => { setAdjust(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
+        initialVariantId={adjustVariant}
+        onClose={() => { setAdjust(null); setAdjustVariant(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
 
       <ProductHistorySheet product={historyProduct} onClose={() => setHistoryProduct(null)} brandId={activeBrand?.id ?? null} />
