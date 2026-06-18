@@ -1283,13 +1283,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpReorderQueueRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
-    '/_authenticated/erp/analytics/live': {
-      id: '/_authenticated/erp/analytics/live'
-      path: '/analytics/live'
-      fullPath: '/erp/analytics/live'
-      preLoaderRoute: typeof AuthenticatedErpAnalyticsLiveRouteImport
-      parentRoute: typeof AuthenticatedErpRoute
-    }
     '/_authenticated/erp/reconciliation': {
       id: '/_authenticated/erp/reconciliation'
       path: '/reconciliation'
