@@ -117,9 +117,9 @@ function InventoryPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5 bg-gradient-to-b from-muted/20 via-background to-background min-h-screen">
       {/* HEADER */}
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border bg-card/60 backdrop-blur-sm p-4 md:p-5 shadow-sm">
         <div className="space-y-1.5">
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-sm text-muted-foreground">
@@ -269,7 +269,7 @@ function InventoryPage() {
           {/* Table */}
           <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
             <Table>
-              <TableHeader className="bg-muted/40">
+              <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
                 <TableRow className="hover:bg-transparent border-b">
                   <TableHead className="w-10"></TableHead>
                   <TableHead className="font-semibold text-foreground/80">Product</TableHead>
