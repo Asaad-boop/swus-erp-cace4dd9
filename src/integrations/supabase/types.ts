@@ -4618,6 +4618,261 @@ export type Database = {
           },
         ]
       }
+      local_po_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          ordered_qty: number
+          pending_qty: number | null
+          po_id: string
+          product_id: string | null
+          received_qty: number
+          total_cost: number | null
+          unit_cost: number
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ordered_qty: number
+          pending_qty?: number | null
+          po_id: string
+          product_id?: string | null
+          received_qty?: number
+          total_cost?: number | null
+          unit_cost?: number
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ordered_qty?: number
+          pending_qty?: number | null
+          po_id?: string
+          product_id?: string | null
+          received_qty?: number
+          total_cost?: number | null
+          unit_cost?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_po_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "local_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      local_po_receipt_items: {
+        Row: {
+          created_at: string
+          id: string
+          po_item_id: string | null
+          product_id: string | null
+          receipt_id: string
+          received_qty: number
+          unit_cost: number
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          po_item_id?: string | null
+          product_id?: string | null
+          receipt_id: string
+          received_qty: number
+          unit_cost?: number
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          po_item_id?: string | null
+          product_id?: string | null
+          receipt_id?: string
+          received_qty?: number
+          unit_cost?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_po_receipt_items_po_item_id_fkey"
+            columns: ["po_item_id"]
+            isOneToOne: false
+            referencedRelation: "local_po_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_receipt_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "local_po_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_receipt_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      local_po_receipts: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          po_id: string
+          received_date: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          po_id: string
+          received_date?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          po_id?: string
+          received_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_po_receipts_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "local_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      local_purchase_orders: {
+        Row: {
+          amount_paid: number
+          balance_due: number | null
+          bill_id: string | null
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          discount: number
+          expected_date: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          po_number: string
+          received_date: string | null
+          shipping_cost: number
+          status: string
+          subtotal: number
+          supplier_id: string
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          balance_due?: number | null
+          bill_id?: string | null
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number: string
+          received_date?: string | null
+          shipping_cost?: number
+          status?: string
+          subtotal?: number
+          supplier_id: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          balance_due?: number | null
+          bill_id?: string | null
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number?: string
+          received_date?: string | null
+          shipping_cost?: number
+          status?: string
+          subtotal?: number
+          supplier_id?: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_purchase_orders_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "erp_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_purchase_orders_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "v_ap_outstanding"
+            referencedColumns: ["bill_id"]
+          },
+          {
+            foreignKeyName: "local_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "erp_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       low_stock_alerts: {
         Row: {
           brand_id: string | null
@@ -6161,6 +6416,7 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          available_stock: number | null
           created_at: string
           display_order: number
           id: string
@@ -6168,11 +6424,15 @@ export type Database = {
           is_active: boolean
           price_override: number | null
           product_id: string
+          reorder_point: number
+          reserved_stock: number
           sku: string | null
           stock: number
           updated_at: string
+          weighted_avg_cost: number
         }
         Insert: {
+          available_stock?: number | null
           created_at?: string
           display_order?: number
           id?: string
@@ -6180,11 +6440,15 @@ export type Database = {
           is_active?: boolean
           price_override?: number | null
           product_id: string
+          reorder_point?: number
+          reserved_stock?: number
           sku?: string | null
           stock?: number
           updated_at?: string
+          weighted_avg_cost?: number
         }
         Update: {
+          available_stock?: number | null
           created_at?: string
           display_order?: number
           id?: string
@@ -6192,9 +6456,12 @@ export type Database = {
           is_active?: boolean
           price_override?: number | null
           product_id?: string
+          reorder_point?: number
+          reserved_stock?: number
           sku?: string | null
           stock?: number
           updated_at?: string
+          weighted_avg_cost?: number
         }
         Relationships: [
           {
@@ -6208,6 +6475,7 @@ export type Database = {
       }
       products: {
         Row: {
+          available_stock: number | null
           barcode: string | null
           benefits: Json
           brand_id: string | null
@@ -6227,6 +6495,8 @@ export type Database = {
           price: number
           rating: number
           reorder_point: number | null
+          reorder_qty: number
+          reserved_stock: number
           reviews: number
           shipping_fee_inside: number | null
           shipping_fee_outside: number | null
@@ -6235,9 +6505,12 @@ export type Database = {
           specs: Json
           stock: number
           title: string
+          total_cost_value: number | null
           updated_at: string
+          weighted_avg_cost: number
         }
         Insert: {
+          available_stock?: number | null
           barcode?: string | null
           benefits?: Json
           brand_id?: string | null
@@ -6257,6 +6530,8 @@ export type Database = {
           price: number
           rating?: number
           reorder_point?: number | null
+          reorder_qty?: number
+          reserved_stock?: number
           reviews?: number
           shipping_fee_inside?: number | null
           shipping_fee_outside?: number | null
@@ -6265,9 +6540,12 @@ export type Database = {
           specs?: Json
           stock?: number
           title: string
+          total_cost_value?: number | null
           updated_at?: string
+          weighted_avg_cost?: number
         }
         Update: {
+          available_stock?: number | null
           barcode?: string | null
           benefits?: Json
           brand_id?: string | null
@@ -6287,6 +6565,8 @@ export type Database = {
           price?: number
           rating?: number
           reorder_point?: number | null
+          reorder_qty?: number
+          reserved_stock?: number
           reviews?: number
           shipping_fee_inside?: number | null
           shipping_fee_outside?: number | null
@@ -6295,7 +6575,9 @@ export type Database = {
           specs?: Json
           stock?: number
           title?: string
+          total_cost_value?: number | null
           updated_at?: string
+          weighted_avg_cost?: number
         }
         Relationships: [
           {
@@ -6358,6 +6640,66 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reorder_suggestions: {
+        Row: {
+          actioned_at: string | null
+          actioned_by: string | null
+          brand_id: string
+          created_at: string
+          current_stock: number
+          id: string
+          product_id: string | null
+          reorder_point: number
+          source: string
+          status: string
+          suggested_qty: number
+          variant_id: string | null
+        }
+        Insert: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          brand_id: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          product_id?: string | null
+          reorder_point?: number
+          source?: string
+          status?: string
+          suggested_qty?: number
+          variant_id?: string | null
+        }
+        Update: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          brand_id?: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          product_id?: string | null
+          reorder_point?: number
+          source?: string
+          status?: string
+          suggested_qty?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reorder_suggestions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_suggestions_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
@@ -6487,11 +6829,13 @@ export type Database = {
           delta: number
           id: string
           idempotency_key: string | null
+          movement_source: string | null
           note: string | null
           product_id: string
           reason: string
           reference_id: string | null
           reference_type: string | null
+          running_stock: number | null
           stock_after: number
           stock_before: number
           total_cost_bdt: number | null
@@ -6506,11 +6850,13 @@ export type Database = {
           delta: number
           id?: string
           idempotency_key?: string | null
+          movement_source?: string | null
           note?: string | null
           product_id: string
           reason?: string
           reference_id?: string | null
           reference_type?: string | null
+          running_stock?: number | null
           stock_after: number
           stock_before: number
           total_cost_bdt?: number | null
@@ -6525,11 +6871,13 @@ export type Database = {
           delta?: number
           id?: string
           idempotency_key?: string | null
+          movement_source?: string | null
           note?: string | null
           product_id?: string
           reason?: string
           reference_id?: string | null
           reference_type?: string | null
+          running_stock?: number | null
           stock_after?: number
           stock_before?: number
           total_cost_bdt?: number | null
@@ -6562,6 +6910,129 @@ export type Database = {
           },
           {
             foreignKeyName: "stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocktake_items: {
+        Row: {
+          counted_at: string | null
+          counted_by: string | null
+          counted_qty: number | null
+          id: string
+          notes: string | null
+          product_id: string | null
+          session_id: string
+          system_qty: number
+          unit_cost: number
+          variance: number | null
+          variance_value: number | null
+          variant_id: string | null
+        }
+        Insert: {
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_qty?: number | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          session_id: string
+          system_qty?: number
+          unit_cost?: number
+          variance?: number | null
+          variance_value?: number | null
+          variant_id?: string | null
+        }
+        Update: {
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_qty?: number | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          session_id?: string
+          system_qty?: number
+          unit_cost?: number
+          variance?: number | null
+          variance_value?: number | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktake_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktake_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "stocktake_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktake_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocktake_sessions: {
+        Row: {
+          brand_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          started_at: string
+          started_by: string | null
+          status: string
+          total_products: number | null
+          total_variance_value: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          brand_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          total_products?: number | null
+          total_variance_value?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          brand_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          total_products?: number | null
+          total_variance_value?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktake_sessions_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
@@ -6999,6 +7470,8 @@ export type Database = {
         Returns: number
       }
       calculate_rfm_all_brands: { Args: never; Returns: undefined }
+      check_reorder_triggers: { Args: { _brand_id: string }; Returns: number }
+      check_reorder_triggers_all_brands: { Args: never; Returns: number }
       create_bill: {
         Args: {
           _amount: number
@@ -7584,7 +8057,13 @@ export type Database = {
       refresh_crm_customers_mv: { Args: never; Returns: undefined }
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
       release_stock: { Args: { _order_id: string }; Returns: undefined }
-      reserve_stock: { Args: { _order_id: string }; Returns: undefined }
+      release_stock_reservation: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      reserve_stock:
+        | { Args: { _order_id: string }; Returns: undefined }
+        | { Args: { _items: Json; _order_id: string }; Returns: undefined }
       run_recurring_rules: { Args: { _brand_id?: string }; Returns: Json }
       seed_default_coa: { Args: { _brand_id: string }; Returns: number }
       set_product_stock: {
@@ -7620,6 +8099,15 @@ export type Database = {
           _product_id: string
           _reorder_point?: number
           _sku?: string
+        }
+        Returns: undefined
+      }
+      update_weighted_avg_cost: {
+        Args: {
+          _new_qty: number
+          _new_unit_cost: number
+          _product_id: string
+          _variant_id: string
         }
         Returns: undefined
       }
