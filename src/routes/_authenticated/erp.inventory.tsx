@@ -274,7 +274,7 @@ function InventoryPage() {
                         </TableRow>
                       );
                     })}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
