@@ -124,3 +124,37 @@ export const updateReorderSuggestion = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+/** Bulk update reorder suggestions (used by the queue page). */
+export const bulkUpdateReorderSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ids: string[]; status: "pending" | "processed" | "dismissed" }) =>
+    z.object({
+      ids: z.array(z.string().uuid()).min(1),
+      status: z.enum(["pending", "processed", "dismissed"]),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("reorder_suggestions")
+      .update({
+        status: data.status,
+        actioned_at: data.status !== "pending" ? new Date().toISOString() : null,
+        actioned_by: data.status !== "pending" ? context.userId : null,
+      })
+      .in("id", data.ids);
+    if (error) throw error;
+    return { ok: true, count: data.ids.length };
+  });
+
+/** Manually trigger reorder check for current brand (on-demand button). */
+export const runReorderCheck = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string }) => z.object({ brandId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("check_reorder_triggers" as any, {
+      _brand_id: data.brandId,
+    });
+    if (error) throw error;
+    return { ok: true };
+  });
