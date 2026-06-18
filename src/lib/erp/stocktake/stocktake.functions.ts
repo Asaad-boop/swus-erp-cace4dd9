@@ -284,7 +284,7 @@ export const finalizeStocktake = createServerFn({ method: "POST" })
 
       const { error: adjErr } = await supabase.rpc("adjust_stock_v2", {
         _product_id: it.product_id,
-        _variant_id: it.variant_id,
+        _variant_id: it.variant_id ?? undefined,
         _delta: variance,
         _reason: "stocktake",
         _note: `Stocktake adjustment`,
