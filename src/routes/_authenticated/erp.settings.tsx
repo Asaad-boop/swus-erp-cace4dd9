@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Building, Building2, FileText, Truck, Wallet, Bell, Plug, Users, Database, AlertTriangle,
+  Building, Building2, FileText, Truck, Wallet, Bell, Plug, Users, Database, AlertTriangle, ContactRound,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { BusinessSettings } from "@/components/erp/settings/business-settings";
@@ -14,6 +14,7 @@ import { IntegrationsSection } from "@/components/erp/settings/sections/integrat
 import { UsersSection } from "@/components/erp/settings/sections/users-section";
 import { DataSystemSection } from "@/components/erp/settings/sections/data-system-section";
 import { DangerZoneSection } from "@/components/erp/settings/sections/danger-zone-section";
+import { CrmCustomFieldsSection } from "@/components/erp/settings/sections/crm-section";
 import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
 
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/erp/settings")({
 
 type SectionId =
   | "business" | "brands" | "invoice" | "courier" | "finance"
-  | "notifications" | "integrations" | "users" | "data" | "danger";
+  | "notifications" | "integrations" | "crm" | "users" | "data" | "danger";
 
 type SectionDef = {
   id: SectionId;
@@ -43,6 +44,7 @@ const SECTIONS: SectionDef[] = [
   { id: "finance",       label: "Finance",          description: "Accounting, FX, tax defaults",        icon: Wallet,         perBrand: true  },
   { id: "notifications", label: "Notifications",    description: "Alerts, daily summaries",             icon: Bell,           perBrand: true  },
   { id: "integrations",  label: "Integrations",     description: "Meta, Gemini, webhooks",              icon: Plug,           perBrand: true  },
+  { id: "crm",           label: "CRM Custom Fields", description: "Per-customer custom data fields",    icon: ContactRound,   perBrand: true,  adminOnly: true },
   { id: "users",         label: "Users",            description: "Roles & brand access",                icon: Users,          perBrand: false, adminOnly: true },
   { id: "data",          label: "Data & System",    description: "Exports, activity, info",             icon: Database,       perBrand: true  },
   { id: "danger",        label: "Danger Zone",      description: "Destructive actions",                 icon: AlertTriangle,  perBrand: true,  adminOnly: true },
@@ -152,6 +154,7 @@ function SectionRouter({ section, brandId }: { section: SectionId; brandId: stri
     case "finance":       return <FinanceSection key={brandId} brandId={brandId} />;
     case "notifications": return <NotificationsSection key={brandId} brandId={brandId} />;
     case "integrations":  return <IntegrationsSection key={brandId} brandId={brandId} />;
+    case "crm":           return <CrmCustomFieldsSection key={brandId} brandId={brandId} />;
     case "users":         return <UsersSection />;
     case "data":          return <DataSystemSection key={brandId} brandId={brandId} />;
     case "danger":        return <DangerZoneSection key={brandId} brandId={brandId} />;
