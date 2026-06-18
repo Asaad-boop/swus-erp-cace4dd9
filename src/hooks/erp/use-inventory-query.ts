@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { ProductRow, StockMovementRow } from "@/lib/erp/inventory";
+import type { ProductRow, StockMovementRow, VariantRow } from "@/lib/erp/inventory";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
 export type InventoryFilter = {
@@ -19,7 +19,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
       let q = supabase
         .from("products")
         .select(
-          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,product_variants(sku)",
+          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,reorder_qty,reserved_stock,available_stock,weighted_avg_cost,product_variants(id,product_id,sku,stock,reserved_stock,available_stock,reorder_point,weighted_avg_cost,is_active)",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
@@ -37,10 +37,21 @@ export function useInventoryQuery(filter: InventoryFilter) {
       const { data, error, count } = await q;
       if (error) throw error;
       let rows = ((data ?? []) as Array<Record<string, unknown>>).map((d) => {
-        const variants = (d.product_variants as Array<{ sku: string | null }> | null) ?? [];
+        const variantsRaw = (d.product_variants as Array<Record<string, unknown>> | null) ?? [];
+        const variants: VariantRow[] = variantsRaw.map((v) => ({
+          id: v.id as string,
+          product_id: v.product_id as string,
+          sku: (v.sku as string | null) ?? null,
+          stock: Number(v.stock ?? 0),
+          reserved_stock: Number(v.reserved_stock ?? 0),
+          available_stock: Number(v.available_stock ?? (Number(v.stock ?? 0) - Number(v.reserved_stock ?? 0))),
+          reorder_point: Number(v.reorder_point ?? 0),
+          weighted_avg_cost: Number(v.weighted_avg_cost ?? 0),
+          is_active: (v.is_active as boolean | null) ?? true,
+        }));
         const variant_skus = variants.map((v) => v.sku).filter((s): s is string => !!s);
         const { product_variants: _pv, ...rest } = d;
-        return { ...rest, variant_skus } as ProductRow;
+        return { ...rest, variant_skus, variants } as ProductRow;
       });
       if (filter.stockState === "low") {
         rows = rows.filter((r) => r.stock > 0 && r.stock <= (r.low_stock_threshold ?? 5));
@@ -91,7 +102,7 @@ export function useStockMovements(brandIds: string[], productId?: string | null)
     queryFn: async () => {
       let q = supabase
         .from("stock_movements")
-        .select("id,created_at,product_id,user_id,delta,stock_before,stock_after,reason,note,brand_id")
+        .select("id,created_at,product_id,variant_id,user_id,delta,stock_before,stock_after,running_stock,reason,note,brand_id,unit_cost_bdt,total_cost_bdt,movement_source")
         .order("created_at", { ascending: false })
         .limit(500);
       q = applyBrandScope(q, brandIds);
