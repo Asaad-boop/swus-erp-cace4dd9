@@ -680,7 +680,6 @@ export interface FileRoutesByFullPath {
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
-  '/erp/analytics/': typeof AuthenticatedErpAnalyticsIndexRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
@@ -769,7 +768,6 @@ export interface FileRoutesByTo {
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
-  '/erp/analytics': typeof AuthenticatedErpAnalyticsIndexRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
@@ -865,7 +863,6 @@ export interface FileRoutesById {
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
-  '/_authenticated/erp/analytics/': typeof AuthenticatedErpAnalyticsIndexRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
@@ -964,7 +961,6 @@ export interface FileRouteTypes {
     | '/erp/users'
     | '/erp/'
     | '/erp/analytics/live'
-    | '/erp/analytics/'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
@@ -1053,7 +1049,6 @@ export interface FileRouteTypes {
     | '/erp/users'
     | '/erp'
     | '/erp/analytics/live'
-    | '/erp/analytics'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
@@ -1148,7 +1143,6 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/users'
     | '/_authenticated/erp/'
     | '/_authenticated/erp/analytics/live'
-    | '/_authenticated/erp/analytics/'
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/audit'
@@ -1792,13 +1786,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpAnalyticsLiveRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
-    '/_authenticated/erp/analytics/': {
-      id: '/_authenticated/erp/analytics/'
-      path: '/analytics/'
-      fullPath: '/erp/analytics/'
-      preLoaderRoute: typeof AuthenticatedErpAnalyticsIndexRouteImport
-      parentRoute: typeof AuthenticatedErpRoute
-    }
     '/_authenticated/erp/marketing/campaigns/': {
       id: '/_authenticated/erp/marketing/campaigns/'
       path: '/campaigns'
@@ -2198,7 +2185,6 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
   AuthenticatedErpAnalyticsLiveRoute: typeof AuthenticatedErpAnalyticsLiveRoute
-  AuthenticatedErpAnalyticsIndexRoute: typeof AuthenticatedErpAnalyticsIndexRoute
   AuthenticatedErpPurchaseOrdersPoIdRoute: typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   AuthenticatedErpPurchaseOrdersNewRoute: typeof AuthenticatedErpPurchaseOrdersNewRoute
   AuthenticatedErpStocktakeSessionIdRoute: typeof AuthenticatedErpStocktakeSessionIdRoute
@@ -2227,7 +2213,6 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
   AuthenticatedErpAnalyticsLiveRoute: AuthenticatedErpAnalyticsLiveRoute,
-  AuthenticatedErpAnalyticsIndexRoute: AuthenticatedErpAnalyticsIndexRoute,
   AuthenticatedErpPurchaseOrdersPoIdRoute:
     AuthenticatedErpPurchaseOrdersPoIdRoute,
   AuthenticatedErpPurchaseOrdersNewRoute:
