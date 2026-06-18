@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Download, Search, Tag as TagIcon, Upload, Users, Filter, X, Phone, MessageSquare,
-  ShoppingBag, ShieldCheck, Trash2, Rows3, Rows2, CheckCircle2, AlertCircle,
+  ShoppingBag, ShieldCheck, Trash2, Rows3, Rows2, CheckCircle2, AlertCircle, Users2, Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
@@ -31,6 +31,12 @@ import {
 } from "@/components/ui/dialog";
 import { CrmKpiCards } from "@/components/erp/crm/kpi-cards";
 import { CrmImportDialog } from "@/components/erp/crm/import-dialog";
+import { FindDuplicatesSheet } from "@/components/erp/crm/find-duplicates-sheet";
+import { SavedFiltersMenu } from "@/components/erp/crm/saved-filters";
+import {
+  RecalculateRfmButton, OverdueTasksCard, PushToMetaDialog,
+} from "@/components/erp/crm/dashboard-extras";
+import { useCurrentRole } from "@/hooks/use-current-role";
 import { SEGMENT_LABELS, SEGMENT_TONES } from "@/lib/erp/crm/segments";
 import {
   listCrmCustomers, exportCrmCustomersCsv, listCrmTags,
@@ -81,7 +87,8 @@ const STATUSES: { value: "active" | "vip" | "at_risk" | "lost" | "blocked"; labe
 ];
 
 function CrmListPage() {
-  const { brandIds, isAllBrands, brands } = useBrand();
+  const { brandIds, isAllBrands, brands, activeBrand } = useBrand();
+  const { isAdmin } = useCurrentRole();
   const qc = useQueryClient();
   const listFn = useServerFn(listCrmCustomers);
   const exportFn = useServerFn(exportCrmCustomersCsv);
@@ -105,6 +112,8 @@ function CrmListPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [dense, setDense] = useState(true);
+  const [dupesOpen, setDupesOpen] = useState(false);
+  const [metaPushOpen, setMetaPushOpen] = useState(false);
 
   // Advanced filters
   const [advBrandIds, setAdvBrandIds] = useState<string[]>([]);
@@ -147,6 +156,27 @@ function CrmListPage() {
     setLastOrderFrom(""); setLastOrderTo("");
     setHasEmail("any");
     setPage(1);
+  };
+
+  // ----- Saved filters apply/snapshot -----
+  const filterSnapshot = {
+    search, type, segment, tag, sort,
+    advBrandIds, minSpend, maxSpend, lastOrderFrom, lastOrderTo, hasEmail,
+  };
+  const applySavedFilter = (f: Record<string, any>) => {
+    if (typeof f.search === "string") setSearch(f.search);
+    if (f.type) setType(f.type);
+    if (f.segment) setSegment(f.segment);
+    if (f.tag) setTag(f.tag);
+    if (f.sort) setSort(f.sort);
+    setAdvBrandIds(Array.isArray(f.advBrandIds) ? f.advBrandIds : []);
+    setMinSpend(f.minSpend ?? "");
+    setMaxSpend(f.maxSpend ?? "");
+    setLastOrderFrom(f.lastOrderFrom ?? "");
+    setLastOrderTo(f.lastOrderTo ?? "");
+    setHasEmail(f.hasEmail ?? "any");
+    setPage(1);
+    toast.success("Filter applied");
   };
 
   const queryKey = ["crm-list", filters, sort, page] as const;
@@ -292,6 +322,19 @@ function CrmListPage() {
           >
             {dense ? <Rows2 className="h-4 w-4" /> : <Rows3 className="h-4 w-4" />}
           </Button>
+          {isAdmin && <RecalculateRfmButton />}
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setDupesOpen(true)}>
+              <Users2 className="h-4 w-4 mr-1.5" />
+              Duplicates
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setMetaPushOpen(true)} disabled={isAllBrands}>
+              <Megaphone className="h-4 w-4 mr-1.5" />
+              Meta Audience
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4 mr-1.5" />
             Import
@@ -304,6 +347,8 @@ function CrmListPage() {
       </div>
 
       <CrmKpiCards kpis={data?.kpis} loading={isLoading} />
+
+      <OverdueTasksCard brandId={activeBrand?.id} />
 
       {/* Filters */}
       <Card>
@@ -353,6 +398,12 @@ function CrmListPage() {
               <SelectItem value="first_order_desc">Newest customer</SelectItem>
             </SelectContent>
           </Select>
+
+          <SavedFiltersMenu
+            brandId={activeBrand?.id}
+            currentFilters={filterSnapshot}
+            onApply={applySavedFilter}
+          />
 
           <Popover>
             <PopoverTrigger asChild>
@@ -704,6 +755,8 @@ function CrmListPage() {
       </AlertDialog>
 
       <CrmImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <FindDuplicatesSheet open={dupesOpen} onOpenChange={setDupesOpen} brandId={activeBrand?.id} />
+      <PushToMetaDialog open={metaPushOpen} onOpenChange={setMetaPushOpen} brandId={activeBrand?.id} />
     </div>
   );
 }
