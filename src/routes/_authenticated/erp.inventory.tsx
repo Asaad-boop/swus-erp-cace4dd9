@@ -184,8 +184,8 @@ function InventoryPage() {
                   const available = Number(r.available_stock ?? (r.stock - reserved));
                   const wac = Number(r.weighted_avg_cost ?? r.cost_price ?? 0);
                   return (
-                    <>
-                    <TableRow key={r.id}>
+                    <Fragment key={r.id}>
+                    <TableRow>
                       <TableCell className="p-1">
                         {hasVariants ? (
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleExpand(r.id)}>
