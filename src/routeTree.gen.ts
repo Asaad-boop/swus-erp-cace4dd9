@@ -28,6 +28,7 @@ import { Route as AuthenticatedErpDiagnosticsRouteImport } from './routes/_authe
 import { Route as AuthenticatedErpCrmRouteImport } from './routes/_authenticated/erp.crm'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
+import { Route as AuthenticatedErpPurchaseOrdersIndexRouteImport } from './routes/_authenticated/erp.purchase-orders.index'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
 import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
 import { Route as AuthenticatedErpImportsIndexRouteImport } from './routes/_authenticated/erp.imports.index'
@@ -41,6 +42,8 @@ import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/pub
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
 import { Route as AuthenticatedErpReconciliationInvoiceRouteImport } from './routes/_authenticated/erp.reconciliation.invoice'
+import { Route as AuthenticatedErpPurchaseOrdersNewRouteImport } from './routes/_authenticated/erp.purchase-orders.new'
+import { Route as AuthenticatedErpPurchaseOrdersPoIdRouteImport } from './routes/_authenticated/erp.purchase-orders.$poId'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
@@ -196,6 +199,12 @@ const AuthenticatedErpReconciliationIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedErpReconciliationRoute,
   } as any)
+const AuthenticatedErpPurchaseOrdersIndexRoute =
+  AuthenticatedErpPurchaseOrdersIndexRouteImport.update({
+    id: '/purchase-orders/',
+    path: '/purchase-orders/',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
 const AuthenticatedErpOrdersIndexRoute =
   AuthenticatedErpOrdersIndexRouteImport.update({
     id: '/',
@@ -270,6 +279,18 @@ const AuthenticatedErpReconciliationInvoiceRoute =
     id: '/invoice',
     path: '/invoice',
     getParentRoute: () => AuthenticatedErpReconciliationRoute,
+  } as any)
+const AuthenticatedErpPurchaseOrdersNewRoute =
+  AuthenticatedErpPurchaseOrdersNewRouteImport.update({
+    id: '/purchase-orders/new',
+    path: '/purchase-orders/new',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpPurchaseOrdersPoIdRoute =
+  AuthenticatedErpPurchaseOrdersPoIdRouteImport.update({
+    id: '/purchase-orders/$poId',
+    path: '/purchase-orders/$poId',
+    getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpOrdersWebRoute =
   AuthenticatedErpOrdersWebRouteImport.update({
@@ -644,6 +665,8 @@ export interface FileRoutesByFullPath {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
+  '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
@@ -657,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
   '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -719,6 +743,8 @@ export interface FileRoutesByTo {
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
+  '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
@@ -732,6 +758,7 @@ export interface FileRoutesByTo {
   '/erp/imports': typeof AuthenticatedErpImportsIndexRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
+  '/erp/purchase-orders': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationIndexRoute
   '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -807,6 +834,8 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
+  '/_authenticated/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
+  '/_authenticated/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/_authenticated/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
@@ -820,6 +849,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
   '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
+  '/_authenticated/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/_authenticated/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
   '/_authenticated/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/_authenticated/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -895,6 +925,8 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/erp/purchase-orders/$poId'
+    | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
@@ -908,6 +940,7 @@ export interface FileRouteTypes {
     | '/erp/imports/'
     | '/erp/marketing/'
     | '/erp/orders/'
+    | '/erp/purchase-orders/'
     | '/erp/reconciliation/'
     | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
@@ -970,6 +1003,8 @@ export interface FileRouteTypes {
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/web'
+    | '/erp/purchase-orders/$poId'
+    | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
@@ -983,6 +1018,7 @@ export interface FileRouteTypes {
     | '/erp/imports'
     | '/erp/marketing'
     | '/erp/orders'
+    | '/erp/purchase-orders'
     | '/erp/reconciliation'
     | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
@@ -1057,6 +1093,8 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/web'
+    | '/_authenticated/erp/purchase-orders/$poId'
+    | '/_authenticated/erp/purchase-orders/new'
     | '/_authenticated/erp/reconciliation/invoice'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
@@ -1070,6 +1108,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/imports/'
     | '/_authenticated/erp/marketing/'
     | '/_authenticated/erp/orders/'
+    | '/_authenticated/erp/purchase-orders/'
     | '/_authenticated/erp/reconciliation/'
     | '/_authenticated/erp/hr/attendance/muster'
     | '/_authenticated/erp/hr/employees/$id'
@@ -1236,6 +1275,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpReconciliationIndexRouteImport
       parentRoute: typeof AuthenticatedErpReconciliationRoute
     }
+    '/_authenticated/erp/purchase-orders/': {
+      id: '/_authenticated/erp/purchase-orders/'
+      path: '/purchase-orders'
+      fullPath: '/erp/purchase-orders/'
+      preLoaderRoute: typeof AuthenticatedErpPurchaseOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
     '/_authenticated/erp/orders/': {
       id: '/_authenticated/erp/orders/'
       path: '/'
@@ -1326,6 +1372,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/reconciliation/invoice'
       preLoaderRoute: typeof AuthenticatedErpReconciliationInvoiceRouteImport
       parentRoute: typeof AuthenticatedErpReconciliationRoute
+    }
+    '/_authenticated/erp/purchase-orders/new': {
+      id: '/_authenticated/erp/purchase-orders/new'
+      path: '/purchase-orders/new'
+      fullPath: '/erp/purchase-orders/new'
+      preLoaderRoute: typeof AuthenticatedErpPurchaseOrdersNewRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/purchase-orders/$poId': {
+      id: '/_authenticated/erp/purchase-orders/$poId'
+      path: '/purchase-orders/$poId'
+      fullPath: '/erp/purchase-orders/$poId'
+      preLoaderRoute: typeof AuthenticatedErpPurchaseOrdersPoIdRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/orders/web': {
       id: '/_authenticated/erp/orders/web'
@@ -1982,6 +2042,9 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
+  AuthenticatedErpPurchaseOrdersPoIdRoute: typeof AuthenticatedErpPurchaseOrdersPoIdRoute
+  AuthenticatedErpPurchaseOrdersNewRoute: typeof AuthenticatedErpPurchaseOrdersNewRoute
+  AuthenticatedErpPurchaseOrdersIndexRoute: typeof AuthenticatedErpPurchaseOrdersIndexRoute
 }
 
 const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
@@ -2000,6 +2063,12 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
+  AuthenticatedErpPurchaseOrdersPoIdRoute:
+    AuthenticatedErpPurchaseOrdersPoIdRoute,
+  AuthenticatedErpPurchaseOrdersNewRoute:
+    AuthenticatedErpPurchaseOrdersNewRoute,
+  AuthenticatedErpPurchaseOrdersIndexRoute:
+    AuthenticatedErpPurchaseOrdersIndexRoute,
 }
 
 const AuthenticatedErpRouteWithChildren =
