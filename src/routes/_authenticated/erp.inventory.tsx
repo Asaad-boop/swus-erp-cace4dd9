@@ -39,6 +39,7 @@ import {
 } from "@/lib/erp/inventory";
 import { downloadCsv } from "@/lib/erp/orders";
 import { StockAdjustDialog } from "@/components/erp/inventory/stock-adjust-dialog";
+import { ProductEditDialog } from "@/components/erp/inventory/product-edit-dialog";
 
 export const Route = createFileRoute("/_authenticated/erp/inventory")({
   head: () => ({ meta: [{ title: "Inventory — ERP" }] }),
@@ -70,6 +71,7 @@ function InventoryPage() {
 
   const [adjust, setAdjust] = useState<{ product: ProductRow; mode: "in" | "out" } | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductRow | null>(null);
+  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((s) => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -404,11 +406,11 @@ function InventoryPage() {
                               <DropdownMenuItem onClick={() => setHistoryProduct(r)}>
                                 <History className="h-4 w-4 mr-2" />View Movements
                               </DropdownMenuItem>
-                              <DropdownMenuItem disabled>
-                                <Edit3 className="h-4 w-4 mr-2" />Edit Product
+                              <DropdownMenuItem onClick={() => setEditProduct(r)}>
+                                <Edit3 className="h-4 w-4 mr-2 text-blue-600" />Edit Product
                               </DropdownMenuItem>
-                              <DropdownMenuItem disabled>
-                                <AlertCircle className="h-4 w-4 mr-2" />Set Reorder Point
+                              <DropdownMenuItem onClick={() => setEditProduct(r)}>
+                                <AlertCircle className="h-4 w-4 mr-2 text-amber-600" />Set Reorder Point
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -595,6 +597,11 @@ function InventoryPage() {
       />
 
       <ProductHistorySheet product={historyProduct} onClose={() => setHistoryProduct(null)} brandId={activeBrand?.id ?? null} />
+
+      <ProductEditDialog
+        product={editProduct}
+        onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
+      />
     </div>
   );
 }
