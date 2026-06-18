@@ -7448,6 +7448,21 @@ export type Database = {
         }
         Returns: Json
       }
+      adjust_stock_v2: {
+        Args: {
+          _delta: number
+          _idempotency_key?: string
+          _note?: string
+          _product_id: string
+          _reason: string
+          _reference_id?: string
+          _reference_type?: string
+          _source?: string
+          _unit_cost?: number
+          _variant_id: string
+        }
+        Returns: string
+      }
       admin_rls_audit: {
         Args: never
         Returns: {
