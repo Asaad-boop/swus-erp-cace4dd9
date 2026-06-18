@@ -282,9 +282,9 @@ export const finalizeStocktake = createServerFn({ method: "POST" })
       if (variance === 0) continue;
       if (!it.product_id) continue;
 
-      const { error: adjErr } = await supabase.rpc("adjust_stock_v2", {
+      const { error: adjErr } = await supabase.rpc("adjust_stock_v2", ({
         _product_id: it.product_id,
-        _variant_id: it.variant_id ?? undefined,
+        _variant_id: it.variant_id ?? null,
         _delta: variance,
         _reason: "stocktake",
         _note: `Stocktake adjustment`,
@@ -293,7 +293,7 @@ export const finalizeStocktake = createServerFn({ method: "POST" })
         _reference_type: "stocktake_session",
         _reference_id: data.session_id,
         _idempotency_key: `stocktake:${it.id}`,
-      });
+      } as any));
       if (adjErr) {
         // fail-soft: log skipped, continue
         skipped.push(`${it.id}: ${adjErr.message}`);
