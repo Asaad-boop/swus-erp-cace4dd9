@@ -3,7 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users, UserCog,
   TrendingDown, TrendingUp, ArrowLeftRight, PackagePlus, Receipt, Zap, Megaphone, Container, FileSpreadsheet, Heart, BriefcaseBusiness,
-  ChevronsLeft, Sparkles, ClipboardList,
+  ChevronsLeft, Sparkles, ClipboardList, ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
@@ -34,6 +34,7 @@ const groups: NavGroup[] = [
     items: [
       { to: "/erp/inventory", label: "Inventory", icon: Boxes },
       { to: "/erp/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
+      { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
       { to: "/erp/courier", label: "Courier", icon: Truck },
       { to: "/erp/reconciliation", label: "Reconciliation", icon: FileSpreadsheet },
       { to: "/erp/suppliers", label: "Suppliers", icon: Users },
