@@ -38,6 +38,7 @@ import { Route as AuthenticatedErpImportsIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedErpHrIndexRouteImport } from './routes/_authenticated/erp.hr.index'
 import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
 import { Route as AuthenticatedErpCrmIndexRouteImport } from './routes/_authenticated/erp.crm.index'
+import { Route as AuthenticatedErpAnalyticsIndexRouteImport } from './routes/_authenticated/erp.analytics.index'
 import { Route as ApiPublicWebhookPathaoRouteImport } from './routes/api/public/webhook.pathao'
 import { Route as ApiPublicMktTrackerDotjsRouteImport } from './routes/api/public/mkt.tracker[.]js'
 import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.track'
@@ -263,6 +264,12 @@ const AuthenticatedErpCrmIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedErpCrmRoute,
+  } as any)
+const AuthenticatedErpAnalyticsIndexRoute =
+  AuthenticatedErpAnalyticsIndexRouteImport.update({
+    id: '/analytics/',
+    path: '/analytics/',
+    getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const ApiPublicWebhookPathaoRoute = ApiPublicWebhookPathaoRouteImport.update({
   id: '/api/public/webhook/pathao',
@@ -721,6 +728,7 @@ export interface FileRoutesByFullPath {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/erp/analytics/': typeof AuthenticatedErpAnalyticsIndexRoute
   '/erp/crm/': typeof AuthenticatedErpCrmIndexRoute
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr/': typeof AuthenticatedErpHrIndexRoute
@@ -805,6 +813,7 @@ export interface FileRoutesByTo {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/erp/analytics': typeof AuthenticatedErpAnalyticsIndexRoute
   '/erp/crm': typeof AuthenticatedErpCrmIndexRoute
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr': typeof AuthenticatedErpHrIndexRoute
@@ -902,6 +911,7 @@ export interface FileRoutesById {
   '/api/public/mkt/track': typeof ApiPublicMktTrackRoute
   '/api/public/mkt/tracker.js': typeof ApiPublicMktTrackerDotjsRoute
   '/api/public/webhook/pathao': typeof ApiPublicWebhookPathaoRoute
+  '/_authenticated/erp/analytics/': typeof AuthenticatedErpAnalyticsIndexRoute
   '/_authenticated/erp/crm/': typeof AuthenticatedErpCrmIndexRoute
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/hr/': typeof AuthenticatedErpHrIndexRoute
@@ -999,6 +1009,7 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
+    | '/erp/analytics/'
     | '/erp/crm/'
     | '/erp/finance/'
     | '/erp/hr/'
@@ -1083,6 +1094,7 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
+    | '/erp/analytics'
     | '/erp/crm'
     | '/erp/finance'
     | '/erp/hr'
@@ -1179,6 +1191,7 @@ export interface FileRouteTypes {
     | '/api/public/mkt/track'
     | '/api/public/mkt/tracker.js'
     | '/api/public/webhook/pathao'
+    | '/_authenticated/erp/analytics/'
     | '/_authenticated/erp/crm/'
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/hr/'
@@ -1422,6 +1435,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/crm/'
       preLoaderRoute: typeof AuthenticatedErpCrmIndexRouteImport
       parentRoute: typeof AuthenticatedErpCrmRoute
+    }
+    '/_authenticated/erp/analytics/': {
+      id: '/_authenticated/erp/analytics/'
+      path: '/analytics'
+      fullPath: '/erp/analytics/'
+      preLoaderRoute: typeof AuthenticatedErpAnalyticsIndexRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
     }
     '/api/public/webhook/pathao': {
       id: '/api/public/webhook/pathao'
@@ -2169,6 +2189,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpPurchaseOrdersNewRoute: typeof AuthenticatedErpPurchaseOrdersNewRoute
   AuthenticatedErpStocktakeSessionIdRoute: typeof AuthenticatedErpStocktakeSessionIdRoute
   AuthenticatedErpStocktakeNewRoute: typeof AuthenticatedErpStocktakeNewRoute
+  AuthenticatedErpAnalyticsIndexRoute: typeof AuthenticatedErpAnalyticsIndexRoute
   AuthenticatedErpPurchaseOrdersIndexRoute: typeof AuthenticatedErpPurchaseOrdersIndexRoute
   AuthenticatedErpStocktakeIndexRoute: typeof AuthenticatedErpStocktakeIndexRoute
 }
@@ -2199,6 +2220,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpStocktakeSessionIdRoute:
     AuthenticatedErpStocktakeSessionIdRoute,
   AuthenticatedErpStocktakeNewRoute: AuthenticatedErpStocktakeNewRoute,
+  AuthenticatedErpAnalyticsIndexRoute: AuthenticatedErpAnalyticsIndexRoute,
   AuthenticatedErpPurchaseOrdersIndexRoute:
     AuthenticatedErpPurchaseOrdersIndexRoute,
   AuthenticatedErpStocktakeIndexRoute: AuthenticatedErpStocktakeIndexRoute,

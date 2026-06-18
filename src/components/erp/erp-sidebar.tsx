@@ -3,7 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users, UserCog,
   TrendingDown, TrendingUp, ArrowLeftRight, PackagePlus, Receipt, Zap, Megaphone, Container, FileSpreadsheet, Heart, BriefcaseBusiness,
-  ChevronsLeft, Sparkles, ClipboardList, ClipboardCheck, PackageSearch, Activity,
+  ChevronsLeft, Sparkles, ClipboardList, ClipboardCheck, PackageSearch, Activity, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
@@ -49,6 +49,7 @@ const groups: NavGroup[] = [
   {
     label: "Growth",
     items: [
+      { to: "/erp/analytics", label: "Analytics", icon: BarChart3, exact: true },
       { to: "/erp/analytics/live", label: "Live Analytics", icon: Activity },
       { to: "/erp/marketing", label: "Marketing", icon: Megaphone },
       { to: "/erp/crm", label: "CRM", icon: Heart },
