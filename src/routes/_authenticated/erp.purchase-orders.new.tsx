@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus, Trash2, Save, Loader2, ClipboardList, Boxes, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
@@ -62,6 +62,32 @@ function NewLocalPoPage() {
     { id: uid(), picked: emptyPick(), description: "", ordered_qty: 1, unit_cost: 0 },
   ]);
 
+  // Hydrate prefill from sessionStorage (e.g. coming from Reorder Queue)
+  const [prefillSuggestionIds, setPrefillSuggestionIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem("local-po-prefill");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Array<{
+        product_id: string; title: string; sku: string | null;
+        ordered_qty: number; unit_cost: number; suggestion_id?: string;
+      }>;
+      if (Array.isArray(parsed) && parsed.length) {
+        setItems(parsed.map((p) => ({
+          id: uid(),
+          picked: { id: p.product_id, title: p.title, sku: p.sku, image: null },
+          description: p.title,
+          ordered_qty: p.ordered_qty,
+          unit_cost: p.unit_cost,
+        })));
+        setPrefillSuggestionIds(parsed.map((p) => p.suggestion_id).filter(Boolean) as string[]);
+        toast.success(`Loaded ${parsed.length} item${parsed.length > 1 ? "s" : ""} from reorder queue`);
+      }
+    } catch { /* ignore */ }
+    sessionStorage.removeItem("local-po-prefill");
+  }, []);
+
   const subtotal = items.reduce((s, i) => s + i.ordered_qty * i.unit_cost, 0);
   const total = subtotal - discount + tax + shipping;
 
@@ -92,8 +118,15 @@ function NewLocalPoPage() {
       };
       return await createFn({ data: payload });
     },
-    onSuccess: (res: any) => {
+    onSuccess: async (res: any) => {
       toast.success(`PO ${res.po_number} created`);
+      // Mark linked reorder suggestions as processed (fail-soft)
+      if (prefillSuggestionIds.length) {
+        try {
+          const { bulkUpdateReorderSuggestions } = await import("@/lib/erp/inventory/reports.functions");
+          await bulkUpdateReorderSuggestions({ data: { ids: prefillSuggestionIds, status: "processed" } });
+        } catch { /* ignore */ }
+      }
       navigate({ to: "/erp/purchase-orders/$poId", params: { poId: res.po_id } });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to create PO"),
