@@ -951,7 +951,6 @@ export interface FileRouteTypes {
     | '/erp/users'
     | '/erp/'
     | '/erp/analytics/live'
-    | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
@@ -1038,7 +1037,6 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp/users'
     | '/erp'
-    | '/erp/analytics/live'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
@@ -1132,7 +1130,6 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
     | '/_authenticated/erp/'
-    | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
@@ -1284,6 +1281,13 @@ declare module '@tanstack/react-router' {
       path: '/reorder-queue'
       fullPath: '/erp/reorder-queue'
       preLoaderRoute: typeof AuthenticatedErpReorderQueueRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/analytics/live': {
+      id: '/_authenticated/erp/analytics/live'
+      path: '/analytics/live'
+      fullPath: '/erp/analytics/live'
+      preLoaderRoute: typeof AuthenticatedErpAnalyticsLiveRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/reconciliation': {
