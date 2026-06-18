@@ -88,6 +88,7 @@ import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_auth
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpCrmCustomerIdRouteImport } from './routes/_authenticated/erp.crm.$customerId'
 import { Route as AuthenticatedErpAnalyticsLiveRouteImport } from './routes/_authenticated/erp.analytics.live'
+import { Route as AuthenticatedErpAnalyticsIndexRouteImport } from './routes/_authenticated/erp.analytics.index'
 import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './routes/_authenticated/erp.marketing.campaigns.index'
 import { Route as AuthenticatedErpImportsOrdersIndexRouteImport } from './routes/_authenticated/erp.imports.orders.index'
 import { Route as AuthenticatedErpHrPayrollIndexRouteImport } from './routes/_authenticated/erp.hr.payroll.index'
@@ -560,6 +561,12 @@ const AuthenticatedErpAnalyticsLiveRoute =
   AuthenticatedErpAnalyticsLiveRouteImport.update({
     id: '/analytics/live',
     path: '/analytics/live',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpAnalyticsIndexRoute =
+  AuthenticatedErpAnalyticsIndexRouteImport.update({
+    id: '/analytics/',
+    path: '/analytics/',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpMarketingCampaignsIndexRoute =
