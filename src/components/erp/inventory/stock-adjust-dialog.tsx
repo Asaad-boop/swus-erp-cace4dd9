@@ -44,11 +44,11 @@ export function StockAdjustDialog({ product, mode, onClose, initialVariantId = n
       const uc = unitCost ? Number(unitCost) : null;
       const { error } = await supabase.rpc("adjust_stock_v2", {
         _product_id: product.id,
-        _variant_id: variantId,
+        _variant_id: variantId ?? undefined,
         _delta: delta,
         _reason: reason,
-        _note: note || null,
-        _unit_cost: uc,
+        _note: note || undefined,
+        _unit_cost: uc ?? undefined,
         _source: "manual",
       });
       if (error) throw error;
