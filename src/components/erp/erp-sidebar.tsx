@@ -3,7 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, ListOrdered, Boxes, Wallet, Truck, Settings, Users, UserCog,
   TrendingDown, TrendingUp, ArrowLeftRight, PackagePlus, Receipt, Zap, Megaphone, Container, FileSpreadsheet, Heart, BriefcaseBusiness,
-  ChevronsLeft, Sparkles,
+  ChevronsLeft, Sparkles, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
