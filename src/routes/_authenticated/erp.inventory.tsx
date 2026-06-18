@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, Fragment } from "react";
-import { Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes, AlertTriangle, Wallet, ChevronRight, ChevronDown } from "lucide-react";
+import { Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes, AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,9 +102,14 @@ function InventoryPage() {
             {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · {total.toLocaleString()} products
           </p>
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={!rows.length}>
-          <Download className="h-4 w-4 mr-1" />CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link to="/erp/inventory-reports">
+            <Button variant="outline"><BarChart3 className="h-4 w-4 mr-1" />Reports</Button>
+          </Link>
+          <Button variant="outline" onClick={handleExport} disabled={!rows.length}>
+            <Download className="h-4 w-4 mr-1" />CSV
+          </Button>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
