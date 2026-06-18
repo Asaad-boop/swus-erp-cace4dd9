@@ -111,7 +111,8 @@ const PRIORITY_TONE: Record<string, string> = {
 function CrmCustomerPage() {
   const { customerId } = Route.useParams();
   const qc = useQueryClient();
-  const { brands, activeBrandId } = useBrand();
+  const { brands, activeBrand } = useBrand();
+  const activeBrandId = activeBrand?.id ?? null;
   const brandNameById = useMemo(() => new Map(brands.map((b) => [b.id, b.name] as const)), [brands]);
 
   const getFn = useServerFn(getCrmCustomer);
