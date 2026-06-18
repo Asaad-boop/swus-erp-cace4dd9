@@ -18,7 +18,6 @@ import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpReorderQueueRouteImport } from './routes/_authenticated/erp.reorder-queue'
-import { Route as AuthenticatedErpAnalyticsLiveRouteImport } from './routes/_authenticated/erp.analytics.live'
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
@@ -150,12 +149,6 @@ const AuthenticatedErpReorderQueueRoute =
   AuthenticatedErpReorderQueueRouteImport.update({
     id: '/reorder-queue',
     path: '/reorder-queue',
-    getParentRoute: () => AuthenticatedErpRoute,
-  } as any)
-const AuthenticatedErpAnalyticsLiveRoute =
-  AuthenticatedErpAnalyticsLiveRouteImport.update({
-    id: '/analytics/live',
-    path: '/analytics/live',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpReconciliationRoute =
@@ -680,6 +673,7 @@ export interface FileRoutesByFullPath {
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
+  '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
@@ -766,6 +760,7 @@ export interface FileRoutesByTo {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -860,6 +855,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
