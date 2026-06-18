@@ -673,7 +673,6 @@ export interface FileRoutesByFullPath {
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
-  '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
@@ -760,7 +759,6 @@ export interface FileRoutesByTo {
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
-  '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -855,7 +853,6 @@ export interface FileRoutesById {
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
-  '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -954,6 +951,7 @@ export interface FileRouteTypes {
     | '/erp/users'
     | '/erp/'
     | '/erp/analytics/live'
+    | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/audit'
@@ -1040,6 +1038,7 @@ export interface FileRouteTypes {
     | '/erp/suppliers'
     | '/erp/users'
     | '/erp'
+    | '/erp/analytics/live'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
@@ -1133,6 +1132,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
     | '/_authenticated/erp/'
+    | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
