@@ -426,6 +426,90 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
     };
   });
 
+/* --- Cost Analysis Report --- */
+
+export const getImportCostAnalysis = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; dateFrom?: string; dateTo?: string }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("imp_purchase_orders")
+      .select(`
+        id, po_number, order_date,
+        fx_rate_cny_bdt, freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
+        total_units, landed_cost_per_unit_bdt, grand_total_bdt,
+        supplier:supplier_id ( id, name ),
+        items:imp_po_items (
+          id, product_id, quantity, unit_cost_cny, unit_cost_bdt, landed_cost_bdt,
+          product:product_id ( id, name, price )
+        )
+      `)
+      .eq("brand_id", data.brandId)
+      .order("order_date", { ascending: true })
+      .limit(500);
+    if (data.dateFrom) q = q.gte("order_date", data.dateFrom);
+    if (data.dateTo) q = q.lte("order_date", data.dateTo);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+
+    return (rows ?? []).map((po: any) => {
+      const items = po.items ?? [];
+      const total_units = items.reduce((s: number, it: any) => s + Number(it.quantity || 0), 0)
+        || Number(po.total_units || 0);
+      const product_cost_cny = items.reduce((s: number, it: any) =>
+        s + Number(it.unit_cost_cny || 0) * Number(it.quantity || 0), 0);
+      const fx = Number(po.fx_rate_cny_bdt || 0);
+      const product_cost_bdt = items.reduce((s: number, it: any) =>
+        s + Number(it.unit_cost_bdt || 0) * Number(it.quantity || 0), 0)
+        || product_cost_cny * fx;
+      const freight = Number(po.freight_cost_bdt || 0);
+      const customs = Number(po.customs_duty_bdt || 0);
+      const other = Number(po.other_charges_bdt || 0);
+      const total_landed = product_cost_bdt + freight + customs + other;
+      const landed_per_unit = Number(po.landed_cost_per_unit_bdt || 0)
+        || (total_units > 0 ? total_landed / total_units : 0);
+
+      // weighted avg sell price across items
+      let weightedPrice = 0, weight = 0;
+      const productNames: string[] = [];
+      items.forEach((it: any) => {
+        const qty = Number(it.quantity || 0);
+        const price = Number(it.product?.price || 0);
+        if (price > 0 && qty > 0) { weightedPrice += price * qty; weight += qty; }
+        if (it.product?.name) productNames.push(it.product.name);
+      });
+      const avg_sell_price = weight > 0 ? weightedPrice / weight : 0;
+      const margin_pct = avg_sell_price > 0
+        ? ((avg_sell_price - landed_per_unit) / avg_sell_price) * 100
+        : 0;
+
+      return {
+        po_id: po.id,
+        po_number: po.po_number,
+        order_date: po.order_date,
+        supplier_name: po.supplier?.name ?? "—",
+        total_units,
+        product_cost_cny: +product_cost_cny.toFixed(2),
+        fx_rate_cny_bdt: fx,
+        product_cost_bdt: +product_cost_bdt.toFixed(2),
+        freight_cost_bdt: freight,
+        customs_duty_bdt: customs,
+        other_charges_bdt: other,
+        total_landed_cost_bdt: +total_landed.toFixed(2),
+        landed_cost_per_unit_bdt: +landed_per_unit.toFixed(2),
+        avg_sell_price: +avg_sell_price.toFixed(2),
+        margin_pct: +margin_pct.toFixed(2),
+        product_names: productNames,
+      };
+    });
+  });
+
 /* --- Product picker + quick create (for New PO page) --- */
 
 export const listProductsForPicker = createServerFn({ method: "POST" })
