@@ -158,14 +158,15 @@ function SupplierDialog({ initial, onClose, onSave }: { initial: any; onClose: (
 }
 /* ----------------------- Cargo Agents (additive) ----------------------- */
 
-function CargoAgentsSection({ brandId }: { brandId: string }) {
+function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listCargoAgents);
   const upsertFn = useServerFn(upsertCargoAgent);
+  const brandKey = brandIds.join(",");
   const { data: agents = [] } = useQuery({
-    queryKey: ["imp-cargo-agents", brandId],
-    queryFn: () => listFn({ data: { brandId } }),
-    enabled: !!brandId,
+    queryKey: ["imp-cargo-agents", brandKey],
+    queryFn: () => listFn({ data: { brandIds } }),
+    enabled: brandIds.length > 0,
   });
   const [editing, setEditing] = useState<any | null>(null);
 
@@ -186,6 +187,7 @@ function CargoAgentsSection({ brandId }: { brandId: string }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-semibold truncate">{a.name}</div>
+                {a.brand?.name && <Badge variant="outline" className="text-[10px] mt-0.5">{a.brand.name}</Badge>}
                 {a.contact_person && <div className="text-xs text-muted-foreground truncate">{a.contact_person}</div>}
                 {a.phone && <div className="text-xs text-muted-foreground">{a.phone}</div>}
               </div>
@@ -200,8 +202,8 @@ function CargoAgentsSection({ brandId }: { brandId: string }) {
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  await upsertFn({ data: { id: a.id, brandId, name: a.name, contact_person: a.contact_person ?? undefined, phone: a.phone ?? undefined, address: a.address ?? undefined, notes: a.notes ?? undefined, is_active: !a.is_active } });
-                  qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandId] });
+                  await upsertFn({ data: { id: a.id, brandId: a.brand_id ?? a.brand?.id ?? brandIds[0], name: a.name, contact_person: a.contact_person ?? undefined, phone: a.phone ?? undefined, address: a.address ?? undefined, notes: a.notes ?? undefined, is_active: !a.is_active } });
+                  qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
                   toast.success(a.is_active ? "Deactivated" : "Activated");
                 }}
               >
@@ -216,8 +218,10 @@ function CargoAgentsSection({ brandId }: { brandId: string }) {
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={async (p) => {
-            await upsertFn({ data: { ...p, brandId } });
-            qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandId] });
+            const targetBrand = editing?.brand_id ?? editing?.brand?.id ?? brandIds[0];
+            if (!targetBrand) { toast.error("No brand available"); return; }
+            await upsertFn({ data: { ...p, brandId: targetBrand } });
+            qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
             toast.success("Cargo agent saved");
             setEditing(null);
           }}
