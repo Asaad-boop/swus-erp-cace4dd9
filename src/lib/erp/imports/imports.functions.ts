@@ -887,8 +887,8 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
 
       if (usable > 0) {
         const { data: movId, error: aErr } = await context.supabase.rpc("adjust_stock_v2", {
-          _product_id: it.product_id,
-          _variant_id: it.variant_id,
+          _product_id: it.product_id as string,
+          _variant_id: it.variant_id as string,
           _delta: usable,
           _reason: "import_receive",
           _source: "import",
@@ -916,12 +916,11 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
     if (damagedLogs.length > 0) {
       try {
         await context.supabase.from("activity_log").insert({
-          brand_id: (po as any).brand_id,
-          user_id: context.userId,
-          action: "import_carton_damaged",
           entity_type: "imp_carton",
           entity_id: data.carton_id,
-          metadata: { damaged: damagedLogs },
+          action: "import_carton_damaged",
+          performed_by: context.userId,
+          details: { damaged: damagedLogs, brand_id: (po as any).brand_id } as any,
         });
       } catch { /* non-fatal */ }
     }
