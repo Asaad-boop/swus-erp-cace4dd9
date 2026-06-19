@@ -328,6 +328,7 @@ function PoDetailPage() {
               poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
               poFxRate={poFxRate}
               poOtherCharges={poOtherCharges}
+                poCommissionPerUnit={poCommissionPerUnit}
               poTotalUsableUnits={poTotalUsableUnits}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
             />
