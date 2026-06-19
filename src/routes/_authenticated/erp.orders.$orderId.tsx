@@ -4,7 +4,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
   Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
-  ChevronLeft, ChevronRight, RotateCcw, Repeat,
+  ChevronLeft, ChevronRight, RotateCcw, Repeat, Copy, Check,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -49,6 +49,30 @@ function normalizePhone(raw: string) {
 
 function bdtCompact(n: number) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+function CopyChip({ value, className, children }: { value: string; className?: string; children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          toast.success("Copied to clipboard");
+          setTimeout(() => setCopied(false), 1200);
+        }).catch(() => toast.error("Copy failed"));
+      }}
+      className={cn("group inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-gray-100 dark:hover:bg-muted/50 transition-colors", className)}
+      title="Click to copy"
+    >
+      {children}
+      {copied
+        ? <Check className="h-3 w-3 text-emerald-600" />
+        : <Copy className="h-3 w-3 text-gray-300 group-hover:text-gray-500 transition-colors" />}
+    </button>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -887,20 +911,26 @@ function OrderDetailsPage() {
             <span className="h-4 w-px bg-gray-200 dark:bg-border" />
             <div className="flex items-baseline gap-2 min-w-0">
               <span className="text-[11px] uppercase tracking-wider text-gray-500">Order</span>
-              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
+              <CopyChip value={invoiceDisplay(order)} className="-mx-1">
+                <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
+              </CopyChip>
               <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] hidden sm:inline-flex", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
             </div>
             {neighbors.total > 0 && (
               <div className="flex items-center gap-1 ml-2">
                 <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
                   onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
-                  title="Previous (←)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+                  title="Previous order (← arrow key)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
                 <span className="text-[10px] text-gray-500 tabular-nums px-1">
                   {neighbors.index + 1}/{neighbors.total}
                 </span>
                 <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
                   onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
-                  title="Next (→)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+                  title="Next order (→ arrow key)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+                <span className="hidden lg:inline-flex items-center gap-0.5 ml-1.5 text-[9px] text-gray-400">
+                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">←</kbd>
+                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">→</kbd>
+                </span>
               </div>
             )}
           </div>
@@ -1274,7 +1304,13 @@ function OrderDetailsPage() {
 
           {/* Contact info */}
           <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-gray-500">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-gray-500">Mobile:</span>
+              <CopyChip value={`+88${form.mobile}`} className="-mx-1">
+                <span className="font-mono">+88{form.mobile}</span>
+              </CopyChip>
+            </div>
             <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-gray-400" /><span className="text-gray-500">Device:</span><span className="capitalize">{sessionInfo?.device_type || "Not tracked"}</span></div>
           </section>
 
