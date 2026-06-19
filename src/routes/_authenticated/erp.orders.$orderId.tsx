@@ -373,6 +373,7 @@ function OrderDetailsPage() {
     note_input: "", tag_input: "",
   });
   const [baseline, setBaseline] = useState<typeof form | null>(null);
+  const [formReady, setFormReady] = useState(false);
 
   useEffect(() => {
     if (!order) return;
@@ -401,6 +402,7 @@ function OrderDetailsPage() {
       return next;
     });
     setDraftWebStatus((order.web_status as WebStatus) ?? "");
+    setFormReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
