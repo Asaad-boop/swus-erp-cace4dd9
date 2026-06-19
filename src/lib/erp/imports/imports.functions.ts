@@ -71,6 +71,7 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         fx_rate_cny_bdt, fx_rate_locked_at, fx_rate_source,
         freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
         total_units, landed_cost_per_unit_bdt,
+        shipping_weight_kg, shipping_rate_per_kg, shipping_cost_bdt,
         supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
@@ -81,9 +82,10 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
       context.supabase.from("imp_cartons").select(`
         id, carton_number, barcode, expected_quantity,
         supplier_cost_bdt, shipping_charge_bdt, local_courier_bdt, total_landed_bdt,
-        weight_kg, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
+        weight_kg, cost_share_bdt, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
         items:imp_carton_items ( id, po_item_id, product_id, variant_id, sku_snapshot,
-          quantity_expected, quantity_ok, quantity_damaged, quantity_missing )
+          quantity_expected, quantity_ok, quantity_damaged, quantity_missing,
+          received_qty, damaged_qty, usable_qty )
       `).eq("po_id", data.poId).order("carton_number"),
       context.supabase.from("imp_payments").select(`
         id, carton_id, payment_type, amount_bdt, wallet_id, payment_date, reference,
