@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Sparkles, Star, AlertTriangle, Repeat } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
