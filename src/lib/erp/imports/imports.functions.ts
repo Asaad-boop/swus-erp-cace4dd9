@@ -856,12 +856,13 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
     // Load PO for fx + other_charges + brand
     const { data: po, error: pErr } = await context.supabase
       .from("imp_purchase_orders")
-      .select("id, brand_id, fx_rate_cny_bdt, fx_rate, other_charges_bdt")
+      .select("id, brand_id, fx_rate_cny_bdt, fx_rate, other_charges_bdt, agent_commission_per_unit_bdt")
       .eq("id", (carton as any).po_id)
       .maybeSingle();
     if (pErr) throw pErr;
     if (!po) throw new Error("PO not found");
     const fx = Number((po as any).fx_rate_cny_bdt ?? (po as any).fx_rate ?? 0);
+    const commissionPerUnit = Number((po as any).agent_commission_per_unit_bdt ?? 0);
 
     // Load po_items for unit_cost_cny
     const poItemIds = list.map((r: any) => r.po_item_id).filter(Boolean);
@@ -896,7 +897,7 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
       const pi = piMap.get(it.po_item_id);
       const unitCny = Number(pi?.unit_cost_cny ?? pi?.unit_cost_foreign ?? 0);
       const productCost = unitCny * fx;
-      const landed = +(productCost + shipPerUnit + otherPerUnit).toFixed(4);
+      const landed = +(productCost + shipPerUnit + otherPerUnit + commissionPerUnit).toFixed(4);
 
       if (usable > 0) {
         const { data: movId, error: aErr } = await context.supabase.rpc("adjust_stock_v2", {
@@ -953,6 +954,7 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
         usable_units: totalUsableInCarton,
         ship_per_unit: +shipPerUnit.toFixed(4),
         other_per_unit: +otherPerUnit.toFixed(4),
+        commission_per_unit: +commissionPerUnit.toFixed(4),
       },
     };
   });
