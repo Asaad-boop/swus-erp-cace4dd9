@@ -992,7 +992,7 @@ function _WebOrdersPageBody() {
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 10 }).map((_, j) => (
-                    <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
+                    <TableCell key={j} className="py-2"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
@@ -1030,7 +1030,7 @@ function _WebOrdersPageBody() {
                     onClick={() => setOpenId(r.id)}
                   >
                     {/* Select */}
-                    <TableCell className="py-4 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(r.id)}
@@ -1038,7 +1038,7 @@ function _WebOrdersPageBody() {
                       />
                     </TableCell>
                     {/* Created */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex gap-2">
                         <div className={cn("w-1 rounded-full self-stretch", accent)} />
                         <div className="text-xs">
@@ -1052,7 +1052,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Customer */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div>
                         <div className="min-w-0 text-xs space-y-0.5">
                           <div className="flex items-center gap-1 min-w-0 flex-wrap">
@@ -1082,7 +1082,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Note */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       {note ? (
                         <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-card border border-amber-200/70 dark:border-amber-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_-1px_0_rgba(0,0,0,0.02)] hover:border-amber-300 dark:hover:border-amber-800 hover:shadow-md transition-all">
                           <div className="mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 shadow-inner">
@@ -1103,7 +1103,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Order Items */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex items-start gap-2">
                         <div className="flex -space-x-2">
                           {items.slice(0, 3).map((it, i) => (
@@ -1184,7 +1184,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Success Rate */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <SuccessBlock
                         total={courier.pathao.total + courier.steadfast.total || b.total}
                         success={courier.pathao.success + courier.steadfast.success || b.confirmed}
@@ -1192,12 +1192,12 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Tags */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={4} />
                     </TableCell>
 
                     {/* Site */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex flex-col gap-1 items-start">
                         {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
                           <span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold ring-1 ring-primary/30">
@@ -1215,12 +1215,12 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Source */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <SourcePill attribution={r.attribution} siteLabel={siteLabel} />
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="py-4 text-right">
+                    <TableCell className="py-2 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
                         <div className={cn(
                           "hidden lg:inline-flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity",
