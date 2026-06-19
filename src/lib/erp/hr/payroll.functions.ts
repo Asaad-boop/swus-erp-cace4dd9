@@ -533,7 +533,7 @@ export const getPayrollRun = createServerFn({ method: "POST" })
   .inputValidator((d: any) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId);
-    const [runRes, payRes, deptRes, desigRes] = await Promise.all([
+    const [runRes, payRes, deptRes, desigRes, jeRes] = await Promise.all([
       context.supabase.from("hr_payroll_runs").select("*").eq("id", data.id).maybeSingle(),
       context.supabase
         .from("hr_payslips")
@@ -541,6 +541,13 @@ export const getPayrollRun = createServerFn({ method: "POST" })
         .eq("run_id", data.id),
       context.supabase.from("hr_departments").select("id, name"),
       context.supabase.from("hr_designations").select("id, title"),
+      context.supabase
+        .from("erp_journal_entries")
+        .select("id, entry_no, entry_date, status")
+        .eq("source_type", "payroll_run")
+        .eq("source_id", data.id)
+        .is("deleted_at", null)
+        .maybeSingle(),
     ]);
     if (runRes.error) throw runRes.error;
     if (!runRes.data) throw new Error("Run not found");
@@ -549,6 +556,7 @@ export const getPayrollRun = createServerFn({ method: "POST" })
       payslips: payRes.data ?? [],
       departments: deptRes.data ?? [],
       designations: desigRes.data ?? [],
+      journal_entry: jeRes.data ?? null,
     };
   });
 
