@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Lock, Download, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Lock, Download, Printer, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,6 +64,7 @@ function PayrollRunPage() {
   }
   if (isLoading || !data) return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-gray-400">Loading…</div></div>;
   const { run, payslips, departments, designations } = data;
+  const journalEntry = (data as any).journal_entry as { id: string; entry_no: string; entry_date: string; status: string } | null;
   const isFinalized = run.status === "finalized";
 
   const dmap = new Map((departments as any[]).map((d) => [d.id, d.name]));
@@ -99,6 +100,16 @@ function PayrollRunPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold text-gray-900">{MONTHS[run.month - 1]} {run.year}</h1>
                 {isFinalized && <StatusPill tone="finalized" dot><Lock className="h-3 w-3" />Finalized</StatusPill>}
+                {isFinalized && journalEntry && (
+                  <Link
+                    to="/erp/finance/journal"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                    title={journalEntry.entry_no}
+                  >
+                    <CheckCircle2 className="h-3 w-3" /> Posted to Finance Journal
+                    <ExternalLink className="h-3 w-3 opacity-60" />
+                  </Link>
+                )}
               </div>
               <div className="text-xs text-gray-500 mt-1">{run.total_employees} employees · Paid {paidCount}/{(payslips as any[]).length}</div>
             </div>
