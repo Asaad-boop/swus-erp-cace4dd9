@@ -1308,34 +1308,63 @@ function OrderDetailsPage() {
                 <Textarea rows={2} value={form.note_input} onChange={(e) => setForm({ ...form, note_input: e.target.value })} placeholder="Internal note…" className="text-xs resize-none" />
                 <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!form.note_input.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add Note</Button>
                 {notes.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    {notes.slice(0, 4).map((n) => (
-                      <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs">
-                        <div className="text-[10px] text-muted-foreground">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
-                        <div className="whitespace-pre-wrap leading-snug">{n.body}</div>
-                      </div>
-                    ))}
+                  <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+                    {notes.map((n: any) => {
+                      const canDelete = isAdmin || (currentUserId && n.created_by === currentUserId);
+                      return (
+                        <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs group">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              <span className="font-medium">{n.author_name || (n.created_by ? "Staff" : "System")}</span>
+                              <span> · {format(new Date(n.created_at), "dd MMM, hh:mm a")}</span>
+                            </div>
+                            {canDelete && (
+                              <button
+                                onClick={() => deleteNote.mutate(n.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-rose-500/10 text-rose-600"
+                                title="Delete note"
+                              ><Trash2 className="h-3 w-3" /></button>
+                            )}
+                          </div>
+                          <div className="whitespace-pre-wrap leading-snug mt-0.5">{n.body}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-1.5">
-                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Reminder SMS queued")}>Send Reminder SMS</Button>
-                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Advance SMS queued")}>Send Advance SMS</Button>
+                <a
+                  href={`https://wa.me/${form.mobile.replace(/^0/, "880")}?text=${encodeURIComponent("আপনার অর্ডারটি প্রস্তুত আছে। ডেলিভারি দিতে আসছি। অনুগ্রহ করে ফোন রাখুন।")}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 h-7 px-2 rounded-md border bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] hover:bg-emerald-500/10"
+                >📱 Send Reminder</a>
+                <a
+                  href={`https://wa.me/${form.mobile.replace(/^0/, "880")}?text=${encodeURIComponent("আপনার অর্ডার কনফার্ম করতে অগ্রিম পেমেন্ট পাঠান: bKash/Nagad " + (form.advance_payment_number || "[number]"))}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 h-7 px-2 rounded-md border bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] hover:bg-emerald-500/10"
+                >💰 Request Advance</a>
               </div>
+              {(() => {
+                const s = ((order.status ?? "") + " " + (order.web_status ?? "")).toLowerCase();
+                const showRMA = /deliver|complete/.test(s);
+                if (!showRMA) return null;
+                return (
+                  <div className="grid grid-cols-2 gap-1.5 pt-2 border-t">
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setReturnOpen(true)}>
+                      <RotateCcw className="h-3 w-3 mr-1" />Initiate Return
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setExchangeOpen(true)}>
+                      <Repeat className="h-3 w-3 mr-1" />Initiate Exchange
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           </section>
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
-              <Hash className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Attribution</h3>
-            </header>
-            <div className="p-4 space-y-2 text-xs">
-              <p className="text-[10px] text-muted-foreground">Track where this order came from</p>
-              <Badge variant="outline" className="text-[10px]">{form.source_platform || "utm"}</Badge>
-              <Row label="Site" value={order.source_website ?? "—"} />
-              <Row label="Platform" value={order.source_platform ?? "—"} />
-            </div>
-          </section>
+          {/* Full UTM attribution */}
+          <AttributionPanel orderId={orderId} />
         </aside>
       </div>
 
