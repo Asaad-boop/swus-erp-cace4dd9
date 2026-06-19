@@ -386,11 +386,15 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
     const total_value = lines.reduce((s, l) => s + l.line_value, 0);
     const total_units = lines.reduce((s, l) => s + l.qty, 0);
     const extras_total = data.freight_cost_bdt + data.customs_duty_bdt + data.other_charges_bdt;
+    const commission_per_unit_bdt = +(data.agent_commission_cny * fx).toFixed(4);
+    const commission_total_bdt = +(commission_per_unit_bdt * total_units).toFixed(4);
 
     // Update each item
     for (const l of lines) {
       const extras_share = total_value > 0 ? (l.line_value / total_value) * extras_total : (total_units > 0 ? (l.qty / total_units) * extras_total : 0);
-      const landed_unit = l.qty > 0 ? +(l.unit_cost_bdt + extras_share / l.qty).toFixed(4) : l.unit_cost_bdt;
+      const landed_unit = l.qty > 0
+        ? +(l.unit_cost_bdt + extras_share / l.qty + commission_per_unit_bdt).toFixed(4)
+        : +(l.unit_cost_bdt + commission_per_unit_bdt).toFixed(4);
       const subtotal_bdt = +(l.line_value).toFixed(4);
       const { error: ue } = await context.supabase
         .from("imp_po_items")
@@ -404,7 +408,9 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       if (ue) throw ue;
     }
 
-    const landed_cost_per_unit_bdt = total_units > 0 ? +((total_value + extras_total) / total_units).toFixed(4) : 0;
+    const landed_cost_per_unit_bdt = total_units > 0
+      ? +(((total_value + extras_total) / total_units) + commission_per_unit_bdt).toFixed(4)
+      : 0;
 
     const { error: pe } = await context.supabase
       .from("imp_purchase_orders")
@@ -415,6 +421,9 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
         freight_cost_bdt: data.freight_cost_bdt,
         customs_duty_bdt: data.customs_duty_bdt,
         other_charges_bdt: data.other_charges_bdt,
+        agent_commission_cny: data.agent_commission_cny,
+        agent_commission_per_unit_bdt: commission_per_unit_bdt,
+        agent_commission_total_bdt: commission_total_bdt,
         total_units,
         landed_cost_per_unit_bdt,
       })
@@ -426,6 +435,8 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       total_units,
       total_value,
       extras_total,
+      commission_per_unit_bdt,
+      commission_total_bdt,
       landed_cost_per_unit_bdt,
     };
   });
