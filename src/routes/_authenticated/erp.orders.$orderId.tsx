@@ -454,6 +454,7 @@ function OrderDetailsPage() {
   const [detection, setDetection] = useState<Detection | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const [confirmAttempted, setConfirmAttempted] = useState(false);
   const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
   const lastDetectedAddrRef = useRef<string>("");
 
@@ -1278,13 +1279,13 @@ function OrderDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="City">
                 <Select value={form.city_id} onValueChange={(v) => setForm({ ...form, city_id: v, zone_id: "", area_id: "" })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select city" /></SelectTrigger>
                   <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
               <FieldShell label="Zone">
                 <Select value={form.zone_id} onValueChange={(v) => setForm({ ...form, zone_id: v, area_id: "" })} disabled={!form.city_id}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select zone" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.zone_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select zone" /></SelectTrigger>
                   <SelectContent>{(zones ?? []).map((z) => <SelectItem key={z.id} value={z.id}>{z.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
@@ -1463,16 +1464,30 @@ function OrderDetailsPage() {
               </div>
             )}
             {order.status !== "confirmed" && order.web_status !== "complete" ? (
+              <>
+              {confirmAttempted && (!form.city_id || !form.zone_id) && (
+                <div className="mt-3 rounded-md border border-red-300 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30 px-3 py-2 text-[12px] text-red-700 dark:text-red-300 text-center">
+                  City and Zone required before confirming order
+                </div>
+              )}
               <Button
                 className="w-full mt-4 h-11 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20"
                 size="lg"
                 disabled={confirmOrder.isPending}
-                onClick={() => confirmOrder.mutate()}
+                onClick={() => {
+                  if (!form.city_id || !form.zone_id) {
+                    setConfirmAttempted(true);
+                    return;
+                  }
+                  setConfirmAttempted(false);
+                  confirmOrder.mutate();
+                }}
               >
                 {confirmOrder.isPending
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <><CheckCircle2 className="h-4 w-4 mr-1.5" />Confirm Order (৳{bdtCompact(grandTotal)}.00)</>}
               </Button>
+              </>
             ) : (
               <Button
                 className="w-full mt-4 h-11"
