@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtBdt, type Account } from "@/lib/erp/finance";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,15 @@ export const Route = createFileRoute("/_authenticated/erp/finance/wallets")({
   component: WalletsPage,
 });
 
-type Wallet = Account & { wallet_type: string };
+type Wallet = Account & { wallet_type: string; account_subtype?: string | null };
+
+function subtypeStyle(w: Wallet): { ring?: string; bg?: string; accent?: string } {
+  const sub = (w.account_subtype ?? w.account_type ?? "").toLowerCase();
+  if (sub === "bkash") return { ring: "ring-1 ring-pink-300/60 dark:ring-pink-900/60", bg: "bg-gradient-to-br from-pink-50 to-transparent dark:from-pink-950/30", accent: "text-pink-600" };
+  if (sub === "nagad") return { ring: "ring-1 ring-orange-300/60 dark:ring-orange-900/60", bg: "bg-gradient-to-br from-orange-50 to-transparent dark:from-orange-950/30", accent: "text-orange-600" };
+  if (sub === "rocket") return { ring: "ring-1 ring-purple-300/60 dark:ring-purple-900/60", bg: "bg-gradient-to-br from-purple-50 to-transparent dark:from-purple-950/30", accent: "text-purple-600" };
+  return {};
+}
 
 const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color: string }> = [
   { key: "cash",           label: "Cash in Hand",   icon: Coins,      color: "text-emerald-600" },
@@ -55,6 +64,43 @@ function WalletsPage() {
       return (data ?? []) as Wallet[];
     },
   });
+
+  // Today's transactions for in/out badges
+  const today = new Date().toISOString().slice(0, 10);
+  const todayTxQ = useQuery({
+    queryKey: ["wallets_today", brandIds, today],
+    enabled: brandIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await applyBrandScope(
+        supabase.from("erp_transactions").select("id,txn_type,amount,account_id,to_account_id"),
+        brandIds,
+      ).eq("transaction_date", today);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; txn_type: string; amount: number; account_id: string | null; to_account_id: string | null }>;
+    },
+  });
+
+  const todayByWallet = useMemo(() => {
+    const map = new Map<string, { in: number; out: number }>();
+    const get = (id: string) => map.get(id) ?? { in: 0, out: 0 };
+    for (const t of todayTxQ.data ?? []) {
+      const a = Number(t.amount || 0);
+      if (t.account_id) {
+        const e = get(t.account_id);
+        if (t.txn_type === "income") e.in += a;
+        else if (t.txn_type === "expense") e.out += a;
+        else if (t.txn_type === "transfer") e.out += a;
+        else if (t.txn_type === "adjustment") { if (a >= 0) e.in += a; else e.out += -a; }
+        map.set(t.account_id, e);
+      }
+      if (t.txn_type === "transfer" && t.to_account_id) {
+        const e = get(t.to_account_id);
+        e.in += a;
+        map.set(t.to_account_id, e);
+      }
+    }
+    return map;
+  }, [todayTxQ.data]);
 
   const wallets = walletsQ.data ?? [];
   const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
