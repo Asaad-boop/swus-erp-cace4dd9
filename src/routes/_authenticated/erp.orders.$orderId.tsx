@@ -557,6 +557,8 @@ function OrderDetailsPage() {
       setCitySuggestions([]);
       return;
     }
+    // Wait for cities to load before attempting detection; effect re-runs when cities arrive
+    if (!cities || cities.length === 0) return;
     const t = setTimeout(() => {
       lastDetectedAddrRef.current = addr;
       // Only auto-apply when user hasn't manually picked a city, or detection is active
@@ -566,6 +568,19 @@ function OrderDetailsPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.address, cities?.length]);
+
+  // Auto-detect immediately on order load when address exists but city_id is empty
+  useEffect(() => {
+    if (!order) return;
+    if (!cities || cities.length === 0) return;
+    const addr = (order.shipping_address ?? "").trim();
+    if (addr.length < 4) return;
+    if (form.city_id) return; // respect saved data
+    if (lastDetectedAddrRef.current === addr) return;
+    lastDetectedAddrRef.current = addr;
+    void runDetection(addr, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, cities?.length]);
 
   // Clear the "✓ Detected" chip when user changes city manually away from detection
   useEffect(() => {
