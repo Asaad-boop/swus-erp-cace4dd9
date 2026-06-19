@@ -169,12 +169,15 @@ function WalletsPage() {
               <span className="text-sm font-semibold tabular-nums">{fmtBdt(subtotal)}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {items.map((w) => (
-                <Card key={w.id} className="hover:shadow-md transition-shadow">
+              {items.map((w) => {
+                const style = subtypeStyle(w);
+                const today = todayByWallet.get(w.id);
+                return (
+                <Card key={w.id} className={cn("hover:shadow-md transition-shadow", style.ring, style.bg)}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-sm font-medium truncate">{w.name}</CardTitle>
-                      <Icon className={cn("h-4 w-4 shrink-0", g.color)} />
+                      <Icon className={cn("h-4 w-4 shrink-0", style.accent ?? g.color)} />
                     </div>
                     {isAllBrands && (
                       <p className="text-[11px] text-muted-foreground truncate">{brandMap.get(w.brand_id) ?? "—"}</p>
@@ -187,9 +190,15 @@ function WalletsPage() {
                     <div className={cn("text-xl font-bold tabular-nums", Number(w.current_balance) < 0 && "text-red-600")}>
                       {fmtBdt(w.current_balance)}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Opening: {fmtBdt(w.opening_balance)}
-                    </div>
+                    {today && (today.in > 0 || today.out > 0) ? (
+                      <div className="flex gap-2 text-[11px]">
+                        {today.in > 0 && <span className="text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-0.5"><ArrowDownRight className="h-3 w-3" />{fmtBdt(today.in)}</span>}
+                        {today.out > 0 && <span className="text-rose-700 dark:text-rose-400 inline-flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{fmtBdt(today.out)}</span>}
+                        <span className="text-muted-foreground">today</span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground">Opening: {fmtBdt(w.opening_balance)}</div>
+                    )}
                     <div className="flex gap-1.5 pt-1">
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setStatementFor(w)}>
                         <FileText className="h-3 w-3 mr-1" />Statement
@@ -203,7 +212,8 @@ function WalletsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </section>
         );
