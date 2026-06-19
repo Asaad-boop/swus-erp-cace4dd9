@@ -373,6 +373,7 @@ function OrderDetailsPage() {
     note_input: "", tag_input: "",
   });
   const [baseline, setBaseline] = useState<typeof form | null>(null);
+  const [formReady, setFormReady] = useState(false);
 
   useEffect(() => {
     if (!order) return;
@@ -401,6 +402,7 @@ function OrderDetailsPage() {
       return next;
     });
     setDraftWebStatus((order.web_status as WebStatus) ?? "");
+    setFormReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
@@ -454,6 +456,7 @@ function OrderDetailsPage() {
   const [detection, setDetection] = useState<Detection | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const [detectionAttempted, setDetectionAttempted] = useState(false);
   const [confirmAttempted, setConfirmAttempted] = useState(false);
   const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
   const lastDetectedAddrRef = useRef<string>("");
@@ -469,6 +472,12 @@ function OrderDetailsPage() {
   // Values are matched case-insensitively against the city's English name.
   const CITY_KEYWORDS: Record<string, string> = useMemo(() => ({
     "dhaka": "dhaka", "ঢাকা": "dhaka",
+    // Area→city aliases (instant city inference)
+    "mirpur": "dhaka", "dhanmondi": "dhaka", "gulshan": "dhaka", "uttara": "dhaka",
+    "mohammadpur": "dhaka", "banani": "dhaka", "motijheel": "dhaka", "badda": "dhaka",
+    "bashundhara": "dhaka", "tejgaon": "dhaka", "wari": "dhaka", "ramna": "dhaka",
+    "agrabad": "chittagong", "nasirabad": "chittagong", "pahartali": "chittagong",
+    "halishahar": "chittagong", "panchlaish": "chittagong",
     "chittagong": "chittagong", "chattogram": "chittagong", "ctg": "chittagong", "চট্টগ্রাম": "chittagong",
     "sylhet": "sylhet", "সিলেট": "sylhet",
     "rajshahi": "rajshahi", "রাজশাহী": "rajshahi",
@@ -649,16 +658,21 @@ function OrderDetailsPage() {
 
   // Auto-detect immediately on order load when address exists but city_id is empty
   useEffect(() => {
-    if (!order) return;
+    if (!formReady) return;
+    if (!order?.shipping_address) return;
     if (!cities || cities.length === 0) return;
-    const addr = (order.shipping_address ?? "").trim();
+    if (form.city_id) return; // respect saved/manual data
+    const addr = order.shipping_address.trim();
     if (addr.length < 4) return;
-    if (form.city_id) return; // respect saved data
     if (lastDetectedAddrRef.current === addr) return;
-    lastDetectedAddrRef.current = addr;
-    void runDetection(addr, true);
+    const timer = setTimeout(() => {
+      lastDetectedAddrRef.current = addr;
+      setDetectionAttempted(true);
+      void runDetection(addr, true);
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order?.id, cities?.length]);
+  }, [order?.id, cities?.length, formReady]);
 
   // Clear the "✓ Detected" chip when user changes city manually away from detection
   useEffect(() => {
@@ -1277,12 +1291,33 @@ function OrderDetailsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FieldShell label="City">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium text-muted-foreground">City</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const addr = (form.address || order?.shipping_address || "").trim();
+                      if (addr.length < 4) return;
+                      lastDetectedAddrRef.current = "";
+                      detectCacheRef.current.delete(addr);
+                      setDetectionAttempted(true);
+                      void runDetection(addr, true);
+                    }}
+                    disabled={detecting}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {detecting ? "Detecting…" : "🔍 Detect"}
+                  </button>
+                </div>
                 <Select value={form.city_id} onValueChange={(v) => setForm({ ...form, city_id: v, zone_id: "", area_id: "" })}>
-                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder={detecting ? "Detecting…" : "Select city"} /></SelectTrigger>
                   <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
                 </Select>
-              </FieldShell>
+                {detectionAttempted && !detecting && !detection && !form.city_id && citySuggestions.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">Could not detect — please select manually</p>
+                )}
+              </div>
               <FieldShell label="Zone">
                 <Select value={form.zone_id} onValueChange={(v) => setForm({ ...form, zone_id: v, area_id: "" })} disabled={!form.city_id}>
                   <SelectTrigger className={`h-9 ${confirmAttempted && !form.zone_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select zone" /></SelectTrigger>
