@@ -44,6 +44,7 @@ const searchSchema = z.object({
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
 });
+type WebOrdersSearch = z.infer<typeof searchSchema>;
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
@@ -254,7 +255,7 @@ function WebOrdersPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(searchInput);
-      navigate({ search: (prev) => ({ ...prev, q: searchInput || "" }), replace: true });
+      navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, q: searchInput || "" }), replace: true });
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -610,11 +611,11 @@ function WebOrdersPage() {
     return () => io.disconnect();
   }, [onLoadMore]);
 
-  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev) => ({ ...prev, tab: key }), replace: true });
+  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key }), replace: true });
 
   const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
     navigate({
-      search: (prev) => ({
+      search: (prev: WebOrdersSearch) => ({
         ...prev,
         ...(patch.source !== undefined ? { source: patch.source } : {}),
         ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
@@ -626,7 +627,7 @@ function WebOrdersPage() {
     });
   };
   const clearAllFilters = () => navigate({
-    search: (prev) => ({ ...prev, source: "all", sort: "newest", preset: "all", from: null, to: null }),
+    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
     replace: true,
   });
 
