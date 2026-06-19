@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer } from "lucide-react";
+import { Printer, FileSpreadsheet } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
+import { getCashflowStatement, type CashflowStatement } from "@/lib/erp/finance-overview.functions";
+import { exportAoaXlsx } from "@/lib/erp/hr/excel";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/reports")({
   head: () => ({ meta: [{ title: "Financial Reports — ERP" }] }),
@@ -45,11 +48,13 @@ function ReportsPage() {
         <TabsList className="print:hidden">
           <TabsTrigger value="pl">P&amp;L</TabsTrigger>
           <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cf">Cash Flow</TabsTrigger>
           <TabsTrigger value="tb">Trial Balance</TabsTrigger>
           <TabsTrigger value="gl">General Ledger</TabsTrigger>
         </TabsList>
         <TabsContent value="pl" className="mt-3"><PLReport brandId={brandId} from={from} to={to} /></TabsContent>
         <TabsContent value="bs" className="mt-3"><BalanceSheetReport brandId={brandId} asOf={to} /></TabsContent>
+        <TabsContent value="cf" className="mt-3"><CashflowReport brandId={brandId} from={from} to={to} /></TabsContent>
         <TabsContent value="tb" className="mt-3"><TrialBalanceReport brandId={brandId} asOf={to} /></TabsContent>
         <TabsContent value="gl" className="mt-3"><GeneralLedgerReport brandId={brandId} from={from} to={to} /></TabsContent>
       </Tabs>
