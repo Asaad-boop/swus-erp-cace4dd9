@@ -63,6 +63,19 @@ function ReportsPage() {
 }
 
 function PLReport({ brandId, from, to }: { brandId: string; from: string; to: string }) {
+  const [mode, setMode] = useState<"single" | "compare">("single");
+  // Default Period B = previous period of same length
+  const defaultB = (() => {
+    const f = new Date(from);
+    const t = new Date(to);
+    const ms = t.getTime() - f.getTime();
+    const bTo = new Date(f.getTime() - 86400000);
+    const bFrom = new Date(bTo.getTime() - ms);
+    return { from: bFrom.toISOString().slice(0, 10), to: bTo.toISOString().slice(0, 10) };
+  })();
+  const [bFrom, setBFrom] = useState(defaultB.from);
+  const [bTo, setBTo] = useState(defaultB.to);
+
   const q = useQuery({
     queryKey: ["pl_v2", brandId, from, to],
     queryFn: async () => {
@@ -71,22 +84,148 @@ function PLReport({ brandId, from, to }: { brandId: string; from: string; to: st
       return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
     },
   });
+  const qB = useQuery({
+    queryKey: ["pl_v2", brandId, bFrom, bTo],
+    enabled: mode === "compare",
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_pl_v2", { _brand_id: brandId, _from: bFrom, _to: bTo });
+      if (error) throw error;
+      return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+    },
+  });
+
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Calculating…</p>;
   if (!q.data) return null;
   const d = q.data;
+
   return (
     <Card>
-      <CardHeader><CardTitle>Profit &amp; Loss · {from} → {to}</CardTitle></CardHeader>
-      <CardContent>
-        <Section title="Income" rows={d.income_accounts} total={d.total_income} totalLabel="Total Income" color="text-emerald-600" />
-        <Section title="Expenses" rows={d.expense_accounts} total={d.total_expense} totalLabel="Total Expense" color="text-red-600" />
-        <div className="flex justify-between items-center mt-4 pt-3 border-t-2 border-foreground">
-          <span className="text-lg font-bold">Net Profit</span>
-          <span className={`text-2xl font-bold font-mono ${d.net_profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtBdt(d.net_profit)}</span>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>Profit &amp; Loss · {from} → {to}</CardTitle>
+          <Tabs value={mode} onValueChange={(v) => setMode(v as "single" | "compare")} className="print:hidden">
+            <TabsList>
+              <TabsTrigger value="single">Single</TabsTrigger>
+              <TabsTrigger value="compare">Comparative</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
+        {mode === "compare" && (
+          <div className="flex flex-wrap gap-2 items-end print:hidden border rounded-md p-2 bg-muted/30">
+            <span className="text-xs font-medium text-muted-foreground self-center">Compare against (Period B):</span>
+            <div><Label className="text-xs">From</Label><Input type="date" value={bFrom} onChange={(e) => setBFrom(e.target.value)} className="h-8" /></div>
+            <div><Label className="text-xs">To</Label><Input type="date" value={bTo} onChange={(e) => setBTo(e.target.value)} className="h-8" /></div>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent>
+        {mode === "single" ? (
+          <>
+            <Section title="Income" rows={d.income_accounts} total={d.total_income} totalLabel="Total Income" color="text-emerald-600" />
+            <Section title="Expenses" rows={d.expense_accounts} total={d.total_expense} totalLabel="Total Expense" color="text-red-600" />
+            <div className="flex justify-between items-center mt-4 pt-3 border-t-2 border-foreground">
+              <span className="text-lg font-bold">Net Profit</span>
+              <span className={`text-2xl font-bold font-mono ${d.net_profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtBdt(d.net_profit)}</span>
+            </div>
+          </>
+        ) : qB.isLoading || !qB.data ? (
+          <p className="text-sm text-muted-foreground">Loading Period B…</p>
+        ) : (
+          <ComparativePL a={d} b={qB.data} aLabel={`${from} → ${to}`} bLabel={`${bFrom} → ${bTo}`} />
+        )}
       </CardContent>
     </Card>
   );
+}
+
+function ComparativePL({
+  a, b, aLabel, bLabel,
+}: {
+  a: { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+  b: { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+  aLabel: string; bLabel: string;
+}) {
+  const merge = (la: Array<{ code: string; name: string; amount: number }>, lb: Array<{ code: string; name: string; amount: number }>) => {
+    const map = new Map<string, { code: string; name: string; a: number; b: number }>();
+    for (const r of la) map.set(r.code, { code: r.code, name: r.name, a: Number(r.amount || 0), b: 0 });
+    for (const r of lb) {
+      const ex = map.get(r.code);
+      if (ex) ex.b = Number(r.amount || 0);
+      else map.set(r.code, { code: r.code, name: r.name, a: 0, b: Number(r.amount || 0) });
+    }
+    return Array.from(map.values()).sort((x, y) => x.code.localeCompare(y.code));
+  };
+  const income = merge(a.income_accounts, b.income_accounts);
+  const expense = merge(a.expense_accounts, b.expense_accounts);
+
+  return (
+    <div className="space-y-6">
+      <CompareSection title="Income" rows={income} aTotal={a.total_income} bTotal={b.total_income} totalLabel="Total Income" positiveGood aLabel={aLabel} bLabel={bLabel} />
+      <CompareSection title="Expenses" rows={expense} aTotal={a.total_expense} bTotal={b.total_expense} totalLabel="Total Expense" positiveGood={false} aLabel={aLabel} bLabel={bLabel} />
+      <div className="grid grid-cols-[1fr,140px,140px,140px,80px] gap-2 items-center pt-3 mt-2 border-t-2 border-foreground font-bold text-lg">
+        <span>Net Profit</span>
+        <span className={`text-right font-mono ${a.net_profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtBdt(a.net_profit)}</span>
+        <span className={`text-right font-mono ${b.net_profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtBdt(b.net_profit)}</span>
+        <VarianceCell a={a.net_profit} b={b.net_profit} positiveGood />
+        <PctCell a={a.net_profit} b={b.net_profit} positiveGood />
+      </div>
+    </div>
+  );
+}
+
+function CompareSection({
+  title, rows, aTotal, bTotal, totalLabel, positiveGood, aLabel, bLabel,
+}: {
+  title: string;
+  rows: Array<{ code: string; name: string; a: number; b: number }>;
+  aTotal: number; bTotal: number; totalLabel: string; positiveGood: boolean;
+  aLabel: string; bLabel: string;
+}) {
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <div className="grid grid-cols-[1fr,140px,140px,140px,80px] gap-2 text-xs uppercase tracking-wider text-muted-foreground border-b pb-1 mb-1">
+        <span>Account</span>
+        <span className="text-right">{aLabel}</span>
+        <span className="text-right">{bLabel}</span>
+        <span className="text-right">Variance</span>
+        <span className="text-right">%</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground pl-2 py-2">No activity.</p>
+      ) : rows.map((r) => (
+        <div key={r.code} className="grid grid-cols-[1fr,140px,140px,140px,80px] gap-2 text-sm py-0.5">
+          <span><span className="text-muted-foreground font-mono text-xs mr-2">{r.code}</span>{r.name}</span>
+          <span className="text-right font-mono">{fmtBdt(r.a)}</span>
+          <span className="text-right font-mono">{fmtBdt(r.b)}</span>
+          <VarianceCell a={r.a} b={r.b} positiveGood={positiveGood} />
+          <PctCell a={r.a} b={r.b} positiveGood={positiveGood} />
+        </div>
+      ))}
+      <div className="grid grid-cols-[1fr,140px,140px,140px,80px] gap-2 pt-2 mt-2 border-t font-semibold">
+        <span>{totalLabel}</span>
+        <span className="text-right font-mono">{fmtBdt(aTotal)}</span>
+        <span className="text-right font-mono">{fmtBdt(bTotal)}</span>
+        <VarianceCell a={aTotal} b={bTotal} positiveGood={positiveGood} />
+        <PctCell a={aTotal} b={bTotal} positiveGood={positiveGood} />
+      </div>
+    </div>
+  );
+}
+
+function VarianceCell({ a, b, positiveGood }: { a: number; b: number; positiveGood: boolean }) {
+  const diff = a - b;
+  const good = positiveGood ? diff >= 0 : diff <= 0;
+  const color = Math.abs(diff) < 0.01 ? "text-muted-foreground" : good ? "text-emerald-600" : "text-red-600";
+  return <span className={`text-right font-mono ${color}`}>{diff >= 0 ? "+" : ""}{fmtBdt(diff)}</span>;
+}
+
+function PctCell({ a, b, positiveGood }: { a: number; b: number; positiveGood: boolean }) {
+  if (Math.abs(b) < 0.01) return <span className="text-right font-mono text-muted-foreground">—</span>;
+  const pct = ((a - b) / Math.abs(b)) * 100;
+  const good = positiveGood ? pct >= 0 : pct <= 0;
+  const color = Math.abs(pct) < 0.1 ? "text-muted-foreground" : good ? "text-emerald-600" : "text-red-600";
+  return <span className={`text-right font-mono text-xs ${color}`}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
 function Section({ title, rows, total, totalLabel, color }: { title: string; rows: Array<{ code: string; name: string; amount: number }>; total: number; totalLabel: string; color: string }) {
