@@ -350,3 +350,122 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       recentTxns,
     };
   });
+
+/* ---------------- KPI Drill-down ---------------- */
+
+const DrilldownInput = z.object({
+  brandIds: z.array(z.string().uuid()).min(1),
+  from: z.string(),
+  to: z.string(),
+  // "revenue" | "expense" | "income" | "all" — server interprets
+  type: z.enum(["revenue", "expense", "income", "all"]).default("all"),
+  accountIds: z.array(z.string().uuid()).optional(),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(200).default(25),
+});
+
+export type DrilldownRow = {
+  id: string;
+  date: string;
+  type: string;
+  amount: number;
+  description: string | null;
+  account: string | null;
+  category: string | null;
+  reference: string | null;
+};
+
+export type DrilldownResult = {
+  rows: DrilldownRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  sum: number;
+};
+
+export const getDrilldownTransactions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => DrilldownInput.parse(d))
+  .handler(async ({ data, context }): Promise<DrilldownResult> => {
+    const { supabase } = context;
+    const { brandIds, from, to, type, accountIds, page, pageSize } = data;
+
+    let q = applyBrandScope(
+      supabase.from("erp_transactions").select(
+        "id,txn_type,amount,transaction_date,description,account_id,category_id,reference_type,reference_id",
+        { count: "exact" },
+      ),
+      brandIds,
+    )
+      .gte("transaction_date", from)
+      .lte("transaction_date", to);
+
+    if (type === "revenue" || type === "income") q = q.eq("txn_type", "income");
+    else if (type === "expense") q = q.eq("txn_type", "expense");
+
+    if (accountIds && accountIds.length > 0) q = q.in("account_id", accountIds);
+
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    const { data: rows, error, count } = await q
+      .order("transaction_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(fromIdx, toIdx);
+    if (error) throw error;
+
+    const accountIdsInPage = Array.from(
+      new Set((rows ?? []).map((r) => r.account_id).filter(Boolean) as string[]),
+    );
+    const categoryIds = Array.from(
+      new Set((rows ?? []).map((r) => r.category_id).filter(Boolean) as string[]),
+    );
+
+    const [accRes, catRes] = await Promise.all([
+      accountIdsInPage.length
+        ? supabase.from("erp_accounts").select("id,name").in("id", accountIdsInPage)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      categoryIds.length
+        ? supabase.from("erp_expense_categories").select("id,name").in("id", categoryIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    ]);
+    const accMap = new Map((accRes.data ?? []).map((a) => [a.id, a.name]));
+    const catMap = new Map((catRes.data ?? []).map((c) => [c.id, c.name]));
+
+    // Sum across the whole filtered set (not just this page)
+    let totalSum = 0;
+    if (count && count > 0) {
+      let sumQ = applyBrandScope(
+        supabase.from("erp_transactions").select("amount"),
+        brandIds,
+      )
+        .gte("transaction_date", from)
+        .lte("transaction_date", to);
+      if (type === "revenue" || type === "income") sumQ = sumQ.eq("txn_type", "income");
+      else if (type === "expense") sumQ = sumQ.eq("txn_type", "expense");
+      if (accountIds && accountIds.length > 0) sumQ = sumQ.in("account_id", accountIds);
+      const { data: allAmts } = await sumQ.limit(10000);
+      totalSum = (allAmts ?? []).reduce((s, r) => s + num((r as { amount: number }).amount), 0);
+    }
+
+    const mapped: DrilldownRow[] = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      date: r.transaction_date as string,
+      type: r.txn_type as string,
+      amount: num((r as { amount: number }).amount),
+      description: (r.description as string | null) ?? null,
+      account: r.account_id ? accMap.get(r.account_id as string) ?? null : null,
+      category: r.category_id ? catMap.get(r.category_id as string) ?? null : null,
+      reference: (r.reference_type as string | null)
+        ? `${r.reference_type}${r.reference_id ? `:${String(r.reference_id).slice(0, 8)}` : ""}`
+        : null,
+    }));
+
+    return {
+      rows: mapped,
+      total: count ?? mapped.length,
+      page,
+      pageSize,
+      sum: totalSum,
+    };
+  });
