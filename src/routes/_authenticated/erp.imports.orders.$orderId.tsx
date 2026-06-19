@@ -25,16 +25,12 @@ import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 import {
   getPurchaseOrderDetail, updateCartonStage, markArrivedInBd,
   releaseCarton, postCartonToInventory, recordImportPayment, listWarehouses,
-  saveCartonWeight,
 } from "@/lib/erp/imports/imports.functions";
 import {
   PO_STATUS_LABEL, CARTON_STATUS_LABEL, fmtBdt, newIdemKey,
   type ImpPoStatus, type ImpCartonStatus,
 } from "@/lib/erp/imports/types";
 import { LandedCostCard } from "@/components/erp/imports/landed-cost-card";
-import { ShippingCostCard } from "@/components/erp/imports/shipping-cost-card";
-import { CartonReceiveDialog } from "@/components/erp/imports/carton-receive-dialog";
-import { LandedCostSummary } from "@/components/erp/imports/landed-cost-summary";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/$orderId")({
   head: () => ({ meta: [{ title: "Purchase Order — Imports" }] }),
@@ -122,16 +118,6 @@ function PoDetailPage() {
     cartons.some((c) => LANDED_CARTON_STATUSES.has(c.status));
 
   // Show simplified shipping cost card once the PO (or any carton) has arrived in BD.
-  const showShippingCost = showLandedCost;
-
-  // Total usable units across PO (for other-charges share calculation in landed summary).
-  const poTotalUsableUnits = cartons.reduce(
-    (sum: number, c: any) => sum + (c.items ?? []).reduce((s: number, it: any) => s + Number(it.usable_qty ?? 0), 0),
-    0,
-  );
-  const poFxRate = Number(po.fx_rate_cny_bdt ?? po.fx_rate) || 0;
-  const poOtherCharges = Number(po.other_charges_bdt) || 0;
-  const poCommissionPerUnit = Number(po.agent_commission_per_unit_bdt) || 0;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -277,16 +263,6 @@ function PoDetailPage() {
         </div>
       )}
 
-      {showShippingCost && (
-        <ShippingCostCard
-          poId={po.id}
-          initialWeight={Number(po.shipping_weight_kg) || 0}
-          initialRate={Number(po.shipping_rate_per_kg) || 0}
-          initialOther={Number(po.other_charges_bdt) || 0}
-          initialShippingCost={Number(po.shipping_cost_bdt) || 0}
-        />
-      )}
-
       {/* "Goods arrived in BD?" alert — only when PO has not yet been received in BD */}
       {!["arrived_bd", "completed", "cancelled"].includes(po.status) && (
         <Card className="p-4 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900/40">
@@ -328,10 +304,6 @@ function PoDetailPage() {
               poDue={Number(po.due_bdt)}
               poPaid={Number(po.paid_bdt ?? 0)}
               poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
-              poFxRate={poFxRate}
-              poOtherCharges={poOtherCharges}
-                poCommissionPerUnit={poCommissionPerUnit}
-              poTotalUsableUnits={poTotalUsableUnits}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
             />
           ))}
@@ -469,21 +441,11 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, poFxRate, poOtherCharges, poCommissionPerUnit, poTotalUsableUnits, onStage }: {
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage }: {
   carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
-  poFxRate: number; poOtherCharges: number; poCommissionPerUnit: number; poTotalUsableUnits: number;
   onStage: (s: ImpCartonStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [receiveOpen, setReceiveOpen] = useState(false);
-  const qc = useQueryClient();
-  const weightFn = useServerFn(saveCartonWeight);
-  const [weight, setWeight] = useState<number>(Number(carton.weight_kg ?? 0));
-  const weightMut = useMutation({
-    mutationFn: () => weightFn({ data: { carton_id: carton.id, po_id: poId, weight_kg: Number(weight) || 0 } }),
-    onSuccess: () => { toast.success("Weight saved — cost shares updated"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed"),
-  });
   const status = carton.status as ImpCartonStatus;
   const meta = CARTON_STATUS_LABEL[status];
 
@@ -522,50 +484,6 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
       </button>
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
-          {/* New simplified flow — additive, sits alongside existing release/QC forms */}
-          {["arrived_bd", "released", "in_stock"].includes(status) && (
-            <div className="py-3 space-y-3">
-              <div className="grid md:grid-cols-[1fr_auto_auto] gap-3 items-end">
-                <div>
-                  <Label className="text-xs">Carton Weight (KG)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                  />
-                </div>
-                <Button variant="outline" size="sm" onClick={() => weightMut.mutate()} disabled={weightMut.isPending}>
-                  {weightMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Save weight
-                </Button>
-                <div className="text-xs">
-                  <div className="text-muted-foreground">Cost share</div>
-                  <div className="font-semibold tabular-nums">{fmtBdt(carton.cost_share_bdt ?? 0)}</div>
-                </div>
-              </div>
-              {!carton.posted_at && (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setReceiveOpen(true)}>
-                    <ClipboardCheck className="h-4 w-4 mr-1" /> Receive carton (qty check)
-                  </Button>
-                </div>
-              )}
-              {brandId && (
-                <LandedCostSummary
-                  carton={carton}
-                  poItems={poItems}
-                  poFxRate={poFxRate}
-                  poOtherCharges={poOtherCharges}
-                  poCommissionPerUnit={poCommissionPerUnit}
-                  poTotalUsableUnits={poTotalUsableUnits}
-                  poId={poId}
-                  brandId={brandId}
-                />
-              )}
-            </div>
-          )}
-
           {status === "arrived_bd" && brandId && (
             <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} poPaid={poPaid} poSupplierTotal={poSupplierTotal} />
           )}
@@ -579,7 +497,6 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
           )}
         </div>
       )}
-      <CartonReceiveDialog open={receiveOpen} onOpenChange={setReceiveOpen} carton={carton} poId={poId} />
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  createImportPo, listImportSuppliers,
+  createImportPo, listImportSuppliers, updatePoLandedCost,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
@@ -58,6 +58,7 @@ function NewPoPage() {
 
   const suppliersFn = useServerFn(listImportSuppliers);
   const createFn = useServerFn(createImportPo);
+  const landedFn = useServerFn(updatePoLandedCost);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
@@ -71,6 +72,7 @@ function NewPoPage() {
   const [currency, setCurrency] = useState("CNY");
   const [fxRate, setFxRate] = useState<number>(14);
   const [notes, setNotes] = useState("");
+  const [agentCommissionCny, setAgentCommissionCny] = useState<number>(0);
 
   const [items, setItems] = useState<ItemDraft[]>([
     { id: uid(), picked: emptyPick(), quantity: 1, unit_cost_foreign: 0 },
@@ -188,6 +190,26 @@ function NewPoPage() {
       }
 
       const res: any = await createFn({ data: payload });
+      // Persist agent commission (CNY/pcs) on the PO if provided
+      if (res?.po_id && agentCommissionCny > 0 && fxRate > 0) {
+        try {
+          await landedFn({
+            data: {
+              po_id: res.po_id,
+              fx_rate_cny_bdt: fxRate,
+              fx_rate_source: "manual",
+              freight_cost_bdt: 0,
+              customs_duty_bdt: 0,
+              other_charges_bdt: 0,
+              agent_commission_cny: agentCommissionCny,
+              items: [],
+              lock_rate: false,
+            },
+          });
+        } catch (e) {
+          console.warn("Failed to save agent commission", e);
+        }
+      }
       return res;
     },
     onSuccess: (res: any) => {
@@ -268,6 +290,26 @@ function NewPoPage() {
               <div className="md:col-span-2">
                 <Label className="text-xs">FX rate (1 {currency} = ? BDT)</Label>
                 <Input type="number" step="0.0001" value={fxRate} onChange={(e) => setFxRate(Number(e.target.value))} />
+              </div>
+              <div>
+                <Label className="text-xs">Agent commission ({currency}/pcs)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={agentCommissionCny}
+                  onChange={(e) => setAgentCommissionCny(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0.00"
+                />
+                {agentCommissionCny > 0 && (
+                  fxRate > 0 ? (
+                    <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                      = {fmtBdt(agentCommissionCny * fxRate)}/pcs · total {fmtBdt(agentCommissionCny * fxRate * totalUnits)}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-orange-600 mt-1">Set FX rate first</div>
+                  )
+                )}
               </div>
               <div className="md:col-span-3">
                 <Label className="text-xs">Notes</Label>
