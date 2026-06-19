@@ -208,15 +208,16 @@ function useTicker(ms: number = 5000) {
 function LiveAnalyticsPage() {
   const { brandIds, isAllBrands, activeBrand } = useBrand();
   const brandLabel = isAllBrands ? "All Brands" : (activeBrand?.name ?? "—");
+  const [range, setRange] = useState<TimeRange>("15m");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/20 via-background to-background">
       <div className="px-4 lg:px-6 py-5 space-y-5 max-w-[1600px] mx-auto">
-        <Header brandLabel={brandLabel} />
-        <PulseBar brandIds={brandIds} />
+        <Header brandLabel={brandLabel} range={range} onRangeChange={setRange} />
+        <PulseBar brandIds={brandIds} range={range} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ActiveSessionsPanel />
-          <EventStreamPanel brandIds={brandIds} />
+          <EventStreamPanel brandIds={brandIds} range={range} />
         </div>
         <TodaysChartsGrid brandIds={brandIds} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -228,7 +229,7 @@ function LiveAnalyticsPage() {
   );
 }
 
-function Header({ brandLabel }: { brandLabel: string }) {
+function Header({ brandLabel, range, onRangeChange }: { brandLabel: string; range: TimeRange; onRangeChange: (v: TimeRange) => void }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -244,6 +245,7 @@ function Header({ brandLabel }: { brandLabel: string }) {
           </span>
           <h1 className="text-2xl font-bold tracking-tight">Live Analytics</h1>
           <Badge variant="outline" className="ml-1 text-[10px] uppercase tracking-wider">Realtime</Badge>
+          <div className="ml-2"><RangeToggle value={range} onChange={onRangeChange} /></div>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
           {brandLabel} · {now.toLocaleTimeString()}
@@ -257,12 +259,14 @@ function Header({ brandLabel }: { brandLabel: string }) {
 }
 
 // ---------------- Pulse Bar ----------------
-function PulseBar({ brandIds }: { brandIds: string[] }) {
-  // Active visitors (last 2 min)
+function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
+  const meta = rangeMeta(range);
+  const windowMs = meta.seconds * 1000;
+  // Active visitors (selected window)
   const { data: liveVisitors = 0 } = useQuery({
-    queryKey: ["live-visitors"],
+    queryKey: ["live-visitors", range],
     queryFn: async () => {
-      const since = new Date(Date.now() - 2 * 60_000).toISOString();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("active_sessions")
         .select("session_id", { count: "exact", head: true })
@@ -272,11 +276,11 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
     refetchInterval: 5000,
   });
 
-  // Add to carts last hour
+  // Add to carts (selected window)
   const { data: atcCount = 0 } = useQuery({
-    queryKey: ["live-atc"],
+    queryKey: ["live-atc", range],
     queryFn: async () => {
-      const since = new Date(Date.now() - 60 * 60_000).toISOString();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
@@ -287,16 +291,16 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
     refetchInterval: 5000,
   });
 
-  // Page views today
-  const { data: pvToday = 0 } = useQuery({
-    queryKey: ["live-pv-today"],
+  // Page views (selected window)
+  const { data: pvWindow = 0 } = useQuery({
+    queryKey: ["live-pv-window", range],
     queryFn: async () => {
-      const start = startOfDayISO();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
         .eq("event_name", "page_view")
-        .gte("created_at", start);
+        .gte("created_at", since);
       return count ?? 0;
     },
     refetchInterval: 5000,
@@ -320,11 +324,11 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
   });
 
   const cards = [
-    { label: "Live Visitors", value: num(liveVisitors), icon: Users, accent: "emerald", live: true },
-    { label: "Add to Cart (1h)", value: num(atcCount), icon: ShoppingCart, accent: "amber" },
+    { label: `Live Visitors (${meta.label})`, value: num(liveVisitors), icon: Users, accent: "emerald", live: true },
+    { label: `Add to Cart (${meta.label})`, value: num(atcCount), icon: ShoppingCart, accent: "amber" },
     { label: "Orders Today", value: num(ordersToday.count), icon: Package, accent: "blue" },
     { label: "Revenue Today", value: BDT.format(ordersToday.revenue), icon: DollarSign, accent: "green" },
-    { label: "Page Views Today", value: num(pvToday), icon: Eye, accent: "purple" },
+    { label: `Page Views (${meta.label})`, value: num(pvWindow), icon: Eye, accent: "purple" },
   ] as const;
 
   return (
