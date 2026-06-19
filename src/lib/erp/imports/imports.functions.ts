@@ -71,6 +71,7 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         fx_rate_cny_bdt, fx_rate_locked_at, fx_rate_source,
         freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
         total_units, landed_cost_per_unit_bdt,
+        shipping_weight_kg, shipping_rate_per_kg, shipping_cost_bdt,
         supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
@@ -81,9 +82,10 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
       context.supabase.from("imp_cartons").select(`
         id, carton_number, barcode, expected_quantity,
         supplier_cost_bdt, shipping_charge_bdt, local_courier_bdt, total_landed_bdt,
-        weight_kg, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
+        weight_kg, cost_share_bdt, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
         items:imp_carton_items ( id, po_item_id, product_id, variant_id, sku_snapshot,
-          quantity_expected, quantity_ok, quantity_damaged, quantity_missing )
+          quantity_expected, quantity_ok, quantity_damaged, quantity_missing,
+          received_qty, damaged_qty, usable_qty )
       `).eq("po_id", data.poId).order("carton_number"),
       context.supabase.from("imp_payments").select(`
         id, carton_id, payment_type, amount_bdt, wallet_id, payment_date, reference,
@@ -699,4 +701,245 @@ export const recordImportPayment = createServerFn({ method: "POST" })
     const { data: out, error } = await context.supabase.rpc("imp_record_payment_rpc", { _payload: data });
     if (error) throw error;
     return out;
+  });
+
+/* ============================================================
+   SIMPLIFIED LANDED COST WORKFLOW (additive)
+   ============================================================ */
+
+async function recomputeCartonCostSharesInternal(supabase: any, po_id: string) {
+  const { data: po, error: pErr } = await supabase
+    .from("imp_purchase_orders")
+    .select("shipping_cost_bdt")
+    .eq("id", po_id)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  const shippingTotal = Number(po?.shipping_cost_bdt ?? 0);
+
+  const { data: cartons, error: cErr } = await supabase
+    .from("imp_cartons")
+    .select("id, weight_kg")
+    .eq("po_id", po_id);
+  if (cErr) throw cErr;
+  const list = cartons ?? [];
+  if (list.length === 0) return { updated: 0, shipping_total: shippingTotal };
+
+  const totalWeight = list.reduce((s: number, c: any) => s + Number(c.weight_kg || 0), 0);
+  const useWeight = totalWeight > 0;
+
+  for (const c of list) {
+    const share = useWeight
+      ? (Number(c.weight_kg || 0) / totalWeight) * shippingTotal
+      : shippingTotal / list.length;
+    const { error: uErr } = await supabase
+      .from("imp_cartons")
+      .update({ cost_share_bdt: +share.toFixed(4) })
+      .eq("id", c.id);
+    if (uErr) throw uErr;
+  }
+  return { updated: list.length, shipping_total: shippingTotal };
+}
+
+export const saveShippingCost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      po_id: z.string().uuid(),
+      shipping_weight_kg: z.number().nonnegative(),
+      shipping_rate_per_kg: z.number().nonnegative(),
+      other_charges_bdt: z.number().nonnegative().default(0),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+    const shipping_cost_bdt = +(data.shipping_weight_kg * data.shipping_rate_per_kg).toFixed(4);
+    const { error } = await context.supabase
+      .from("imp_purchase_orders")
+      .update({
+        shipping_weight_kg: data.shipping_weight_kg,
+        shipping_rate_per_kg: data.shipping_rate_per_kg,
+        shipping_cost_bdt,
+        other_charges_bdt: data.other_charges_bdt,
+      })
+      .eq("id", data.po_id);
+    if (error) throw error;
+    const recompute = await recomputeCartonCostSharesInternal(context.supabase, data.po_id);
+    return { ok: true, shipping_cost_bdt, ...recompute };
+  });
+
+export const saveCartonWeight = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      carton_id: z.string().uuid(),
+      po_id: z.string().uuid(),
+      weight_kg: z.number().nonnegative(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "warehouse_staff"]);
+    const { error } = await context.supabase
+      .from("imp_cartons")
+      .update({ weight_kg: data.weight_kg })
+      .eq("id", data.carton_id);
+    if (error) throw error;
+    const recompute = await recomputeCartonCostSharesInternal(context.supabase, data.po_id);
+    return { ok: true, ...recompute };
+  });
+
+export const saveCartonReceipt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      carton_id: z.string().uuid(),
+      items: z.array(z.object({
+        carton_item_id: z.string().uuid(),
+        received_qty: z.number().int().nonnegative(),
+        damaged_qty: z.number().int().nonnegative().default(0),
+      })).min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "warehouse_staff"]);
+    for (const it of data.items) {
+      const { error } = await context.supabase
+        .from("imp_carton_items")
+        .update({ received_qty: it.received_qty, damaged_qty: it.damaged_qty })
+        .eq("id", it.carton_item_id)
+        .eq("carton_id", data.carton_id);
+      if (error) throw error;
+    }
+    return { ok: true, updated: data.items.length };
+  });
+
+export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      carton_id: z.string().uuid(),
+      warehouse_id: z.string().uuid(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "warehouse_staff"]);
+
+    // Load carton + items
+    const { data: carton, error: cErr } = await context.supabase
+      .from("imp_cartons")
+      .select("id, po_id, cost_share_bdt, status, brand_id:po_id")
+      .eq("id", data.carton_id)
+      .maybeSingle();
+    if (cErr) throw cErr;
+    if (!carton) throw new Error("Carton not found");
+
+    const { data: items, error: iErr } = await context.supabase
+      .from("imp_carton_items")
+      .select("id, po_item_id, product_id, variant_id, sku_snapshot, received_qty, damaged_qty, usable_qty")
+      .eq("carton_id", data.carton_id);
+    if (iErr) throw iErr;
+    const list = items ?? [];
+    if (list.length === 0) throw new Error("No carton items");
+
+    // Load PO for fx + other_charges + brand
+    const { data: po, error: pErr } = await context.supabase
+      .from("imp_purchase_orders")
+      .select("id, brand_id, fx_rate_cny_bdt, fx_rate, other_charges_bdt")
+      .eq("id", (carton as any).po_id)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!po) throw new Error("PO not found");
+    const fx = Number((po as any).fx_rate_cny_bdt ?? (po as any).fx_rate ?? 0);
+
+    // Load po_items for unit_cost_cny
+    const poItemIds = list.map((r: any) => r.po_item_id).filter(Boolean);
+    const { data: poItems, error: piErr } = await context.supabase
+      .from("imp_po_items")
+      .select("id, unit_cost_cny, unit_cost_foreign")
+      .in("id", poItemIds);
+    if (piErr) throw piErr;
+    const piMap = new Map<string, any>((poItems ?? []).map((r: any) => [r.id, r]));
+
+    // Totals for share allocation
+    const totalUsableInCarton = list.reduce((s: number, r: any) => s + Number(r.usable_qty ?? 0), 0);
+    const cartonShipShare = Number((carton as any).cost_share_bdt ?? 0);
+    const shipPerUnit = totalUsableInCarton > 0 ? cartonShipShare / totalUsableInCarton : 0;
+
+    // For "other_share" we need total usable across PO
+    const { data: allCartonItems, error: acErr } = await context.supabase
+      .from("imp_carton_items")
+      .select("usable_qty, carton:carton_id!inner ( po_id )")
+      .eq("carton.po_id", (carton as any).po_id);
+    if (acErr) throw acErr;
+    const totalUsableInPo = (allCartonItems ?? []).reduce((s: number, r: any) => s + Number(r.usable_qty ?? 0), 0);
+    const otherCharges = Number((po as any).other_charges_bdt ?? 0);
+    const otherPerUnit = totalUsableInPo > 0 ? otherCharges / totalUsableInPo : 0;
+
+    const movements: any[] = [];
+    const damagedLogs: any[] = [];
+
+    for (const it of list) {
+      const usable = Number(it.usable_qty ?? 0);
+      const damaged = Number(it.damaged_qty ?? 0);
+      const pi = piMap.get(it.po_item_id);
+      const unitCny = Number(pi?.unit_cost_cny ?? pi?.unit_cost_foreign ?? 0);
+      const productCost = unitCny * fx;
+      const landed = +(productCost + shipPerUnit + otherPerUnit).toFixed(4);
+
+      if (usable > 0) {
+        const { data: movId, error: aErr } = await context.supabase.rpc("adjust_stock_v2", {
+          _product_id: it.product_id as string,
+          _variant_id: it.variant_id as string,
+          _delta: usable,
+          _reason: "import_receive",
+          _source: "import",
+          _unit_cost: landed,
+          _reference_type: "imp_carton",
+          _reference_id: data.carton_id,
+          _idempotency_key: `imp_recv:${data.carton_id}:${it.id}`,
+          _note: `Carton receipt — landed ৳${landed.toFixed(2)}/pc`,
+        });
+        if (aErr) throw aErr;
+        movements.push({ carton_item_id: it.id, qty: usable, unit_cost: landed, movement_id: movId });
+      }
+
+      if (damaged > 0) {
+        // Per plan — damaged logged to activity_log only, no stock movement
+        damagedLogs.push({
+          carton_item_id: it.id,
+          product_id: it.product_id,
+          variant_id: it.variant_id,
+          damaged_qty: damaged,
+        });
+      }
+    }
+
+    if (damagedLogs.length > 0) {
+      try {
+        await context.supabase.from("activity_log").insert({
+          entity_type: "imp_carton",
+          entity_id: data.carton_id,
+          action: "import_carton_damaged",
+          performed_by: context.userId,
+          details: { damaged: damagedLogs, brand_id: (po as any).brand_id } as any,
+        });
+      } catch { /* non-fatal */ }
+    }
+
+    // Mark carton posted + in_stock
+    const { error: upErr } = await context.supabase
+      .from("imp_cartons")
+      .update({ posted_at: new Date().toISOString(), status: "in_stock", warehouse_id: data.warehouse_id })
+      .eq("id", data.carton_id);
+    if (upErr) throw upErr;
+
+    return {
+      ok: true,
+      movements,
+      damaged: damagedLogs,
+      totals: {
+        usable_units: totalUsableInCarton,
+        ship_per_unit: +shipPerUnit.toFixed(4),
+        other_per_unit: +otherPerUnit.toFixed(4),
+      },
+    };
   });
