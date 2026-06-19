@@ -105,6 +105,88 @@ type WebOrderRow = {
   attribution?: { utm_source: string | null; utm_medium: string | null } | null;
 };
 
+function CallLogPopover({
+  orderId, currentCount, onSaved,
+}: {
+  orderId: string;
+  currentCount: number;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [result, setResult] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!result) { toast.error("Pick a result"); return; }
+    setSaving(true);
+    try {
+      const body = `📞 ${result}${note.trim() ? ` — ${note.trim()}` : ""}`;
+      const { error: noteErr } = await supabase.from("order_notes").insert({ order_id: orderId, body, is_internal: true });
+      if (noteErr) throw noteErr;
+      const { error: updErr } = await supabase
+        .from("orders")
+        .update({ call_attempt_count: currentCount + 1, call_status: result } as never)
+        .eq("id", orderId);
+      if (updErr) throw updErr;
+      toast.success("Call logged");
+      setResult(""); setNote(""); setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const RESULTS = ["Answered", "No Answer", "Busy", "Wrong Number"];
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title="Log call"
+          className="inline-flex items-center gap-1 h-5 px-1.5 rounded-md border border-border/60 bg-background hover:bg-muted text-[10px] font-semibold text-foreground/80"
+        >
+          <PhoneIcon className="h-3 w-3" />
+          {currentCount > 0 && <span className="tabular-nums">{currentCount}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Log call result</div>
+        <div className="grid grid-cols-2 gap-1.5 mb-2">
+          {RESULTS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setResult(r)}
+              className={cn(
+                "h-7 rounded-md text-[11px] font-medium border transition-colors",
+                result === r ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border/60",
+              )}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Note (optional)"
+          className="text-xs min-h-[60px]"
+        />
+        <div className="flex justify-end gap-1.5 mt-2">
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button size="sm" className="h-7 text-xs" onClick={save} disabled={saving || !result}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number; delivered: number };
 
 type ProviderStat = { total: number; success: number; cancelled: number };
