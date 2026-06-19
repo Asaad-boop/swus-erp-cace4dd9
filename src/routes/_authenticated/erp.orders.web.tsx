@@ -1229,7 +1229,18 @@ function _WebOrdersPageBody() {
                     <TableCell className="py-2 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
                         <Button asChild size="sm" variant="default" className="h-8">
-                          <Link to="/erp/orders/$orderId" params={{ orderId: r.id }}>
+                          <Link
+                            to="/erp/orders/$orderId"
+                            params={{ orderId: r.id }}
+                            onClick={() => {
+                              try {
+                                sessionStorage.setItem(
+                                  "order-nav-list",
+                                  JSON.stringify(filteredRows.map((f) => f.row.id)),
+                                );
+                              } catch { /* ignore */ }
+                            }}
+                          >
                             Open
                           </Link>
                         </Button>
