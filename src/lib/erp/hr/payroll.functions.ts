@@ -55,6 +55,250 @@ function computeTotals(payslips: any[]) {
   return { total_gross, total_net, total_employees: payslips.length };
 }
 
+/* ============ Finance journal helpers (additive) ============ */
+const MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+async function isPayrollAutopostEnabled(supabase: any, brandId: string | null): Promise<boolean> {
+  const key = `finance:payroll_autopost:${brandId ?? "global"}`;
+  const { data } = await supabase.from("app_settings").select("value").eq("key", key).maybeSingle();
+  if (!data?.value) return true; // default ON
+  try {
+    const v = JSON.parse(data.value);
+    return v !== false;
+  } catch { return true; }
+}
+
+async function findOrCreateChartAccount(
+  supabase: any,
+  brandId: string,
+  userId: string,
+  opts: { namePatterns: string[]; type: "asset" | "liability" | "expense" | "income" | "equity"; fallbackName: string; fallbackCode: string },
+): Promise<string | null> {
+  // search active first
+  for (const pat of opts.namePatterns) {
+    const { data } = await supabase
+      .from("erp_chart_accounts")
+      .select("id")
+      .eq("brand_id", brandId)
+      .eq("account_type", opts.type)
+      .eq("is_archived", false)
+      .ilike("name", pat)
+      .limit(1);
+    if (data && data.length) return data[0].id;
+  }
+  const normal = opts.type === "asset" || opts.type === "expense" ? "debit" : "credit";
+  const { data: created, error } = await supabase
+    .from("erp_chart_accounts")
+    .insert({
+      brand_id: brandId,
+      code: opts.fallbackCode,
+      name: opts.fallbackName,
+      account_type: opts.type,
+      normal_balance: normal,
+      is_active: true,
+      is_archived: false,
+      created_by: userId,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !created) return null;
+  return created.id;
+}
+
+async function logActivity(supabase: any, userId: string, entityType: string, entityId: string, action: string, details: any) {
+  try {
+    await supabase.from("activity_log").insert({
+      entity_type: entityType,
+      entity_id: entityId,
+      action,
+      details,
+      performed_by: userId,
+    });
+  } catch { /* swallow */ }
+}
+
+async function postPayrollJournal(supabase: any, userId: string, runId: string): Promise<{ posted: boolean; entry_id?: string; reason?: string }> {
+  // Load run
+  const { data: run } = await supabase
+    .from("hr_payroll_runs")
+    .select("id, brand_id, month, year, finalized_at, total_gross, total_net, total_employees")
+    .eq("id", runId)
+    .maybeSingle();
+  if (!run) return { posted: false, reason: "run not found" };
+  if (!run.brand_id) return { posted: false, reason: "run has no brand_id" };
+
+  // Idempotency
+  const { data: existing } = await supabase
+    .from("erp_journal_entries")
+    .select("id")
+    .eq("source_type", "payroll_run")
+    .eq("source_id", runId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existing) return { posted: true, entry_id: existing.id };
+
+  // Sum tax/PF from payslips deductions jsonb
+  const { data: slips } = await supabase
+    .from("hr_payslips")
+    .select("deductions")
+    .eq("run_id", runId);
+  let totalTax = 0, totalPf = 0;
+  for (const s of (slips ?? []) as any[]) {
+    const d = s.deductions ?? {};
+    totalTax += Number(d.tax ?? 0);
+    totalPf += Number(d.pf ?? 0);
+  }
+
+  // Net payable line = total_net (already gross - all deductions). Journal:
+  // DR Salary Expense = total_gross
+  // CR Salary Payable = total_net
+  // CR Tax Payable    = totalTax (if > 0)
+  // CR PF Payable     = totalPf  (if > 0)
+  // CR Other Deductions Payable = (gross - net - tax - pf)  — to keep balanced if other deductions exist
+  const gross = Number(run.total_gross ?? 0);
+  const net = Number(run.total_net ?? 0);
+  const otherDed = Math.max(0, gross - net - totalTax - totalPf);
+
+  const salaryExpenseId = await findOrCreateChartAccount(supabase, run.brand_id, userId, {
+    namePatterns: ["%salary%", "%salaries%", "%wages%"],
+    type: "expense",
+    fallbackName: "Salary Expense",
+    fallbackCode: "6100",
+  });
+  const salaryPayableId = await findOrCreateChartAccount(supabase, run.brand_id, userId, {
+    namePatterns: ["%salary payable%", "%wages payable%", "%salaries payable%"],
+    type: "liability",
+    fallbackName: "Salary Payable",
+    fallbackCode: "2100",
+  });
+  if (!salaryExpenseId || !salaryPayableId) return { posted: false, reason: "could not resolve salary accounts" };
+
+  const lines: any[] = [
+    { account_id: salaryExpenseId, debit: gross, credit: 0, description: `Gross salary — ${run.total_employees ?? 0} employees` },
+    { account_id: salaryPayableId, debit: 0, credit: net, description: "Net salary payable" },
+  ];
+
+  if (totalTax > 0) {
+    const taxPayableId = await findOrCreateChartAccount(supabase, run.brand_id, userId, {
+      namePatterns: ["%tax payable%", "%income tax payable%"],
+      type: "liability",
+      fallbackName: "Tax Payable",
+      fallbackCode: "2200",
+    });
+    if (taxPayableId) lines.push({ account_id: taxPayableId, debit: 0, credit: totalTax, description: "Income tax withheld" });
+  }
+  if (totalPf > 0) {
+    const pfPayableId = await findOrCreateChartAccount(supabase, run.brand_id, userId, {
+      namePatterns: ["%pf payable%", "%provident fund payable%", "%provident fund%"],
+      type: "liability",
+      fallbackName: "PF Payable",
+      fallbackCode: "2300",
+    });
+    if (pfPayableId) lines.push({ account_id: pfPayableId, debit: 0, credit: totalPf, description: "Provident fund payable" });
+  }
+  if (otherDed > 0) {
+    const otherPayableId = await findOrCreateChartAccount(supabase, run.brand_id, userId, {
+      namePatterns: ["%other deductions payable%", "%payroll deductions payable%"],
+      type: "liability",
+      fallbackName: "Payroll Deductions Payable",
+      fallbackCode: "2400",
+    });
+    if (otherPayableId) lines.push({ account_id: otherPayableId, debit: 0, credit: otherDed, description: "Other deductions" });
+  }
+
+  const monthName = MONTH_NAMES[(run.month ?? 1) - 1];
+  const entryDate = (run.finalized_at ? new Date(run.finalized_at) : new Date()).toISOString().slice(0, 10);
+
+  const { data: jeId, error } = await supabase.rpc("create_journal_entry", {
+    _brand_id: run.brand_id,
+    _entry_date: entryDate,
+    _description: `Payroll — ${monthName} ${run.year}`,
+    _lines: lines,
+    _source_type: "payroll_run",
+    _source_id: runId,
+    _status: "posted",
+  });
+  if (error) return { posted: false, reason: error.message };
+  return { posted: true, entry_id: jeId as string };
+}
+
+async function postPayslipPaymentJournal(
+  supabase: any,
+  userId: string,
+  payslipId: string,
+  paymentMethod: string | null,
+): Promise<{ posted: boolean; reason?: string }> {
+  if (!paymentMethod) return { posted: false, reason: "no payment method" };
+
+  const { data: ps } = await supabase
+    .from("hr_payslips")
+    .select("id, run_id, net_pay, paid_at, snapshot, hr_employees(full_name), hr_payroll_runs(brand_id, month, year)")
+    .eq("id", payslipId)
+    .maybeSingle();
+  if (!ps) return { posted: false, reason: "payslip not found" };
+  const brandId = (ps as any).hr_payroll_runs?.brand_id ?? null;
+  if (!brandId) return { posted: false, reason: "no brand" };
+
+  // Idempotency
+  const { data: existing } = await supabase
+    .from("erp_journal_entries")
+    .select("id")
+    .eq("source_type", "payslip_payment")
+    .eq("source_id", payslipId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existing) return { posted: true };
+
+  const salaryPayableId = await findOrCreateChartAccount(supabase, brandId, userId, {
+    namePatterns: ["%salary payable%", "%wages payable%", "%salaries payable%"],
+    type: "liability",
+    fallbackName: "Salary Payable",
+    fallbackCode: "2100",
+  });
+
+  const methodPatterns: Record<string, { patterns: string[]; fallbackName: string; fallbackCode: string }> = {
+    bkash: { patterns: ["%bkash%"], fallbackName: "bKash Wallet", fallbackCode: "1110" },
+    nagad: { patterns: ["%nagad%"], fallbackName: "Nagad Wallet", fallbackCode: "1111" },
+    rocket: { patterns: ["%rocket%"], fallbackName: "Rocket Wallet", fallbackCode: "1112" },
+    bank: { patterns: ["%bank%"], fallbackName: "Bank Account", fallbackCode: "1120" },
+    cash: { patterns: ["%cash in hand%", "%cash%"], fallbackName: "Cash in Hand", fallbackCode: "1100" },
+  };
+  const cfg = methodPatterns[paymentMethod.toLowerCase()] ?? methodPatterns.cash;
+  const walletId = await findOrCreateChartAccount(supabase, brandId, userId, {
+    namePatterns: cfg.patterns,
+    type: "asset",
+    fallbackName: cfg.fallbackName,
+    fallbackCode: cfg.fallbackCode,
+  });
+  if (!salaryPayableId || !walletId) return { posted: false, reason: "missing accounts" };
+
+  const amount = Number((ps as any).net_pay ?? 0);
+  if (amount <= 0) return { posted: false, reason: "zero amount" };
+
+  const empName = (ps as any).hr_employees?.full_name ?? (ps as any).snapshot?.full_name ?? "Employee";
+  const runMeta = (ps as any).hr_payroll_runs;
+  const monthName = runMeta?.month ? MONTH_NAMES[runMeta.month - 1] : "";
+  const entryDate = ((ps as any).paid_at ? new Date((ps as any).paid_at) : new Date()).toISOString().slice(0, 10);
+
+  const { error } = await supabase.rpc("create_journal_entry", {
+    _brand_id: brandId,
+    _entry_date: entryDate,
+    _description: `Salary paid — ${empName}${monthName ? ` — ${monthName} ${runMeta?.year ?? ""}` : ""}`,
+    _lines: [
+      { account_id: salaryPayableId, debit: amount, credit: 0, description: "Clear salary payable" },
+      { account_id: walletId, debit: 0, credit: amount, description: `Paid via ${paymentMethod}` },
+    ],
+    _source_type: "payslip_payment",
+    _source_id: payslipId,
+    _status: "posted",
+  });
+  if (error) return { posted: false, reason: error.message };
+  return { posted: true };
+}
+
 /* ============ Attendance-based calculations ============ */
 function daysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
@@ -289,7 +533,7 @@ export const getPayrollRun = createServerFn({ method: "POST" })
   .inputValidator((d: any) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId);
-    const [runRes, payRes, deptRes, desigRes] = await Promise.all([
+    const [runRes, payRes, deptRes, desigRes, jeRes] = await Promise.all([
       context.supabase.from("hr_payroll_runs").select("*").eq("id", data.id).maybeSingle(),
       context.supabase
         .from("hr_payslips")
@@ -297,6 +541,13 @@ export const getPayrollRun = createServerFn({ method: "POST" })
         .eq("run_id", data.id),
       context.supabase.from("hr_departments").select("id, name"),
       context.supabase.from("hr_designations").select("id, title"),
+      context.supabase
+        .from("erp_journal_entries")
+        .select("id, entry_no, entry_date, status")
+        .eq("source_type", "payroll_run")
+        .eq("source_id", data.id)
+        .is("deleted_at", null)
+        .maybeSingle(),
     ]);
     if (runRes.error) throw runRes.error;
     if (!runRes.data) throw new Error("Run not found");
@@ -305,6 +556,7 @@ export const getPayrollRun = createServerFn({ method: "POST" })
       payslips: payRes.data ?? [],
       departments: deptRes.data ?? [],
       designations: desigRes.data ?? [],
+      journal_entry: jeRes.data ?? null,
     };
   });
 
@@ -375,7 +627,30 @@ export const finalizePayrollRun = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("status", "draft");
     if (error) throw error;
-    return { ok: true };
+    // Fail-soft journal autopost
+    let journal: { posted: boolean; entry_id?: string; reason?: string } = { posted: false };
+    try {
+      const { data: run } = await context.supabase
+        .from("hr_payroll_runs")
+        .select("brand_id")
+        .eq("id", data.id)
+        .maybeSingle();
+      const autopost = await isPayrollAutopostEnabled(context.supabase, run?.brand_id ?? null);
+      if (autopost) {
+        journal = await postPayrollJournal(context.supabase, context.userId, data.id);
+        if (!journal.posted) {
+          await logActivity(context.supabase, context.userId, "hr_payroll_run", data.id,
+            "journal_autopost_failed", { reason: journal.reason });
+        }
+      } else {
+        journal = { posted: false, reason: "autopost disabled" };
+      }
+    } catch (e: any) {
+      journal = { posted: false, reason: e?.message ?? "unknown error" };
+      await logActivity(context.supabase, context.userId, "hr_payroll_run", data.id,
+        "journal_autopost_failed", { reason: journal.reason });
+    }
+    return { ok: true, journal };
   });
 
 export const deletePayrollRun = createServerFn({ method: "POST" })
@@ -418,7 +693,31 @@ export const markPayslipPaid = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw error;
-    return { ok: true };
+    let journal: { posted: boolean; reason?: string } = { posted: false };
+    if (data.payment_status === "paid") {
+      try {
+        // brand from the run
+        const { data: ps } = await context.supabase
+          .from("hr_payslips")
+          .select("hr_payroll_runs(brand_id)")
+          .eq("id", data.id)
+          .maybeSingle();
+        const brandId = (ps as any)?.hr_payroll_runs?.brand_id ?? null;
+        const autopost = await isPayrollAutopostEnabled(context.supabase, brandId);
+        if (autopost) {
+          journal = await postPayslipPaymentJournal(context.supabase, context.userId, data.id, data.payment_method ?? null);
+          if (!journal.posted) {
+            await logActivity(context.supabase, context.userId, "hr_payslip", data.id,
+              "payment_journal_failed", { reason: journal.reason });
+          }
+        }
+      } catch (e: any) {
+        journal = { posted: false, reason: e?.message ?? "unknown error" };
+        await logActivity(context.supabase, context.userId, "hr_payslip", data.id,
+          "payment_journal_failed", { reason: journal.reason });
+      }
+    }
+    return { ok: true, journal };
   });
 
 export const getPayslip = createServerFn({ method: "POST" })
