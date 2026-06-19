@@ -933,7 +933,15 @@ function OrderDetailsPage() {
           />
 
           {/* Customer row */}
-          <section className="rounded-xl border bg-card p-4 space-y-4">
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                <h3 className="text-[13px] font-semibold text-gray-900 dark:text-foreground">Customer & Delivery</h3>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider text-gray-400">Editable</span>
+            </header>
+            <div className="p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="Mobile Number">
                 <div className="relative">
@@ -1042,20 +1050,25 @@ function OrderDetailsPage() {
               const customerKeys = ["mobile","name","delivery_method","address","shipping_note","city_id","zone_id","area_id","source_platform","is_preorder","is_cross_sale"] as const;
               const dirty = !!baseline && customerKeys.some((k) => (form as any)[k] !== (baseline as any)[k]);
               return (
-                <div className="flex items-center justify-end gap-2 pt-1 border-t">
-                  {dirty && <span className="text-[11px] text-amber-600 mr-auto">Unsaved changes</span>}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-border">
+                  {dirty && (
+                    <span className="mr-auto inline-flex items-center gap-1.5 text-[11px] text-amber-600">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />Unsaved changes
+                    </span>
+                  )}
                   <Button size="sm" variant="ghost" disabled={!dirty || saveCustomer.isPending}
                     onClick={() => baseline && setForm({ ...form, ...baseline })}>
                     <Undo2 className="h-3.5 w-3.5 mr-1" />Discard
                   </Button>
                   <Button size="sm" disabled={!dirty || saveCustomer.isPending}
-                    onClick={() => saveCustomer.mutate()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    onClick={() => saveCustomer.mutate()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                     {saveCustomer.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
                     Save Customer
                   </Button>
                 </div>
               );
             })()}
+            </div>
           </section>
 
           {/* Order Timeline */}
@@ -1063,21 +1076,27 @@ function OrderDetailsPage() {
 
           {/* Ordered Products + Add Products */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="rounded-xl border bg-card p-4">
-              <header className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">Ordered Products <span className="ml-1 text-xs text-muted-foreground">{items.length}</span></h3>
+            <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+              <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <h3 className="text-[13px] font-semibold">Ordered Products</h3>
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gray-100 dark:bg-muted text-[10px] font-semibold text-gray-600 tabular-nums">{items.length}</span>
+                </div>
+                <span className="text-[11px] text-gray-500 tabular-nums">৳{bdtCompact(itemsSubtotal)}</span>
               </header>
+              <div className="p-4">
               {items.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-8">No items in this order</p>
               ) : (
-                <ul className="divide-y -mx-2">
+                <ul className="divide-y divide-gray-100 dark:divide-border -mx-2">
                   {items.map((it) => {
                     const unit = Number(it.unit_price ?? it.price);
                     const total = Number(it.line_total ?? unit * it.quantity);
                     return (
-                      <li key={it.id} className="px-2 py-3">
+                      <li key={it.id} className="px-2 py-3 rounded-lg hover:bg-gray-50/70 dark:hover:bg-muted/30 transition-colors">
                         <div className="flex items-start gap-3">
-                          <div className="h-12 w-12 rounded-md bg-muted shrink-0 overflow-hidden flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-lg bg-gray-100 dark:bg-muted ring-1 ring-gray-200/70 dark:ring-border shrink-0 overflow-hidden flex items-center justify-center">
                             {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : <span className="text-[8px] text-muted-foreground">No Image</span>}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1094,7 +1113,7 @@ function OrderDetailsPage() {
                                })()}
                              </div>
                           </div>
-                          <button onClick={() => deleteItem.mutate(it.id)} className="p-1 rounded hover:bg-rose-500/10 text-rose-600">
+                          <button onClick={() => deleteItem.mutate(it.id)} className="p-1.5 rounded-md hover:bg-rose-500/10 text-gray-400 hover:text-rose-600 transition-colors" title="Remove item">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -1106,7 +1125,7 @@ function OrderDetailsPage() {
                             <QtyInput value={unit} onChange={(v) => updateItem.mutate({ id: it.id, unit_price: v })} step={10} />
                           </FieldShell>
                           <FieldShell label="Total">
-                            <Input value={bdtCompact(total)} readOnly className="h-8 text-xs bg-muted/40 tabular-nums" />
+                            <Input value={bdtCompact(total)} readOnly className="h-8 text-xs bg-gray-50 dark:bg-muted/40 border-gray-100 tabular-nums font-semibold" />
                           </FieldShell>
                         </div>
                       </li>
@@ -1114,17 +1133,26 @@ function OrderDetailsPage() {
                   })}
                 </ul>
               )}
+              </div>
             </section>
-            <section className="rounded-xl border bg-card p-4">
-              <header className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">Click To Add Products</h3>
+            <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+              <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                <h3 className="text-[13px] font-semibold">Add Products</h3>
               </header>
-              <ProductSearchPanel brandId={order.brand_id ?? null} onAdd={(p) => addItem.mutate(p)} />
+              <div className="p-4">
+                <ProductSearchPanel brandId={order.brand_id ?? null} onAdd={(p) => addItem.mutate(p)} />
+              </div>
             </section>
           </div>
 
           {/* Totals row */}
-          <section className="rounded-xl border bg-card p-4">
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <h3 className="text-[13px] font-semibold">Pricing & Totals</h3>
+            </header>
+            <div className="p-5">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <FieldShell label="Discount">
                 <NumInput value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} />
@@ -1177,15 +1205,17 @@ function OrderDetailsPage() {
                 <NumInput value={form.shipping_fee} onChange={(v) => setForm({ ...form, shipping_fee: v })} />
               </FieldShell>
               <FieldShell label="Grand Total">
-                <Input value={bdtCompact(grandTotal)} readOnly className="h-9 bg-rose-500/5 border-rose-500/30 text-rose-600 font-bold tabular-nums" />
+                <Input value={`৳ ${bdtCompact(grandTotal)}`} readOnly className="h-9 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-bold tabular-nums" />
               </FieldShell>
             </div>
             {order.payment_method?.toLowerCase().includes("cod") && (
-              <p className="text-center text-xs text-rose-600 mt-3">The payment method is Cash on Delivery (COD). Please confirm with the customer.</p>
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-300 text-center">
+                Cash on Delivery (COD) — please confirm with the customer before booking.
+              </div>
             )}
             {order.status !== "confirmed" && order.web_status !== "complete" ? (
               <Button
-                className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-full mt-4 h-11 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20"
                 size="lg"
                 disabled={confirmOrder.isPending}
                 onClick={() => confirmOrder.mutate()}
@@ -1196,7 +1226,7 @@ function OrderDetailsPage() {
               </Button>
             ) : (
               <Button
-                className="w-full mt-3"
+                className="w-full mt-4 h-11"
                 size="lg"
                 variant="outline"
                 disabled={savePricing.isPending}
@@ -1205,6 +1235,7 @@ function OrderDetailsPage() {
                 {savePricing.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Save Order (৳${bdtCompact(grandTotal)}.00)`}
               </Button>
             )}
+            </div>
           </section>
         </div>
 
