@@ -605,7 +605,17 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
       }
       return await fn({ data: payload });
     },
-    onSuccess: () => { toast.success(`Posted ${totalOk} pcs to inventory`); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onSuccess: (res: any) => {
+      const unit = Number(res?.unit_landed ?? 0);
+      if (unit > 0) {
+        toast.success(`✅ Posted ${totalOk} pcs — landed cost ৳${unit.toFixed(2)}/unit`);
+      } else if (res?.idempotent_replay) {
+        toast.success("Already posted (idempotent replay)");
+      } else {
+        toast.warning(`⚠️ Posted ${totalOk} pcs without cost (no FX/extras set)`);
+      }
+      qc.invalidateQueries({ queryKey: ["imp-po", poId] });
+    },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
