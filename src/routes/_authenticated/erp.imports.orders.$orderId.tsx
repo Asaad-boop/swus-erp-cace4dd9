@@ -441,21 +441,11 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, poFxRate, poOtherCharges, poCommissionPerUnit, poTotalUsableUnits, onStage }: {
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage }: {
   carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
-  poFxRate: number; poOtherCharges: number; poCommissionPerUnit: number; poTotalUsableUnits: number;
   onStage: (s: ImpCartonStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [receiveOpen, setReceiveOpen] = useState(false);
-  const qc = useQueryClient();
-  const weightFn = useServerFn(saveCartonWeight);
-  const [weight, setWeight] = useState<number>(Number(carton.weight_kg ?? 0));
-  const weightMut = useMutation({
-    mutationFn: () => weightFn({ data: { carton_id: carton.id, po_id: poId, weight_kg: Number(weight) || 0 } }),
-    onSuccess: () => { toast.success("Weight saved — cost shares updated"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed"),
-  });
   const status = carton.status as ImpCartonStatus;
   const meta = CARTON_STATUS_LABEL[status];
 
@@ -494,50 +484,6 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
       </button>
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
-          {/* New simplified flow — additive, sits alongside existing release/QC forms */}
-          {["arrived_bd", "released", "in_stock"].includes(status) && (
-            <div className="py-3 space-y-3">
-              <div className="grid md:grid-cols-[1fr_auto_auto] gap-3 items-end">
-                <div>
-                  <Label className="text-xs">Carton Weight (KG)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                  />
-                </div>
-                <Button variant="outline" size="sm" onClick={() => weightMut.mutate()} disabled={weightMut.isPending}>
-                  {weightMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Save weight
-                </Button>
-                <div className="text-xs">
-                  <div className="text-muted-foreground">Cost share</div>
-                  <div className="font-semibold tabular-nums">{fmtBdt(carton.cost_share_bdt ?? 0)}</div>
-                </div>
-              </div>
-              {!carton.posted_at && (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setReceiveOpen(true)}>
-                    <ClipboardCheck className="h-4 w-4 mr-1" /> Receive carton (qty check)
-                  </Button>
-                </div>
-              )}
-              {brandId && (
-                <LandedCostSummary
-                  carton={carton}
-                  poItems={poItems}
-                  poFxRate={poFxRate}
-                  poOtherCharges={poOtherCharges}
-                  poCommissionPerUnit={poCommissionPerUnit}
-                  poTotalUsableUnits={poTotalUsableUnits}
-                  poId={poId}
-                  brandId={brandId}
-                />
-              )}
-            </div>
-          )}
-
           {status === "arrived_bd" && brandId && (
             <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} poPaid={poPaid} poSupplierTotal={poSupplierTotal} />
           )}
@@ -551,7 +497,6 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
           )}
         </div>
       )}
-      <CartonReceiveDialog open={receiveOpen} onOpenChange={setReceiveOpen} carton={carton} poId={poId} />
     </div>
   );
 }
