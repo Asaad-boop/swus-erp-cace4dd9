@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Wallet, AlertCircle } from "lucide-react";
+import { Search, Wallet, AlertCircle, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -14,6 +14,10 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { fmtBdt } from "@/lib/erp/finance";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { exportAgedExcel, exportAgedPdf } from "@/lib/erp/finance-aged-export";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/receivables")({
   head: () => ({ meta: [{ title: "Receivables — Finance ERP" }] }),
@@ -102,6 +106,18 @@ function ReceivablesPage() {
 
   const totalOutstanding = (arQ.data ?? []).reduce((s, r) => s + Number(r.outstanding), 0);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const exportRowsForAging = () =>
+    (arQ.data ?? []).map((r) => ({
+      name: r.customer_name,
+      contact: r.customer_phone ?? "",
+      docNo: r.order_id.slice(0, 8),
+      docDate: r.invoice_date,
+      dueDate: r.invoice_date,
+      age: r.age_days,
+      outstanding: Number(r.outstanding),
+    }));
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
@@ -113,6 +129,21 @@ function ReceivablesPage() {
             {" · "}{rows.length} of {arQ.data?.length ?? 0} orders
           </p>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!(arQ.data?.length)}>
+              <Download className="h-4 w-4 mr-1" /> Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => exportAgedExcel({ rows: exportRowsForAging(), kind: "receivables", asOfDate: today })}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportAgedPdf({ rows: exportRowsForAging(), kind: "receivables", asOfDate: today, companyName: effectiveBrand?.name })}>
+              <Printer className="h-4 w-4 mr-2" /> Export PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
