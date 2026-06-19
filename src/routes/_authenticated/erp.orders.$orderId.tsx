@@ -1,17 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
-  ChevronLeft, ChevronRight, RotateCcw, Repeat, Copy, Check,
+  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2,
+  ChevronLeft, ChevronRight, RotateCcw, Repeat, Copy, Check, MapPin,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
-import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
+import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn } from "@/lib/erp/pathao.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
