@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon, Package } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -273,6 +274,38 @@ function AllItemsPopover({
   items: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
   total: number;
 }) {
+  return _AllItemsPopover({ items, total });
+}
+
+function ProductThumb({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
+  const [failed, setFailed] = React.useState(false);
+  const url = src && src.trim() ? src : null;
+  if (!url || failed) {
+    return (
+      <div className={cn("h-full w-full flex items-center justify-center bg-muted text-muted-foreground", className)}>
+        <Package className="h-1/2 w-1/2 opacity-50" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={cn("h-full w-full object-cover", className)}
+    />
+  );
+}
+
+function _AllItemsPopover({
+  items,
+  total,
+}: {
+  items: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
+  total: number;
+}) {
   const totalQty = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
   return (
     <PopoverContent
@@ -291,13 +324,7 @@ function AllItemsPopover({
         {items.map((it, idx) => (
           <div key={idx} className="flex items-center gap-2.5 p-2.5 hover:bg-muted/40">
             <div className="h-11 w-11 rounded-md border bg-muted overflow-hidden shrink-0">
-              {it.image ? (
-                <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                  {it.name.slice(0, 2)}
-                </div>
-              )}
+              <ProductThumb src={it.image} alt={it.name} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium leading-tight line-clamp-2">{it.name}</div>
@@ -1088,13 +1115,7 @@ function _WebOrdersPageBody() {
                                   className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0 hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
                                   title={it.name}
                                 >
-                                  {it.image ? (
-                                    <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                                      {it.name.slice(0, 2)}
-                                    </div>
-                                  )}
+                                  <ProductThumb src={it.image} alt={it.name} />
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -1105,13 +1126,7 @@ function _WebOrdersPageBody() {
                               >
                                 <div className="flex gap-3 p-3">
                                   <div className="h-[72px] w-[72px] rounded-lg border bg-muted overflow-hidden shrink-0">
-                                    {it.image ? (
-                                      <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                                        {it.name.slice(0, 2)}
-                                      </div>
-                                    )}
+                                    <ProductThumb src={it.image} alt={it.name} />
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="text-sm font-semibold leading-tight line-clamp-3">{it.name}</div>
