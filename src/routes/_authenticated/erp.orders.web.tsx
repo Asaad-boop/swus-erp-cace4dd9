@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useBrand } from "@/contexts/brand-context";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,9 @@ import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders
 import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } from "@/components/erp/orders/web-orders-filter-bar";
+import { WebBulkActionBar, type WebStatusKey } from "@/components/erp/orders/web-bulk-action-bar";
+import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
+import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 
 const PAGE_SIZE = 25;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
