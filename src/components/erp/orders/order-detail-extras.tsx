@@ -445,8 +445,9 @@ export function ReturnDialog({
       const rows = items.filter((it) => (selected[it.id] ?? 0) > 0);
       if (rows.length === 0) throw new Error("Select at least one item");
       if (!reason) throw new Error("Select a reason");
+      if (!brandId) throw new Error("Brand not set on order");
       const payload = rows.map((it) => ({
-        brand_id: brandId, order_id: orderId, order_item_id: it.id, product_id: it.product_id,
+        brand_id: brandId!, order_id: orderId, order_item_id: it.id, product_id: it.product_id,
         qty: selected[it.id], refund_amount: Number(it.unit_price ?? it.price ?? 0) * selected[it.id],
         return_type: "refund", item_condition: condition, status: "pending",
         note: `${reason}${note ? " — " + note : ""}`,
@@ -541,8 +542,9 @@ export function ExchangeDialog({
     mutationFn: async () => {
       if (!originalItem) throw new Error("Select item to exchange");
       if (!replacement) throw new Error("Select replacement product");
+      if (!brandId) throw new Error("Brand not set on order");
       const { error } = await supabase.from("erp_exchange_cases").insert({
-        brand_id: brandId,
+        brand_id: brandId!,
         original_order_id: orderId,
         original_order_item_id: originalItem.id,
         original_product_id: originalItem.product_id,
