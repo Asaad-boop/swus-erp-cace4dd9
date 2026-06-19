@@ -1279,13 +1279,13 @@ function OrderDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FieldShell label="City">
                 <Select value={form.city_id} onValueChange={(v) => setForm({ ...form, city_id: v, zone_id: "", area_id: "" })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select city" /></SelectTrigger>
                   <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
               <FieldShell label="Zone">
                 <Select value={form.zone_id} onValueChange={(v) => setForm({ ...form, zone_id: v, area_id: "" })} disabled={!form.city_id}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select zone" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.zone_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select zone" /></SelectTrigger>
                   <SelectContent>{(zones ?? []).map((z) => <SelectItem key={z.id} value={z.id}>{z.name_en}</SelectItem>)}</SelectContent>
                 </Select>
               </FieldShell>
