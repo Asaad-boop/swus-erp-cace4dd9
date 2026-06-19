@@ -1077,6 +1077,7 @@ export type Database = {
       erp_accounts: {
         Row: {
           account_number: string | null
+          account_subtype: string | null
           account_type: string
           brand_id: string
           created_at: string
@@ -1091,6 +1092,7 @@ export type Database = {
         }
         Insert: {
           account_number?: string | null
+          account_subtype?: string | null
           account_type: string
           brand_id: string
           created_at?: string
@@ -1105,6 +1107,7 @@ export type Database = {
         }
         Update: {
           account_number?: string | null
+          account_subtype?: string | null
           account_type?: string
           brand_id?: string
           created_at?: string
@@ -1480,6 +1483,75 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "erp_chart_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_cod_remittances: {
+        Row: {
+          amount: number
+          brand_id: string
+          courier: string
+          created_at: string
+          created_by: string | null
+          expected_amount: number | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          received_date: string | null
+          received_to: string | null
+          reference_no: string | null
+          remittance_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          brand_id: string
+          courier: string
+          created_at?: string
+          created_by?: string | null
+          expected_amount?: number | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          received_date?: string | null
+          received_to?: string | null
+          reference_no?: string | null
+          remittance_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          brand_id?: string
+          courier?: string
+          created_at?: string
+          created_by?: string | null
+          expected_amount?: number | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          received_date?: string | null
+          received_to?: string | null
+          reference_no?: string | null
+          remittance_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_cod_remittances_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "erp_journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_cod_remittances_received_to_fkey"
+            columns: ["received_to"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
             referencedColumns: ["id"]
           },
         ]
