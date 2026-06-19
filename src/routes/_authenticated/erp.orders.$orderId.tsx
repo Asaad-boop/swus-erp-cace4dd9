@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
+  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
+  ChevronLeft, ChevronRight, RotateCcw, Repeat,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,6 +24,11 @@ import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderSta
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
+import {
+  OrderTimeline, ShipmentPanel, CustomerHistoryPanel, AttributionPanel,
+  ReturnDialog, ExchangeDialog, useOrderNeighbors,
+} from "@/components/erp/orders/order-detail-extras";
+import { useCurrentRole } from "@/hooks/use-current-role";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
@@ -55,7 +61,6 @@ const STAT_COLUMNS = [
   { key: "ourRecord", label: "Our Record", dot: "bg-indigo-500", bar: "bg-indigo-500", tint: "from-indigo-500/[0.07]" },
   { key: "overall",   label: "Overall",    dot: "bg-sky-500",    bar: "bg-sky-500",    tint: "from-sky-500/[0.07]" },
   { key: "pathao",    label: "Pathao",     dot: "bg-rose-500",   bar: "bg-rose-500",   tint: "from-rose-500/[0.07]" },
-  { key: "redx",      label: "RedX",       dot: "bg-orange-500", bar: "bg-orange-500", tint: "from-orange-500/[0.07]" },
   { key: "steadfast", label: "Steadfast",  dot: "bg-amber-500",  bar: "bg-amber-500",  tint: "from-amber-500/[0.07]" },
 ] as const;
 
@@ -81,7 +86,7 @@ function StatsStrip({
     const s = stats[c.key];
     if (!s) return false;
     if (c.key === "overall") {
-      return (stats.pathao?.total ?? 0) + (stats.redx?.total ?? 0) + (stats.steadfast?.total ?? 0) > 0;
+      return (stats.pathao?.total ?? 0) + (stats.steadfast?.total ?? 0) > 0;
     }
     return s.total > 0;
   });
@@ -524,13 +529,12 @@ function OrderDetailsPage() {
     const our = ourRecord ?? { total: 0, success: 0, cancel: 0 };
     const pathao = courierHistory?.pathao ?? { total: 0, success: 0, cancel: 0 };
     const steadfast = courierHistory?.steadfast ?? { total: 0, success: 0, cancel: 0 };
-    const redx = { total: 0, success: 0, cancel: 0 };
     const overall = {
-      total: pathao.total + steadfast.total + redx.total,
-      success: pathao.success + steadfast.success + redx.success,
-      cancel: pathao.cancel + steadfast.cancel + redx.cancel,
+      total: pathao.total + steadfast.total,
+      success: pathao.success + steadfast.success,
+      cancel: pathao.cancel + steadfast.cancel,
     };
-    return { ourRecord: our, overall, pathao, redx, steadfast };
+    return { ourRecord: our, overall, pathao, steadfast };
   }, [ourRecord, courierHistory]);
 
   /* ------------------------------ Item arithmetic -------------------------- */
@@ -540,6 +544,51 @@ function OrderDetailsPage() {
     [items],
   );
   const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
+
+  /* ------------------------------ Live stock per item ---------------------- */
+  const productIds = useMemo(() => Array.from(new Set(items.map((it) => it.product_id).filter(Boolean))), [items]);
+  const { data: stockMap } = useQuery({
+    queryKey: ["order-item-stock", productIds.sort().join(",")],
+    enabled: productIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("products").select("id, stock").in("id", productIds);
+      const m = new Map<string, number>();
+      (data ?? []).forEach((p: any) => m.set(p.id, Number(p.stock ?? 0)));
+      return m;
+    },
+  });
+
+  /* ------------------------------ Session device info ---------------------- */
+  const { data: sessionInfo } = useQuery({
+    queryKey: ["order-session-info", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analytics_events")
+        .select("device_type, user_agent")
+        .eq("order_id", orderId)
+        .not("device_type", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  /* ------------------------------ Prev/Next navigation --------------------- */
+  const neighbors = useOrderNeighbors(orderId);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === "ArrowLeft" && neighbors.prev) navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } });
+      else if (e.key === "ArrowRight" && neighbors.next) navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [neighbors.prev, neighbors.next, navigate]);
+
+  /* ------------------------------ Role for note delete --------------------- */
+  const { isAdmin, userId: currentUserId } = useCurrentRole();
 
   /* ------------------------------ Mutations -------------------------------- */
 
@@ -756,6 +805,15 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteNote = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("order_notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Note deleted"); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addItem = useMutation({
     mutationFn: async (p: ProductLite) => {
       const existing = items.find((x) => x.product_id === p.id);
@@ -798,6 +856,8 @@ function OrderDetailsPage() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
   const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
   const [pendingReason, setPendingReason] = useState("");
   const [pendingAdvance, setPendingAdvance] = useState("");
@@ -823,6 +883,19 @@ function OrderDetailsPage() {
           <Button asChild size="sm" variant="ghost">
             <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Web Order Details</Link>
           </Button>
+          {neighbors.total > 0 && (
+            <div className="flex items-center gap-1 ml-1">
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
+                onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
+                title="Previous (←)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+              <span className="text-[10px] text-muted-foreground tabular-nums px-1">
+                {neighbors.index + 1}/{neighbors.total}
+              </span>
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
+                onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
+                title="Next (→)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 text-[11px] rounded-lg border bg-card px-3 py-1.5">
@@ -983,6 +1056,9 @@ function OrderDetailsPage() {
             })()}
           </section>
 
+          {/* Order Timeline */}
+          <OrderTimeline orderId={orderId} />
+
           {/* Ordered Products + Add Products */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="rounded-xl border bg-card p-4">
@@ -1004,8 +1080,17 @@ function OrderDetailsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
-                            <div className="text-sm font-medium truncate">{it.name}</div>
-                            <div className="text-[10px] text-rose-600">৳{bdtCompact(unit)} <span className="text-muted-foreground">Stock</span></div>
+                             <div className="text-sm font-medium truncate">{it.name}</div>
+                             <div className="flex items-center gap-2 text-[10px]">
+                               <span className="text-rose-600">৳{bdtCompact(unit)}</span>
+                               {(() => {
+                                 const s = stockMap?.get(it.product_id);
+                                 if (s === undefined) return null;
+                                 if (s <= 0) return <span className="rounded px-1 py-0.5 bg-rose-500/15 text-rose-600 font-semibold">Out of stock</span>;
+                                 if (s < 5) return <span className="rounded px-1 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold">Stock: {s}</span>;
+                                 return <span className="rounded px-1 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">Stock: {s}</span>;
+                               })()}
+                             </div>
                           </div>
                           <button onClick={() => deleteItem.mutate(it.id)} className="p-1 rounded hover:bg-rose-500/10 text-rose-600">
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1140,28 +1225,21 @@ function OrderDetailsPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2"><Globe className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">IP:</span></div>
-            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
-            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span>Not available</span></div>
-          </section>
+          {/* Shipment tracking */}
+          <ShipmentPanel
+            orderId={orderId}
+            brandId={order.brand_id ?? null}
+            onBookPathao={() => setBookOpen(true)}
+            onBookSteadfast={() => setBookSteadfastOpen(true)}
+          />
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Items</h3></header>
-            <ul className="p-2 space-y-1.5 max-h-60 overflow-y-auto">
-              {items.map((it) => (
-                <li key={it.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/40">
-                  <div className="h-9 w-9 rounded bg-muted shrink-0 overflow-hidden">
-                    {it.image && <img src={it.image} alt="" className="h-full w-full object-cover" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{it.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{it.quantity}× ৳{bdtCompact(Number(it.unit_price ?? it.price))}</div>
-                  </div>
-                </li>
-              ))}
-              {items.length === 0 && <li className="text-xs text-center text-muted-foreground py-3">No items</li>}
-            </ul>
+          {/* Customer 360 */}
+          <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
+
+          {/* Contact info */}
+          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
+            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span className="capitalize">{sessionInfo?.device_type || "Not tracked"}</span></div>
           </section>
 
           <section className="rounded-xl border bg-card overflow-hidden">
@@ -1230,40 +1308,89 @@ function OrderDetailsPage() {
                 <Textarea rows={2} value={form.note_input} onChange={(e) => setForm({ ...form, note_input: e.target.value })} placeholder="Internal note…" className="text-xs resize-none" />
                 <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!form.note_input.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add Note</Button>
                 {notes.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    {notes.slice(0, 4).map((n) => (
-                      <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs">
-                        <div className="text-[10px] text-muted-foreground">{format(new Date(n.created_at), "dd MMM, hh:mm a")}</div>
-                        <div className="whitespace-pre-wrap leading-snug">{n.body}</div>
-                      </div>
-                    ))}
+                  <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+                    {notes.map((n: any) => {
+                      const canDelete = isAdmin || (currentUserId && n.created_by === currentUserId);
+                      return (
+                        <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs group">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              <span className="font-medium">{n.author_name || (n.created_by ? "Staff" : "System")}</span>
+                              <span> · {format(new Date(n.created_at), "dd MMM, hh:mm a")}</span>
+                            </div>
+                            {canDelete && (
+                              <button
+                                onClick={() => deleteNote.mutate(n.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-rose-500/10 text-rose-600"
+                                title="Delete note"
+                              ><Trash2 className="h-3 w-3" /></button>
+                            )}
+                          </div>
+                          <div className="whitespace-pre-wrap leading-snug mt-0.5">{n.body}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-1.5">
-                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Reminder SMS queued")}>Send Reminder SMS</Button>
-                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.info("Advance SMS queued")}>Send Advance SMS</Button>
+                <a
+                  href={`https://wa.me/${form.mobile.replace(/^0/, "880")}?text=${encodeURIComponent("আপনার অর্ডারটি প্রস্তুত আছে। ডেলিভারি দিতে আসছি। অনুগ্রহ করে ফোন রাখুন।")}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 h-7 px-2 rounded-md border bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] hover:bg-emerald-500/10"
+                >📱 Send Reminder</a>
+                <a
+                  href={`https://wa.me/${form.mobile.replace(/^0/, "880")}?text=${encodeURIComponent("আপনার অর্ডার কনফার্ম করতে অগ্রিম পেমেন্ট পাঠান: bKash/Nagad " + (form.advance_payment_number || "[number]"))}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 h-7 px-2 rounded-md border bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] hover:bg-emerald-500/10"
+                >💰 Request Advance</a>
               </div>
+              {(() => {
+                const s = ((order.status ?? "") + " " + (order.web_status ?? "")).toLowerCase();
+                const showRMA = /deliver|complete/.test(s);
+                if (!showRMA) return null;
+                return (
+                  <div className="grid grid-cols-2 gap-1.5 pt-2 border-t">
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setReturnOpen(true)}>
+                      <RotateCcw className="h-3 w-3 mr-1" />Initiate Return
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setExchangeOpen(true)}>
+                      <Repeat className="h-3 w-3 mr-1" />Initiate Exchange
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           </section>
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
-              <Hash className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Attribution</h3>
-            </header>
-            <div className="p-4 space-y-2 text-xs">
-              <p className="text-[10px] text-muted-foreground">Track where this order came from</p>
-              <Badge variant="outline" className="text-[10px]">{form.source_platform || "utm"}</Badge>
-              <Row label="Site" value={order.source_website ?? "—"} />
-              <Row label="Platform" value={order.source_platform ?? "—"} />
-            </div>
-          </section>
+          {/* Full UTM attribution */}
+          <AttributionPanel orderId={orderId} />
         </aside>
       </div>
 
       <PrintableInvoice order={order} items={items as never} />
       <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
       <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <ReturnDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        orderId={orderId}
+        brandId={order.brand_id ?? null}
+        items={items.map((it) => ({
+          id: it.id, product_id: it.product_id, name: it.name,
+          quantity: it.quantity, unit_price: it.unit_price ?? null, price: it.price ?? null,
+        }))}
+      />
+      <ExchangeDialog
+        open={exchangeOpen}
+        onOpenChange={setExchangeOpen}
+        orderId={orderId}
+        brandId={order.brand_id ?? null}
+        items={items.map((it) => ({
+          id: it.id, product_id: it.product_id, name: it.name,
+          quantity: it.quantity, unit_price: it.unit_price ?? null, price: it.price ?? null,
+        }))}
+      />
       <Dialog open={pendingWebStatus !== null} onOpenChange={(o) => !o && setPendingWebStatus(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
