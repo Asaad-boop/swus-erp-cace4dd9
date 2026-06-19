@@ -348,6 +348,9 @@ function NewOrderPage() {
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) throw itemsErr;
+      // Reserve stock now that order_items exist
+      const { error: reserveErr } = await supabase.rpc("reserve_stock", { _order_id: orderId });
+      if (reserveErr) throw reserveErr;
       return orderId;
     },
     onSuccess: (id) => {
