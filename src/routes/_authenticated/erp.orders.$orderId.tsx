@@ -805,6 +805,15 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteNote = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("order_notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Note deleted"); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addItem = useMutation({
     mutationFn: async (p: ProductLite) => {
       const existing = items.find((x) => x.product_id === p.id);
