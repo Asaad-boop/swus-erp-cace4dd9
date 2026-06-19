@@ -1048,10 +1048,10 @@ function _WebOrdersPageBody() {
 
                     {/* Customer */}
                     <TableCell className="py-2">
-                      <div>
+                      <div className="max-w-[220px]">
                         <div className="min-w-0 text-xs space-y-0.5">
-                          <div className="flex items-center gap-1 min-w-0 flex-wrap">
-                            <span className="font-semibold text-foreground truncate">{name}</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-semibold text-foreground truncate" title={name}>{name}</span>
                             {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0" />}
                             <CustomerBadges total={b.total} confirmRate={confirmRate} delivered={b.delivered} />
                           </div>
@@ -1067,9 +1067,14 @@ function _WebOrdersPageBody() {
                             </div>
                           )}
                           {address && (
-                            <div className="flex items-start gap-1 min-w-0">
-                              <span className="text-muted-foreground line-clamp-2 leading-tight flex-1">{address}</span>
-                              <CopyIconBtn value={address} label="Address" className="shrink-0 mt-0.5" />
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span
+                                className="text-xs text-muted-foreground truncate leading-tight flex-1 max-w-[180px]"
+                                title={address}
+                              >
+                                {address}
+                              </span>
+                              <CopyIconBtn value={address} label="Address" className="shrink-0" />
                             </div>
                           )}
                         </div>
