@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, Search, Filter, Package, Wallet, AlertTriangle, TrendingUp, X, ArrowUpDown, Boxes } from "lucide-react";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,8 @@ export const Route = createFileRoute("/_authenticated/erp/imports/orders/")({
 type SortKey = "date" | "total" | "due" | "status";
 
 function PoListPage() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brandIds } = useBrand();
+  const brandKey = brandIds.join(",");
   const [status, setStatus] = useState<string>("all");
   const [q, setQ] = useState("");
   const [payState, setPayState] = useState<"all" | "paid" | "partial" | "unpaid">("all");
@@ -31,9 +32,9 @@ function PoListPage() {
 
   const listFn = useServerFn(listPurchaseOrders);
   const { data = [], isLoading } = useQuery({
-    queryKey: ["imp-pos", brandId, status],
-    enabled: !!brandId,
-    queryFn: () => listFn({ data: { brandId: brandId!, status } }),
+    queryKey: ["imp-pos", brandKey, status],
+    enabled: brandIds.length > 0,
+    queryFn: () => listFn({ data: { brandIds, status } }),
   });
 
   const rows = data as any[];
@@ -90,11 +91,10 @@ function PoListPage() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2"><Package className="h-5 w-5 text-primary" />Purchase Orders</h2>
           <p className="text-sm text-muted-foreground">
-            {effectiveBrand?.name ?? "—"} · {filtered.length} of {(data as any[]).length} POs
+            All brands · {filtered.length} of {(data as any[]).length} POs
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {picker}
           <Link to="/erp/imports/orders/new"><Button><Plus className="h-4 w-4 mr-1" />New PO</Button></Link>
         </div>
       </div>
@@ -147,6 +147,7 @@ function PoListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>
+              <TableHead>Brand</TableHead>
               <SortableHead label="Date" k="date" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
               <TableHead>Supplier / Agent</TableHead>
               <SortableHead label="Status" k="status" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
@@ -157,9 +158,9 @@ function PoListPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="py-16">
+              <TableRow><TableCell colSpan={8} className="py-16">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>
                   <div>
@@ -187,6 +188,13 @@ function PoListPage() {
                       <Link to="/erp/imports/orders/$orderId" params={{ orderId: p.id }} className="font-mono text-sm font-semibold text-primary hover:underline">
                         {p.po_number}
                       </Link>
+                    </TableCell>
+                    <TableCell>
+                      {p.brand?.name ? (
+                        <Badge variant="outline" className="whitespace-nowrap">{p.brand.name}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{p.order_date}</TableCell>
                     <TableCell>

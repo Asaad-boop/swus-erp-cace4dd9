@@ -48,12 +48,12 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const emptyPick = (): PickedProduct => ({ id: null, title: "", sku: null, image: null });
 
 function NewPoPage() {
-  const { activeBrand, brands, isAllBrands } = useBrand();
+  const { activeBrand, brands } = useBrand();
   const navigate = useNavigate();
-  const [pickedBrandId, setPickedBrandId] = useState<string>("");
+  const [formBrandId, setFormBrandId] = useState<string>(() => activeBrand?.id ?? "");
   const effectiveBrand = useMemo(
-    () => activeBrand ?? brands.find((b) => b.id === pickedBrandId) ?? null,
-    [activeBrand, brands, pickedBrandId],
+    () => brands.find((b) => b.id === formBrandId) ?? null,
+    [brands, formBrandId],
   );
   const brandId = effectiveBrand?.id ?? null;
 
@@ -236,28 +236,10 @@ function NewPoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Failed to create PO"),
   });
 
-  if (!brandId) {
-    if (isAllBrands) {
-      return (
-        <div className="p-6 max-w-md space-y-3">
-          <h2 className="text-base font-semibold">Pick a brand</h2>
-          <p className="text-sm text-muted-foreground">All-Brands mode — purchase order ta kon brand er under e create hobe?</p>
-          <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
-            <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
-            <SelectContent>
-              {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-    }
-    return <div className="p-6 text-sm text-muted-foreground">Select a brand.</div>;
-  }
-
   const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
   const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const itemsValid = items.length > 0 && items.every((i) => i.picked.title.trim() && i.quantity > 0);
-  const canSubmit = itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
+  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto pb-24">
@@ -267,7 +249,7 @@ function NewPoPage() {
           <Link to="/erp/imports/orders"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button></Link>
           <div>
             <h2 className="text-lg md:text-xl font-bold flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />New Purchase Order</h2>
-            <p className="text-[11px] text-muted-foreground">Brand: {effectiveBrand?.name}</p>
+            <p className="text-[11px] text-muted-foreground">Brand: {effectiveBrand?.name ?? "— select below —"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -285,6 +267,15 @@ function NewPoPage() {
           <Card className="p-4 md:p-5">
             <SectionTitle icon={Package} title="Order info" />
             <div className="grid md:grid-cols-3 gap-3 mt-3">
+              <div>
+                <Label className="text-xs">Brand <span className="text-red-500">*</span></Label>
+                <Select value={formBrandId} onValueChange={setFormBrandId}>
+                  <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
+                  <SelectContent>
+                    {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs">Order date</Label>
                 <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />

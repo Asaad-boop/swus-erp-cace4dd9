@@ -25,9 +25,10 @@ async function assertAnyRole(
 
 export const listPurchaseOrders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; status?: string; q?: string; from?: string; to?: string }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; status?: string; q?: string; from?: string; to?: string }) =>
     z.object({
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       status: z.string().optional(),
       q: z.string().optional(),
       from: z.string().optional(),
@@ -42,11 +43,13 @@ export const listPurchaseOrders = createServerFn({ method: "POST" })
         currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
-        supplier:supplier_id ( id, name )
+        supplier:supplier_id ( id, name ),
+        brand:brand_id ( id, name, slug )
       `)
-      .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false })
       .limit(500);
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
     if (data.status && data.status !== "all") q = q.eq("status", data.status as any);
     if (data.from) q = q.gte("order_date", data.from);
     if (data.to) q = q.lte("order_date", data.to);
@@ -114,20 +117,26 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
 
 export const listImportSuppliers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
+  .inputValidator((d: { brandId?: string; brandIds?: string[] }) =>
+    z.object({
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    let q = context.supabase
       .from("erp_suppliers")
       .select(`
-        id, name, phone, address, source_link, country, currency,
+        id, brand_id, name, phone, address, source_link, country, currency,
         payment_terms_days, credit_limit_bdt, supplier_type, is_active,
-        current_due, opening_balance, notes
+        current_due, opening_balance, notes,
+        brand:brand_id ( id, name, slug )
       `)
-      .eq("brand_id", data.brandId)
       .in("supplier_type", ["import", "both"])
       .order("name");
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
+    const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
   });
@@ -150,9 +159,10 @@ export const listWarehouses = createServerFn({ method: "POST" })
 
 export const getImportsDashboardStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; from?: string; to?: string }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; from?: string; to?: string }) =>
     z.object({
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       from: z.string().optional(),
       to: z.string().optional(),
     }).parse(d),
@@ -160,10 +170,12 @@ export const getImportsDashboardStats = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("imp_purchase_orders")
-      .select(`id, status, grand_total_bdt, paid_bdt, due_bdt,
+      .select(`id, brand_id, status, grand_total_bdt, paid_bdt, due_bdt,
                product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
-               supplier:supplier_id ( id, name )`)
-      .eq("brand_id", data.brandId);
+               supplier:supplier_id ( id, name ),
+               brand:brand_id ( id, name, slug )`);
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
     if (data.from) q = q.gte("order_date", data.from);
     if (data.to) q = q.lte("order_date", data.to);
     const { data: pos, error } = await q;
@@ -964,19 +976,21 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
 
 export const listCargoAgents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; activeOnly?: boolean }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; activeOnly?: boolean }) =>
     z.object({
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       activeOnly: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("imp_cargo_agents")
-      .select("id, name, contact_person, phone, address, notes, is_active, created_at")
-      .eq("brand_id", data.brandId)
+      .select("id, brand_id, name, contact_person, phone, address, notes, is_active, created_at, brand:brand_id ( id, name, slug )")
       .order("is_active", { ascending: false })
       .order("name");
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
     if (data.activeOnly) q = q.eq("is_active", true);
     const { data: rows, error } = await q;
     if (error) throw error;

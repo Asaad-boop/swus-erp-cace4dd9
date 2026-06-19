@@ -6,7 +6,7 @@ import {
   Package, Truck, Plane, Warehouse, CheckCircle2, AlertTriangle,
   Plus, ArrowRight, Wallet, TrendingUp, Container, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,8 @@ function shiftIso(iso: string, deltaDays: number) {
 }
 
 function ImportsDashboard() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brandIds } = useBrand();
+  const brandKey = brandIds.join(",");
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
 
   const statsFn = useServerFn(getImportsDashboardStats);
@@ -43,21 +44,21 @@ function ImportsDashboard() {
   }, [range.from, range.to]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["imp-dashboard", brandId, range.from, range.to],
-    enabled: !!brandId,
-    queryFn: () => statsFn({ data: { brandId: brandId!, from: range.from, to: range.to } }),
+    queryKey: ["imp-dashboard", brandKey, range.from, range.to],
+    enabled: brandIds.length > 0,
+    queryFn: () => statsFn({ data: { brandIds, from: range.from, to: range.to } }),
   });
 
   const { data: prevData } = useQuery({
-    queryKey: ["imp-dashboard-prev", brandId, prevRange.from, prevRange.to],
-    enabled: !!brandId,
-    queryFn: () => statsFn({ data: { brandId: brandId!, from: prevRange.from, to: prevRange.to } }),
+    queryKey: ["imp-dashboard-prev", brandKey, prevRange.from, prevRange.to],
+    enabled: brandIds.length > 0,
+    queryFn: () => statsFn({ data: { brandIds, from: prevRange.from, to: prevRange.to } }),
   });
 
   const { data: recent = [] } = useQuery({
-    queryKey: ["imp-recent-pos", brandId],
-    enabled: !!brandId,
-    queryFn: () => listFn({ data: { brandId: brandId! } }),
+    queryKey: ["imp-recent-pos", brandKey],
+    enabled: brandIds.length > 0,
+    queryFn: () => listFn({ data: { brandIds } }),
     select: (rows: any[]) => rows.slice(0, 6),
   });
 
@@ -115,7 +116,6 @@ function ImportsDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DateRangePicker value={range} onChange={setRange} />
         <div className="flex items-center gap-2">
-          {picker}
           <Link to="/erp/imports/orders/new">
             <Button><Plus className="h-4 w-4 mr-1" />New Purchase Order</Button>
           </Link>
@@ -173,6 +173,7 @@ function ImportsDashboard() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-semibold">{p.po_number}</span>
+                      {p.brand?.name && <Badge variant="outline" className="text-[10px]">{p.brand.name}</Badge>}
                       <Badge variant="secondary" className={PO_STATUS_LABEL[p.status as ImpPoStatus]?.tone}>
                         {PO_STATUS_LABEL[p.status as ImpPoStatus]?.label ?? p.status}
                       </Badge>
