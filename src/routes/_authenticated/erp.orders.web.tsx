@@ -990,15 +990,26 @@ function _WebOrdersPageBody() {
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
                 const flash = flashIds.has(r.id);
                 const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
+                const isSelected = selectedIds.has(r.id);
+                const isInlineBusy = inlineBusyId === r.id;
                 return (
                   <TableRow
                     key={r.id}
                     className={cn(
-                      "cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
+                      "group/row cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
+                      isSelected && "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/40",
                       flash && "animate-in slide-in-from-top-2 bg-emerald-50 dark:bg-emerald-950/40",
                     )}
                     onClick={() => setOpenId(r.id)}
                   >
+                    {/* Select */}
+                    <TableCell className="py-4 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelect(r.id)}
+                        aria-label="Select row"
+                      />
+                    </TableCell>
                     {/* Created */}
                     <TableCell className="py-4">
                       <div className="flex gap-2">
