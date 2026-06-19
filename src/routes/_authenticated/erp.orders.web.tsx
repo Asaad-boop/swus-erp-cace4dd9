@@ -324,13 +324,7 @@ function _AllItemsPopover({
         {items.map((it, idx) => (
           <div key={idx} className="flex items-center gap-2.5 p-2.5 hover:bg-muted/40">
             <div className="h-11 w-11 rounded-md border bg-muted overflow-hidden shrink-0">
-              {it.image ? (
-                <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                  {it.name.slice(0, 2)}
-                </div>
-              )}
+              <ProductThumb src={it.image} alt={it.name} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium leading-tight line-clamp-2">{it.name}</div>
@@ -1121,13 +1115,7 @@ function _WebOrdersPageBody() {
                                   className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0 hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
                                   title={it.name}
                                 >
-                                  {it.image ? (
-                                    <img src={it.image} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                                      {it.name.slice(0, 2)}
-                                    </div>
-                                  )}
+                                  <ProductThumb src={it.image} alt={it.name} />
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -1138,13 +1126,7 @@ function _WebOrdersPageBody() {
                               >
                                 <div className="flex gap-3 p-3">
                                   <div className="h-[72px] w-[72px] rounded-lg border bg-muted overflow-hidden shrink-0">
-                                    {it.image ? (
-                                      <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                                        {it.name.slice(0, 2)}
-                                      </div>
-                                    )}
+                                    <ProductThumb src={it.image} alt={it.name} />
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="text-sm font-semibold leading-tight line-clamp-3">{it.name}</div>
