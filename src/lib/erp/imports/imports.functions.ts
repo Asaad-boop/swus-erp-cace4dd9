@@ -117,20 +117,26 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
 
 export const listImportSuppliers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
+  .inputValidator((d: { brandId?: string; brandIds?: string[] }) =>
+    z.object({
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    let q = context.supabase
       .from("erp_suppliers")
       .select(`
-        id, name, phone, address, source_link, country, currency,
+        id, brand_id, name, phone, address, source_link, country, currency,
         payment_terms_days, credit_limit_bdt, supplier_type, is_active,
-        current_due, opening_balance, notes
+        current_due, opening_balance, notes,
+        brand:brand_id ( id, name, slug )
       `)
-      .eq("brand_id", data.brandId)
       .in("supplier_type", ["import", "both"])
       .order("name");
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
+    const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
   });
