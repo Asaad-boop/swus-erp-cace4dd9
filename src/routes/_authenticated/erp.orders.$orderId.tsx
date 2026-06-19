@@ -876,50 +876,52 @@ function OrderDetailsPage() {
   /* ------------------------------ Render ----------------------------------- */
 
   return (
-    <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-4 print:hidden">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Web Order Details</Link>
-          </Button>
-          {neighbors.total > 0 && (
-            <div className="flex items-center gap-1 ml-1">
-              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
-                onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
-                title="Previous (←)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-              <span className="text-[10px] text-muted-foreground tabular-nums px-1">
-                {neighbors.index + 1}/{neighbors.total}
-              </span>
-              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
-                onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
-                title="Next (→)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+    <div className="min-h-screen bg-gray-50 dark:bg-background print:hidden">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-30 border-b border-gray-100 dark:border-border bg-white/85 dark:bg-card/85 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-gray-600 hover:text-gray-900">
+              <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Orders</Link>
+            </Button>
+            <span className="h-4 w-px bg-gray-200 dark:bg-border" />
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-[11px] uppercase tracking-wider text-gray-500">Order</span>
+              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
+              <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] hidden sm:inline-flex", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
             </div>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 text-[11px] rounded-lg border bg-card px-3 py-1.5">
-            <span className="text-muted-foreground">Created</span>
-            <span className="text-emerald-600 font-medium">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}</span>
-            <span className="h-3 w-px bg-border" />
-            <span className="text-muted-foreground">Updated</span>
-            <span className="font-medium">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
-            <span className="h-3 w-px bg-border" />
-            <span className="text-muted-foreground">Status</span>
-            <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px]", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
-            <span className="h-3 w-px bg-border" />
-            <span className="text-muted-foreground">Source</span>
-            <Badge variant="outline" className="h-5 px-1.5 text-[10px] capitalize">{order.source ?? "—"}</Badge>
+            {neighbors.total > 0 && (
+              <div className="flex items-center gap-1 ml-2">
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
+                  onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
+                  title="Previous (←)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+                <span className="text-[10px] text-gray-500 tabular-nums px-1">
+                  {neighbors.index + 1}/{neighbors.total}
+                </span>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
+                  onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
+                  title="Next (→)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+              </div>
+            )}
           </div>
-          <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
-          <Button size="sm" variant="outline" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
-          <Button size="sm" variant="outline" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="hidden md:flex items-center gap-2 text-[11px] text-gray-600">
+              <span className="text-gray-400">Created</span>
+              <span className="text-emerald-600 font-medium">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}</span>
+              <span className="h-3 w-px bg-gray-200" />
+              <span className="text-gray-400">Updated</span>
+              <span className="font-medium text-gray-700">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
+            </div>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         {/* MAIN */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Stats strip */}
           <StatsStrip
             stats={stats}
