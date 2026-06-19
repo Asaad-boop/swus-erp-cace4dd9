@@ -4209,6 +4209,7 @@ export type Database = {
         Row: {
           carton_id: string
           created_at: string
+          damaged_qty: number
           id: string
           po_item_id: string
           product_id: string | null
@@ -4216,13 +4217,16 @@ export type Database = {
           quantity_expected: number
           quantity_missing: number
           quantity_ok: number
+          received_qty: number | null
           sku_snapshot: string | null
           supplier_cost_portion_bdt: number
+          usable_qty: number | null
           variant_id: string | null
         }
         Insert: {
           carton_id: string
           created_at?: string
+          damaged_qty?: number
           id?: string
           po_item_id: string
           product_id?: string | null
@@ -4230,13 +4234,16 @@ export type Database = {
           quantity_expected: number
           quantity_missing?: number
           quantity_ok?: number
+          received_qty?: number | null
           sku_snapshot?: string | null
           supplier_cost_portion_bdt?: number
+          usable_qty?: number | null
           variant_id?: string | null
         }
         Update: {
           carton_id?: string
           created_at?: string
+          damaged_qty?: number
           id?: string
           po_item_id?: string
           product_id?: string | null
@@ -4244,8 +4251,10 @@ export type Database = {
           quantity_expected?: number
           quantity_missing?: number
           quantity_ok?: number
+          received_qty?: number | null
           sku_snapshot?: string | null
           supplier_cost_portion_bdt?: number
+          usable_qty?: number | null
           variant_id?: string | null
         }
         Relationships: [
@@ -4283,6 +4292,7 @@ export type Database = {
         Row: {
           barcode: string
           carton_number: number
+          cost_share_bdt: number | null
           created_at: string
           expected_quantity: number
           id: string
@@ -4304,6 +4314,7 @@ export type Database = {
         Insert: {
           barcode: string
           carton_number: number
+          cost_share_bdt?: number | null
           created_at?: string
           expected_quantity?: number
           id?: string
@@ -4325,6 +4336,7 @@ export type Database = {
         Update: {
           barcode?: string
           carton_number?: number
+          cost_share_bdt?: number | null
           created_at?: string
           expected_quantity?: number
           id?: string
@@ -4586,7 +4598,10 @@ export type Database = {
           po_number: string
           product_subtotal_bdt: number
           shipped_at: string | null
+          shipping_cost_bdt: number | null
+          shipping_rate_per_kg: number | null
           shipping_total_bdt: number
+          shipping_weight_kg: number | null
           status: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id: string | null
           supplier_id: string | null
@@ -4617,7 +4632,10 @@ export type Database = {
           po_number: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
+          shipping_cost_bdt?: number | null
+          shipping_rate_per_kg?: number | null
           shipping_total_bdt?: number
+          shipping_weight_kg?: number | null
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null
@@ -4648,7 +4666,10 @@ export type Database = {
           po_number?: string
           product_subtotal_bdt?: number
           shipped_at?: string | null
+          shipping_cost_bdt?: number | null
+          shipping_rate_per_kg?: number | null
           shipping_total_bdt?: number
+          shipping_weight_kg?: number | null
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null

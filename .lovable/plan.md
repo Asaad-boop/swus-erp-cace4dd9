@@ -1,80 +1,121 @@
-# Finance Module Upgrade — 5 Features
+## Import Landed Cost Workflow — Simplified
 
-Scope boro, tai phase-by-phase deliver korbo. Sob additive — purono kichui change hobe na.
+Existing flow (FX/freight/customs `LandedCostCard`, `imp_post_to_inventory` RPC) thakbe — kichu drop hobe na. Notun simplified shipping-weight + carton-receive flow additive add hobe.
 
-## Phase 1 — Aged Payables & Receivables Export (Feature 5)
+---
 
-Sobcheye chhoto, instant value.
+### PHASE 0 — Migration (additive only)
 
-**New server fns** (`src/lib/erp/finance-overview.functions.ts` e add):
+`**imp_purchase_orders**` — add:
 
-- `exportAgedReceivables({ brandId, asOfDate })` — customer aging buckets (Current / 1-30 / 31-60 / 61-90 / 90+)
-- `exportAgedPayables({ brandId, asOfDate })` — supplier aging buckets
+- `shipping_weight_kg numeric`
+- `shipping_rate_per_kg numeric`
+- `shipping_cost_bdt numeric` (manual override OR auto kg×rate)
+- *(`other_charges_bdt` already ache — reuse)*
 
-**UI**:
+`**imp_cartons**` — add:
 
-- `erp.finance.receivables.tsx` e "Export" dropdown button → Excel + PDF
-- `erp.finance.payables.tsx` e same
-- Excel: existing `exportToXlsx` from `src/lib/erp/hr/excel.ts`
-- PDF: hidden iframe print pattern (payslip-print.tsx pattern)
+- `cost_share_bdt numeric` (auto-computed on save)
+- *(`weight_kg` already ache — reuse)*
 
-## Phase 2 — KPI Drill-down (Feature 1)
+`**imp_carton_items**` — add:
 
-**New component**: `src/components/erp/finance/finance-drilldown-sheet.tsx`
+- `received_qty integer`
+- `damaged_qty integer NOT NULL DEFAULT 0`
+- `usable_qty integer GENERATED ALWAYS AS (COALESCE(received_qty,0) - COALESCE(damaged_qty,0)) STORED`
+- *(`quantity_expected`, `quantity_ok`, `quantity_damaged` already ache — touch korbo na, parallel column rakhbo)*
 
-- Shadcn `Sheet` (slide-over), props: `{ title, dateFrom, dateTo, accountIds?, transactionType?, open, onOpenChange }`
-- Inside: 25-per-page transaction list from `erp_journal_lines` + `erp_journal_entries` join
-- CSV export button, "View All" link to journal page with prefilled filters
+---
 
-**New server fn**: `getDrilldownTransactions({ brandId, dateFrom, dateTo, accountIds?, type? })`
+### PHASE 1 — Arrived BD: Shipping Cost Card
 
-**Wire-up** in `erp.finance.index.tsx`: each KPI tile clickable → opens sheet with appropriate filter (Revenue / Expense / Net Profit / Cash / AR / AP / cashflow categories).
+New component `ShippingCostCard` — `erp.imports.orders.$orderId.tsx` e render when `po.status === 'arrived_bd'`.
 
-## Phase 3 — Cash Flow Statement (Feature 2)
+Fields: total weight (kg), rate (৳/kg), auto total = kg×rate, other charges. Save button → server fn `saveShippingCost({ po_id, shipping_weight_kg, shipping_rate_per_kg, other_charges_bdt })`. Triggers carton cost-share recompute.
 
-**New server fn**: `getCashflowStatement({ brandId, dateFrom, dateTo })` in `finance-overview.functions.ts`
+---
 
-- Operating: Net Profit + ΔAR + ΔAP + ΔInventory + depreciation
-- Investing: fixed asset moves
-- Financing: equity + loan accounts
-- Returns 3 structured sections + opening/closing cash reconciliation
+### PHASE 2 — Carton Cost Split
 
-**UI**: Add "Cash Flow" tab in `erp.finance.reports.tsx` with date range picker, Excel export, print.
+Server fn `recomputeCartonCostShares(po_id)`:
 
-## Phase 4 — Comparative P&L (Feature 3)
+- Read all cartons for PO + their `weight_kg`
+- If sum(weight_kg) > 0 → `cost_share = (carton.weight / total_weight) × shipping_cost_bdt`
+- Else → equal split: `shipping_cost_bdt / carton_count`
+- Bulk update `imp_cartons.cost_share_bdt`
 
-**New server fn**: `getComparativePL({ brandId, periodA, periodB })` — `Promise.all` parallel runs of existing P&L logic.
+Carton list table: add inline weight input + show computed cost share. Save weight → trigger recompute.
 
-**UI**: In reports P&L tab, add toggle [Single | Comparative]. Comparative mode shows: Account | Period A | Period B | Δ৳ | Δ%, color coded. Presets: MoM, QoQ, YoY, Custom. Excel export.
+---
 
-## Phase 5 — Budget vs Actual Variance (Feature 4)
+### PHASE 3 — Carton Received: Quantity Check
 
-**New server fn**: `getBudgetVsActual({ brandId, period })` — join `erp_budgets` with actuals from `erp_journal_lines`.
+New component `CartonReceiveDialog` (opened from carton row when stage allows). Per item row:
 
-**UI**: New "Budget vs Actual" tab in reports page:
+- Expected (read-only from `quantity_expected`)
+- Received (input)
+- Damaged (input)
+- Usable (auto, generated col)
 
-- Summary cards (Total Budget / Actual / Variance / % Used progress bar)
-- Table with status badges (✅ <80% / ⚠️ 80-100% / 🔴 >100%)
-- Horizontal bar chart (recharts — already in project)
-- Empty state → link to `/erp/finance/budgets`
-- Excel export
+Server fn `saveCartonReceipt({ carton_id, items: [{po_item_id, received_qty, damaged_qty}] })` → upsert `imp_carton_items` rows.
 
-## Technical Notes
+---
 
-- Sob server fn `applyBrandScope` use korbe
-- Sob fn `requireSupabaseAuth` middleware diye protected
-- Date pickers existing shadcn pattern
-- Reports tabs purono list e add hobe — replace na
+### PHASE 4 — Landed Cost Summary
 
-## Delivery Strategy
+New component `LandedCostSummary` (per carton or per item):
 
-Ami akta message e Phase 1 + 2 ship korbo (drill-down + aged exports — most independent). Tarpor Phase 3, then 4+5. Eta korle:
+```text
+product_cost  = po_item.unit_cost_cny × po.fx_rate_cny_bdt
+shipping_share = carton.cost_share_bdt / sum(usable_qty in carton)
+other_share    = po.other_charges_bdt / sum(usable_qty in PO)
+landed_cost    = product_cost + shipping_share + other_share
+```
 
-- Quality maintain hobe
-- Apni section-by-section verify korte parben
-- Boro ek-shot edit e bug avoid hobe
+Computed client-side from already-loaded data. Shows breakdown card with usable/damaged counts.
 
-Ready? Phase 1 + 2 diye shuru kori?  
-Show more
+---
 
-**Go** — Phase 1 + 2 শুরু করো। 🚀
+### PHASE 5 — Post to Inventory
+
+New server fn `postCartonReceiptToInventory({ carton_id })`:
+
+1. Load carton items + PO + cost shares
+2. For each item with `usable_qty > 0`: `supabase.rpc('adjust_stock_v2', { _delta: usable_qty, _unit_cost: landed_cost, _reason: 'import_receive', _source: 'import', _reference_type: 'imp_carton', _reference_id: carton_id, _idempotency_key: 'imp:'||carton_id||':'||po_item_id })`
+3. For each with `damaged_qty > 0`: separate `adjust_stock_v2` call with `_delta: -damaged_qty` (only if previously posted) — OR just log to activity_log (skip negative if usable was the posted qty). **Pick:** log damaged to `activity_log` only (no negative stock movement — usable was never received as +ve in first place).
+4. Mark carton `posted_at = now()`, status → 'in_stock'
+5. WAC updates auto via existing trigger on `stock_movements`
+
+Idempotent via `_idempotency_key`.
+
+---
+
+### Files
+
+**New:**
+
+- `supabase/migrations/<ts>_import_landed_cost_simplified.sql`
+- `src/components/erp/imports/shipping-cost-card.tsx`
+- `src/components/erp/imports/carton-receive-dialog.tsx`
+- `src/components/erp/imports/landed-cost-summary.tsx`
+
+**Edited:**
+
+- `src/lib/erp/imports/imports.functions.ts` — add `saveShippingCost`, `recomputeCartonCostShares`, `saveCartonReceipt`, `postCartonReceiptToInventory`
+- `src/routes/_authenticated/erp.imports.orders.$orderId.tsx` — mount ShippingCostCard + carton receive trigger + landed summary
+- (carton list section in same route) — weight input column
+
+**Untouched:** existing `LandedCostCard`, `imp_post_to_inventory` RPC, FX/freight/customs flow. New workflow runs parallel.
+
+---
+
+### Open question
+
+Damaged qty handling — confirm: log only to `activity_log` (no stock movement, since damaged was never in usable count), OR also write a `damaged_import` movement with delta=0 for audit trail?
+
+---
+
+Confirm korle implement shuru korbo.  
+**Confirm.** Damaged qty → `activity_log` only (no stock movement) ✅
+
+Build শুরু করো। 🚀
