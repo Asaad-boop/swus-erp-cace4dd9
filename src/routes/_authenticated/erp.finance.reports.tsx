@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer, FileSpreadsheet } from "lucide-react";
+import { Printer, FileSpreadsheet, Target } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -49,12 +50,14 @@ function ReportsPage() {
           <TabsTrigger value="pl">P&amp;L</TabsTrigger>
           <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
           <TabsTrigger value="cf">Cash Flow</TabsTrigger>
+          <TabsTrigger value="bva">Budget vs Actual</TabsTrigger>
           <TabsTrigger value="tb">Trial Balance</TabsTrigger>
           <TabsTrigger value="gl">General Ledger</TabsTrigger>
         </TabsList>
         <TabsContent value="pl" className="mt-3"><PLReport brandId={brandId} from={from} to={to} /></TabsContent>
         <TabsContent value="bs" className="mt-3"><BalanceSheetReport brandId={brandId} asOf={to} /></TabsContent>
         <TabsContent value="cf" className="mt-3"><CashflowReport brandId={brandId} from={from} to={to} /></TabsContent>
+        <TabsContent value="bva" className="mt-3"><BudgetVsActualReport brandId={brandId} asOf={to} /></TabsContent>
         <TabsContent value="tb" className="mt-3"><TrialBalanceReport brandId={brandId} asOf={to} /></TabsContent>
         <TabsContent value="gl" className="mt-3"><GeneralLedgerReport brandId={brandId} from={from} to={to} /></TabsContent>
       </Tabs>
