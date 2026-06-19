@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
-import { Trash2 } from "lucide-react";
+import { Trash2, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/fx")({
   head: () => ({ meta: [{ title: "FX Rates — Finance ERP" }] }),
@@ -52,6 +54,8 @@ function FxPage() {
         <h1 className="text-2xl font-bold tracking-tight">FX Rates</h1>
         <p className="text-sm text-muted-foreground">Currency conversion rates (BDT base). Used for foreign supplier bills & USD revenue.</p>
       </header>
+
+      <CnyQuickUpdate brandId={brandId} />
 
       <div className="rounded-md border bg-card p-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
