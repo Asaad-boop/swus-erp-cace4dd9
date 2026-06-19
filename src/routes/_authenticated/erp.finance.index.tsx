@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
+import { FinanceDrilldownSheet } from "@/components/erp/finance/finance-drilldown-sheet";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
   head: () => ({ meta: [{ title: "Finance Dashboard — ERP" }] }),
@@ -69,6 +70,13 @@ function OverviewPage() {
     queryFn: () => fetchOverview({ data: { brandIds, from, to } }),
   });
 
+  const [drill, setDrill] = useState<null | {
+    title: string;
+    subtitle?: string;
+    type?: "revenue" | "expense" | "income" | "all";
+    accountIds?: string[];
+  }>(null);
+
   if (brandIds.length === 0) {
     return <div className="p-6 text-muted-foreground">Loading brands…</div>;
   }
@@ -115,21 +123,38 @@ function OverviewPage() {
 
       {d && (
         <>
-          <CapitalStrip data={d} />
-          <PnlStrip data={d} />
+          <CapitalStrip data={d} onDrill={setDrill} />
+          <PnlStrip data={d} onDrill={setDrill} />
           <MoneyMap data={d} />
           <TrendsRow data={d} />
           <QuickLinks />
           <RecentTxns data={d} />
         </>
       )}
+      <FinanceDrilldownSheet
+        open={!!drill}
+        onOpenChange={(o) => { if (!o) setDrill(null); }}
+        title={drill?.title ?? ""}
+        subtitle={drill?.subtitle}
+        brandIds={brandIds}
+        from={from}
+        to={to}
+        type={drill?.type}
+        accountIds={drill?.accountIds}
+      />
     </div>
   );
 }
 
 /* ---------------- Zone 1: Capital ---------------- */
-function CapitalStrip({ data }: { data: FinanceOverview }) {
+function CapitalStrip({ data, onDrill }: {
+  data: FinanceOverview;
+  onDrill: (d: { title: string; subtitle?: string; type?: "revenue" | "expense" | "income" | "all"; accountIds?: string[] }) => void;
+}) {
   const { capital } = data;
+  const cashAccountIds = data.accounts
+    .filter((a) => ["cash", "bank", "bkash", "nagad", "rocket", "mfs"].includes(a.type))
+    .map((a) => a.id);
   return (
     <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <HeroKpi
@@ -138,6 +163,7 @@ function CapitalStrip({ data }: { data: FinanceOverview }) {
         value={capital.total}
         tone="primary"
         hint="Liquid + Inventory + Receivables − Payables"
+        onClick={() => onDrill({ title: "All transactions", type: "all" })}
       />
       <HeroKpi
         icon={<Wallet className="size-5" />}
@@ -145,6 +171,7 @@ function CapitalStrip({ data }: { data: FinanceOverview }) {
         value={capital.liquid}
         tone="emerald"
         hint={`Cash ${fmtBdt(capital.breakdown.cash)} · Bank ${fmtBdt(capital.breakdown.bank)} · MFS ${fmtBdt(capital.breakdown.mfs)}`}
+        onClick={() => onDrill({ title: "Liquid cash movements", subtitle: "Cash + Bank + MFS accounts", type: "all", accountIds: cashAccountIds })}
       />
       <HeroKpi
         icon={<Package className="size-5" />}
@@ -165,9 +192,9 @@ function CapitalStrip({ data }: { data: FinanceOverview }) {
   );
 }
 
-function HeroKpi({ icon, label, value, hint, tone, warn }: {
+function HeroKpi({ icon, label, value, hint, tone, warn, onClick }: {
   icon: React.ReactNode; label: string; value: number; hint?: string;
-  tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean;
+  tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean; onClick?: () => void;
 }) {
   const toneClass = {
     primary: "from-primary/15 to-primary/5 text-primary",
@@ -177,8 +204,8 @@ function HeroKpi({ icon, label, value, hint, tone, warn }: {
     rose: "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400",
   }[tone];
   return (
-    <Card className={`bg-gradient-to-br ${toneClass} border-border/60`}>
-      <CardContent className="p-4">
+    <Card className={`bg-gradient-to-br ${toneClass} border-border/60 ${onClick ? "cursor-pointer hover:ring-1 hover:ring-primary/40 transition" : ""}`}>
+      <CardContent className="p-4" onClick={onClick} role={onClick ? "button" : undefined}>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">{label}</span>
           <span className={`rounded-md p-1.5 bg-background/60`}>{icon}</span>
@@ -195,20 +222,30 @@ function HeroKpi({ icon, label, value, hint, tone, warn }: {
 }
 
 /* ---------------- Zone 2: P&L ---------------- */
-function PnlStrip({ data }: { data: FinanceOverview }) {
+function PnlStrip({ data, onDrill }: {
+  data: FinanceOverview;
+  onDrill: (d: { title: string; subtitle?: string; type?: "revenue" | "expense" | "income" | "all"; accountIds?: string[] }) => void;
+}) {
   const { pnl } = data;
-  const items = [
-    { label: "Revenue", value: pnl.revenue, color: "text-foreground", icon: <Banknote className="size-4" /> },
+  const items: Array<{
+    label: string; value: number; color: string; icon: React.ReactNode;
+    drill?: { title: string; type?: "revenue" | "expense" | "income" | "all" };
+  }> = [
+    { label: "Revenue", value: pnl.revenue, color: "text-foreground", icon: <Banknote className="size-4" />, drill: { title: "Revenue (orders & income)", type: "income" } },
     { label: "COGS", value: pnl.cogs, color: "text-muted-foreground", icon: <Package className="size-4" /> },
     { label: "Gross", value: pnl.gross, color: "text-foreground", icon: <TrendingUp className="size-4" /> },
-    { label: "Operating Exp.", value: pnl.expense, color: "text-rose-600 dark:text-rose-400", icon: <Receipt className="size-4" /> },
+    { label: "Operating Exp.", value: pnl.expense, color: "text-rose-600 dark:text-rose-400", icon: <Receipt className="size-4" />, drill: { title: "Operating expenses", type: "expense" } },
     { label: "Refund Loss", value: pnl.refundLoss, color: "text-amber-600 dark:text-amber-400", icon: <RotateCcw className="size-4" /> },
   ];
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
         <div className="grid grid-cols-1 md:grid-cols-12">
-          <div className="md:col-span-4 p-5 bg-gradient-to-br from-primary/10 to-transparent border-r border-border/60">
+          <div
+            className="md:col-span-4 p-5 bg-gradient-to-br from-primary/10 to-transparent border-r border-border/60 cursor-pointer hover:bg-primary/5 transition"
+            onClick={() => onDrill({ title: "Net profit — all transactions", type: "all" })}
+            role="button"
+          >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Activity className="size-4" /> Net Profit ({data.range.from} → {data.range.to})
             </div>
@@ -235,7 +272,12 @@ function PnlStrip({ data }: { data: FinanceOverview }) {
           </div>
           <div className="md:col-span-8 grid grid-cols-2 md:grid-cols-5 divide-x divide-border/60">
             {items.map((it) => (
-              <div key={it.label} className="p-4">
+              <div
+                key={it.label}
+                className={`p-4 ${it.drill ? "cursor-pointer hover:bg-muted/40 transition" : ""}`}
+                onClick={it.drill ? () => onDrill(it.drill!) : undefined}
+                role={it.drill ? "button" : undefined}
+              >
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{it.icon}{it.label}</div>
                 <div className={`mt-1 text-lg font-semibold tabular-nums ${it.color}`}>{fmtBdt(it.value)}</div>
               </div>
