@@ -694,13 +694,14 @@ function _WebOrdersPageBody() {
       return map;
     },
   });
-  // SLOW PATH: hits external couriers if cache stale; runs in background
+  // SLOW PATH: only fetch phones MISSING from cache, runs in background
+  const missingPhones = courierPhones.filter((p) => !cachedCourierHistory?.has(p));
   const { data: freshCourierHistory } = useQuery({
-    queryKey: ["courier-history", brandsKey, courierPhones.sort().join(",")],
-    enabled: courierPhones.length > 0 && !!activeBrand?.id,
+    queryKey: ["courier-history", brandsKey, missingPhones.sort().join(",")],
+    enabled: missingPhones.length > 0,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { results } = await fetchCourierHistory({ data: { phones: courierPhones, brandId: activeBrand!.id } });
+      const { results } = await fetchCourierHistory({ data: { phones: missingPhones, brandId: activeBrand?.id } });
       const map = new Map<string, CourierBreakdown>();
       Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
@@ -719,8 +720,13 @@ function _WebOrdersPageBody() {
       return map;
     },
   });
-  // Prefer fresh data when available; fall back to cached for instant render
-  const courierHistory = freshCourierHistory ?? cachedCourierHistory;
+  // Merge cached + fresh so previously-cached rows render instantly while new phones backfill
+  const courierHistory = useMemo(() => {
+    const merged = new Map<string, CourierBreakdown>();
+    cachedCourierHistory?.forEach((v, k) => merged.set(k, v));
+    freshCourierHistory?.forEach((v, k) => merged.set(k, v));
+    return merged;
+  }, [cachedCourierHistory, freshCourierHistory]);
 
   const getBreakdown = (r: WebOrderRow): Breakdown => {
     const phone = r.shipping_phone ?? r.guest_phone;
