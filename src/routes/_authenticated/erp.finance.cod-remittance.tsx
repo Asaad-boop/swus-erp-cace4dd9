@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Truck, Plus, CheckCircle2, Clock, ShieldCheck, FileDown, Trash2, Pencil, Banknote } from "lucide-react";
@@ -303,15 +303,15 @@ function ReceiveRemittanceDialog({ row, wallets, onClose }: { row: RemittanceRow
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const brandWallets = wallets.filter((w) => !row || w.brand_id === row.brand_id);
-  useMemo(() => {
-    if (row && !walletId && brandWallets.length) {
+  useEffect(() => {
+    if (row && brandWallets.length) {
       const preferred = brandWallets.find((w) => (w.account_subtype ?? w.account_type) === "bank")
         ?? brandWallets.find((w) => (w.account_subtype ?? w.account_type) === "bkash")
         ?? brandWallets[0];
       setWalletId(preferred?.id ?? "");
     }
-    // intentional: reset on row change handled below
-  }, [row]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id]);
 
   const mut = useMutation({
     mutationFn: async () => {

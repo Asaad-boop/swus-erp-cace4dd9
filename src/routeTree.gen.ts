@@ -82,6 +82,7 @@ import { Route as AuthenticatedErpFinanceProductProfitabilityRouteImport } from 
 import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
 import { Route as AuthenticatedErpFinanceFxRouteImport } from './routes/_authenticated/erp.finance.fx'
+import { Route as AuthenticatedErpFinanceCodRemittanceRouteImport } from './routes/_authenticated/erp.finance.cod-remittance'
 import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
 import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from './routes/_authenticated/erp.finance.brand-profitability'
 import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
@@ -526,6 +527,12 @@ const AuthenticatedErpFinanceFxRoute =
     path: '/fx',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceCodRemittanceRoute =
+  AuthenticatedErpFinanceCodRemittanceRouteImport.update({
+    id: '/cod-remittance',
+    path: '/cod-remittance',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceBudgetsRoute =
   AuthenticatedErpFinanceBudgetsRouteImport.update({
     id: '/budgets',
@@ -685,6 +692,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -773,6 +781,7 @@ export interface FileRoutesByTo {
   '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -868,6 +877,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
   '/_authenticated/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/_authenticated/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/_authenticated/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -966,6 +976,7 @@ export interface FileRouteTypes {
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
+    | '/erp/finance/cod-remittance'
     | '/erp/finance/fx'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
@@ -1054,6 +1065,7 @@ export interface FileRouteTypes {
     | '/erp/finance/audit'
     | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
+    | '/erp/finance/cod-remittance'
     | '/erp/finance/fx'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
@@ -1148,6 +1160,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/finance/audit'
     | '/_authenticated/erp/finance/brand-profitability'
     | '/_authenticated/erp/finance/budgets'
+    | '/_authenticated/erp/finance/cod-remittance'
     | '/_authenticated/erp/finance/fx'
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/payables'
@@ -1744,6 +1757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceFxRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/cod-remittance': {
+      id: '/_authenticated/erp/finance/cod-remittance'
+      path: '/cod-remittance'
+      fullPath: '/erp/finance/cod-remittance'
+      preLoaderRoute: typeof AuthenticatedErpFinanceCodRemittanceRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/budgets': {
       id: '/_authenticated/erp/finance/budgets'
       path: '/budgets'
@@ -1919,6 +1939,7 @@ interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAuditRoute: typeof AuthenticatedErpFinanceAuditRoute
   AuthenticatedErpFinanceBrandProfitabilityRoute: typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
+  AuthenticatedErpFinanceCodRemittanceRoute: typeof AuthenticatedErpFinanceCodRemittanceRoute
   AuthenticatedErpFinanceFxRoute: typeof AuthenticatedErpFinanceFxRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
@@ -1941,6 +1962,8 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
     AuthenticatedErpFinanceBrandProfitabilityRoute:
       AuthenticatedErpFinanceBrandProfitabilityRoute,
     AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
+    AuthenticatedErpFinanceCodRemittanceRoute:
+      AuthenticatedErpFinanceCodRemittanceRoute,
     AuthenticatedErpFinanceFxRoute: AuthenticatedErpFinanceFxRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
     AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
