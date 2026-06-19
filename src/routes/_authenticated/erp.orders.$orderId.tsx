@@ -1077,8 +1077,17 @@ function OrderDetailsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
-                            <div className="text-sm font-medium truncate">{it.name}</div>
-                            <div className="text-[10px] text-rose-600">৳{bdtCompact(unit)} <span className="text-muted-foreground">Stock</span></div>
+                             <div className="text-sm font-medium truncate">{it.name}</div>
+                             <div className="flex items-center gap-2 text-[10px]">
+                               <span className="text-rose-600">৳{bdtCompact(unit)}</span>
+                               {(() => {
+                                 const s = stockMap?.get(it.product_id);
+                                 if (s === undefined) return null;
+                                 if (s <= 0) return <span className="rounded px-1 py-0.5 bg-rose-500/15 text-rose-600 font-semibold">Out of stock</span>;
+                                 if (s < 5) return <span className="rounded px-1 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold">Stock: {s}</span>;
+                                 return <span className="rounded px-1 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">Stock: {s}</span>;
+                               })()}
+                             </div>
                           </div>
                           <button onClick={() => deleteItem.mutate(it.id)} className="p-1 rounded hover:bg-rose-500/10 text-rose-600">
                             <Trash2 className="h-3.5 w-3.5" />
