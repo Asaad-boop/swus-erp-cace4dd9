@@ -976,19 +976,21 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
 
 export const listCargoAgents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; activeOnly?: boolean }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; activeOnly?: boolean }) =>
     z.object({
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       activeOnly: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("imp_cargo_agents")
-      .select("id, name, contact_person, phone, address, notes, is_active, created_at")
-      .eq("brand_id", data.brandId)
+      .select("id, brand_id, name, contact_person, phone, address, notes, is_active, created_at, brand:brand_id ( id, name, slug )")
       .order("is_active", { ascending: false })
       .order("name");
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
     if (data.activeOnly) q = q.eq("is_active", true);
     const { data: rows, error } = await q;
     if (error) throw error;
