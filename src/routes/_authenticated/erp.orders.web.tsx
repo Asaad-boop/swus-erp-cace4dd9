@@ -868,28 +868,28 @@ function _WebOrdersPageBody() {
   const selectedOrderRows = rows.filter((r) => selectedIds.has(r.id));
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Web Orders</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="p-4 md:p-6">
+      {/* Header — inline search */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight leading-tight">Web Orders</h1>
+          <p className="text-sm text-muted-foreground truncate">
             {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · Orders from website
             {activeTab !== "incomplete" && totalRows > 0 && (
-              <span className="ml-2 text-xs">
-                · Showing <span className="font-semibold text-foreground tabular-nums">{rows.length}</span> of <span className="font-semibold text-foreground tabular-nums">{totalRows}</span> orders
-              </span>
+              <span className="ml-1.5">· {rows.length} of {totalRows}</span>
             )}
           </p>
         </div>
         <Input
-          placeholder="Search name or phone…"
+          placeholder="Search by name or phone number…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-xs"
+          className="w-full sm:w-[300px] h-9"
         />
       </header>
 
-      <div className="border-b flex flex-wrap gap-1">
+      {/* Tabs — pill style, single-row scroll */}
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:thin]">
         {STATUS_TABS.map((t) => {
           const active = activeTab === t.key;
           const count =
@@ -901,39 +901,53 @@ function _WebOrdersPageBody() {
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               className={cn(
-                "px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-2",
+                "shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
               )}
             >
-              {t.label}
-              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+              <span>{t.label}</span>
+              <span
+                className={cn(
+                  "tabular-nums inline-flex items-center justify-center rounded-full text-[10px] font-bold min-w-[18px] h-[18px] px-1.5",
+                  active ? "bg-white text-indigo-800" : "bg-background/80 text-muted-foreground",
+                )}
+              >
                 {count}
-              </Badge>
+              </span>
             </button>
           );
         })}
       </div>
 
-      <TagFilterBar
-        options={filterOptions}
-        selected={tagFilter}
-        onToggle={toggleTagFilter}
-        onClear={() => setTagFilter(new Set())}
-      />
+      {/* Filter row — tags inline + dropdowns right-aligned */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-y py-1.5">
+        <div className="min-w-0 flex-1">
+          <TagFilterBar
+            options={filterOptions}
+            selected={tagFilter}
+            onToggle={toggleTagFilter}
+            onClear={() => setTagFilter(new Set())}
+            compact
+          />
+        </div>
+        <div className="shrink-0">
+          <WebOrdersFilterBar
+            state={{
+              datePreset,
+              dateFrom: search.from,
+              dateTo: search.to,
+              source: sourceFilter,
+              sort,
+            }}
+            onChange={(patch) => updateFilters(patch)}
+            onClearAll={clearAllFilters}
+          />
+        </div>
+      </div>
 
-      <WebOrdersFilterBar
-        state={{
-          datePreset,
-          dateFrom: search.from,
-          dateTo: search.to,
-          source: sourceFilter,
-          sort,
-        }}
-        onChange={(patch) => updateFilters(patch)}
-        onClearAll={clearAllFilters}
-      />
+      <div className="mt-2 space-y-4">
 
       {activeTab === "incomplete" ? (
         <div className="rounded-xl border bg-card overflow-hidden">
@@ -1229,6 +1243,7 @@ function _WebOrdersPageBody() {
         )}
       </div>
       )}
+      </div>
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
 

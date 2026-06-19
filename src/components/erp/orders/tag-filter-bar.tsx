@@ -15,17 +15,23 @@ type Props = {
   selected: Set<AutoTagKey>;
   onToggle: (k: AutoTagKey) => void;
   onClear: () => void;
+  compact?: boolean;
 };
 
-export function TagFilterBar({ options, selected, onToggle, onClear }: Props) {
+export function TagFilterBar({ options, selected, onToggle, onClear, compact = false }: Props) {
   // Only show options with at least 1 match
   const visible = options.filter((o) => o.count > 0);
   if (visible.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 py-2 px-1">
-      <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mr-1">
-        Filter by tag
-      </span>
+    <div className={cn("flex items-center gap-1.5", compact ? "flex-nowrap overflow-x-auto" : "flex-wrap py-2 px-1") }>
+      {!compact && (
+        <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mr-1">
+          Filter by tag
+        </span>
+      )}
+      {compact && (
+        <span className="text-[11px] font-semibold text-muted-foreground shrink-0 mr-0.5">🏷️ Tags:</span>
+      )}
       {visible.map((o) => {
         const active = selected.has(o.key);
         return (
@@ -34,7 +40,8 @@ export function TagFilterBar({ options, selected, onToggle, onClear }: Props) {
             type="button"
             onClick={() => onToggle(o.key)}
             className={cn(
-              "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full ring-1 ring-inset transition-all",
+              "inline-flex items-center gap-1 text-[11px] font-semibold rounded-full ring-1 ring-inset transition-all shrink-0",
+              compact ? "px-1.5 py-0.5" : "px-2 py-1",
               active
                 ? cn(o.chip, "shadow-sm scale-105")
                 : "bg-muted/40 text-muted-foreground ring-border hover:bg-muted",
@@ -57,7 +64,10 @@ export function TagFilterBar({ options, selected, onToggle, onClear }: Props) {
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          className={cn(
+            "inline-flex items-center gap-1 text-[11px] font-medium rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 shrink-0",
+            compact ? "px-1.5 py-0.5" : "px-2 py-1",
+          )}
         >
           <X className="h-3 w-3" /> Clear
         </button>
