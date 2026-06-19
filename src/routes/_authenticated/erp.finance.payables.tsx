@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Wallet, AlertCircle } from "lucide-react";
+import { Plus, Search, Wallet, AlertCircle, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -15,6 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { fmtBdt } from "@/lib/erp/finance";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { exportAgedExcel, exportAgedPdf } from "@/lib/erp/finance-aged-export";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/payables")({
   head: () => ({ meta: [{ title: "Payables — Finance ERP" }] }),
@@ -109,6 +113,19 @@ function PayablesPage() {
 
   const totalOutstanding = (apQ.data ?? []).reduce((s, r) => s + Number(r.outstanding), 0);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const supplierContactMap = new Map((suppliersQ.data ?? []).map((s) => [s.id, ""]));
+  const exportRowsForAging = () =>
+    (apQ.data ?? []).map((r) => ({
+      name: r.supplier_name,
+      contact: supplierContactMap.get(r.supplier_id) ?? "",
+      docNo: r.bill_no,
+      docDate: r.bill_date,
+      dueDate: r.due_date ?? "",
+      age: r.age_days,
+      outstanding: Number(r.outstanding),
+    }));
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
@@ -120,9 +137,26 @@ function PayablesPage() {
             {" · "}{rows.length} of {apQ.data?.length ?? 0} bills
           </p>
         </div>
-        <Button onClick={() => setNewBillOpen(true)} disabled={!suppliersQ.data?.length || !coaQ.data?.length}>
-          <Plus className="h-4 w-4 mr-1" />New Bill
-        </Button>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={!(apQ.data?.length)}>
+                <Download className="h-4 w-4 mr-1" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportAgedExcel({ rows: exportRowsForAging(), kind: "payables", asOfDate: today })}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAgedPdf({ rows: exportRowsForAging(), kind: "payables", asOfDate: today, companyName: effectiveBrand?.name })}>
+                <Printer className="h-4 w-4 mr-2" /> Export PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={() => setNewBillOpen(true)} disabled={!suppliersQ.data?.length || !coaQ.data?.length}>
+            <Plus className="h-4 w-4 mr-1" />New Bill
+          </Button>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
