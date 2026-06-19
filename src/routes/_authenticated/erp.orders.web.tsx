@@ -426,7 +426,7 @@ function _WebOrdersPageBody() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printOpen, setPrintOpen] = useState(false);
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
-  const [inlineBusyId, setInlineBusyId] = useState<string | null>(null);
+  // inline status buttons removed; selection-based bulk actions only
 
   // Debounce search input (300ms) → URL + query key
   useEffect(() => {
@@ -814,24 +814,6 @@ function _WebOrdersPageBody() {
     queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
   };
 
-  const inlineStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: WebStatusKey }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ web_status: status as never })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: ({ id }) => { setInlineBusyId(id); return {}; },
-    onSuccess: (_d, { id }) => {
-      setFlashIds((prev) => { const n = new Set(prev); n.add(id); return n; });
-      setTimeout(() => setFlashIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 1500);
-      invalidateWebOrders();
-    },
-    onError: (e: Error) => toast.error(e.message),
-    onSettled: () => setInlineBusyId(null),
-  });
-
   const bulkStatus = useMutation({
     mutationFn: async (status: WebStatusKey) => {
       const ids = Array.from(selectedIds);
@@ -1018,7 +1000,6 @@ function _WebOrdersPageBody() {
                 const flash = flashIds.has(r.id);
                 const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
                 const isSelected = selectedIds.has(r.id);
-                const isInlineBusy = inlineBusyId === r.id;
                 return (
                   <TableRow
                     key={r.id}
