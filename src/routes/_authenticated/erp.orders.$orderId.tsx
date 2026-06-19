@@ -1104,22 +1104,54 @@ function OrderDetailsPage() {
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   className="resize-none"
                 />
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] text-muted-foreground">
-                    AI will pick the matching Pathao city / zone / area.
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1"
-                    disabled={detectLocation.isPending || form.address.trim().length < 3}
-                    onClick={() => detectLocation.mutate()}
-                  >
-                    {detectLocation.isPending
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Sparkles className="h-3 w-3" />}
-                    Detect with AI
-                  </Button>
+                <div className="mt-1.5 space-y-1.5">
+                  {detecting && (
+                    <div className="inline-flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />Detecting location…
+                    </div>
+                  )}
+                  {detection && !detecting && (
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                      <Check className="h-3 w-3" />
+                      <span>
+                        Detected: {detection.city.name}
+                        {detection.zone && ` → ${detection.zone.name}`}
+                        {detection.area && ` → ${detection.area.name}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDetection(null);
+                          setForm((f) => ({ ...f, city_id: "", zone_id: "", area_id: "" }));
+                        }}
+                        className="ml-0.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-500/20 p-0.5"
+                        title="Clear detection"
+                      ><XCircle className="h-3 w-3" /></button>
+                    </div>
+                  )}
+                  {!detection && citySuggestions.length > 0 && !detecting && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-gray-500">
+                        <MapPin className="h-3 w-3" />Did you mean
+                      </span>
+                      {citySuggestions.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({ ...f, city_id: c.id, zone_id: "", area_id: "" }));
+                            // Re-run detection but pin to this city by injecting cached city pick
+                            const trimmed = form.address.trim();
+                            const cached = detectCacheRef.current.get(trimmed);
+                            // Force a fresh detection that auto-applies now that city is chosen
+                            detectCacheRef.current.delete(trimmed);
+                            void runDetection(trimmed, true).catch(() => void cached);
+                          }}
+                          className="inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
+                        >{c.name}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
