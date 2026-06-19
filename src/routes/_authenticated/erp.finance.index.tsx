@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
 import { FinanceDrilldownSheet } from "@/components/erp/finance/finance-drilldown-sheet";
+import { BdWalletsWidget } from "@/components/erp/finance/bd-wallets-widget";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
   head: () => ({ meta: [{ title: "Finance Dashboard — ERP" }] }),
@@ -124,6 +125,7 @@ function OverviewPage() {
       {d && (
         <>
           <CapitalStrip data={d} onDrill={setDrill} />
+          <BdWalletsWidget />
           <PnlStrip data={d} onDrill={setDrill} />
           <MoneyMap data={d} />
           <TrendsRow data={d} />
