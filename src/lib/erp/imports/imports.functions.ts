@@ -68,11 +68,15 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
+        fx_rate_cny_bdt, fx_rate_locked_at, fx_rate_source,
+        freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
+        total_units, landed_cost_per_unit_bdt,
         supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
         id, product_id, variant_id, sku_snapshot, name_snapshot, image_snapshot,
-        quantity, unit_cost_foreign, unit_cost_bdt, subtotal_bdt
+        quantity, unit_cost_foreign, unit_cost_bdt, subtotal_bdt,
+        unit_cost_cny, landed_cost_bdt
       `).eq("po_id", data.poId).order("created_at"),
       context.supabase.from("imp_cartons").select(`
         id, carton_number, barcode, expected_quantity,
