@@ -4576,6 +4576,9 @@ export type Database = {
       }
       imp_purchase_orders: {
         Row: {
+          agent_commission_cny: number
+          agent_commission_per_unit_bdt: number | null
+          agent_commission_total_bdt: number | null
           brand_id: string
           created_at: string
           created_by: string | null
@@ -4610,6 +4613,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_commission_cny?: number
+          agent_commission_per_unit_bdt?: number | null
+          agent_commission_total_bdt?: number | null
           brand_id: string
           created_at?: string
           created_by?: string | null
@@ -4644,6 +4650,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_commission_cny?: number
+          agent_commission_per_unit_bdt?: number | null
+          agent_commission_total_bdt?: number | null
           brand_id?: string
           created_at?: string
           created_by?: string | null

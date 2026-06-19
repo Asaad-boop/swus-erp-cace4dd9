@@ -15,6 +15,7 @@ export function LandedCostSummary({
   poItems,
   poFxRate,
   poOtherCharges,
+  poCommissionPerUnit,
   poTotalUsableUnits,
   poId,
   brandId,
@@ -23,6 +24,7 @@ export function LandedCostSummary({
   poItems: any[];
   poFxRate: number;
   poOtherCharges: number;
+  poCommissionPerUnit: number;
   poTotalUsableUnits: number;
   poId: string;
   brandId: string;
@@ -54,7 +56,8 @@ export function LandedCostSummary({
     totalUsableForAvg += u;
   });
   const avgProductCost = totalUsableForAvg > 0 ? weightedProduct / totalUsableForAvg : 0;
-  const landed = avgProductCost + shipPerUnit + otherPerUnit;
+  const commissionPerUnit = Number(poCommissionPerUnit) || 0;
+  const landed = avgProductCost + shipPerUnit + otherPerUnit + commissionPerUnit;
 
   const ready = cartonUsable > 0 && !!warehouseId && !carton.posted_at;
 
@@ -75,6 +78,7 @@ export function LandedCostSummary({
         <Row label="Product Cost (CNY × FX)" value={`৳${avgProductCost.toFixed(2)}/pcs`} />
         <Row label="Shipping share" value={`৳${shipPerUnit.toFixed(2)}/pcs`} />
         <Row label="Other share" value={`৳${otherPerUnit.toFixed(2)}/pcs`} />
+        <Row label="Agent commission" value={`৳${commissionPerUnit.toFixed(2)}/pcs`} />
         <div className="border-t border-border my-2" />
         <div className="flex items-center justify-between font-bold text-base">
           <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> LANDED COST</span>

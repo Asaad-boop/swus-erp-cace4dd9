@@ -131,6 +131,7 @@ function PoDetailPage() {
   );
   const poFxRate = Number(po.fx_rate_cny_bdt ?? po.fx_rate) || 0;
   const poOtherCharges = Number(po.other_charges_bdt) || 0;
+  const poCommissionPerUnit = Number(po.agent_commission_per_unit_bdt) || 0;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -269,6 +270,7 @@ function PoDetailPage() {
           initialFreight={Number(po.freight_cost_bdt) || 0}
           initialCustoms={Number(po.customs_duty_bdt) || 0}
           initialOther={Number(po.other_charges_bdt) || 0}
+          initialAgentCommissionCny={Number(po.agent_commission_cny) || 0}
           fxLockedAt={po.fx_rate_locked_at}
           fxSource={po.fx_rate_source}
           />
@@ -328,6 +330,7 @@ function PoDetailPage() {
               poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
               poFxRate={poFxRate}
               poOtherCharges={poOtherCharges}
+                poCommissionPerUnit={poCommissionPerUnit}
               poTotalUsableUnits={poTotalUsableUnits}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
             />
@@ -466,9 +469,9 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, poFxRate, poOtherCharges, poTotalUsableUnits, onStage }: {
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, poFxRate, poOtherCharges, poCommissionPerUnit, poTotalUsableUnits, onStage }: {
   carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
-  poFxRate: number; poOtherCharges: number; poTotalUsableUnits: number;
+  poFxRate: number; poOtherCharges: number; poCommissionPerUnit: number; poTotalUsableUnits: number;
   onStage: (s: ImpCartonStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -554,6 +557,7 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
                   poItems={poItems}
                   poFxRate={poFxRate}
                   poOtherCharges={poOtherCharges}
+                  poCommissionPerUnit={poCommissionPerUnit}
                   poTotalUsableUnits={poTotalUsableUnits}
                   poId={poId}
                   brandId={brandId}

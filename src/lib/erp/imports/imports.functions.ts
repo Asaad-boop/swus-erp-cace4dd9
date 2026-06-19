@@ -72,6 +72,7 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
         total_units, landed_cost_per_unit_bdt,
         shipping_weight_kg, shipping_rate_per_kg, shipping_cost_bdt,
+        agent_commission_cny, agent_commission_per_unit_bdt, agent_commission_total_bdt,
         supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
@@ -358,6 +359,7 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       freight_cost_bdt: z.number().nonnegative().default(0),
       customs_duty_bdt: z.number().nonnegative().default(0),
       other_charges_bdt: z.number().nonnegative().default(0),
+      agent_commission_cny: z.number().nonnegative().default(0),
       items: z.array(landedItemSchema).default([]),
       lock_rate: z.boolean().default(true),
     }).parse(d),
@@ -384,11 +386,15 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
     const total_value = lines.reduce((s, l) => s + l.line_value, 0);
     const total_units = lines.reduce((s, l) => s + l.qty, 0);
     const extras_total = data.freight_cost_bdt + data.customs_duty_bdt + data.other_charges_bdt;
+    const commission_per_unit_bdt = +(data.agent_commission_cny * fx).toFixed(4);
+    const commission_total_bdt = +(commission_per_unit_bdt * total_units).toFixed(4);
 
     // Update each item
     for (const l of lines) {
       const extras_share = total_value > 0 ? (l.line_value / total_value) * extras_total : (total_units > 0 ? (l.qty / total_units) * extras_total : 0);
-      const landed_unit = l.qty > 0 ? +(l.unit_cost_bdt + extras_share / l.qty).toFixed(4) : l.unit_cost_bdt;
+      const landed_unit = l.qty > 0
+        ? +(l.unit_cost_bdt + extras_share / l.qty + commission_per_unit_bdt).toFixed(4)
+        : +(l.unit_cost_bdt + commission_per_unit_bdt).toFixed(4);
       const subtotal_bdt = +(l.line_value).toFixed(4);
       const { error: ue } = await context.supabase
         .from("imp_po_items")
@@ -402,7 +408,9 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       if (ue) throw ue;
     }
 
-    const landed_cost_per_unit_bdt = total_units > 0 ? +((total_value + extras_total) / total_units).toFixed(4) : 0;
+    const landed_cost_per_unit_bdt = total_units > 0
+      ? +(((total_value + extras_total) / total_units) + commission_per_unit_bdt).toFixed(4)
+      : 0;
 
     const { error: pe } = await context.supabase
       .from("imp_purchase_orders")
@@ -413,6 +421,9 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
         freight_cost_bdt: data.freight_cost_bdt,
         customs_duty_bdt: data.customs_duty_bdt,
         other_charges_bdt: data.other_charges_bdt,
+        agent_commission_cny: data.agent_commission_cny,
+        agent_commission_per_unit_bdt: commission_per_unit_bdt,
+        agent_commission_total_bdt: commission_total_bdt,
         total_units,
         landed_cost_per_unit_bdt,
       })
@@ -424,6 +435,8 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       total_units,
       total_value,
       extras_total,
+      commission_per_unit_bdt,
+      commission_total_bdt,
       landed_cost_per_unit_bdt,
     };
   });
@@ -843,12 +856,13 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
     // Load PO for fx + other_charges + brand
     const { data: po, error: pErr } = await context.supabase
       .from("imp_purchase_orders")
-      .select("id, brand_id, fx_rate_cny_bdt, fx_rate, other_charges_bdt")
+      .select("id, brand_id, fx_rate_cny_bdt, fx_rate, other_charges_bdt, agent_commission_per_unit_bdt")
       .eq("id", (carton as any).po_id)
       .maybeSingle();
     if (pErr) throw pErr;
     if (!po) throw new Error("PO not found");
     const fx = Number((po as any).fx_rate_cny_bdt ?? (po as any).fx_rate ?? 0);
+    const commissionPerUnit = Number((po as any).agent_commission_per_unit_bdt ?? 0);
 
     // Load po_items for unit_cost_cny
     const poItemIds = list.map((r: any) => r.po_item_id).filter(Boolean);
@@ -883,7 +897,7 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
       const pi = piMap.get(it.po_item_id);
       const unitCny = Number(pi?.unit_cost_cny ?? pi?.unit_cost_foreign ?? 0);
       const productCost = unitCny * fx;
-      const landed = +(productCost + shipPerUnit + otherPerUnit).toFixed(4);
+      const landed = +(productCost + shipPerUnit + otherPerUnit + commissionPerUnit).toFixed(4);
 
       if (usable > 0) {
         const { data: movId, error: aErr } = await context.supabase.rpc("adjust_stock_v2", {
@@ -940,6 +954,7 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
         usable_units: totalUsableInCarton,
         ship_per_unit: +shipPerUnit.toFixed(4),
         other_per_unit: +otherPerUnit.toFixed(4),
+        commission_per_unit: +commissionPerUnit.toFixed(4),
       },
     };
   });
