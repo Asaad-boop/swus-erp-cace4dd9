@@ -1209,7 +1209,7 @@ function OrderDetailsPage() {
         </div>
 
         {/* RIGHT SIDEBAR */}
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:sticky xl:top-[64px] xl:max-h-[calc(100vh-80px)] xl:overflow-y-auto xl:pr-1 xl:-mr-1">
           <section className="rounded-xl border bg-card overflow-hidden">
             <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Order Summary</h3>
