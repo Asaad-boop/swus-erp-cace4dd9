@@ -1243,6 +1243,7 @@ function _WebOrdersPageBody() {
         )}
       </div>
       )}
+      </div>
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
 
