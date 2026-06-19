@@ -1291,12 +1291,33 @@ function OrderDetailsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FieldShell label="City">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium text-muted-foreground">City</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const addr = (form.address || order?.shipping_address || "").trim();
+                      if (addr.length < 4) return;
+                      lastDetectedAddrRef.current = "";
+                      detectCacheRef.current.delete(addr);
+                      setDetectionAttempted(true);
+                      void runDetection(addr, true);
+                    }}
+                    disabled={detecting}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {detecting ? "Detecting…" : "🔍 Detect"}
+                  </button>
+                </div>
                 <Select value={form.city_id} onValueChange={(v) => setForm({ ...form, city_id: v, zone_id: "", area_id: "" })}>
-                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectTrigger className={`h-9 ${confirmAttempted && !form.city_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder={detecting ? "Detecting…" : "Select city"} /></SelectTrigger>
                   <SelectContent>{(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
                 </Select>
-              </FieldShell>
+                {detectionAttempted && !detecting && !detection && !form.city_id && citySuggestions.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">Could not detect — please select manually</p>
+                )}
+              </div>
               <FieldShell label="Zone">
                 <Select value={form.zone_id} onValueChange={(v) => setForm({ ...form, zone_id: v, area_id: "" })} disabled={!form.city_id}>
                   <SelectTrigger className={`h-9 ${confirmAttempted && !form.zone_id ? "border-red-500 ring-1 ring-red-500" : ""}`}><SelectValue placeholder="Select zone" /></SelectTrigger>
