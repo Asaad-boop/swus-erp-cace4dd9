@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon, Package } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -267,6 +267,38 @@ function SuccessBlock({ total, success }: { total: number; success: number }) {
 }
 
 function AllItemsPopover({
+  items,
+  total,
+}: {
+  items: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
+  total: number;
+}) {
+  return _AllItemsPopover({ items, total });
+}
+
+function ProductThumb({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
+  const [failed, setFailed] = React.useState(false);
+  const url = src && src.trim() ? src : null;
+  if (!url || failed) {
+    return (
+      <div className={cn("h-full w-full flex items-center justify-center bg-muted text-muted-foreground", className)}>
+        <Package className="h-1/2 w-1/2 opacity-50" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={cn("h-full w-full object-cover", className)}
+    />
+  );
+}
+
+function _AllItemsPopover({
   items,
   total,
 }: {
