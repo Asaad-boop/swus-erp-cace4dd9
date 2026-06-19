@@ -1037,6 +1037,11 @@ function _WebOrdersPageBody() {
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-muted-foreground truncate font-mono">{phone}</span>
                               <PhoneActions phone={phone} className="shrink-0" />
+                              <CallLogPopover
+                                orderId={r.id}
+                                currentCount={r.call_attempt_count ?? 0}
+                                onSaved={invalidateWebOrders}
+                              />
                             </div>
                           )}
                           {address && (
