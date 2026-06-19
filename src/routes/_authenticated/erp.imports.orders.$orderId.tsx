@@ -465,11 +465,21 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage }: {
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, poFxRate, poOtherCharges, poTotalUsableUnits, onStage }: {
   carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
+  poFxRate: number; poOtherCharges: number; poTotalUsableUnits: number;
   onStage: (s: ImpCartonStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const qc = useQueryClient();
+  const weightFn = useServerFn(saveCartonWeight);
+  const [weight, setWeight] = useState<number>(Number(carton.weight_kg ?? 0));
+  const weightMut = useMutation({
+    mutationFn: () => weightFn({ data: { carton_id: carton.id, po_id: poId, weight_kg: Number(weight) || 0 } }),
+    onSuccess: () => { toast.success("Weight saved — cost shares updated"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
   const status = carton.status as ImpCartonStatus;
   const meta = CARTON_STATUS_LABEL[status];
 
