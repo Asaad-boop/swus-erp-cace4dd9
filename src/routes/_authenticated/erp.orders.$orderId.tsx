@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, RefreshCw, Tag as TagIcon, XCircle, Hash, Globe, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
+  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
+  ChevronLeft, ChevronRight, RotateCcw, Repeat,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,6 +24,11 @@ import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderSta
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
+import {
+  OrderTimeline, ShipmentPanel, CustomerHistoryPanel, AttributionPanel,
+  ReturnDialog, ExchangeDialog, useOrderNeighbors,
+} from "@/components/erp/orders/order-detail-extras";
+import { useCurrentRole } from "@/hooks/use-current-role";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
@@ -55,7 +61,6 @@ const STAT_COLUMNS = [
   { key: "ourRecord", label: "Our Record", dot: "bg-indigo-500", bar: "bg-indigo-500", tint: "from-indigo-500/[0.07]" },
   { key: "overall",   label: "Overall",    dot: "bg-sky-500",    bar: "bg-sky-500",    tint: "from-sky-500/[0.07]" },
   { key: "pathao",    label: "Pathao",     dot: "bg-rose-500",   bar: "bg-rose-500",   tint: "from-rose-500/[0.07]" },
-  { key: "redx",      label: "RedX",       dot: "bg-orange-500", bar: "bg-orange-500", tint: "from-orange-500/[0.07]" },
   { key: "steadfast", label: "Steadfast",  dot: "bg-amber-500",  bar: "bg-amber-500",  tint: "from-amber-500/[0.07]" },
 ] as const;
 
@@ -81,7 +86,7 @@ function StatsStrip({
     const s = stats[c.key];
     if (!s) return false;
     if (c.key === "overall") {
-      return (stats.pathao?.total ?? 0) + (stats.redx?.total ?? 0) + (stats.steadfast?.total ?? 0) > 0;
+      return (stats.pathao?.total ?? 0) + (stats.steadfast?.total ?? 0) > 0;
     }
     return s.total > 0;
   });
