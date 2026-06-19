@@ -70,17 +70,18 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
     },
   });
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
       <button
         type="button" onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-2.5 flex items-center justify-between bg-muted/30 hover:bg-muted/50 transition-colors"
+        className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/70 dark:hover:bg-muted/30 transition-colors border-b border-gray-100 dark:border-border"
       >
         <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
           <Activity className="h-3.5 w-3.5 text-indigo-600" />
-          <h3 className="text-sm font-semibold">Order Timeline</h3>
-          {data?.length ? <Badge variant="secondary" className="h-5 text-[10px]">{data.length}</Badge> : null}
+          <h3 className="text-[13px] font-semibold">Order Timeline</h3>
+          {data?.length ? <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gray-100 dark:bg-muted text-[10px] font-semibold text-gray-600 tabular-nums">{data.length}</span> : null}
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
       </button>
       {open && (
         <div className="p-4">
@@ -156,9 +157,13 @@ export function ShipmentPanel({
   });
 
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
-      <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center gap-2"><Truck className="h-3.5 w-3.5 text-sky-600" /><h3 className="text-sm font-semibold">Shipment</h3></div>
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+          <Truck className="h-3.5 w-3.5 text-sky-600" />
+          <h3 className="text-[13px] font-semibold">Shipment</h3>
+        </div>
         {shipment && (
           <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" disabled={sync.isPending} onClick={() => sync.mutate()}>
             {sync.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
@@ -262,9 +267,13 @@ export function CustomerHistoryPanel({
   });
 
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
-      <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center gap-2"><User className="h-3.5 w-3.5 text-fuchsia-600" /><h3 className="text-sm font-semibold">Customer History</h3></div>
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
+          <User className="h-3.5 w-3.5 text-fuchsia-600" />
+          <h3 className="text-[13px] font-semibold">Customer 360</h3>
+        </div>
         {data?.meta?.rfm_segment && (
           <Badge variant="outline" className="text-[10px]">{data.meta.rfm_segment}</Badge>
         )}
@@ -369,9 +378,11 @@ export function AttributionPanel({ orderId }: { orderId: string }) {
   });
 
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
-      <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
-        <Megaphone className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Attribution</h3>
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        <Megaphone className="h-3.5 w-3.5 text-rose-600" />
+        <h3 className="text-[13px] font-semibold">Attribution</h3>
       </header>
       <div className="p-4 text-xs space-y-2">
         {isLoading ? (
