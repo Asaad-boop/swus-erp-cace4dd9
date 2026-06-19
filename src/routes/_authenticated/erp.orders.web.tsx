@@ -96,6 +96,7 @@ type WebOrderRow = {
   brand_id: string | null;
   items_summary?: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
   latest_order_note?: string | null;
+  attribution?: { utm_source: string | null; utm_medium: string | null } | null;
 };
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number; delivered: number };
@@ -300,7 +301,6 @@ function WebOrdersPage() {
   });
 
   // Infinite paginated orders
-  const orderBy = (q: ReturnType<typeof supabase.from<"orders">> extends never ? never : ReturnType<typeof applyBrandScope>) => q;
   const ordersQueryKey = ["web-orders-inf", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? ""] as const;
 
   const ordersQuery = useInfiniteQuery({
