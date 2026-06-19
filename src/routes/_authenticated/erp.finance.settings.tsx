@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, Sparkles, ShieldAlert } from "lucide-react";
+import { Lock, Sparkles, ShieldAlert, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
   head: () => ({ meta: [{ title: "Finance Settings — ERP" }] }),
@@ -77,6 +78,29 @@ function SettingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const autopostKey = brandId ? `finance:payroll_autopost:${brandId}` : null;
+  const autopostQ = useQuery({
+    queryKey: ["app_setting", autopostKey],
+    enabled: !!autopostKey,
+    queryFn: async () => {
+      const { data } = await supabase.from("app_settings").select("value").eq("key", autopostKey!).maybeSingle();
+      if (!data?.value) return true;
+      try { return JSON.parse(data.value) !== false; } catch { return true; }
+    },
+  });
+  const autopostMut = useMutation({
+    mutationFn: async (next: boolean) => {
+      const { error } = await supabase.from("app_settings").upsert(
+        { key: autopostKey!, value: JSON.stringify(next), updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() },
+        { onConflict: "key" },
+      );
+      if (error) throw error;
+      return next;
+    },
+    onSuccess: (next) => { toast.success(`Payroll autopost ${next ? "enabled" : "disabled"}`); qc.invalidateQueries({ queryKey: ["app_setting", autopostKey] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
@@ -115,6 +139,24 @@ function SettingsPage() {
           {lockQ.data?.locked_until && (
             <p className="text-xs text-muted-foreground">Currently locked until <strong>{lockQ.data.locked_until}</strong></p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" />Payroll Integration</CardTitle>
+          <CardDescription>Automatically post finalized payroll runs and salary payments to the Finance journal.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-between items-center gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Auto-post payroll to journal</p>
+            <p className="text-xs text-muted-foreground">When enabled, finalizing a run posts Salary Expense / Salary Payable. Marking a payslip paid clears Salary Payable against the wallet (bKash, Nagad, Bank, Cash).</p>
+          </div>
+          <Switch
+            checked={autopostQ.data ?? true}
+            disabled={!brandId || autopostMut.isPending}
+            onCheckedChange={(v) => autopostMut.mutate(v)}
+          />
         </CardContent>
       </Card>
 
