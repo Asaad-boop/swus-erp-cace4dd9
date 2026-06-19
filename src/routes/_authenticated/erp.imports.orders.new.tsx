@@ -198,6 +198,14 @@ function NewPoPage() {
       }
 
       const res: any = await createFn({ data: payload });
+      // Persist optional cargo agent
+      if (res?.po_id && cargoAgentId) {
+        try {
+          await setAgentFn({ data: { po_id: res.po_id, cargo_agent_id: cargoAgentId } });
+        } catch (e) {
+          console.warn("Failed to set cargo agent", e);
+        }
+      }
       // Persist agent commission (CNY/pcs) on the PO if provided
       if (res?.po_id && agentCommissionCny > 0 && fxRate > 0) {
         try {
