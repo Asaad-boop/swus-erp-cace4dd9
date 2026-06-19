@@ -1225,28 +1225,21 @@ function OrderDetailsPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2"><Globe className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">IP:</span></div>
-            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
-            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span>Not available</span></div>
-          </section>
+          {/* Shipment tracking */}
+          <ShipmentPanel
+            orderId={orderId}
+            brandId={order.brand_id ?? null}
+            onBookPathao={() => setBookOpen(true)}
+            onBookSteadfast={() => setBookSteadfastOpen(true)}
+          />
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Items</h3></header>
-            <ul className="p-2 space-y-1.5 max-h-60 overflow-y-auto">
-              {items.map((it) => (
-                <li key={it.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/40">
-                  <div className="h-9 w-9 rounded bg-muted shrink-0 overflow-hidden">
-                    {it.image && <img src={it.image} alt="" className="h-full w-full object-cover" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{it.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{it.quantity}× ৳{bdtCompact(Number(it.unit_price ?? it.price))}</div>
-                  </div>
-                </li>
-              ))}
-              {items.length === 0 && <li className="text-xs text-center text-muted-foreground py-3">No items</li>}
-            </ul>
+          {/* Customer 360 */}
+          <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
+
+          {/* Contact info */}
+          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
+            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span className="capitalize">{sessionInfo?.device_type || "Not tracked"}</span></div>
           </section>
 
           <section className="rounded-xl border bg-card overflow-hidden">
