@@ -454,6 +454,7 @@ function OrderDetailsPage() {
   const [detection, setDetection] = useState<Detection | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const [confirmAttempted, setConfirmAttempted] = useState(false);
   const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
   const lastDetectedAddrRef = useRef<string>("");
 
