@@ -1241,10 +1241,13 @@ function OrderDetailsPage() {
 
         {/* RIGHT SIDEBAR */}
         <aside className="space-y-4 xl:sticky xl:top-[64px] xl:max-h-[calc(100vh-80px)] xl:overflow-y-auto xl:pr-1 xl:-mr-1">
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Order Summary</h3>
-              <span className="text-[10px] font-mono text-muted-foreground">#{invoiceDisplay(order)}</span>
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <h3 className="text-[13px] font-semibold">Order Summary</h3>
+              </div>
+              <span className="text-[10px] font-mono text-gray-500">#{invoiceDisplay(order)}</span>
             </header>
             <div className="p-4 space-y-2 text-xs">
               <Row label="Date" value={format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} />
@@ -1270,21 +1273,23 @@ function OrderDetailsPage() {
           <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
 
           {/* Contact info */}
-          <section className="rounded-xl border bg-card p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-muted-foreground">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
-            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Device:</span><span className="capitalize">{sessionInfo?.device_type || "Not tracked"}</span></div>
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-emerald-600" /><span className="text-gray-500">Mobile:</span><span className="font-mono">+88{form.mobile}</span></div>
+            <div className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-gray-400" /><span className="text-gray-500">Device:</span><span className="capitalize">{sessionInfo?.device_type || "Not tracked"}</span></div>
           </section>
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
-              <TagIcon className="h-3.5 w-3.5" /><h3 className="text-sm font-semibold">Order Tags</h3>
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <TagIcon className="h-3.5 w-3.5 text-amber-600" />
+              <h3 className="text-[13px] font-semibold">Order Tags</h3>
             </header>
             <div className="p-4 space-y-2">
               <div className="flex flex-wrap gap-1.5 min-h-[24px]">
-                {tags.length === 0 && <span className="text-xs text-muted-foreground">No tags</span>}
+                {tags.length === 0 && <span className="text-xs text-gray-400">No tags yet</span>}
                 {tags.map((t) => (
                   <button key={t} onClick={() => updateTags.mutate(tags.filter((x) => x !== t))}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20">
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-200/60 dark:ring-indigo-500/30 text-[11px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors">
                     {t}<XCircle className="h-3 w-3" />
                   </button>
                 ))}
@@ -1303,8 +1308,11 @@ function OrderDetailsPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border bg-card overflow-hidden">
-            <header className="px-4 py-2.5 border-b bg-muted/30"><h3 className="text-sm font-semibold">Order Actions</h3></header>
+          <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+              <h3 className="text-[13px] font-semibold">Actions</h3>
+            </header>
             <div className="p-4 space-y-3">
               <Select
                 value={draftWebStatus}
@@ -1323,7 +1331,7 @@ function OrderDetailsPage() {
                 return (
                   <Button
                     size="sm"
-                    className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                     disabled={!changed || updateWebStatus.isPending}
                     onClick={() => draftWebStatus && onPickWebStatus(draftWebStatus as WebStatus)}
                   >
@@ -1333,40 +1341,37 @@ function OrderDetailsPage() {
                   </Button>
                 );
               })()}
-              <Button asChild size="sm" variant="ghost" className="w-full justify-start h-7 text-xs">
-                <Link to="/erp/orders/web"><ArrowLeft className="h-3 w-3 mr-1" />Back to List</Link>
-              </Button>
-              <div className="space-y-1.5">
-                <label className="text-[11px] text-muted-foreground">Note</label>
+              <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-border">
+                <label className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Internal Notes</label>
                 <Textarea rows={2} value={form.note_input} onChange={(e) => setForm({ ...form, note_input: e.target.value })} placeholder="Internal note…" className="text-xs resize-none" />
                 <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!form.note_input.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add Note</Button>
                 {notes.length > 0 && (
-                  <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+                  <div className="space-y-1.5 pt-2 max-h-56 overflow-y-auto">
                     {notes.map((n: any) => {
                       const canDelete = isAdmin || (currentUserId && n.created_by === currentUserId);
                       return (
-                        <div key={n.id} className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs group">
+                        <div key={n.id} className="rounded-lg border border-gray-100 dark:border-border bg-gray-50/60 dark:bg-muted/20 px-2.5 py-2 text-xs group hover:border-gray-200 dark:hover:border-border/80 transition-colors">
                           <div className="flex items-center justify-between gap-1">
-                            <div className="text-[10px] text-muted-foreground truncate">
-                              <span className="font-medium">{n.author_name || (n.created_by ? "Staff" : "System")}</span>
-                              <span> · {format(new Date(n.created_at), "dd MMM, hh:mm a")}</span>
+                            <div className="text-[10px] text-gray-500 truncate">
+                              <span className="font-semibold text-gray-700 dark:text-foreground">{n.author_name || (n.created_by ? "Staff" : "System")}</span>
+                              <span className="text-gray-400"> · {format(new Date(n.created_at), "dd MMM, hh:mm a")}</span>
                             </div>
                             {canDelete && (
                               <button
                                 onClick={() => deleteNote.mutate(n.id)}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-rose-500/10 text-rose-600"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-rose-500/10 text-gray-400 hover:text-rose-600"
                                 title="Delete note"
                               ><Trash2 className="h-3 w-3" /></button>
                             )}
                           </div>
-                          <div className="whitespace-pre-wrap leading-snug mt-0.5">{n.body}</div>
+                          <div className="whitespace-pre-wrap leading-snug mt-1 text-gray-700 dark:text-foreground">{n.body}</div>
                         </div>
                       );
                     })}
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-gray-100 dark:border-border">
                 <a
                   href={`https://wa.me/${form.mobile.replace(/^0/, "880")}?text=${encodeURIComponent("আপনার অর্ডারটি প্রস্তুত আছে। ডেলিভারি দিতে আসছি। অনুগ্রহ করে ফোন রাখুন।")}`}
                   target="_blank" rel="noreferrer"
