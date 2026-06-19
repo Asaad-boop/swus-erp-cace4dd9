@@ -545,6 +545,51 @@ function OrderDetailsPage() {
   );
   const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
 
+  /* ------------------------------ Live stock per item ---------------------- */
+  const productIds = useMemo(() => Array.from(new Set(items.map((it) => it.product_id).filter(Boolean))), [items]);
+  const { data: stockMap } = useQuery({
+    queryKey: ["order-item-stock", productIds.sort().join(",")],
+    enabled: productIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("products").select("id, stock").in("id", productIds);
+      const m = new Map<string, number>();
+      (data ?? []).forEach((p: any) => m.set(p.id, Number(p.stock ?? 0)));
+      return m;
+    },
+  });
+
+  /* ------------------------------ Session device info ---------------------- */
+  const { data: sessionInfo } = useQuery({
+    queryKey: ["order-session-info", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("analytics_events")
+        .select("device_type, user_agent")
+        .eq("order_id", orderId)
+        .not("device_type", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  /* ------------------------------ Prev/Next navigation --------------------- */
+  const neighbors = useOrderNeighbors(orderId);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === "ArrowLeft" && neighbors.prev) navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } });
+      else if (e.key === "ArrowRight" && neighbors.next) navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [neighbors.prev, neighbors.next, navigate]);
+
+  /* ------------------------------ Role for note delete --------------------- */
+  const { isAdmin, userId: currentUserId } = useCurrentRole();
+
   /* ------------------------------ Mutations -------------------------------- */
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
