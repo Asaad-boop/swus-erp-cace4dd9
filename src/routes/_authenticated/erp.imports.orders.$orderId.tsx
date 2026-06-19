@@ -110,6 +110,13 @@ function PoDetailPage() {
   const inTransitBox = cartons.filter((c) => ["at_china_warehouse", "in_transit"].includes(c.status));
   const remainingBox = cartons.filter((c) => c.status !== "in_stock" && c.status !== "cancelled");
 
+  // Landed cost should appear only after goods reach Bangladesh.
+  const LANDED_PO_STATUSES = new Set(["arrived_bd", "partially_received", "completed"]);
+  const LANDED_CARTON_STATUSES = new Set(["arrived_bd", "released", "in_stock"]);
+  const showLandedCost =
+    LANDED_PO_STATUSES.has(po.status) ||
+    cartons.some((c) => LANDED_CARTON_STATUSES.has(c.status));
+
   return (
     <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
@@ -164,6 +171,14 @@ function PoDetailPage() {
           </div>
         </div>
         <PipelineStrip stages={stageCounts} activeStatus={po.status as ImpPoStatus} />
+        {!showLandedCost && (
+          <div className="mt-4 rounded-md border border-dashed border-orange-300/70 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 px-3 py-2 text-[12px] text-orange-800 dark:text-orange-200 flex items-center gap-2">
+            <Truck className="h-3.5 w-3.5" />
+            <span>
+              <span className="font-semibold">Arrived BD</span> stage e pouchhaleI FX rate + freight + customs enter korte parben — tarpor inventory te post hobe.
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
           <SummaryBox tone="emerald" label="DELIVERED" cartons={deliveredBox.c} pieces={deliveredBox.p} />
           <SummaryBox tone="orange" label="ARRIVED / RELEASED" cartons={arrivedReleasedBox.length} pieces={arrivedReleasedBox.reduce((s, c) => s + Number(c.expected_quantity || 0), 0)} />
@@ -221,8 +236,12 @@ function PoDetailPage() {
         </Table>
       </Card>
 
-      {brandId && items.length > 0 && (
-        <LandedCostCard
+      {brandId && items.length > 0 && showLandedCost && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+            <span>💡 Enter landed costs after goods arrive in Bangladesh — FX rate, freight & customs lock here before posting to inventory.</span>
+          </div>
+          <LandedCostCard
           brandId={brandId}
           poId={po.id}
           items={items.map((it: any) => ({
@@ -237,7 +256,8 @@ function PoDetailPage() {
           initialOther={Number(po.other_charges_bdt) || 0}
           fxLockedAt={po.fx_rate_locked_at}
           fxSource={po.fx_rate_source}
-        />
+          />
+        </div>
       )}
 
       {/* "Goods arrived in BD?" alert — only when PO has not yet been received in BD */}
