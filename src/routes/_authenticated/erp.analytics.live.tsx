@@ -451,18 +451,22 @@ function ActiveSessionsPanel() {
 }
 
 // ---------------- Event Stream ----------------
-function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
+function EventStreamPanel({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
   void brandIds;
   useTicker(15000);
+  const meta = rangeMeta(range);
+  const windowMs = meta.seconds * 1000;
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
   const initialized = useRef(false);
 
   useEffect(() => {
     let cancel = false;
     (async () => {
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { data } = await supabase
         .from("analytics_events")
         .select("id, event_name, product_name, product_id, order_id, value, currency, utm_source, referrer, path, device_type, created_at")
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(50);
       if (cancel) return;
@@ -470,7 +474,7 @@ function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
       initialized.current = true;
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [range, windowMs]);
 
   useEffect(() => {
     const ch = supabase
@@ -483,21 +487,27 @@ function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  const visibleEvents = useMemo(() => {
+    const cutoff = Date.now() - windowMs;
+    return events.filter((e) => new Date(e.created_at).getTime() >= cutoff);
+  }, [events, windowMs]);
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="h-4 w-4 text-blue-600" /> Live Event Stream
-          <Badge variant="secondary" className="ml-auto tabular-nums">{events.length}</Badge>
+          <Badge variant="secondary" className="ml-auto tabular-nums">{visibleEvents.length}</Badge>
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">{meta.subtitle}</p>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[420px]">
-          {events.length === 0 ? (
+          {visibleEvents.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">No events yet.</div>
           ) : (
             <ul className="divide-y">
-              {events.map((e) => (
+              {visibleEvents.map((e) => (
                 <li key={e.id} className={cn("px-4 py-2.5 border-l-2 flex items-center gap-3 hover:bg-muted/40 transition-colors", eventToneClasses(e.event_name))}>
                   <span className="text-base leading-none">{eventIcon(e.event_name)}</span>
                   <div className="min-w-0 flex-1">
