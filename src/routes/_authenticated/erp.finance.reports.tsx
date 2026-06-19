@@ -231,6 +231,191 @@ function PctCell({ a, b, positiveGood }: { a: number; b: number; positiveGood: b
   return <span className={`text-right font-mono text-xs ${color}`}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
+/* ---------------- Budget vs Actual ---------------- */
+function BudgetVsActualReport({ brandId, asOf }: { brandId: string; asOf: string }) {
+  // Use the month of asOf
+  const monthDate = asOf.slice(0, 7) + "-01";
+  const monthEnd = new Date(new Date(monthDate).getFullYear(), new Date(monthDate).getMonth() + 1, 0).toISOString().slice(0, 10);
+
+  const budgetsQ = useQuery({
+    queryKey: ["bva_budgets", brandId, monthDate],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("erp_budgets" as never)
+        .select("account_id, amount").eq("brand_id", brandId).eq("month", monthDate);
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{ account_id: string; amount: number }>;
+    },
+  });
+
+  const coaQ = useQuery({
+    queryKey: ["bva_coa", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("erp_chart_accounts")
+        .select("id, code, name, account_type").eq("brand_id", brandId)
+        .eq("is_archived", false).in("account_type", ["expense", "income"]).order("code");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; code: string; name: string; account_type: string }>;
+    },
+  });
+
+  const actualsQ = useQuery({
+    queryKey: ["bva_actuals", brandId, monthDate, monthEnd],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("erp_journal_lines")
+        .select("account_id, debit, credit, erp_journal_entries!inner(brand_id, entry_date, status)")
+        .eq("brand_id", brandId)
+        .gte("erp_journal_entries.entry_date", monthDate)
+        .lte("erp_journal_entries.entry_date", monthEnd)
+        .eq("erp_journal_entries.status", "posted")
+        .limit(10000);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      (data ?? []).forEach((l) => {
+        map.set(l.account_id, (map.get(l.account_id) ?? 0) + Number(l.debit) - Number(l.credit));
+      });
+      return map;
+    },
+  });
+
+  const loading = budgetsQ.isLoading || coaQ.isLoading || actualsQ.isLoading;
+
+  const rows = (() => {
+    if (!coaQ.data || !budgetsQ.data || !actualsQ.data) return [];
+    const bmap = new Map(budgetsQ.data.map((b) => [b.account_id, Number(b.amount)]));
+    const amap = actualsQ.data;
+    return coaQ.data
+      .map((a) => {
+        const budget = bmap.get(a.id) ?? 0;
+        const rawActual = amap.get(a.id) ?? 0;
+        const actual = a.account_type === "income" ? -rawActual : rawActual;
+        const variance = budget - actual;
+        const pct = budget > 0 ? (actual / budget) * 100 : 0;
+        return { ...a, budget, actual, variance, pct };
+      })
+      .filter((r) => r.budget !== 0 || r.actual !== 0);
+  })();
+
+  const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
+  const totalActual = rows.reduce((s, r) => s + r.actual, 0);
+  const overCount = rows.filter((r) => r.budget > 0 && r.actual > r.budget).length;
+
+  const handleExport = () => {
+    const aoa: (string | number)[][] = [
+      [`Budget vs Actual · ${monthDate} → ${monthEnd}`],
+      [],
+      ["Code", "Account", "Type", "Budget", "Actual", "Variance", "Used %", "Status"],
+      ...rows.map((r) => [
+        r.code, r.name, r.account_type, r.budget, r.actual, r.variance,
+        r.budget > 0 ? Math.round(r.pct) : 0,
+        r.budget > 0 && r.actual > r.budget ? "Over" : r.pct > 80 ? "Near Limit" : "On Track",
+      ]),
+      [],
+      ["TOTAL", "", "", totalBudget, totalActual, totalBudget - totalActual, "", ""],
+    ];
+    exportAoaXlsx(aoa, "Budget vs Actual", `budget_vs_actual_${monthDate}.xlsx`);
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground">Calculating…</p>;
+
+  if (!budgetsQ.data || budgetsQ.data.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 flex flex-col items-center text-center gap-3">
+          <Target className="h-10 w-10 text-muted-foreground" />
+          <h3 className="font-semibold">No budgets set for {monthDate.slice(0, 7)}</h3>
+          <p className="text-sm text-muted-foreground max-w-md">Set monthly budgets per account to track spending against plan.</p>
+          <Button asChild size="sm"><Link to="/erp/finance/budgets">Set Budgets</Link></Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Budget vs Actual · {monthDate.slice(0, 7)}</CardTitle>
+        <Button variant="outline" size="sm" onClick={handleExport} className="print:hidden">
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Export Excel
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <SummaryTile label="Total Budget" value={fmtBdt(totalBudget)} />
+          <SummaryTile label="Total Actual" value={fmtBdt(totalActual)} />
+          <SummaryTile label="Variance" value={fmtBdt(totalBudget - totalActual)} accent={totalBudget - totalActual >= 0 ? "text-emerald-600" : "text-red-600"} />
+          <SummaryTile label="Over Budget" value={`${overCount} account${overCount === 1 ? "" : "s"}`} accent={overCount > 0 ? "text-red-600" : "text-emerald-600"} />
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Account</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Budget</TableHead>
+              <TableHead className="text-right">Actual</TableHead>
+              <TableHead className="w-[200px]">Used</TableHead>
+              <TableHead className="text-right">Variance</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No activity</TableCell></TableRow>
+              ) : rows.map((r) => {
+                const over = r.budget > 0 && r.actual > r.budget;
+                const near = !over && r.pct > 80;
+                return (
+                  <TableRow key={r.id}>
+                    <TableCell><span className="text-muted-foreground font-mono text-xs mr-2">{r.code}</span>{r.name}</TableCell>
+                    <TableCell className="text-xs uppercase tracking-wider text-muted-foreground">{r.account_type}</TableCell>
+                    <TableCell className="text-right font-mono">{fmtBdt(r.budget)}</TableCell>
+                    <TableCell className="text-right font-mono">{fmtBdt(r.actual)}</TableCell>
+                    <TableCell>
+                      {r.budget > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div className={`h-full ${over ? "bg-red-500" : near ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, r.pct)}%` }} />
+                          </div>
+                          <span className={`text-xs font-mono ${over ? "text-red-600 font-semibold" : ""}`}>{Math.round(r.pct)}%</span>
+                        </div>
+                      ) : <span className="text-xs text-muted-foreground">No budget</span>}
+                    </TableCell>
+                    <TableCell className={`text-right font-mono ${r.variance < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      {r.budget > 0 ? fmtBdt(r.variance) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {r.budget === 0 ? (
+                        <Badge variant="outline">No budget</Badge>
+                      ) : over ? (
+                        <Badge variant="destructive">Over</Badge>
+                      ) : near ? (
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Near limit</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">On track</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SummaryTile({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-lg font-bold font-mono mt-1 ${accent ?? ""}`}>{value}</div>
+    </div>
+  );
+}
+
 function Section({ title, rows, total, totalLabel, color }: { title: string; rows: Array<{ code: string; name: string; amount: number }>; total: number; totalLabel: string; color: string }) {
   return (
     <div className="mb-4">
