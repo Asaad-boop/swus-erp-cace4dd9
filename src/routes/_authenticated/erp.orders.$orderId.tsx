@@ -503,7 +503,8 @@ function OrderDetailsPage() {
     setDetecting(true);
     try {
       const keywords = extractKeywords(trimmed);
-      const cityMatches = matchList(cities as Hit[], keywords);
+      const cityList: Hit[] = (cities ?? []).map((c) => ({ id: c.id, name: c.name_en }));
+      const cityMatches = matchList(cityList, keywords);
       if (cityMatches.length === 0) {
         detectCacheRef.current.set(trimmed, { detection: null, suggestions: [] });
         setCitySuggestions([]);
