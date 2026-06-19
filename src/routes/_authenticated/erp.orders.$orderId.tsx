@@ -1056,6 +1056,9 @@ function OrderDetailsPage() {
             })()}
           </section>
 
+          {/* Order Timeline */}
+          <OrderTimeline orderId={orderId} />
+
           {/* Ordered Products + Add Products */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="rounded-xl border bg-card p-4">
