@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   listImportSuppliers, upsertImportSupplier,
+  listCargoAgents, upsertCargoAgent,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt } from "@/lib/erp/imports/types";
 
@@ -29,6 +30,7 @@ function ImportsSettings() {
     <div className="p-4 md:p-6 space-y-4">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <SuppliersTab brandId={brandId} />
+      <CargoAgentsSection brandId={brandId} />
     </div>
   );
 }
