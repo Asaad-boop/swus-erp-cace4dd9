@@ -315,6 +315,117 @@ export const createImportPo = createServerFn({ method: "POST" })
     return out;
   });
 
+/* ============================================================
+   Landed cost calculator (additive)
+   ============================================================ */
+
+export const getLatestFxRate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; from?: string; to?: string }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      from: z.string().default("CNY"),
+      to: z.string().default("BDT"),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row } = await context.supabase
+      .from("erp_fx_rates")
+      .select("rate, rate_date")
+      .eq("brand_id", data.brandId)
+      .eq("from_ccy", data.from)
+      .eq("to_ccy", data.to)
+      .order("rate_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return row ?? null;
+  });
+
+const landedItemSchema = z.object({
+  id: z.string().uuid(),
+  unit_cost_cny: z.number().nonnegative(),
+});
+
+export const updatePoLandedCost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      po_id: z.string().uuid(),
+      fx_rate_cny_bdt: z.number().positive(),
+      fx_rate_source: z.enum(["manual", "auto"]).default("manual"),
+      freight_cost_bdt: z.number().nonnegative().default(0),
+      customs_duty_bdt: z.number().nonnegative().default(0),
+      other_charges_bdt: z.number().nonnegative().default(0),
+      items: z.array(landedItemSchema).default([]),
+      lock_rate: z.boolean().default(true),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+
+    // Load existing items to combine quantity for allocation math
+    const { data: existingItems, error: ie } = await context.supabase
+      .from("imp_po_items")
+      .select("id, quantity")
+      .eq("po_id", data.po_id);
+    if (ie) throw ie;
+    const qtyMap = new Map<string, number>((existingItems ?? []).map((r: any) => [r.id, Number(r.quantity) || 0]));
+
+    // Compute per-item BDT and line values
+    const fx = data.fx_rate_cny_bdt;
+    const lines = data.items.map((it) => {
+      const qty = qtyMap.get(it.id) ?? 0;
+      const unit_cost_bdt = +(it.unit_cost_cny * fx).toFixed(4);
+      const line_value = +(unit_cost_bdt * qty).toFixed(4);
+      return { ...it, qty, unit_cost_bdt, line_value };
+    });
+    const total_value = lines.reduce((s, l) => s + l.line_value, 0);
+    const total_units = lines.reduce((s, l) => s + l.qty, 0);
+    const extras_total = data.freight_cost_bdt + data.customs_duty_bdt + data.other_charges_bdt;
+
+    // Update each item
+    for (const l of lines) {
+      const extras_share = total_value > 0 ? (l.line_value / total_value) * extras_total : (total_units > 0 ? (l.qty / total_units) * extras_total : 0);
+      const landed_unit = l.qty > 0 ? +(l.unit_cost_bdt + extras_share / l.qty).toFixed(4) : l.unit_cost_bdt;
+      const subtotal_bdt = +(l.line_value).toFixed(4);
+      const { error: ue } = await context.supabase
+        .from("imp_po_items")
+        .update({
+          unit_cost_cny: l.unit_cost_cny,
+          unit_cost_bdt: l.unit_cost_bdt,
+          subtotal_bdt,
+          landed_cost_bdt: landed_unit,
+        })
+        .eq("id", l.id);
+      if (ue) throw ue;
+    }
+
+    const landed_cost_per_unit_bdt = total_units > 0 ? +((total_value + extras_total) / total_units).toFixed(4) : 0;
+
+    const { error: pe } = await context.supabase
+      .from("imp_purchase_orders")
+      .update({
+        fx_rate_cny_bdt: fx,
+        fx_rate_source: data.fx_rate_source,
+        fx_rate_locked_at: data.lock_rate ? new Date().toISOString() : null,
+        freight_cost_bdt: data.freight_cost_bdt,
+        customs_duty_bdt: data.customs_duty_bdt,
+        other_charges_bdt: data.other_charges_bdt,
+        total_units,
+        landed_cost_per_unit_bdt,
+      })
+      .eq("id", data.po_id);
+    if (pe) throw pe;
+
+    return {
+      ok: true,
+      total_units,
+      total_value,
+      extras_total,
+      landed_cost_per_unit_bdt,
+    };
+  });
+
 /* --- Product picker + quick create (for New PO page) --- */
 
 export const listProductsForPicker = createServerFn({ method: "POST" })
