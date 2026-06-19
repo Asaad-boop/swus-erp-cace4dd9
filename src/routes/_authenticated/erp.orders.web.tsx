@@ -4,7 +4,7 @@ import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon, Package } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
