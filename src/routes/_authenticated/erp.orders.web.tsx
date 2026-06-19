@@ -1267,6 +1267,29 @@ function _WebOrdersPageBody() {
       )}
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
+
+      <WebBulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onStatus={(s) => bulkStatus.mutate(s)}
+        onPrintInvoices={() => { if (selectedIds.size > 0) setPrintOpen(true); }}
+        onBookCourier={() => { if (selectedIds.size > 0) setPathaoBulkOpen(true); }}
+        onAddTag={(tag) => bulkAddTag.mutate(tag)}
+        isPending={bulkStatus.isPending || bulkAddTag.isPending}
+      />
+
+      <BulkPrintDialog
+        open={printOpen}
+        onOpenChange={(o) => setPrintOpen(o)}
+        mode="invoice"
+        orderIds={Array.from(selectedIds)}
+      />
+
+      <PathaoBulkUploadDialog
+        open={pathaoBulkOpen}
+        onOpenChange={(o) => { setPathaoBulkOpen(o); if (!o) setSelectedIds(new Set()); }}
+        orders={selectedOrderRows.map((r) => ({ id: r.id, invoice_no: null }))}
+      />
     </div>
   );
 }
