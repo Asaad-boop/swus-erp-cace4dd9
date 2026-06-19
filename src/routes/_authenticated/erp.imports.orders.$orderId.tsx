@@ -30,6 +30,7 @@ import {
   PO_STATUS_LABEL, CARTON_STATUS_LABEL, fmtBdt, newIdemKey,
   type ImpPoStatus, type ImpCartonStatus,
 } from "@/lib/erp/imports/types";
+import { LandedCostCard } from "@/components/erp/imports/landed-cost-card";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/$orderId")({
   head: () => ({ meta: [{ title: "Purchase Order — Imports" }] }),
@@ -219,6 +220,25 @@ function PoDetailPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {brandId && items.length > 0 && (
+        <LandedCostCard
+          brandId={brandId}
+          poId={po.id}
+          items={items.map((it: any) => ({
+            id: it.id,
+            name: it.name_snapshot ?? "—",
+            quantity: Number(it.quantity) || 0,
+            unit_cost_cny: Number(it.unit_cost_cny ?? it.unit_cost_foreign) || 0,
+          }))}
+          initialFxRate={Number(po.fx_rate_cny_bdt ?? po.fx_rate) || 14}
+          initialFreight={Number(po.freight_cost_bdt) || 0}
+          initialCustoms={Number(po.customs_duty_bdt) || 0}
+          initialOther={Number(po.other_charges_bdt) || 0}
+          fxLockedAt={po.fx_rate_locked_at}
+          fxSource={po.fx_rate_source}
+        />
+      )}
 
       {/* "Goods arrived in BD?" alert — only when PO has not yet been received in BD */}
       {!["arrived_bd", "completed", "cancelled"].includes(po.status) && (
