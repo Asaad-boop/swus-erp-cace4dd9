@@ -27,6 +27,7 @@ type Props = {
   initialFreight?: number;
   initialCustoms?: number;
   initialOther?: number;
+  initialAgentCommissionCny?: number;
   fxLockedAt?: string | null;
   fxSource?: string | null;
   /** If po_id is provided the card shows a Save button that persists via server fn. */
@@ -37,11 +38,12 @@ type Props = {
     freight_cost_bdt: number;
     customs_duty_bdt: number;
     other_charges_bdt: number;
+    agent_commission_cny: number;
   }) => void;
 };
 
 export function LandedCostCard({
-  brandId, items, initialFxRate, initialFreight = 0, initialCustoms = 0, initialOther = 0,
+  brandId, items, initialFxRate, initialFreight = 0, initialCustoms = 0, initialOther = 0, initialAgentCommissionCny = 0,
   fxLockedAt, fxSource, poId, onChange,
 }: Props) {
   const qc = useQueryClient();
@@ -52,16 +54,19 @@ export function LandedCostCard({
   const [freight, setFreight] = useState<number>(Number(initialFreight) || 0);
   const [customs, setCustoms] = useState<number>(Number(initialCustoms) || 0);
   const [other, setOther] = useState<number>(Number(initialOther) || 0);
+  const [agentCny, setAgentCny] = useState<number>(Number(initialAgentCommissionCny) || 0);
   const [source, setSource] = useState<"manual" | "auto">((fxSource as any) ?? "manual");
 
   const totals = useMemo(() => {
     const totalUnits = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
     const totalProductBdt = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_cost_cny) || 0) * (fxRate || 0), 0);
     const extras = (freight || 0) + (customs || 0) + (other || 0);
-    const grand = totalProductBdt + extras;
+    const commissionPerUnit = (agentCny || 0) * (fxRate || 0);
+    const commissionTotal = commissionPerUnit * totalUnits;
+    const grand = totalProductBdt + extras + commissionTotal;
     const perUnit = totalUnits > 0 ? grand / totalUnits : 0;
-    return { totalUnits, totalProductBdt, extras, grand, perUnit };
-  }, [items, fxRate, freight, customs, other]);
+    return { totalUnits, totalProductBdt, extras, commissionPerUnit, commissionTotal, grand, perUnit };
+  }, [items, fxRate, freight, customs, other, agentCny]);
 
   const breakdown = useMemo(() => {
     return items.map((it) => {
@@ -75,12 +80,13 @@ export function LandedCostCard({
   }, [items, fxRate, totals.totalProductBdt, totals.extras]);
 
   // Live preview hook for New PO
-  const push = (patch?: Partial<{ fx: number; fr: number; cu: number; ot: number }>) => {
+  const push = (patch?: Partial<{ fx: number; fr: number; cu: number; ot: number; ac: number }>) => {
     onChange?.({
       fx_rate_cny_bdt: patch?.fx ?? fxRate,
       freight_cost_bdt: patch?.fr ?? freight,
       customs_duty_bdt: patch?.cu ?? customs,
       other_charges_bdt: patch?.ot ?? other,
+      agent_commission_cny: patch?.ac ?? agentCny,
     });
   };
 
@@ -114,6 +120,7 @@ export function LandedCostCard({
           freight_cost_bdt: freight,
           customs_duty_bdt: customs,
           other_charges_bdt: other,
+          agent_commission_cny: agentCny,
           items: items.map((it) => ({ id: it.id, unit_cost_cny: Number(it.unit_cost_cny) || 0 })),
           lock_rate: true,
         },
@@ -153,7 +160,7 @@ export function LandedCostCard({
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-3 mt-4">
+      <div className="grid md:grid-cols-5 gap-3 mt-4">
         <Field label="FX rate (1 CNY = ? BDT)">
           <Input type="number" step="0.0001" min={0} value={fxRate}
             onChange={(e) => { const v = Number(e.target.value); setFxRate(v); setSource("manual"); push({ fx: v }); }} />
@@ -169,6 +176,17 @@ export function LandedCostCard({
         <Field label="Other charges (BDT)">
           <Input type="number" step="0.01" min={0} value={other}
             onChange={(e) => { const v = Number(e.target.value); setOther(v); push({ ot: v }); }} />
+        </Field>
+        <Field label="Agent commission (CNY/pcs)">
+          <Input type="number" step="0.01" min={0} value={agentCny}
+            onChange={(e) => { const v = Number(e.target.value); setAgentCny(v); push({ ac: v }); }} />
+          {fxRate > 0 ? (
+            <div className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+              = {fmtBdt(totals.commissionPerUnit)}/pcs · total {fmtBdt(totals.commissionTotal)}
+            </div>
+          ) : (
+            <div className="mt-1 text-[10px] text-orange-600">Set FX rate first</div>
+          )}
         </Field>
       </div>
 
