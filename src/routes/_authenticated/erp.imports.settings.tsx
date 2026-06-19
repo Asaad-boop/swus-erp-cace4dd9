@@ -151,3 +151,123 @@ function SupplierDialog({ initial, onClose, onSave }: { initial: any; onClose: (
     </Dialog>
   );
 }
+/* ----------------------- Cargo Agents (additive) ----------------------- */
+
+function CargoAgentsSection({ brandId }: { brandId: string }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listCargoAgents);
+  const upsertFn = useServerFn(upsertCargoAgent);
+  const { data: agents = [] } = useQuery({
+    queryKey: ["imp-cargo-agents", brandId],
+    queryFn: () => listFn({ data: { brandId } }),
+    enabled: !!brandId,
+  });
+  const [editing, setEditing] = useState<any | null>(null);
+
+  return (
+    <div className="space-y-3 pt-6 border-t border-border">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Cargo Agents</h3>
+        <Button onClick={() => setEditing({})}><Plus className="h-4 w-4 mr-1" />Add Cargo Agent</Button>
+      </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {(agents as any[]).length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground col-span-full">
+            No cargo agents yet.
+          </Card>
+        )}
+        {(agents as any[]).map((a) => (
+          <Card key={a.id} className="p-4 hover:border-primary/40 transition">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{a.name}</div>
+                {a.contact_person && <div className="text-xs text-muted-foreground truncate">{a.contact_person}</div>}
+                {a.phone && <div className="text-xs text-muted-foreground">{a.phone}</div>}
+              </div>
+              <Badge variant={a.is_active ? "outline" : "secondary"}>{a.is_active ? "Active" : "Inactive"}</Badge>
+            </div>
+            {a.address && <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{a.address}</div>}
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditing(a)}>
+                <Pencil className="h-3.5 w-3.5 mr-1" />Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await upsertFn({ data: { id: a.id, brandId, name: a.name, contact_person: a.contact_person ?? undefined, phone: a.phone ?? undefined, address: a.address ?? undefined, notes: a.notes ?? undefined, is_active: !a.is_active } });
+                  qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandId] });
+                  toast.success(a.is_active ? "Deactivated" : "Activated");
+                }}
+              >
+                {a.is_active ? "Deactivate" : "Activate"}
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {editing && (
+        <CargoAgentDialog
+          initial={editing}
+          onClose={() => setEditing(null)}
+          onSave={async (p) => {
+            await upsertFn({ data: { ...p, brandId } });
+            qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandId] });
+            toast.success("Cargo agent saved");
+            setEditing(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CargoAgentDialog({ initial, onClose, onSave }: { initial: any; onClose: () => void; onSave: (p: any) => Promise<void> }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [contact, setContact] = useState(initial?.contact_person ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [active, setActive] = useState<boolean>(initial?.is_active ?? true);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{initial?.id ? "Edit" : "New"} Cargo Agent</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Contact person</Label><Input value={contact} onChange={(e) => setContact(e.target.value)} /></div>
+            <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          </div>
+          <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+          <div><Label>Notes</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="rounded" />Active
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={!name || busy} onClick={async () => {
+            setBusy(true);
+            try {
+              await onSave({
+                id: initial?.id,
+                name,
+                contact_person: contact || undefined,
+                phone: phone || undefined,
+                address: address || undefined,
+                notes: notes || undefined,
+                is_active: active,
+              });
+            } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+            finally { setBusy(false); }
+          }}>
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
