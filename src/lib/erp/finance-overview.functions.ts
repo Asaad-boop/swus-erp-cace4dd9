@@ -469,3 +469,224 @@ export const getDrilldownTransactions = createServerFn({ method: "POST" })
       sum: totalSum,
     };
   });
+
+/* ---------------- Cash Flow Statement (indirect method) ---------------- */
+
+const CashflowInput = z.object({
+  brandId: z.string().uuid(),
+  from: z.string(),
+  to: z.string(),
+});
+
+export type CashflowLine = { name: string; amount: number };
+export type CashflowStatement = {
+  range: { from: string; to: string };
+  operating: {
+    netProfit: number;
+    adjustments: CashflowLine[]; // depreciation, etc.
+    workingCapital: CashflowLine[]; // ΔAR, ΔAP, ΔInventory
+    total: number;
+  };
+  investing: {
+    lines: CashflowLine[];
+    total: number;
+  };
+  financing: {
+    lines: CashflowLine[];
+    total: number;
+  };
+  openingCash: number;
+  closingCash: number;
+  netChange: number;
+  walletBalance: number; // for reconciliation check
+  balanced: boolean;
+};
+
+type COA = {
+  id: string; code: string; name: string;
+  account_type: string; opening_balance: number | null;
+};
+
+// Categorize account based on type + name keywords
+function classifyAccount(a: COA): "cash" | "ar" | "inventory" | "fixed_asset" | "other_asset"
+  | "ap" | "loan" | "other_liability"
+  | "equity" | "drawings"
+  | "income" | "expense" | "depreciation" {
+  const name = (a.name || "").toLowerCase();
+  if (a.account_type === "income") return "income";
+  if (a.account_type === "expense") {
+    if (/deprec|amortiz/.test(name)) return "depreciation";
+    return "expense";
+  }
+  if (a.account_type === "equity") {
+    if (/draw|withdraw/.test(name)) return "drawings";
+    return "equity";
+  }
+  if (a.account_type === "liability") {
+    if (/loan|borrow|debt|mortgage/.test(name)) return "loan";
+    if (/payable|bills|supplier|creditor|cod due|courier/.test(name)) return "ap";
+    return "other_liability";
+  }
+  // asset
+  if (/cash|bank|bkash|nagad|rocket|mfs|wallet|mobile/.test(name)) return "cash";
+  if (/receivable|cod|debtor/.test(name)) return "ar";
+  if (/inventory|stock|goods/.test(name)) return "inventory";
+  if (/fixed|equipment|property|machinery|vehicle|furniture|building|land/.test(name)) return "fixed_asset";
+  return "other_asset";
+}
+
+export const getCashflowStatement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CashflowInput.parse(d))
+  .handler(async ({ data, context }): Promise<CashflowStatement> => {
+    const { supabase } = context;
+    const { brandId, from, to } = data;
+
+    const [coaRes, periodRes, openingRes, walletRes] = await Promise.all([
+      supabase.from("erp_chart_accounts")
+        .select("id,code,name,account_type,opening_balance")
+        .eq("brand_id", brandId).eq("is_archived", false),
+      supabase.from("erp_journal_lines")
+        .select("account_id,debit,credit,erp_journal_entries!inner(entry_date,brand_id,status)")
+        .eq("brand_id", brandId)
+        .gte("erp_journal_entries.entry_date", from)
+        .lte("erp_journal_entries.entry_date", to)
+        .eq("erp_journal_entries.status", "posted")
+        .limit(50000),
+      supabase.from("erp_journal_lines")
+        .select("account_id,debit,credit,erp_journal_entries!inner(entry_date,brand_id,status)")
+        .eq("brand_id", brandId)
+        .lt("erp_journal_entries.entry_date", from)
+        .eq("erp_journal_entries.status", "posted")
+        .limit(50000),
+      supabase.from("erp_accounts")
+        .select("name,account_type,current_balance")
+        .eq("brand_id", brandId).eq("is_active", true),
+    ]);
+
+    const accounts = (coaRes.data ?? []) as COA[];
+    const accMap = new Map(accounts.map((a) => [a.id, a]));
+    const classMap = new Map(accounts.map((a) => [a.id, classifyAccount(a)]));
+
+    type Line = { account_id: string; debit: number | null; credit: number | null };
+    const periodLines = (periodRes.data ?? []) as Line[];
+    const openingLines = (openingRes.data ?? []) as Line[];
+
+    // Helpers
+    const normalChange = (klass: string, debit: number, credit: number) => {
+      // For debit-normal accounts (asset, expense): change = debit - credit
+      // For credit-normal (liability, equity, income): change = credit - debit
+      const debitNormal = ["cash", "ar", "inventory", "fixed_asset", "other_asset", "expense", "depreciation", "drawings"];
+      return debitNormal.includes(klass) ? debit - credit : credit - debit;
+    };
+
+    // Per-account net change in period & opening balance per class bucket
+    const periodByAccount = new Map<string, { debit: number; credit: number }>();
+    for (const l of periodLines) {
+      const cur = periodByAccount.get(l.account_id) ?? { debit: 0, credit: 0 };
+      cur.debit += num(l.debit);
+      cur.credit += num(l.credit);
+      periodByAccount.set(l.account_id, cur);
+    }
+    const openingByAccount = new Map<string, { debit: number; credit: number }>();
+    for (const l of openingLines) {
+      const cur = openingByAccount.get(l.account_id) ?? { debit: 0, credit: 0 };
+      cur.debit += num(l.debit);
+      cur.credit += num(l.credit);
+      openingByAccount.set(l.account_id, cur);
+    }
+
+    // Aggregate by class
+    const periodChange = new Map<string, number>();
+    for (const a of accounts) {
+      const klass = classMap.get(a.id)!;
+      const p = periodByAccount.get(a.id) ?? { debit: 0, credit: 0 };
+      const ch = normalChange(klass, p.debit, p.credit);
+      periodChange.set(klass, (periodChange.get(klass) ?? 0) + ch);
+    }
+
+    // Net profit = income - expense (period)
+    const incomePeriod = periodChange.get("income") ?? 0;
+    const expensePeriod = periodChange.get("expense") ?? 0;
+    const depreciationPeriod = periodChange.get("depreciation") ?? 0;
+    const netProfit = incomePeriod - expensePeriod - depreciationPeriod;
+
+    // Working capital changes (Δbalance during period)
+    const deltaAR = periodChange.get("ar") ?? 0;            // ↑AR consumes cash
+    const deltaInv = periodChange.get("inventory") ?? 0;     // ↑Inv consumes cash
+    const deltaAP = periodChange.get("ap") ?? 0;             // ↑AP frees cash
+    const deltaOtherLiab = periodChange.get("other_liability") ?? 0; // accrued exp etc.
+
+    const operatingAdjustments: CashflowLine[] = [];
+    if (Math.abs(depreciationPeriod) > 0.005) {
+      operatingAdjustments.push({ name: "Depreciation & amortization", amount: depreciationPeriod });
+    }
+    const workingCapital: CashflowLine[] = [];
+    if (Math.abs(deltaAR) > 0.005) workingCapital.push({ name: "Change in Accounts Receivable", amount: -deltaAR });
+    if (Math.abs(deltaInv) > 0.005) workingCapital.push({ name: "Change in Inventory", amount: -deltaInv });
+    if (Math.abs(deltaAP) > 0.005) workingCapital.push({ name: "Change in Accounts Payable", amount: deltaAP });
+    if (Math.abs(deltaOtherLiab) > 0.005) workingCapital.push({ name: "Change in Other Liabilities", amount: deltaOtherLiab });
+
+    const operatingTotal = netProfit
+      + operatingAdjustments.reduce((s, l) => s + l.amount, 0)
+      + workingCapital.reduce((s, l) => s + l.amount, 0);
+
+    // Investing
+    const deltaFixed = periodChange.get("fixed_asset") ?? 0;
+    const deltaOtherAsset = periodChange.get("other_asset") ?? 0;
+    const investingLines: CashflowLine[] = [];
+    if (Math.abs(deltaFixed) > 0.005) investingLines.push({ name: "Change in Fixed Assets (net)", amount: -deltaFixed });
+    if (Math.abs(deltaOtherAsset) > 0.005) investingLines.push({ name: "Change in Other Assets", amount: -deltaOtherAsset });
+    const investingTotal = investingLines.reduce((s, l) => s + l.amount, 0);
+
+    // Financing
+    const deltaEquity = periodChange.get("equity") ?? 0;        // ↑Equity = capital injected
+    const deltaLoan = periodChange.get("loan") ?? 0;             // ↑Loan = cash received
+    const deltaDrawings = periodChange.get("drawings") ?? 0;     // ↑Drawings = cash out (debit-normal positive = withdrawal)
+    const financingLines: CashflowLine[] = [];
+    if (Math.abs(deltaEquity) > 0.005) financingLines.push({ name: "Owner Capital / Equity Change", amount: deltaEquity });
+    if (Math.abs(deltaLoan) > 0.005) financingLines.push({ name: "Loan Movements (net)", amount: deltaLoan });
+    if (Math.abs(deltaDrawings) > 0.005) financingLines.push({ name: "Owner Drawings", amount: -deltaDrawings });
+    const financingTotal = financingLines.reduce((s, l) => s + l.amount, 0);
+
+    // Opening cash = sum of (opening_balance + opening-period change) for cash-classified accounts
+    let openingCash = 0;
+    let cashChangeFromLedger = 0;
+    for (const a of accounts) {
+      if (classMap.get(a.id) !== "cash") continue;
+      const o = openingByAccount.get(a.id) ?? { debit: 0, credit: 0 };
+      openingCash += num(a.opening_balance) + (o.debit - o.credit);
+      const p = periodByAccount.get(a.id) ?? { debit: 0, credit: 0 };
+      cashChangeFromLedger += (p.debit - p.credit);
+    }
+
+    const netChange = operatingTotal + investingTotal + financingTotal;
+    const closingCash = openingCash + netChange;
+
+    // Reconciliation: compare to actual wallet (erp_accounts) balance
+    const walletAccounts = (walletRes.data ?? []) as { account_type: string; current_balance: number | null }[];
+    const walletBalance = walletAccounts
+      .filter((w) => ["cash", "bank", "bkash", "nagad", "rocket", "mfs"].includes(w.account_type))
+      .reduce((s, w) => s + num(w.current_balance), 0);
+
+    // "Balanced" check — ledger-derived closing should match wallet within tolerance,
+    // or at least match cash-account ledger movements.
+    const balanced = Math.abs(cashChangeFromLedger - netChange) < 1;
+
+    return {
+      range: { from, to },
+      operating: {
+        netProfit,
+        adjustments: operatingAdjustments,
+        workingCapital,
+        total: operatingTotal,
+      },
+      investing: { lines: investingLines, total: investingTotal },
+      financing: { lines: financingLines, total: financingTotal },
+      openingCash,
+      closingCash,
+      netChange,
+      walletBalance,
+      balanced,
+    };
+  });

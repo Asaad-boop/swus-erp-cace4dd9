@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer } from "lucide-react";
+import { Printer, FileSpreadsheet } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
+import { getCashflowStatement, type CashflowStatement } from "@/lib/erp/finance-overview.functions";
+import { exportAoaXlsx } from "@/lib/erp/hr/excel";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/reports")({
   head: () => ({ meta: [{ title: "Financial Reports — ERP" }] }),
@@ -45,11 +48,13 @@ function ReportsPage() {
         <TabsList className="print:hidden">
           <TabsTrigger value="pl">P&amp;L</TabsTrigger>
           <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cf">Cash Flow</TabsTrigger>
           <TabsTrigger value="tb">Trial Balance</TabsTrigger>
           <TabsTrigger value="gl">General Ledger</TabsTrigger>
         </TabsList>
         <TabsContent value="pl" className="mt-3"><PLReport brandId={brandId} from={from} to={to} /></TabsContent>
         <TabsContent value="bs" className="mt-3"><BalanceSheetReport brandId={brandId} asOf={to} /></TabsContent>
+        <TabsContent value="cf" className="mt-3"><CashflowReport brandId={brandId} from={from} to={to} /></TabsContent>
         <TabsContent value="tb" className="mt-3"><TrialBalanceReport brandId={brandId} asOf={to} /></TabsContent>
         <TabsContent value="gl" className="mt-3"><GeneralLedgerReport brandId={brandId} from={from} to={to} /></TabsContent>
       </Tabs>
@@ -261,5 +266,154 @@ function GeneralLedgerReport({ brandId, from, to }: { brandId: string; from: str
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/* ---------------- Cash Flow Statement ---------------- */
+function CashflowReport({ brandId, from, to }: { brandId: string; from: string; to: string }) {
+  const fetcher = useServerFn(getCashflowStatement);
+  const q = useQuery({
+    queryKey: ["cashflow", brandId, from, to],
+    enabled: !!brandId,
+    queryFn: () => fetcher({ data: { brandId, from, to } }),
+  });
+
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Calculating…</p>;
+  if (q.error) return <p className="text-sm text-destructive">{(q.error as Error).message}</p>;
+  if (!q.data) return null;
+
+  const d: CashflowStatement = q.data;
+
+  const handleExport = () => {
+    const aoa: (string | number)[][] = [
+      [`Cash Flow Statement · ${from} → ${to}`],
+      [],
+      ["OPERATING ACTIVITIES"],
+      ["Net Profit", d.operating.netProfit],
+      ...d.operating.adjustments.map((l) => [l.name, l.amount] as (string | number)[]),
+      ...d.operating.workingCapital.map((l) => [l.name, l.amount] as (string | number)[]),
+      ["Net Cash from Operating Activities", d.operating.total],
+      [],
+      ["INVESTING ACTIVITIES"],
+      ...d.investing.lines.map((l) => [l.name, l.amount] as (string | number)[]),
+      ["Net Cash from Investing Activities", d.investing.total],
+      [],
+      ["FINANCING ACTIVITIES"],
+      ...d.financing.lines.map((l) => [l.name, l.amount] as (string | number)[]),
+      ["Net Cash from Financing Activities", d.financing.total],
+      [],
+      ["SUMMARY"],
+      ["Opening Cash Balance", d.openingCash],
+      ["Net Change in Cash", d.netChange],
+      ["Closing Cash Balance (computed)", d.closingCash],
+      ["Wallet Balance (actual)", d.walletBalance],
+    ];
+    exportAoaXlsx(aoa, "Cash Flow", `cashflow_${from}_${to}.xlsx`);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          Cash Flow Statement · {from} → {to}
+          <Badge variant={d.balanced ? "default" : "secondary"}>
+            {d.balanced ? "Reconciled with ledger" : "Approximate (indirect)"}
+          </Badge>
+        </CardTitle>
+        <Button variant="outline" size="sm" onClick={handleExport} className="print:hidden">
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Export Excel
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <CashflowSection
+          title="Operating Activities"
+          color="text-emerald-600"
+          rows={[
+            { name: "Net Profit", amount: d.operating.netProfit, emphasis: true },
+            ...d.operating.adjustments,
+            ...d.operating.workingCapital,
+          ]}
+          total={d.operating.total}
+          totalLabel="Net Cash from Operating Activities"
+        />
+        <CashflowSection
+          title="Investing Activities"
+          color="text-sky-600"
+          rows={d.investing.lines}
+          total={d.investing.total}
+          totalLabel="Net Cash from Investing Activities"
+          empty="No investing activity in this period."
+        />
+        <CashflowSection
+          title="Financing Activities"
+          color="text-purple-600"
+          rows={d.financing.lines}
+          total={d.financing.total}
+          totalLabel="Net Cash from Financing Activities"
+          empty="No financing activity in this period."
+        />
+
+        <div className="pt-4 border-t-2 border-foreground space-y-2">
+          <SummaryRow label="Opening Cash Balance" value={d.openingCash} />
+          <SummaryRow label="+ Net Cash from Operating" value={d.operating.total} />
+          <SummaryRow label="+ Net Cash from Investing" value={d.investing.total} />
+          <SummaryRow label="+ Net Cash from Financing" value={d.financing.total} />
+          <div className="flex justify-between items-center pt-2 mt-2 border-t font-bold text-lg">
+            <span>Closing Cash Balance</span>
+            <span className={`font-mono ${d.closingCash >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtBdt(d.closingCash)}</span>
+          </div>
+          {Math.abs(d.walletBalance - d.closingCash) > 1 && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Current wallet balance: <span className="font-mono">{fmtBdt(d.walletBalance)}</span>
+              {" · "}Difference: <span className="font-mono">{fmtBdt(d.walletBalance - d.closingCash)}</span>
+              {" "}(may indicate non-cash entries or pre-existing balances outside the journal).
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CashflowSection({ title, color, rows, total, totalLabel, empty }: {
+  title: string; color: string;
+  rows: Array<{ name: string; amount: number; emphasis?: boolean }>;
+  total: number; totalLabel: string; empty?: string;
+}) {
+  return (
+    <div>
+      <h3 className={`font-semibold mb-2 ${color}`}>{title}</h3>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground pl-4 italic">{empty ?? "No activity."}</p>
+      ) : (
+        <div className="space-y-1 pl-4">
+          {rows.map((r, i) => (
+            <div key={i} className="flex justify-between text-sm">
+              <span className={r.emphasis ? "font-medium" : ""}>{r.name}</span>
+              <span className={`font-mono ${r.amount < 0 ? "text-red-600" : ""}`}>
+                {r.amount < 0 ? `(${fmtBdt(Math.abs(r.amount))})` : fmtBdt(r.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-between pt-2 mt-2 border-t font-semibold">
+        <span>{totalLabel}</span>
+        <span className={`font-mono ${total < 0 ? "text-red-600" : color}`}>
+          {total < 0 ? `(${fmtBdt(Math.abs(total))})` : fmtBdt(total)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono ${value < 0 ? "text-red-600" : ""}`}>
+        {value < 0 ? `(${fmtBdt(Math.abs(value))})` : fmtBdt(value)}
+      </span>
+    </div>
   );
 }
