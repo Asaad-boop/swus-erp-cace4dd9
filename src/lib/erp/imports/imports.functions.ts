@@ -25,9 +25,10 @@ async function assertAnyRole(
 
 export const listPurchaseOrders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; status?: string; q?: string; from?: string; to?: string }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; status?: string; q?: string; from?: string; to?: string }) =>
     z.object({
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
       status: z.string().optional(),
       q: z.string().optional(),
       from: z.string().optional(),
@@ -42,11 +43,13 @@ export const listPurchaseOrders = createServerFn({ method: "POST" })
         currency, fx_rate,
         product_subtotal_bdt, shipping_total_bdt, local_courier_total_bdt,
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
-        supplier:supplier_id ( id, name )
+        supplier:supplier_id ( id, name ),
+        brand:brand_id ( id, name, slug )
       `)
-      .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false })
       .limit(500);
+    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
+    else if (data.brandId) q = q.eq("brand_id", data.brandId);
     if (data.status && data.status !== "all") q = q.eq("status", data.status as any);
     if (data.from) q = q.gte("order_date", data.from);
     if (data.to) q = q.lte("order_date", data.to);
