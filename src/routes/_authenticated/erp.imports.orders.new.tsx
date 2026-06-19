@@ -19,10 +19,12 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   createImportPo, listImportSuppliers,
+  updatePoLandedCost,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
 import { AmountPercentInput } from "@/components/erp/amount-percent-input";
+import { LandedCostCard } from "@/components/erp/imports/landed-cost-card";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/new")({
   head: () => ({ meta: [{ title: "New Purchase Order — Imports" }] }),
@@ -58,6 +60,7 @@ function NewPoPage() {
 
   const suppliersFn = useServerFn(listImportSuppliers);
   const createFn = useServerFn(createImportPo);
+  const landedFn = useServerFn(updatePoLandedCost);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
@@ -85,6 +88,14 @@ function NewPoPage() {
   const [payWalletId, setPayWalletId] = useState<string>("");
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payRef, setPayRef] = useState("");
+
+  // landed cost preview state (will be persisted post-create if non-zero)
+  const [landed, setLanded] = useState({
+    fx_rate_cny_bdt: 14,
+    freight_cost_bdt: 0,
+    customs_duty_bdt: 0,
+    other_charges_bdt: 0,
+  });
 
   // computed
   const productSubtotalForeign = items.reduce((s, i) => s + i.quantity * i.unit_cost_foreign, 0);
@@ -187,7 +198,33 @@ function NewPoPage() {
         };
       }
 
-      return await createFn({ data: payload });
+      const res: any = await createFn({ data: payload });
+      // Persist landed cost details if entered (best-effort; non-blocking)
+      const hasLanded =
+        (landed.freight_cost_bdt || 0) > 0 ||
+        (landed.customs_duty_bdt || 0) > 0 ||
+        (landed.other_charges_bdt || 0) > 0 ||
+        items.some((i) => Number(i.unit_cost_foreign) > 0);
+      if (res?.po_id && hasLanded && res?.item_ids?.length === items.length) {
+        try {
+          await landedFn({
+            data: {
+              po_id: res.po_id,
+              fx_rate_cny_bdt: landed.fx_rate_cny_bdt || fxRate,
+              fx_rate_source: "manual",
+              freight_cost_bdt: landed.freight_cost_bdt || 0,
+              customs_duty_bdt: landed.customs_duty_bdt || 0,
+              other_charges_bdt: landed.other_charges_bdt || 0,
+              items: res.item_ids.map((id: string, idx: number) => ({
+                id,
+                unit_cost_cny: Number(items[idx].unit_cost_foreign) || 0,
+              })),
+              lock_rate: true,
+            },
+          });
+        } catch { /* fail-soft */ }
+      }
+      return res;
     },
     onSuccess: (res: any) => {
       toast.success(`PO ${res?.po_number ?? "created"} successfully`);
