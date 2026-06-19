@@ -424,6 +424,25 @@ function NewPoPage() {
             </div>
           </Card>
 
+          {/* Landed cost calculator (preview) */}
+          <LandedCostCard
+            brandId={brandId!}
+            items={items.map((it) => ({
+              id: it.id,
+              name: it.picked.title || "—",
+              quantity: it.quantity,
+              unit_cost_cny: it.unit_cost_foreign,
+            }))}
+            initialFxRate={fxRate}
+            initialFreight={landed.freight_cost_bdt}
+            initialCustoms={landed.customs_duty_bdt}
+            initialOther={landed.other_charges_bdt}
+            onChange={(v) => {
+              setLanded(v);
+              if (v.fx_rate_cny_bdt && v.fx_rate_cny_bdt !== fxRate) setFxRate(v.fx_rate_cny_bdt);
+            }}
+          />
+
           {/* Initial payment */}
           <Card className="p-4 md:p-5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
