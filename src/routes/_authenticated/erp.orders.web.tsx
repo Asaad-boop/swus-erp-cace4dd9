@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useBrand } from "@/contexts/brand-context";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,9 @@ import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders
 import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } from "@/components/erp/orders/web-orders-filter-bar";
+import { WebBulkActionBar, type WebStatusKey } from "@/components/erp/orders/web-bulk-action-bar";
+import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
+import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 
 const PAGE_SIZE = 25;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
@@ -99,6 +104,88 @@ type WebOrderRow = {
   latest_order_note?: string | null;
   attribution?: { utm_source: string | null; utm_medium: string | null } | null;
 };
+
+function CallLogPopover({
+  orderId, currentCount, onSaved,
+}: {
+  orderId: string;
+  currentCount: number;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [result, setResult] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!result) { toast.error("Pick a result"); return; }
+    setSaving(true);
+    try {
+      const body = `📞 ${result}${note.trim() ? ` — ${note.trim()}` : ""}`;
+      const { error: noteErr } = await supabase.from("order_notes").insert({ order_id: orderId, body, is_internal: true });
+      if (noteErr) throw noteErr;
+      const { error: updErr } = await supabase
+        .from("orders")
+        .update({ call_attempt_count: currentCount + 1, call_status: result } as never)
+        .eq("id", orderId);
+      if (updErr) throw updErr;
+      toast.success("Call logged");
+      setResult(""); setNote(""); setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const RESULTS = ["Answered", "No Answer", "Busy", "Wrong Number"];
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title="Log call"
+          className="inline-flex items-center gap-1 h-5 px-1.5 rounded-md border border-border/60 bg-background hover:bg-muted text-[10px] font-semibold text-foreground/80"
+        >
+          <PhoneIcon className="h-3 w-3" />
+          {currentCount > 0 && <span className="tabular-nums">{currentCount}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Log call result</div>
+        <div className="grid grid-cols-2 gap-1.5 mb-2">
+          {RESULTS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setResult(r)}
+              className={cn(
+                "h-7 rounded-md text-[11px] font-medium border transition-colors",
+                result === r ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border/60",
+              )}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Note (optional)"
+          className="text-xs min-h-[60px]"
+        />
+        <div className="flex justify-end gap-1.5 mt-2">
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button size="sm" className="h-7 text-xs" onClick={save} disabled={saving || !result}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number; delivered: number };
 
@@ -309,6 +396,10 @@ function _WebOrdersPageBody() {
   const [debouncedSearch, setDebouncedSearch] = useState(search.q);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printOpen, setPrintOpen] = useState(false);
+  const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
+  const [inlineBusyId, setInlineBusyId] = useState<string | null>(null);
 
   // Debounce search input (300ms) → URL + query key
   useEffect(() => {
@@ -690,6 +781,83 @@ function _WebOrdersPageBody() {
     replace: true,
   });
 
+  // ============ FEATURE 1 + 2: status mutations ============
+  const invalidateWebOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
+    queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
+  };
+
+  const inlineStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: WebStatusKey }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status as never })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: ({ id }) => { setInlineBusyId(id); return {}; },
+    onSuccess: (_d, { id }) => {
+      setFlashIds((prev) => { const n = new Set(prev); n.add(id); return n; });
+      setTimeout(() => setFlashIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 1500);
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setInlineBusyId(null),
+  });
+
+  const bulkStatus = useMutation({
+    mutationFn: async (status: WebStatusKey) => {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status as never })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Updated ${n} order${n === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAddTag = useMutation({
+    mutationFn: async (tag: string) => {
+      const ids = Array.from(selectedIds);
+      const idRows = rows.filter((r) => ids.includes(r.id));
+      await Promise.all(idRows.map(async (r) => {
+        const next = Array.from(new Set([...(r.tags ?? []), tag]));
+        await supabase.from("orders").update({ tags: next as never }).eq("id", r.id);
+      }));
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Tagged ${n} order${n === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // selection helpers — operate on currently visible filteredRows
+  const visibleIds = useMemo(() => filteredRows.map(({ row }) => row.id), [filteredRows]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+  const toggleSelect = (id: string) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAllVisible = (checked: boolean) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    if (checked) visibleIds.forEach((id) => n.add(id));
+    else visibleIds.forEach((id) => n.delete(id));
+    return n;
+  });
+  const selectedOrderRows = rows.filter((r) => selectedIds.has(r.id));
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -774,6 +942,13 @@ function _WebOrdersPageBody() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
+              <TableHead className="w-[36px] pl-3">
+                <Checkbox
+                  checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                  onCheckedChange={(v) => toggleAllVisible(!!v)}
+                  aria-label="Select all visible"
+                />
+              </TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Created</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[220px]">Customer</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Note</TableHead>
@@ -789,14 +964,14 @@ function _WebOrdersPageBody() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 10 }).map((_, j) => (
                     <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                   {tagFilter.size > 0 ? "No orders match the selected tags" : "No web orders in this status"}
                 </TableCell>
               </TableRow>
@@ -815,15 +990,26 @@ function _WebOrdersPageBody() {
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
                 const flash = flashIds.has(r.id);
                 const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
+                const isSelected = selectedIds.has(r.id);
+                const isInlineBusy = inlineBusyId === r.id;
                 return (
                   <TableRow
                     key={r.id}
                     className={cn(
-                      "cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
+                      "group/row cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
+                      isSelected && "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/40",
                       flash && "animate-in slide-in-from-top-2 bg-emerald-50 dark:bg-emerald-950/40",
                     )}
                     onClick={() => setOpenId(r.id)}
                   >
+                    {/* Select */}
+                    <TableCell className="py-4 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelect(r.id)}
+                        aria-label="Select row"
+                      />
+                    </TableCell>
                     {/* Created */}
                     <TableCell className="py-4">
                       <div className="flex gap-2">
@@ -851,6 +1037,11 @@ function _WebOrdersPageBody() {
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-muted-foreground truncate font-mono">{phone}</span>
                               <PhoneActions phone={phone} className="shrink-0" />
+                              <CallLogPopover
+                                orderId={r.id}
+                                currentCount={r.call_attempt_count ?? 0}
+                                onSaved={invalidateWebOrders}
+                              />
                             </div>
                           )}
                           {address && (
@@ -1015,7 +1206,39 @@ function _WebOrdersPageBody() {
 
                     {/* Actions */}
                     <TableCell className="py-4 text-right">
-                      <div onClick={(e) => e.stopPropagation()} className="inline-block">
+                      <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
+                        <div className={cn(
+                          "hidden lg:inline-flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity",
+                          isInlineBusy && "opacity-100",
+                        )}>
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 px-2 text-[11px] gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-900/60 dark:hover:bg-emerald-950/40"
+                            disabled={isInlineBusy || r.web_status === "complete"}
+                            onClick={() => inlineStatus.mutate({ id: r.id, status: "complete" })}
+                            title="Confirm"
+                          >
+                            <Check className="h-3 w-3" /> Confirm
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 px-2 text-[11px] gap-1 text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-300 dark:border-yellow-900/60 dark:hover:bg-yellow-950/40"
+                            disabled={isInlineBusy || r.web_status === "on_hold"}
+                            onClick={() => inlineStatus.mutate({ id: r.id, status: "on_hold" })}
+                            title="Hold"
+                          >
+                            <Pause className="h-3 w-3" /> Hold
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 px-2 text-[11px] gap-1 text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-900/60 dark:hover:bg-rose-950/40"
+                            disabled={isInlineBusy || r.web_status === "cancelled"}
+                            onClick={() => inlineStatus.mutate({ id: r.id, status: "cancelled" })}
+                            title="Cancel"
+                          >
+                            <XIcon className="h-3 w-3" /> Cancel
+                          </Button>
+                        </div>
                         <Button asChild size="sm" variant="default" className="h-8">
                           <Link to="/erp/orders/$orderId" params={{ orderId: r.id }}>
                             Open
@@ -1044,6 +1267,29 @@ function _WebOrdersPageBody() {
       )}
 
       <OrderDrawer orderId={openId} onClose={() => setOpenId(null)} mode="web" />
+
+      <WebBulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onStatus={(s) => bulkStatus.mutate(s)}
+        onPrintInvoices={() => { if (selectedIds.size > 0) setPrintOpen(true); }}
+        onBookCourier={() => { if (selectedIds.size > 0) setPathaoBulkOpen(true); }}
+        onAddTag={(tag) => bulkAddTag.mutate(tag)}
+        isPending={bulkStatus.isPending || bulkAddTag.isPending}
+      />
+
+      <BulkPrintDialog
+        open={printOpen}
+        onOpenChange={(o) => setPrintOpen(o)}
+        mode="invoice"
+        orderIds={Array.from(selectedIds)}
+      />
+
+      <PathaoBulkUploadDialog
+        open={pathaoBulkOpen}
+        onOpenChange={(o) => { setPathaoBulkOpen(o); if (!o) setSelectedIds(new Set()); }}
+        orders={selectedOrderRows.map((r) => ({ id: r.id, invoice_no: null }))}
+      />
     </div>
   );
 }
