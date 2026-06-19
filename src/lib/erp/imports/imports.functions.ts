@@ -72,6 +72,7 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         freight_cost_bdt, customs_duty_bdt, other_charges_bdt,
         total_units, landed_cost_per_unit_bdt,
         shipping_weight_kg, shipping_rate_per_kg, shipping_cost_bdt,
+        agent_commission_cny, agent_commission_per_unit_bdt, agent_commission_total_bdt,
         supplier:supplier_id ( id, name, phone, source_link, address, currency )
       `).eq("id", data.poId).maybeSingle(),
       context.supabase.from("imp_po_items").select(`
@@ -358,6 +359,7 @@ export const updatePoLandedCost = createServerFn({ method: "POST" })
       freight_cost_bdt: z.number().nonnegative().default(0),
       customs_duty_bdt: z.number().nonnegative().default(0),
       other_charges_bdt: z.number().nonnegative().default(0),
+      agent_commission_cny: z.number().nonnegative().default(0),
       items: z.array(landedItemSchema).default([]),
       lock_rate: z.boolean().default(true),
     }).parse(d),
