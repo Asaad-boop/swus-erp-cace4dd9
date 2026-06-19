@@ -1203,38 +1203,6 @@ function _WebOrdersPageBody() {
                     {/* Actions */}
                     <TableCell className="py-2 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
-                        <div className={cn(
-                          "hidden lg:inline-flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity",
-                          isInlineBusy && "opacity-100",
-                        )}>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-900/60 dark:hover:bg-emerald-950/40"
-                            disabled={isInlineBusy || r.web_status === "complete"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "complete" })}
-                            title="Confirm"
-                          >
-                            <Check className="h-3 w-3" /> Confirm
-                          </Button>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-300 dark:border-yellow-900/60 dark:hover:bg-yellow-950/40"
-                            disabled={isInlineBusy || r.web_status === "on_hold"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "on_hold" })}
-                            title="Hold"
-                          >
-                            <Pause className="h-3 w-3" /> Hold
-                          </Button>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-900/60 dark:hover:bg-rose-950/40"
-                            disabled={isInlineBusy || r.web_status === "cancelled"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "cancelled" })}
-                            title="Cancel"
-                          >
-                            <XIcon className="h-3 w-3" /> Cancel
-                          </Button>
-                        </div>
                         <Button asChild size="sm" variant="default" className="h-8">
                           <Link to="/erp/orders/$orderId" params={{ orderId: r.id }}>
                             Open
