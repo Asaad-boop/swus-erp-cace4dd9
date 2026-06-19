@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   createImportPo, listImportSuppliers, updatePoLandedCost,
+  listCargoAgents, setPoCargoAgent,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
@@ -59,16 +60,23 @@ function NewPoPage() {
   const suppliersFn = useServerFn(listImportSuppliers);
   const createFn = useServerFn(createImportPo);
   const landedFn = useServerFn(updatePoLandedCost);
+  const agentsFn = useServerFn(listCargoAgents);
+  const setAgentFn = useServerFn(setPoCargoAgent);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
     queryFn: () => suppliersFn({ data: { brandId: brandId! } }),
+  });
+  const { data: cargoAgents = [] } = useQuery({
+    queryKey: ["imp-cargo-agents", brandId, "active"], enabled: !!brandId,
+    queryFn: () => agentsFn({ data: { brandId: brandId!, activeOnly: true } }),
   });
   const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
   // form state
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [supplierId, setSupplierId] = useState<string>("");
+  const [cargoAgentId, setCargoAgentId] = useState<string>("");
   const [currency, setCurrency] = useState("CNY");
   const [fxRate, setFxRate] = useState<number>(14);
   const [notes, setNotes] = useState("");
