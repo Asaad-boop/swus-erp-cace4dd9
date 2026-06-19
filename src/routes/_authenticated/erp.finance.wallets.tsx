@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtBdt, type Account } from "@/lib/erp/finance";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,15 @@ export const Route = createFileRoute("/_authenticated/erp/finance/wallets")({
   component: WalletsPage,
 });
 
-type Wallet = Account & { wallet_type: string };
+type Wallet = Account & { wallet_type: string; account_subtype?: string | null };
+
+function subtypeStyle(w: Wallet): { ring?: string; bg?: string; accent?: string } {
+  const sub = (w.account_subtype ?? w.account_type ?? "").toLowerCase();
+  if (sub === "bkash") return { ring: "ring-1 ring-pink-300/60 dark:ring-pink-900/60", bg: "bg-gradient-to-br from-pink-50 to-transparent dark:from-pink-950/30", accent: "text-pink-600" };
+  if (sub === "nagad") return { ring: "ring-1 ring-orange-300/60 dark:ring-orange-900/60", bg: "bg-gradient-to-br from-orange-50 to-transparent dark:from-orange-950/30", accent: "text-orange-600" };
+  if (sub === "rocket") return { ring: "ring-1 ring-purple-300/60 dark:ring-purple-900/60", bg: "bg-gradient-to-br from-purple-50 to-transparent dark:from-purple-950/30", accent: "text-purple-600" };
+  return {};
+}
 
 const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color: string }> = [
   { key: "cash",           label: "Cash in Hand",   icon: Coins,      color: "text-emerald-600" },
@@ -55,6 +64,43 @@ function WalletsPage() {
       return (data ?? []) as Wallet[];
     },
   });
+
+  // Today's transactions for in/out badges
+  const today = new Date().toISOString().slice(0, 10);
+  const todayTxQ = useQuery({
+    queryKey: ["wallets_today", brandIds, today],
+    enabled: brandIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await applyBrandScope(
+        supabase.from("erp_transactions").select("id,txn_type,amount,account_id,to_account_id"),
+        brandIds,
+      ).eq("transaction_date", today);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; txn_type: string; amount: number; account_id: string | null; to_account_id: string | null }>;
+    },
+  });
+
+  const todayByWallet = useMemo(() => {
+    const map = new Map<string, { in: number; out: number }>();
+    const get = (id: string) => map.get(id) ?? { in: 0, out: 0 };
+    for (const t of todayTxQ.data ?? []) {
+      const a = Number(t.amount || 0);
+      if (t.account_id) {
+        const e = get(t.account_id);
+        if (t.txn_type === "income") e.in += a;
+        else if (t.txn_type === "expense") e.out += a;
+        else if (t.txn_type === "transfer") e.out += a;
+        else if (t.txn_type === "adjustment") { if (a >= 0) e.in += a; else e.out += -a; }
+        map.set(t.account_id, e);
+      }
+      if (t.txn_type === "transfer" && t.to_account_id) {
+        const e = get(t.to_account_id);
+        e.in += a;
+        map.set(t.to_account_id, e);
+      }
+    }
+    return map;
+  }, [todayTxQ.data]);
 
   const wallets = walletsQ.data ?? [];
   const brandMap = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
@@ -123,12 +169,15 @@ function WalletsPage() {
               <span className="text-sm font-semibold tabular-nums">{fmtBdt(subtotal)}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {items.map((w) => (
-                <Card key={w.id} className="hover:shadow-md transition-shadow">
+              {items.map((w) => {
+                const style = subtypeStyle(w);
+                const today = todayByWallet.get(w.id);
+                return (
+                <Card key={w.id} className={cn("hover:shadow-md transition-shadow", style.ring, style.bg)}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-sm font-medium truncate">{w.name}</CardTitle>
-                      <Icon className={cn("h-4 w-4 shrink-0", g.color)} />
+                      <Icon className={cn("h-4 w-4 shrink-0", style.accent ?? g.color)} />
                     </div>
                     {isAllBrands && (
                       <p className="text-[11px] text-muted-foreground truncate">{brandMap.get(w.brand_id) ?? "—"}</p>
@@ -141,9 +190,15 @@ function WalletsPage() {
                     <div className={cn("text-xl font-bold tabular-nums", Number(w.current_balance) < 0 && "text-red-600")}>
                       {fmtBdt(w.current_balance)}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Opening: {fmtBdt(w.opening_balance)}
-                    </div>
+                    {today && (today.in > 0 || today.out > 0) ? (
+                      <div className="flex gap-2 text-[11px]">
+                        {today.in > 0 && <span className="text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-0.5"><ArrowDownRight className="h-3 w-3" />{fmtBdt(today.in)}</span>}
+                        {today.out > 0 && <span className="text-rose-700 dark:text-rose-400 inline-flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{fmtBdt(today.out)}</span>}
+                        <span className="text-muted-foreground">today</span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground">Opening: {fmtBdt(w.opening_balance)}</div>
+                    )}
                     <div className="flex gap-1.5 pt-1">
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setStatementFor(w)}>
                         <FileText className="h-3 w-3 mr-1" />Statement
@@ -157,7 +212,8 @@ function WalletsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </section>
         );
