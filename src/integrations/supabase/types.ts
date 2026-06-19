@@ -4468,6 +4468,7 @@ export type Database = {
           created_at: string
           id: string
           image_snapshot: string | null
+          landed_cost_bdt: number | null
           name_snapshot: string
           po_id: string
           product_id: string | null
@@ -4475,6 +4476,7 @@ export type Database = {
           sku_snapshot: string | null
           subtotal_bdt: number
           unit_cost_bdt: number
+          unit_cost_cny: number | null
           unit_cost_foreign: number
           variant_id: string | null
         }
@@ -4482,6 +4484,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_snapshot?: string | null
+          landed_cost_bdt?: number | null
           name_snapshot: string
           po_id: string
           product_id?: string | null
@@ -4489,6 +4492,7 @@ export type Database = {
           sku_snapshot?: string | null
           subtotal_bdt?: number
           unit_cost_bdt?: number
+          unit_cost_cny?: number | null
           unit_cost_foreign?: number
           variant_id?: string | null
         }
@@ -4496,6 +4500,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_snapshot?: string | null
+          landed_cost_bdt?: number | null
           name_snapshot?: string
           po_id?: string
           product_id?: string | null
@@ -4503,6 +4508,7 @@ export type Database = {
           sku_snapshot?: string | null
           subtotal_bdt?: number
           unit_cost_bdt?: number
+          unit_cost_cny?: number | null
           unit_cost_foreign?: number
           variant_id?: string | null
         }
@@ -4562,13 +4568,20 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          customs_duty_bdt: number
           due_bdt: number
+          freight_cost_bdt: number
           fx_rate: number
+          fx_rate_cny_bdt: number | null
+          fx_rate_locked_at: string | null
+          fx_rate_source: string | null
           grand_total_bdt: number
           id: string
+          landed_cost_per_unit_bdt: number | null
           local_courier_total_bdt: number
           notes: string | null
           order_date: string
+          other_charges_bdt: number
           paid_bdt: number
           po_number: string
           product_subtotal_bdt: number
@@ -4577,6 +4590,7 @@ export type Database = {
           status: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id: string | null
           supplier_id: string | null
+          total_units: number | null
           total_weight_kg: number | null
           updated_at: string
         }
@@ -4585,13 +4599,20 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          customs_duty_bdt?: number
           due_bdt?: number
+          freight_cost_bdt?: number
           fx_rate?: number
+          fx_rate_cny_bdt?: number | null
+          fx_rate_locked_at?: string | null
+          fx_rate_source?: string | null
           grand_total_bdt?: number
           id?: string
+          landed_cost_per_unit_bdt?: number | null
           local_courier_total_bdt?: number
           notes?: string | null
           order_date?: string
+          other_charges_bdt?: number
           paid_bdt?: number
           po_number: string
           product_subtotal_bdt?: number
@@ -4600,6 +4621,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null
+          total_units?: number | null
           total_weight_kg?: number | null
           updated_at?: string
         }
@@ -4608,13 +4630,20 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          customs_duty_bdt?: number
           due_bdt?: number
+          freight_cost_bdt?: number
           fx_rate?: number
+          fx_rate_cny_bdt?: number | null
+          fx_rate_locked_at?: string | null
+          fx_rate_source?: string | null
           grand_total_bdt?: number
           id?: string
+          landed_cost_per_unit_bdt?: number | null
           local_courier_total_bdt?: number
           notes?: string | null
           order_date?: string
+          other_charges_bdt?: number
           paid_bdt?: number
           po_number?: string
           product_subtotal_bdt?: number
@@ -4623,6 +4652,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["imp_po_status"]
           submitted_by_agent_id?: string | null
           supplier_id?: string | null
+          total_units?: number | null
           total_weight_kg?: number | null
           updated_at?: string
         }
