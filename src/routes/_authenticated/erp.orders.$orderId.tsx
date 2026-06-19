@@ -464,36 +464,80 @@ function OrderDetailsPage() {
     "bangladesh","bd","dhaka-",
   ]), []);
 
-  const extractKeywords = (raw: string): string[] => {
-    const tokens = raw
-      .toLowerCase()
-      .replace(/[0-9#.,/\-()|:;]/g, " ")
-      .split(/\s+/)
-      .map((t) => t.trim())
+  // Common BD city keyword map (en + bn + alias). Lowercased.
+  // Values are matched case-insensitively against the city's English name.
+  const CITY_KEYWORDS: Record<string, string> = useMemo(() => ({
+    "dhaka": "dhaka", "ঢাকা": "dhaka",
+    "chittagong": "chittagong", "chattogram": "chittagong", "ctg": "chittagong", "চট্টগ্রাম": "chittagong",
+    "sylhet": "sylhet", "সিলেট": "sylhet",
+    "rajshahi": "rajshahi", "রাজশাহী": "rajshahi",
+    "rangpur": "rangpur", "রংপুর": "rangpur",
+    "khulna": "khulna", "খুলনা": "khulna",
+    "barisal": "barisal", "barishal": "barisal", "বরিশাল": "barisal",
+    "comilla": "comilla", "cumilla": "comilla", "কুমিল্লা": "comilla",
+    "narayanganj": "narayanganj", "নারায়ণগঞ্জ": "narayanganj",
+    "gazipur": "gazipur", "গাজীপুর": "gazipur",
+    "mymensingh": "mymensingh", "ময়মনসিংহ": "mymensingh",
+  }), []);
+
+  // Generic words alone are not enough to identify a city/area
+  const GENERIC_WORDS = useMemo(() => new Set([
+    "cantonment","cantt","sadar","bazar","bazaar","terminal","station","stand",
+    "chowrasta","mor","more","point","gate","circle",
+  ]), []);
+
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[0-9#.,/\-()|:;]/g, " ").replace(/\s+/g, " ").trim();
+
+  const tokenize = (raw: string): string[] => {
+    const tokens = normalize(raw).split(" ")
       .filter((t) => t.length >= 3 && !ADDR_STOPWORDS.has(t));
     return Array.from(new Set(tokens));
   };
 
-  const matchList = (list: Hit[], keywords: string[]): Hit[] => {
-    if (!list.length || !keywords.length) return [];
-    const hits = new Map<string, { item: Hit; score: number }>();
-    for (const item of list) {
-      const name = item.name.toLowerCase();
-      let score = 0;
-      for (const kw of keywords) {
-        if (name === kw) score += 5;
-        else if (name.startsWith(kw) || kw.startsWith(name)) score += 3;
-        else if (name.includes(kw) || kw.includes(name)) score += 2;
+  /**
+   * Score a candidate name against the normalized address text + token set.
+   * Returns: 100 exact/full-phrase, 80 area→parent, 50 partial, 0 generic-only.
+   */
+  const scoreCity = (cityName: string, normAddr: string, tokens: Set<string>): number => {
+    const name = cityName.toLowerCase().trim();
+    if (!name) return 0;
+    // Generic word alone — skip
+    if (GENERIC_WORDS.has(name)) return 0;
+    // Keyword map exact match
+    for (const [kw, target] of Object.entries(CITY_KEYWORDS)) {
+      if (target === name && (tokens.has(kw) || normAddr.includes(` ${kw} `) || normAddr.startsWith(`${kw} `) || normAddr.endsWith(` ${kw}`) || normAddr === kw)) {
+        return 100;
       }
-      if (score > 0) hits.set(item.id, { item, score });
     }
-    return Array.from(hits.values()).sort((a, b) => b.score - a.score).map((x) => x.item);
+    // Exact full-name phrase in address (handles "Dhaka Cantonment" too)
+    const padded = ` ${normAddr} `;
+    if (padded.includes(` ${name} `)) return 100;
+    // Token equality
+    for (const t of tokens) if (t === name) return 100;
+    // Partial: token startsWith / includes
+    for (const t of tokens) {
+      if (t.length >= 4 && (name.startsWith(t) || t.startsWith(name))) return 50;
+    }
+    return 0;
+  };
+
+  const scoreZoneOrArea = (n: string, tokens: Set<string>): number => {
+    const name = n.toLowerCase().trim();
+    if (!name || GENERIC_WORDS.has(name)) return 0;
+    if (tokens.has(name)) return 100;
+    // Multi-word zone like "Mirpur 10" → check first word
+    const first = name.split(/\s+/)[0];
+    if (first && first.length >= 4 && tokens.has(first)) return 80;
+    for (const t of tokens) {
+      if (t.length >= 4 && (name.startsWith(t) || t.startsWith(name))) return 50;
+    }
+    return 0;
   };
 
   const runDetection = async (address: string, applyResult: boolean) => {
     const trimmed = address.trim();
     if (trimmed.length < 4 || !cities || cities.length === 0) return;
-    // Cache hit
     const cached = detectCacheRef.current.get(trimmed);
     if (cached) {
       setCitySuggestions(cached.suggestions);
@@ -502,34 +546,67 @@ function OrderDetailsPage() {
     }
     setDetecting(true);
     try {
-      const keywords = extractKeywords(trimmed);
-      const cityList: Hit[] = (cities ?? []).map((c) => ({ id: c.id, name: c.name_en }));
-      const cityMatches = matchList(cityList, keywords);
-      if (cityMatches.length === 0) {
+      const normAddr = normalize(trimmed);
+      const tokens = new Set(tokenize(trimmed));
+
+      // --- Step 1: rank all cities by score ---
+      const cityScores = (cities ?? []).map((c) => ({
+        hit: { id: c.id, name: c.name_en } as Hit,
+        score: scoreCity(c.name_en, normAddr, tokens),
+      })).filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      const best = cityScores[0];
+      if (!best || best.score < 50) {
         detectCacheRef.current.set(trimmed, { detection: null, suggestions: [] });
         setCitySuggestions([]);
         return;
       }
-      if (cityMatches.length > 1) {
-        const top = cityMatches.slice(0, 4);
-        detectCacheRef.current.set(trimmed, { detection: null, suggestions: top });
-        setCitySuggestions(top);
+      // Below auto-apply threshold → show suggestion chips only
+      if (best.score < 80) {
+        const sugg = cityScores.slice(0, 4).map((x) => x.hit);
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: sugg });
+        setCitySuggestions(sugg);
         return;
       }
-      const city = cityMatches[0];
-      // Fetch zones for matched city
+      // Ambiguous tie at 100 → suggestions (e.g. two cities both exactly named)
+      const topTies = cityScores.filter((x) => x.score === best.score);
+      if (topTies.length > 1) {
+        const sugg = topTies.slice(0, 4).map((x) => x.hit);
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: sugg });
+        setCitySuggestions(sugg);
+        return;
+      }
+      const city = best.hit;
+
+      // --- Step 2: fetch zones for matched city (single round trip) ---
       const zr = await fetchZones({ data: { cityId: Number(city.id), brandId: order?.brand_id ?? undefined } });
-      const zoneList: Hit[] = ((zr as { items: { zone_id: number; zone_name: string }[] }).items ?? [])
-        .map((z) => ({ id: String(z.zone_id), name: z.zone_name }));
-      const zoneMatches = matchList(zoneList, keywords);
-      const zone = zoneMatches[0];
+      const zoneItems = ((zr as { items: { zone_id: number; zone_name: string }[] }).items ?? [])
+        .map((z) => ({ id: String(z.zone_id), name_en: z.zone_name }));
+      // Prime React Query cache so dropdown opens instantly
+      qc.setQueryData(["pathao-zones", city.id, order?.brand_id], zoneItems);
+
+      const zoneScored = zoneItems.map((z) => ({
+        hit: { id: z.id, name: z.name_en } as Hit,
+        score: scoreZoneOrArea(z.name_en, tokens),
+      })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+      const zone = zoneScored[0]?.score && zoneScored[0].score >= 50 ? zoneScored[0].hit : undefined;
+
+      // --- Step 3: fetch areas for matched zone in parallel (single round trip) ---
       let area: Hit | undefined;
       if (zone) {
         const ar = await fetchAreas({ data: { zoneId: Number(zone.id), brandId: order?.brand_id ?? undefined } });
-        const areaList: Hit[] = ((ar as { items: { area_id: number; area_name: string }[] }).items ?? [])
-          .map((a) => ({ id: String(a.area_id), name: a.area_name }));
-        area = matchList(areaList, keywords)[0];
+        const areaItems = ((ar as { items: { area_id: number; area_name: string }[] }).items ?? [])
+          .map((a) => ({ id: String(a.area_id), name_en: a.area_name }));
+        qc.setQueryData(["pathao-areas", zone.id, order?.brand_id], areaItems);
+
+        const areaScored = areaItems.map((a) => ({
+          hit: { id: a.id, name: a.name_en } as Hit,
+          score: scoreZoneOrArea(a.name_en, tokens),
+        })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+        if (areaScored[0]?.score && areaScored[0].score >= 50) area = areaScored[0].hit;
       }
+
       const detected: Detection = { city, zone, area };
       detectCacheRef.current.set(trimmed, { detection: detected, suggestions: [] });
       setCitySuggestions([]);
