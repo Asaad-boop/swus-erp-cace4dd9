@@ -181,7 +181,8 @@ function PoListPage() {
                 const due = Number(p.due_bdt || 0);
                 const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
                 const supplier = p.supplier?.name ?? "—";
-                const initials = supplier.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || "?";
+                const agentName = p.agent?.name ?? "No agent";
+                const initials = (p.agent?.name ?? supplier).split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || "?";
                 return (
                   <TableRow key={p.id} className="hover:bg-accent/40">
                     <TableCell>
@@ -201,8 +202,8 @@ function PoListPage() {
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center flex-shrink-0">{initials}</div>
                         <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{supplier}</div>
-                          <div className="text-[11px] text-muted-foreground truncate">{p.agent?.name ?? "No agent"}</div>
+                          <div className="text-sm font-medium truncate">{agentName}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">{supplier}</div>
                         </div>
                       </div>
                     </TableCell>
