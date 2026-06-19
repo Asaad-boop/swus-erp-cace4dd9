@@ -529,13 +529,12 @@ function OrderDetailsPage() {
     const our = ourRecord ?? { total: 0, success: 0, cancel: 0 };
     const pathao = courierHistory?.pathao ?? { total: 0, success: 0, cancel: 0 };
     const steadfast = courierHistory?.steadfast ?? { total: 0, success: 0, cancel: 0 };
-    const redx = { total: 0, success: 0, cancel: 0 };
     const overall = {
-      total: pathao.total + steadfast.total + redx.total,
-      success: pathao.success + steadfast.success + redx.success,
-      cancel: pathao.cancel + steadfast.cancel + redx.cancel,
+      total: pathao.total + steadfast.total,
+      success: pathao.success + steadfast.success,
+      cancel: pathao.cancel + steadfast.cancel,
     };
-    return { ourRecord: our, overall, pathao, redx, steadfast };
+    return { ourRecord: our, overall, pathao, steadfast };
   }, [ourRecord, courierHistory]);
 
   /* ------------------------------ Item arithmetic -------------------------- */
