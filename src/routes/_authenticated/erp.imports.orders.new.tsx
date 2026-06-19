@@ -300,6 +300,16 @@ function NewPoPage() {
                 </Select>
               </div>
               <div>
+                <Label className="text-xs">Cargo Agent <span className="text-muted-foreground">(optional)</span></Label>
+                <Select value={cargoAgentId || "__none"} onValueChange={(v) => setCargoAgentId(v === "__none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="No cargo agent" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">— None —</SelectItem>
+                    {(cargoAgents as any[]).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="text-xs">Currency</Label>
                 <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={8} />
               </div>
