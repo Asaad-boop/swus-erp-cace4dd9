@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Plus, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,26 +24,26 @@ export const Route = createFileRoute("/_authenticated/erp/imports/settings")({
 });
 
 function ImportsSettings() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
-
+  const { brandIds } = useBrand();
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
-      <SuppliersTab brandId={brandId} />
-      <CargoAgentsSection brandId={brandId} />
+      <SuppliersTab brandIds={brandIds} />
+      <CargoAgentsSection brandIds={brandIds} />
     </div>
   );
 }
 
 /* ----------------------- Import Suppliers (continued) ----------------------- */
 
-function SuppliersTab({ brandId }: { brandId: string }) {
+function SuppliersTab({ brandIds }: { brandIds: string[] }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listImportSuppliers);
   const upsertFn = useServerFn(upsertImportSupplier);
+  const brandKey = brandIds.join(",");
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["imp-suppliers", brandId],
-    queryFn: () => listFn({ data: { brandId } }),
+    queryKey: ["imp-suppliers", brandKey],
+    enabled: brandIds.length > 0,
+    queryFn: () => listFn({ data: { brandIds } }),
   });
   const [editing, setEditing] = useState<any | null>(null);
 
@@ -60,7 +60,10 @@ function SuppliersTab({ brandId }: { brandId: string }) {
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <div className="font-semibold truncate">{s.name}</div>
-                <div className="text-xs text-muted-foreground">{s.country ?? "CN"} · {s.currency ?? "CNY"}</div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  {s.brand?.name && <Badge variant="outline" className="text-[10px]">{s.brand.name}</Badge>}
+                  <span>{s.country ?? "CN"} · {s.currency ?? "CNY"}</span>
+                </div>
               </div>
               <Badge variant="outline">{s.supplier_type}</Badge>
             </div>
@@ -78,8 +81,10 @@ function SuppliersTab({ brandId }: { brandId: string }) {
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={async (payload) => {
-            await upsertFn({ data: { ...payload, brandId } });
-            qc.invalidateQueries({ queryKey: ["imp-suppliers", brandId] });
+            const targetBrand = editing?.brand_id ?? editing?.brand?.id ?? brandIds[0];
+            if (!targetBrand) { toast.error("No brand available"); return; }
+            await upsertFn({ data: { ...payload, brandId: targetBrand } });
+            qc.invalidateQueries({ queryKey: ["imp-suppliers", brandKey] });
             toast.success("Supplier saved");
             setEditing(null);
           }}
