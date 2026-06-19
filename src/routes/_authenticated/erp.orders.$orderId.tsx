@@ -409,7 +409,6 @@ function OrderDetailsPage() {
   const fetchCities = useServerFn(pathaoCitiesFn);
   const fetchZones = useServerFn(pathaoZonesFn);
   const fetchAreas = useServerFn(pathaoAreasFn);
-  const detectAddress = useServerFn(pathaoDetectAddressFn);
 
   const { data: cities } = useQuery({
     queryKey: ["pathao-cities", order?.brand_id],
@@ -448,34 +447,129 @@ function OrderDetailsPage() {
     },
   });
 
-  const detectLocation = useMutation({
-    mutationFn: async () => {
-      if (!form.address || form.address.trim().length < 3) {
-        throw new Error("Address is too short to detect");
+  /* ----------------------- Smart address auto-detection -------------------- */
+
+  type Hit = { id: string; name: string };
+  type Detection = { city: Hit; zone?: Hit; area?: Hit };
+  const [detection, setDetection] = useState<Detection | null>(null);
+  const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
+  const lastDetectedAddrRef = useRef<string>("");
+
+  const ADDR_STOPWORDS = useMemo(() => new Set([
+    "road","rd","house","hse","flat","floor","block","sector","lane","gali",
+    "near","beside","opposite","main","village","district","upazila","union","ward",
+    "please","plz","kindly","contact","mobile","phone","number","mr","mrs","md",
+    "bangladesh","bd","dhaka-",
+  ]), []);
+
+  const extractKeywords = (raw: string): string[] => {
+    const tokens = raw
+      .toLowerCase()
+      .replace(/[0-9#.,/\-()|:;]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !ADDR_STOPWORDS.has(t));
+    return Array.from(new Set(tokens));
+  };
+
+  const matchList = (list: Hit[], keywords: string[]): Hit[] => {
+    if (!list.length || !keywords.length) return [];
+    const hits = new Map<string, { item: Hit; score: number }>();
+    for (const item of list) {
+      const name = item.name.toLowerCase();
+      let score = 0;
+      for (const kw of keywords) {
+        if (name === kw) score += 5;
+        else if (name.startsWith(kw) || kw.startsWith(name)) score += 3;
+        else if (name.includes(kw) || kw.includes(name)) score += 2;
       }
-      const r = (await detectAddress({
-        data: { address: form.address.trim(), brandId: order?.brand_id ?? undefined },
-      })) as {
-        city: { id: number; name: string } | null;
-        zone: { id: number; name: string } | null;
-        area: { id: number; name: string } | null;
-      };
-      return r;
-    },
-    onSuccess: (r) => {
-      setForm((f) => ({
-        ...f,
-        city_id: r.city ? String(r.city.id) : "",
-        zone_id: r.zone ? String(r.zone.id) : "",
-        area_id: r.area ? String(r.area.id) : "",
-      }));
-      if (!r.city) toast.error("Could not detect city from address");
-      else if (!r.zone) toast.warning(`Found city ${r.city.name} — please pick zone manually`);
-      else if (!r.area) toast.success(`Detected ${r.city.name} → ${r.zone.name}. Pick area if needed.`);
-      else toast.success(`Detected ${r.city.name} → ${r.zone.name} → ${r.area.name}`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+      if (score > 0) hits.set(item.id, { item, score });
+    }
+    return Array.from(hits.values()).sort((a, b) => b.score - a.score).map((x) => x.item);
+  };
+
+  const runDetection = async (address: string, applyResult: boolean) => {
+    const trimmed = address.trim();
+    if (trimmed.length < 4 || !cities || cities.length === 0) return;
+    // Cache hit
+    const cached = detectCacheRef.current.get(trimmed);
+    if (cached) {
+      setCitySuggestions(cached.suggestions);
+      if (applyResult && cached.detection) applyDetection(cached.detection);
+      return;
+    }
+    setDetecting(true);
+    try {
+      const keywords = extractKeywords(trimmed);
+      const cityMatches = matchList(cities as Hit[], keywords);
+      if (cityMatches.length === 0) {
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: [] });
+        setCitySuggestions([]);
+        return;
+      }
+      if (cityMatches.length > 1) {
+        const top = cityMatches.slice(0, 4);
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: top });
+        setCitySuggestions(top);
+        return;
+      }
+      const city = cityMatches[0];
+      // Fetch zones for matched city
+      const zr = await fetchZones({ data: { cityId: Number(city.id), brandId: order?.brand_id ?? undefined } });
+      const zoneList: Hit[] = ((zr as { items: { zone_id: number; zone_name: string }[] }).items ?? [])
+        .map((z) => ({ id: String(z.zone_id), name: z.zone_name }));
+      const zoneMatches = matchList(zoneList, keywords);
+      const zone = zoneMatches[0];
+      let area: Hit | undefined;
+      if (zone) {
+        const ar = await fetchAreas({ data: { zoneId: Number(zone.id), brandId: order?.brand_id ?? undefined } });
+        const areaList: Hit[] = ((ar as { items: { area_id: number; area_name: string }[] }).items ?? [])
+          .map((a) => ({ id: String(a.area_id), name: a.area_name }));
+        area = matchList(areaList, keywords)[0];
+      }
+      const detected: Detection = { city, zone, area };
+      detectCacheRef.current.set(trimmed, { detection: detected, suggestions: [] });
+      setCitySuggestions([]);
+      if (applyResult) applyDetection(detected);
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const applyDetection = (d: Detection) => {
+    setDetection(d);
+    setForm((f) => ({
+      ...f,
+      city_id: d.city.id,
+      zone_id: d.zone?.id ?? "",
+      area_id: d.area?.id ?? "",
+    }));
+  };
+
+  // Debounced auto-detection on address change
+  useEffect(() => {
+    const addr = form.address.trim();
+    if (addr === lastDetectedAddrRef.current) return;
+    if (addr.length < 4) {
+      setCitySuggestions([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      lastDetectedAddrRef.current = addr;
+      // Only auto-apply when user hasn't manually picked a city, or detection is active
+      const canAutoApply = !form.city_id || (detection?.city.id === form.city_id);
+      void runDetection(addr, canAutoApply);
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.address, cities?.length]);
+
+  // Clear the "✓ Detected" chip when user changes city manually away from detection
+  useEffect(() => {
+    if (detection && detection.city.id !== form.city_id) setDetection(null);
+  }, [form.city_id, detection]);
 
   /* ------------------------------ Courier history -------------------------- */
 
