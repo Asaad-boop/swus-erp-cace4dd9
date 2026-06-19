@@ -456,6 +456,7 @@ function OrderDetailsPage() {
   const [detection, setDetection] = useState<Detection | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const [detectionAttempted, setDetectionAttempted] = useState(false);
   const [confirmAttempted, setConfirmAttempted] = useState(false);
   const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
   const lastDetectedAddrRef = useRef<string>("");
@@ -657,16 +658,24 @@ function OrderDetailsPage() {
 
   // Auto-detect immediately on order load when address exists but city_id is empty
   useEffect(() => {
-    if (!order) return;
+  }, [order?.id, cities?.length, formReady]);
+
+  useEffect(() => {
+    if (!formReady) return;
+    if (!order?.shipping_address) return;
     if (!cities || cities.length === 0) return;
-    const addr = (order.shipping_address ?? "").trim();
+    if (form.city_id) return; // respect saved/manual data
+    const addr = order.shipping_address.trim();
     if (addr.length < 4) return;
-    if (form.city_id) return; // respect saved data
     if (lastDetectedAddrRef.current === addr) return;
-    lastDetectedAddrRef.current = addr;
-    void runDetection(addr, true);
+    const timer = setTimeout(() => {
+      lastDetectedAddrRef.current = addr;
+      setDetectionAttempted(true);
+      void runDetection(addr, true);
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order?.id, cities?.length]);
+  }, [order?.id, cities?.length, formReady]);
 
   // Clear the "✓ Detected" chip when user changes city manually away from detection
   useEffect(() => {
