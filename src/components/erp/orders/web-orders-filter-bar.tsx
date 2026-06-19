@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, X, ArrowUpDown, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarIcon, ArrowUpDown, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -74,161 +72,100 @@ type Props = {
   onClearAll: () => void;
 };
 
-export function WebOrdersFilterBar({ state, onChange, onClearAll }: Props) {
-  const [customOpen, setCustomOpen] = useState(false);
-  const activeCount =
-    (state.datePreset !== "all" ? 1 : 0) +
-    (state.source !== "all" ? 1 : 0) +
-    (state.sort !== "newest" ? 1 : 0);
+export function WebOrdersFilterBar({ state, onChange, onClearAll: _onClearAll }: Props) {
+  const [dateOpen, setDateOpen] = useState(false);
 
-  const chips: { key: string; label: string; onRemove: () => void }[] = [];
-  if (state.datePreset !== "all") {
-    const label = state.datePreset === "custom"
-      ? `${state.dateFrom ? format(new Date(state.dateFrom), "dd MMM") : "…"} → ${state.dateTo ? format(new Date(state.dateTo), "dd MMM") : "…"}`
-      : PRESETS.find((p) => p.key === state.datePreset)?.label ?? "Date";
-    chips.push({
-      key: "date",
-      label: `📅 ${label}`,
-      onRemove: () => onChange({ datePreset: "all", dateFrom: null, dateTo: null }),
-    });
-  }
-  if (state.source !== "all") {
-    chips.push({
-      key: "source",
-      label: SOURCE_OPTIONS.find((s) => s.value === state.source)?.label ?? state.source,
-      onRemove: () => onChange({ source: "all" }),
-    });
-  }
-  if (state.sort !== "newest") {
-    chips.push({
-      key: "sort",
-      label: `↕ ${SORT_LABEL[state.sort]}`,
-      onRemove: () => onChange({ sort: "newest" }),
-    });
-  }
+  const dateLabel = state.datePreset === "custom"
+    ? (state.dateFrom && state.dateTo
+        ? `${format(new Date(state.dateFrom), "dd MMM")} → ${format(new Date(state.dateTo), "dd MMM")}`
+        : "Custom")
+    : PRESETS.find((p) => p.key === state.datePreset)?.label ?? "All Time";
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card/60 backdrop-blur px-3 py-2">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Filter className="h-3.5 w-3.5" />
-          <span className="font-semibold uppercase tracking-wider text-[10px]">Filters</span>
-          {activeCount > 0 && (
-            <Badge variant="secondary" className="h-4 px-1.5 text-[9px] ml-1">{activeCount}</Badge>
-          )}
-        </div>
-
-        {/* Date presets */}
-        <div className="flex flex-wrap items-center gap-1">
-          {PRESETS.map((p) => {
-            const active = state.datePreset === p.key;
-            if (p.key === "custom") {
-              return (
-                <Popover key={p.key} open={customOpen} onOpenChange={setCustomOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      className={cn(
-                        "inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors",
-                        active
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background hover:bg-muted border-border/60 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="h-3 w-3" />
-                      {active && state.dateFrom && state.dateTo
-                        ? `${format(new Date(state.dateFrom), "dd MMM")} → ${format(new Date(state.dateTo), "dd MMM")}`
-                        : "Custom"}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={{
-                        from: state.dateFrom ? new Date(state.dateFrom) : undefined,
-                        to: state.dateTo ? new Date(state.dateTo) : undefined,
-                      }}
-                      onSelect={(range) => {
-                        if (range?.from && range?.to) {
-                          const from = new Date(range.from); from.setHours(0, 0, 0, 0);
-                          const to = new Date(range.to); to.setHours(23, 59, 59, 999);
-                          onChange({ datePreset: "custom", dateFrom: from.toISOString(), dateTo: to.toISOString() });
-                          setCustomOpen(false);
-                        }
-                      }}
-                      numberOfMonths={2}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              );
-            }
-            return (
+    <div className="flex items-center gap-2">
+      {/* Date */}
+      <Popover open={dateOpen} onOpenChange={setDateOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center justify-between gap-2 h-8 min-w-[130px] px-3 rounded-md border border-input bg-background text-xs font-medium hover:bg-muted/60 transition-colors",
+              state.datePreset !== "all" && "border-primary/40 text-foreground",
+            )}
+          >
+            <span className="inline-flex items-center gap-1.5 truncate">
+              <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
+              {dateLabel}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2 pointer-events-auto" align="end">
+          <div className="flex flex-col gap-0.5 min-w-[140px]">
+            {PRESETS.filter((p) => p.key !== "custom").map((p) => (
               <button
                 key={p.key}
-                onClick={() => onChange({ datePreset: p.key, dateFrom: null, dateTo: null })}
+                onClick={() => {
+                  onChange({ datePreset: p.key, dateFrom: null, dateTo: null });
+                  setDateOpen(false);
+                }}
                 className={cn(
-                  "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted border-border/60 text-muted-foreground hover:text-foreground",
+                  "text-left text-xs px-2 py-1.5 rounded-md hover:bg-muted transition-colors",
+                  state.datePreset === p.key && "bg-primary/10 text-primary font-semibold",
                 )}
               >
                 {p.label}
               </button>
-            );
-          })}
-        </div>
-
-        <div className="h-5 w-px bg-border mx-1" />
-
-        {/* Source */}
-        <Select value={state.source} onValueChange={(v) => onChange({ source: v })}>
-          <SelectTrigger className="h-7 w-[150px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SOURCE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
             ))}
-          </SelectContent>
-        </Select>
+            <div className="border-t my-1" />
+            <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground px-2 py-1">
+              Custom Range
+            </div>
+            <Calendar
+              mode="range"
+              selected={{
+                from: state.dateFrom ? new Date(state.dateFrom) : undefined,
+                to: state.dateTo ? new Date(state.dateTo) : undefined,
+              }}
+              onSelect={(range) => {
+                if (range?.from && range?.to) {
+                  const from = new Date(range.from); from.setHours(0, 0, 0, 0);
+                  const to = new Date(range.to); to.setHours(23, 59, 59, 999);
+                  onChange({ datePreset: "custom", dateFrom: from.toISOString(), dateTo: to.toISOString() });
+                  setDateOpen(false);
+                }
+              }}
+              numberOfMonths={1}
+              className="pointer-events-auto"
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
 
-        {/* Sort */}
-        <Select value={state.sort} onValueChange={(v) => onChange({ sort: v as SortKey })}>
-          <SelectTrigger className="h-7 w-[170px] text-xs">
-            <ArrowUpDown className="h-3 w-3 mr-1" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
-              <SelectItem key={k} value={k} className="text-xs">{SORT_LABEL[k]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 px-1">
-          {chips.map((c) => (
-            <button
-              key={c.key}
-              onClick={c.onRemove}
-              className="inline-flex items-center gap-1 h-6 pl-2 pr-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
-            >
-              {c.label}
-              <X className="h-3 w-3 opacity-70" />
-            </button>
+      {/* Source */}
+      <Select value={state.source} onValueChange={(v) => onChange({ source: v })}>
+        <SelectTrigger className={cn("h-8 w-[150px] text-xs", state.source !== "all" && "border-primary/40")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SOURCE_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
           ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-[11px] text-muted-foreground"
-            onClick={onClearAll}
-          >
-            Clear All
-          </Button>
-        </div>
-      )}
+        </SelectContent>
+      </Select>
+
+      {/* Sort */}
+      <Select value={state.sort} onValueChange={(v) => onChange({ sort: v as SortKey })}>
+        <SelectTrigger className={cn("h-8 w-[170px] text-xs gap-1.5", state.sort !== "newest" && "border-primary/40")}>
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+            <SelectItem key={k} value={k} className="text-xs">{SORT_LABEL[k]}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
