@@ -1,102 +1,80 @@
-# HRM Premium Redesign Plan
+# Finance Module Upgrade — 5 Features
 
-**Scope:** Visual only. No changes to routes, server functions, queries, mutations, or data shape. Only JSX/className/Tailwind, plus shared design tokens and small presentational helpers.
+Scope boro, tai phase-by-phase deliver korbo. Sob additive — purono kichui change hobe na.
 
-**Approach:** Foundation first, then page-by-page in phases. Each phase ships independently so you can review.
+## Phase 1 — Aged Payables & Receivables Export (Feature 5)
 
----
+Sobcheye chhoto, instant value.
 
-## Phase 0 — Design Foundation (shared, ~1 step)
+**New server fns** (`src/lib/erp/finance-overview.functions.ts` e add):
 
-Create reusable presentational primitives so every HR page is consistent and we don't repeat Tailwind soup:
+- `exportAgedReceivables({ brandId, asOfDate })` — customer aging buckets (Current / 1-30 / 31-60 / 61-90 / 90+)
+- `exportAgedPayables({ brandId, asOfDate })` — supplier aging buckets
 
-- `src/components/erp/hr/ui/page-header.tsx` — title (24px semibold), subtitle, right-aligned action slot
-- `src/components/erp/hr/ui/section-label.tsx` — 13px uppercase tracked muted label
-- `src/components/erp/hr/ui/stat-card.tsx` — KPI card: label, big tabular number, trend chip, optional left-border accent color
-- `src/components/erp/hr/ui/status-pill.tsx` — unified badge map (Present/Absent/Late/Leave/Draft/Finalized/Paid/Pending → matching bg/text)
-- `src/components/erp/hr/ui/empty-state.tsx` — icon-in-rounded-tile + title + subtitle + optional CTA
-- `src/components/erp/hr/ui/skeleton-row.tsx` / `skeleton-card.tsx` — pulse loaders matching table/card shape
-- `src/components/erp/hr/ui/avatar.tsx` — 40/80 px avatar w/ initials fallback
-- `src/components/erp/hr/ui/filter-bar.tsx` — pill-style inline filter container
+**UI**:
 
-Tokens via Tailwind utility classes per spec (indigo-600 primary, gray-50/100/200 borders, rounded-xl cards, shadow-sm → shadow-md hover, 150ms transitions). No global CSS rewrite — keep existing shadcn theme intact; new components compose on top.
+- `erp.finance.receivables.tsx` e "Export" dropdown button → Excel + PDF
+- `erp.finance.payables.tsx` e same
+- Excel: existing `exportToXlsx` from `src/lib/erp/hr/excel.ts`
+- PDF: hidden iframe print pattern (payslip-print.tsx pattern)
 
-**Note:** Existing shadcn `Card`, `Button`, `Badge`, `Table`, `Input` stay in use; new HR primitives wrap or extend them so we don't fork the design system.
+## Phase 2 — KPI Drill-down (Feature 1)
 
----
+**New component**: `src/components/erp/finance/finance-drilldown-sheet.tsx`
 
-## Phase 1 — HR Dashboard (`erp.hr.index.tsx`)
+- Shadcn `Sheet` (slide-over), props: `{ title, dateFrom, dateTo, accountIds?, transactionType?, open, onOpenChange }`
+- Inside: 25-per-page transaction list from `erp_journal_lines` + `erp_journal_entries` join
+- CSV export button, "View All" link to journal page with prefilled filters
 
-- 4-card KPI hero (Present / Absent / On Leave / Late) with left-border accent + trend chip
-- Row 2: Pending Leaves (with inline approve/reject), Payroll Status (progress bar), Expiring Docs (alert)
-- Charts: full-width attendance line, donut + horizontal bar row
-- Bottom: Birthdays/Anniversaries + Recent Activity timeline
+**New server fn**: `getDrilldownTransactions({ brandId, dateFrom, dateTo, accountIds?, type? })`
 
-## Phase 2 — Employees list + profile
+**Wire-up** in `erp.finance.index.tsx`: each KPI tile clickable → opens sheet with appropriate filter (Revenue / Expense / Net Profit / Cash / AR / AP / cashflow categories).
 
-- `erp.hr.employees.index.tsx`: header + filter bar + inline stat chips + avatar table + bulk-action floating bar + empty state
-- `erp.hr.employees.$id.tsx`: profile header card (80px avatar, quick-stats grid, edit menu) + sticky tab bar with icons; each tab content gets the new card treatment
+## Phase 3 — Cash Flow Statement (Feature 2)
 
-## Phase 3 — Attendance
+**New server fn**: `getCashflowStatement({ brandId, dateFrom, dateTo })` in `finance-overview.functions.ts`
 
-- `erp.hr.attendance.index.tsx`: Manual/Live pill toggle; Live = employee cards with context-aware actions; Manual = clean date-picker table
-- `erp.hr.attendance.muster.tsx`: sticky-name column grid, colored cell chips, summary row/column, click-cell slide-over (Sheet) with punch + selfie
+- Operating: Net Profit + ΔAR + ΔAP + ΔInventory + depreciation
+- Investing: fixed asset moves
+- Financing: equity + loan accounts
+- Returns 3 structured sections + opening/closing cash reconciliation
 
-## Phase 4 — Leave
+**UI**: Add "Cash Flow" tab in `erp.finance.reports.tsx` with date range picker, Excel export, print.
 
-- `erp.hr.leave.index.tsx`: card-style requests with avatar, leave-type color band, status pill, inline approve/reject
-- `erp.hr.leave.calendar.tsx`: clean month grid color-coded by leave type
-- `erp.hr.leave.policy.tsx`: matches new card pattern
+## Phase 4 — Comparative P&L (Feature 3)
 
-## Phase 5 — Payroll
+**New server fn**: `getComparativePL({ brandId, periodA, periodB })` — `Promise.all` parallel runs of existing P&L logic.
 
-- `erp.hr.payroll.index.tsx`: month-run cards (month, employee count, total, status, actions)
-- `erp.hr.payroll.$runId.tsx`: data table with sticky summary footer (Gross / Deductions / Net), right-aligned tabular-nums, prominent Finalize with confirmation summary
-- `payslip-print.tsx`: cleaner print layout
+**UI**: In reports P&L tab, add toggle [Single | Comparative]. Comparative mode shows: Account | Period A | Period B | Δ৳ | Δ%, color coded. Presets: MoM, QoQ, YoY, Custom. Excel export.
 
-## Phase 6 — Reports
+## Phase 5 — Budget vs Actual Variance (Feature 4)
 
-- `erp.hr.reports.tsx`: horizontal pill tabs, per-tab filter bar + chart + table, always-visible Export top-right
+**New server fn**: `getBudgetVsActual({ brandId, period })` — join `erp_budgets` with actuals from `erp_journal_lines`.
 
-## Phase 7 — Shifts, Holidays, Departments, Designations
+**UI**: New "Budget vs Actual" tab in reports page:
 
-- `erp.hr.shifts.tsx`: card grid (name, time, grace, headcount, actions)
-- `erp.hr.shifts.assign.tsx`: cleaner two-column layout
-- `erp.hr.holidays.tsx`: month-grouped timeline list
-- `erp.hr.departments.tsx` + `erp.hr.designations.tsx`: two-column side-by-side lists with employee-count badges
+- Summary cards (Total Budget / Actual / Variance / % Used progress bar)
+- Table with status badges (✅ <80% / ⚠️ 80-100% / 🔴 >100%)
+- Horizontal bar chart (recharts — already in project)
+- Empty state → link to `/erp/finance/budgets`
+- Excel export
 
-## Phase 8 — Polish pass
+## Technical Notes
 
-- Sub-nav (`hr-subnav.tsx`) restyle to match new header language
-- Skeleton + empty states wired everywhere
-- Micro-animations (hover lift, fade-in on mount via `animate-fade-in`)
-- Final consistency sweep (button sizes, focus rings, spacing scale)
+- Sob server fn `applyBrandScope` use korbe
+- Sob fn `requireSupabaseAuth` middleware diye protected
+- Date pickers existing shadcn pattern
+- Reports tabs purono list e add hobe — replace na
 
----
+## Delivery Strategy
 
-## Guardrails
+Ami akta message e Phase 1 + 2 ship korbo (drill-down + aged exports — most independent). Tarpor Phase 3, then 4+5. Eta korle:
 
-- Zero changes to: server functions, query keys, mutations, route configs, table schemas, RLS, role gating logic
-- Zero changes to props of existing server-bound components (form payloads identical)
-- Existing `useHrAccess`, brand picker, role gates all preserved
-- Build verified after each phase
+- Quality maintain hobe
+- Apni section-by-section verify korte parben
+- Boro ek-shot edit e bug avoid hobe
 
-## Build order
+Ready? Phase 1 + 2 diye shuru kori?  
+Show more
 
-Phase 0 → 1 → 2 → 3 → 5 → 4 → 6 → 7 → 8 (Payroll before Leave because it's higher visual ROI for you).
-
-## What I need from you
-
-1. **Confirm phased delivery is OK** (each phase = one turn, you review and say "next"). Or do you want one mega-turn?
-2. **Sub-nav styling:** keep current tab look or also restyle to underline-pill hybrid like Linear?
-3. **Charts:** keep current Recharts setup, just restyle axes/tooltip/colors — correct?
-
-Reply "go" + answers and I start Phase 0+1 together.  
-**Phased delivery OK** — phase by phase koro, ami review korbo
-
-1. **Sub-nav** — pill style (Linear er moto)
-2. **Charts** — Recharts keep, just restyle
-
-Phase 0 + 1 শুরু করো। 🚀
-
-&nbsp;
+**Go** — Phase 1 + 2 শুরু করো। 🚀
