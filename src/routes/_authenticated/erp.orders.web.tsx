@@ -4,7 +4,7 @@ import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Check, Pause, X as XIcon, Package } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -426,7 +426,7 @@ function _WebOrdersPageBody() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printOpen, setPrintOpen] = useState(false);
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
-  const [inlineBusyId, setInlineBusyId] = useState<string | null>(null);
+  // inline status buttons removed; selection-based bulk actions only
 
   // Debounce search input (300ms) → URL + query key
   useEffect(() => {
@@ -814,24 +814,6 @@ function _WebOrdersPageBody() {
     queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
   };
 
-  const inlineStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: WebStatusKey }) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ web_status: status as never })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: ({ id }) => { setInlineBusyId(id); return {}; },
-    onSuccess: (_d, { id }) => {
-      setFlashIds((prev) => { const n = new Set(prev); n.add(id); return n; });
-      setTimeout(() => setFlashIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 1500);
-      invalidateWebOrders();
-    },
-    onError: (e: Error) => toast.error(e.message),
-    onSettled: () => setInlineBusyId(null),
-  });
-
   const bulkStatus = useMutation({
     mutationFn: async (status: WebStatusKey) => {
       const ids = Array.from(selectedIds);
@@ -992,7 +974,7 @@ function _WebOrdersPageBody() {
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 10 }).map((_, j) => (
-                    <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
+                    <TableCell key={j} className="py-2"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
@@ -1018,7 +1000,6 @@ function _WebOrdersPageBody() {
                 const flash = flashIds.has(r.id);
                 const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
                 const isSelected = selectedIds.has(r.id);
-                const isInlineBusy = inlineBusyId === r.id;
                 return (
                   <TableRow
                     key={r.id}
@@ -1030,7 +1011,7 @@ function _WebOrdersPageBody() {
                     onClick={() => setOpenId(r.id)}
                   >
                     {/* Select */}
-                    <TableCell className="py-4 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(r.id)}
@@ -1038,7 +1019,7 @@ function _WebOrdersPageBody() {
                       />
                     </TableCell>
                     {/* Created */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex gap-2">
                         <div className={cn("w-1 rounded-full self-stretch", accent)} />
                         <div className="text-xs">
@@ -1052,7 +1033,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Customer */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div>
                         <div className="min-w-0 text-xs space-y-0.5">
                           <div className="flex items-center gap-1 min-w-0 flex-wrap">
@@ -1082,7 +1063,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Note */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       {note ? (
                         <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-card border border-amber-200/70 dark:border-amber-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_-1px_0_rgba(0,0,0,0.02)] hover:border-amber-300 dark:hover:border-amber-800 hover:shadow-md transition-all">
                           <div className="mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 shadow-inner">
@@ -1103,7 +1084,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Order Items */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex items-start gap-2">
                         <div className="flex -space-x-2">
                           {items.slice(0, 3).map((it, i) => (
@@ -1184,7 +1165,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Success Rate */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <SuccessBlock
                         total={courier.pathao.total + courier.steadfast.total || b.total}
                         success={courier.pathao.success + courier.steadfast.success || b.confirmed}
@@ -1192,12 +1173,12 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Tags */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={4} />
                     </TableCell>
 
                     {/* Site */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <div className="flex flex-col gap-1 items-start">
                         {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
                           <span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold ring-1 ring-primary/30">
@@ -1215,45 +1196,13 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Source */}
-                    <TableCell className="py-4">
+                    <TableCell className="py-2">
                       <SourcePill attribution={r.attribution} siteLabel={siteLabel} />
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="py-4 text-right">
+                    <TableCell className="py-2 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
-                        <div className={cn(
-                          "hidden lg:inline-flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity",
-                          isInlineBusy && "opacity-100",
-                        )}>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-900/60 dark:hover:bg-emerald-950/40"
-                            disabled={isInlineBusy || r.web_status === "complete"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "complete" })}
-                            title="Confirm"
-                          >
-                            <Check className="h-3 w-3" /> Confirm
-                          </Button>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-yellow-700 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-300 dark:border-yellow-900/60 dark:hover:bg-yellow-950/40"
-                            disabled={isInlineBusy || r.web_status === "on_hold"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "on_hold" })}
-                            title="Hold"
-                          >
-                            <Pause className="h-3 w-3" /> Hold
-                          </Button>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-rose-700 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-900/60 dark:hover:bg-rose-950/40"
-                            disabled={isInlineBusy || r.web_status === "cancelled"}
-                            onClick={() => inlineStatus.mutate({ id: r.id, status: "cancelled" })}
-                            title="Cancel"
-                          >
-                            <XIcon className="h-3 w-3" /> Cancel
-                          </Button>
-                        </div>
                         <Button asChild size="sm" variant="default" className="h-8">
                           <Link to="/erp/orders/$orderId" params={{ orderId: r.id }}>
                             Open
