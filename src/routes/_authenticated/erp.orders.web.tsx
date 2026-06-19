@@ -396,6 +396,10 @@ function _WebOrdersPageBody() {
   const [debouncedSearch, setDebouncedSearch] = useState(search.q);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printOpen, setPrintOpen] = useState(false);
+  const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
+  const [inlineBusyId, setInlineBusyId] = useState<string | null>(null);
 
   // Debounce search input (300ms) → URL + query key
   useEffect(() => {
