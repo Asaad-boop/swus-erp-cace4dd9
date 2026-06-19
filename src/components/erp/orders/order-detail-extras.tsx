@@ -46,7 +46,18 @@ function StatusChip({ status }: { status: string | null | undefined }) {
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export function OrderTimeline({ orderId }: { orderId: string }) {
-  const [open, setOpen] = useState(false);
+  const STORAGE_KEY = "order-detail:timeline-open";
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
+  });
+  const toggle = () => {
+    setOpen((v) => {
+      const next = !v;
+      try { window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
   const { data, isFetching } = useQuery({
     queryKey: ["order-timeline", orderId],
     enabled: open,
@@ -72,7 +83,7 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
   return (
     <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
       <button
-        type="button" onClick={() => setOpen((v) => !v)}
+        type="button" onClick={toggle}
         className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/70 dark:hover:bg-muted/30 transition-colors border-b border-gray-100 dark:border-border"
       >
         <div className="flex items-center gap-2">
