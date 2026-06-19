@@ -234,6 +234,65 @@ function AllItemsPopover({
 }
 
 function WebOrdersPage() {
+  // placeholder; real component declared below
+  return _WebOrdersPageBody();
+}
+
+function CustomerBadges({ total, confirmRate, delivered }: { total: number; confirmRate: number; delivered: number }) {
+  if (total <= 1) return null;
+  const tooltip = `${total} orders | ${confirmRate}% confirm rate | ${delivered} delivered`;
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 flex-wrap">
+            {total >= 5 ? (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-800">
+                <Star className="h-2.5 w-2.5 fill-current" /> VIP
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 ring-1 ring-indigo-300 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800">
+                <Repeat className="h-2.5 w-2.5" /> {total}x
+              </span>
+            )}
+            {confirmRate < 30 && total >= 3 && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-rose-100 text-rose-800 ring-1 ring-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-800">
+                <AlertTriangle className="h-2.5 w-2.5" /> Low
+              </span>
+            )}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">{tooltip}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function SourcePill({ attribution, siteLabel }: { attribution: { utm_source: string | null; utm_medium: string | null } | null | undefined; siteLabel: string }) {
+  const raw = (attribution?.utm_source ?? "").toLowerCase();
+  let icon = "🔗";
+  let label = "Direct";
+  let tone = "bg-muted/60 text-muted-foreground ring-border";
+  if (raw.includes("facebook") || raw === "fb" || raw.includes("meta")) {
+    icon = "📘"; label = "Facebook"; tone = "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900/60";
+  } else if (raw.includes("instagram") || raw === "ig") {
+    icon = "📷"; label = "Instagram"; tone = "bg-pink-50 text-pink-700 ring-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:ring-pink-900/60";
+  } else if (raw.includes("google")) {
+    icon = "🔍"; label = "Google"; tone = "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60";
+  } else if (raw && raw !== "direct" && raw !== "organic") {
+    icon = "🌐"; label = attribution!.utm_source!.slice(0, 16); tone = "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900/60";
+  } else if (!raw && siteLabel) {
+    icon = "🔗"; label = siteLabel;
+  }
+  return (
+    <span className={cn("inline-flex items-center gap-1 px-2 h-5 rounded-full text-[10px] font-semibold ring-1 ring-inset max-w-[120px]", tone)}>
+      <span>{icon}</span>
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function _WebOrdersPageBody() {
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
   const brandsKey = brandIds.join(",");
