@@ -270,6 +270,7 @@ function PoDetailPage() {
           initialFreight={Number(po.freight_cost_bdt) || 0}
           initialCustoms={Number(po.customs_duty_bdt) || 0}
           initialOther={Number(po.other_charges_bdt) || 0}
+          initialAgentCommissionCny={Number(po.agent_commission_cny) || 0}
           fxLockedAt={po.fx_rate_locked_at}
           fxSource={po.fx_rate_source}
           />
