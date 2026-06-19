@@ -4205,6 +4205,56 @@ export type Database = {
           },
         ]
       }
+      imp_cargo_agents: {
+        Row: {
+          address: string | null
+          brand_id: string
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          brand_id: string
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          brand_id?: string
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_agents_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imp_carton_items: {
         Row: {
           carton_id: string
@@ -4580,6 +4630,7 @@ export type Database = {
           agent_commission_per_unit_bdt: number | null
           agent_commission_total_bdt: number | null
           brand_id: string
+          cargo_agent_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -4617,6 +4668,7 @@ export type Database = {
           agent_commission_per_unit_bdt?: number | null
           agent_commission_total_bdt?: number | null
           brand_id: string
+          cargo_agent_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -4654,6 +4706,7 @@ export type Database = {
           agent_commission_per_unit_bdt?: number | null
           agent_commission_total_bdt?: number | null
           brand_id?: string
+          cargo_agent_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -4692,6 +4745,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
             referencedColumns: ["id"]
           },
           {

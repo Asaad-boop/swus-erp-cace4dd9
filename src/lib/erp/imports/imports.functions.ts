@@ -958,3 +958,135 @@ export const postCartonReceiptToInventory = createServerFn({ method: "POST" })
       },
     };
   });
+/* ============================================================
+   Cargo Agents (additive)
+   ============================================================ */
+
+export const listCargoAgents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; activeOnly?: boolean }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      activeOnly: z.boolean().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("imp_cargo_agents")
+      .select("id, name, contact_person, phone, address, notes, is_active, created_at")
+      .eq("brand_id", data.brandId)
+      .order("is_active", { ascending: false })
+      .order("name");
+    if (data.activeOnly) q = q.eq("is_active", true);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const upsertCargoAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    id?: string;
+    brandId: string;
+    name: string;
+    contact_person?: string;
+    phone?: string;
+    address?: string;
+    notes?: string;
+    is_active?: boolean;
+  }) =>
+    z.object({
+      id: z.string().uuid().optional(),
+      brandId: z.string().uuid(),
+      name: z.string().min(1).max(160),
+      contact_person: z.string().optional(),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+      notes: z.string().optional(),
+      is_active: z.boolean().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations"]);
+    const payload: any = {
+      brand_id: data.brandId,
+      name: data.name,
+      contact_person: data.contact_person ?? null,
+      phone: data.phone ?? null,
+      address: data.address ?? null,
+      notes: data.notes ?? null,
+      is_active: data.is_active ?? true,
+    };
+    if (data.id) {
+      const { error } = await context.supabase.from("imp_cargo_agents").update(payload).eq("id", data.id);
+      if (error) throw error;
+      return { id: data.id };
+    }
+    const { data: row, error } = await context.supabase
+      .from("imp_cargo_agents").insert(payload).select("id").single();
+    if (error) throw error;
+    return { id: row.id };
+  });
+
+export const setPoCargoAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { po_id: string; cargo_agent_id: string | null }) =>
+    z.object({
+      po_id: z.string().uuid(),
+      cargo_agent_id: z.string().uuid().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+    const { error } = await context.supabase
+      .from("imp_purchase_orders")
+      .update({ cargo_agent_id: data.cargo_agent_id })
+      .eq("id", data.po_id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const getCargoAgentDashboard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string }) =>
+    z.object({ brandId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const [agentsRes, posRes] = await Promise.all([
+      context.supabase
+        .from("imp_cargo_agents")
+        .select("id, name, phone, contact_person, is_active")
+        .eq("brand_id", data.brandId)
+        .order("name"),
+      context.supabase
+        .from("imp_purchase_orders")
+        .select("id, po_number, order_date, status, cargo_agent_id, shipping_total_bdt, shipping_cost_bdt, paid_bdt, grand_total_bdt, due_bdt")
+        .eq("brand_id", data.brandId)
+        .not("cargo_agent_id", "is", null),
+    ]);
+    if (agentsRes.error) throw agentsRes.error;
+    if (posRes.error) throw posRes.error;
+    const agents = (agentsRes.data ?? []) as any[];
+    const pos = (posRes.data ?? []) as any[];
+    const byAgent: Record<string, any[]> = {};
+    for (const p of pos) {
+      const k = p.cargo_agent_id as string;
+      (byAgent[k] ||= []).push(p);
+    }
+    return agents.map((a: any) => {
+      const list = byAgent[a.id] ?? [];
+      const shipping = list.reduce((s, p) => s + Number(p.shipping_total_bdt ?? p.shipping_cost_bdt ?? 0), 0);
+      const paid = list.reduce((s, p) => s + Number(p.paid_bdt ?? 0), 0);
+      const grand = list.reduce((s, p) => s + Number(p.grand_total_bdt ?? 0), 0);
+      const due = list.reduce((s, p) => s + Number(p.due_bdt ?? 0), 0);
+      return {
+        agent: a,
+        po_count: list.length,
+        shipping_total: +shipping.toFixed(2),
+        paid_total: +paid.toFixed(2),
+        grand_total: +grand.toFixed(2),
+        due_total: +due.toFixed(2),
+        pos: list,
+      };
+    });
+  });

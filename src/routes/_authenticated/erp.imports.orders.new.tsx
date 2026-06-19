@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   createImportPo, listImportSuppliers, updatePoLandedCost,
+  listCargoAgents, setPoCargoAgent,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
@@ -59,16 +60,23 @@ function NewPoPage() {
   const suppliersFn = useServerFn(listImportSuppliers);
   const createFn = useServerFn(createImportPo);
   const landedFn = useServerFn(updatePoLandedCost);
+  const agentsFn = useServerFn(listCargoAgents);
+  const setAgentFn = useServerFn(setPoCargoAgent);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
     queryFn: () => suppliersFn({ data: { brandId: brandId! } }),
+  });
+  const { data: cargoAgents = [] } = useQuery({
+    queryKey: ["imp-cargo-agents", brandId, "active"], enabled: !!brandId,
+    queryFn: () => agentsFn({ data: { brandId: brandId!, activeOnly: true } }),
   });
   const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
   // form state
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [supplierId, setSupplierId] = useState<string>("");
+  const [cargoAgentId, setCargoAgentId] = useState<string>("");
   const [currency, setCurrency] = useState("CNY");
   const [fxRate, setFxRate] = useState<number>(14);
   const [notes, setNotes] = useState("");
@@ -190,6 +198,14 @@ function NewPoPage() {
       }
 
       const res: any = await createFn({ data: payload });
+      // Persist optional cargo agent
+      if (res?.po_id && cargoAgentId) {
+        try {
+          await setAgentFn({ data: { po_id: res.po_id, cargo_agent_id: cargoAgentId } });
+        } catch (e) {
+          console.warn("Failed to set cargo agent", e);
+        }
+      }
       // Persist agent commission (CNY/pcs) on the PO if provided
       if (res?.po_id && agentCommissionCny > 0 && fxRate > 0) {
         try {
@@ -280,6 +296,16 @@ function NewPoPage() {
                   <SelectContent>
                     <SelectItem value="__none">— None —</SelectItem>
                     {(suppliers as any[]).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Cargo Agent <span className="text-muted-foreground">(optional)</span></Label>
+                <Select value={cargoAgentId || "__none"} onValueChange={(v) => setCargoAgentId(v === "__none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="No cargo agent" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">— None —</SelectItem>
+                    {(cargoAgents as any[]).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
