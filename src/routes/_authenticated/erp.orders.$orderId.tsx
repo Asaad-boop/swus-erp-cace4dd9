@@ -471,6 +471,12 @@ function OrderDetailsPage() {
   // Values are matched case-insensitively against the city's English name.
   const CITY_KEYWORDS: Record<string, string> = useMemo(() => ({
     "dhaka": "dhaka", "ঢাকা": "dhaka",
+    // Area→city aliases (instant city inference)
+    "mirpur": "dhaka", "dhanmondi": "dhaka", "gulshan": "dhaka", "uttara": "dhaka",
+    "mohammadpur": "dhaka", "banani": "dhaka", "motijheel": "dhaka", "badda": "dhaka",
+    "bashundhara": "dhaka", "tejgaon": "dhaka", "wari": "dhaka", "ramna": "dhaka",
+    "agrabad": "chittagong", "nasirabad": "chittagong", "pahartali": "chittagong",
+    "halishahar": "chittagong", "panchlaish": "chittagong",
     "chittagong": "chittagong", "chattogram": "chittagong", "ctg": "chittagong", "চট্টগ্রাম": "chittagong",
     "sylhet": "sylhet", "সিলেট": "sylhet",
     "rajshahi": "rajshahi", "রাজশাহী": "rajshahi",
