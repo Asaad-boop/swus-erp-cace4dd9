@@ -23,6 +23,42 @@ export const Route = createFileRoute("/_authenticated/erp/analytics/live")({
   component: LiveAnalyticsPage,
 });
 
+// ---------------- Time Range ----------------
+type TimeRange = "instant" | "5m" | "15m" | "30m" | "1h";
+const RANGE_OPTIONS: { key: TimeRange; label: string; seconds: number; subtitle: string }[] = [
+  { key: "instant", label: "Instant", seconds: 60, subtitle: "Last 60 seconds" },
+  { key: "5m", label: "5 Min", seconds: 5 * 60, subtitle: "Last 5 minutes" },
+  { key: "15m", label: "15 Min", seconds: 15 * 60, subtitle: "Last 15 minutes" },
+  { key: "30m", label: "30 Min", seconds: 30 * 60, subtitle: "Last 30 minutes" },
+  { key: "1h", label: "1 Hour", seconds: 60 * 60, subtitle: "Last 60 minutes" },
+];
+function rangeMeta(key: TimeRange) {
+  return RANGE_OPTIONS.find((r) => r.key === key) ?? RANGE_OPTIONS[2];
+}
+
+function RangeToggle({ value, onChange }: { value: TimeRange; onChange: (v: TimeRange) => void }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1">
+      {RANGE_OPTIONS.map((r) => {
+        const active = r.key === value;
+        return (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => onChange(r.key)}
+            className={cn(
+              "px-3 py-1 text-xs font-medium rounded-full transition-colors",
+              active ? "bg-indigo-600 text-white shadow-sm" : "text-gray-600 hover:text-gray-900",
+            )}
+          >
+            {r.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ---------------- Types ----------------
 type ActiveSession = {
   session_id: string;
