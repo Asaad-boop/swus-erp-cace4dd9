@@ -291,6 +291,26 @@ function NewPoPage() {
                 <Label className="text-xs">FX rate (1 {currency} = ? BDT)</Label>
                 <Input type="number" step="0.0001" value={fxRate} onChange={(e) => setFxRate(Number(e.target.value))} />
               </div>
+              <div>
+                <Label className="text-xs">Agent commission ({currency}/pcs)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={agentCommissionCny}
+                  onChange={(e) => setAgentCommissionCny(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0.00"
+                />
+                {agentCommissionCny > 0 && (
+                  fxRate > 0 ? (
+                    <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                      = {fmtBdt(agentCommissionCny * fxRate)}/pcs · total {fmtBdt(agentCommissionCny * fxRate * totalUnits)}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-orange-600 mt-1">Set FX rate first</div>
+                  )
+                )}
+              </div>
               <div className="md:col-span-3">
                 <Label className="text-xs">Notes</Label>
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" rows={2} />
