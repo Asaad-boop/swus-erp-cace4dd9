@@ -658,9 +658,6 @@ function OrderDetailsPage() {
 
   // Auto-detect immediately on order load when address exists but city_id is empty
   useEffect(() => {
-  }, [order?.id, cities?.length, formReady]);
-
-  useEffect(() => {
     if (!formReady) return;
     if (!order?.shipping_address) return;
     if (!cities || cities.length === 0) return;
