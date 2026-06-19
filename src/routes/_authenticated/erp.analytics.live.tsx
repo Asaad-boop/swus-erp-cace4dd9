@@ -23,6 +23,42 @@ export const Route = createFileRoute("/_authenticated/erp/analytics/live")({
   component: LiveAnalyticsPage,
 });
 
+// ---------------- Time Range ----------------
+type TimeRange = "instant" | "5m" | "15m" | "30m" | "1h";
+const RANGE_OPTIONS: { key: TimeRange; label: string; seconds: number; subtitle: string }[] = [
+  { key: "instant", label: "Instant", seconds: 60, subtitle: "Last 60 seconds" },
+  { key: "5m", label: "5 Min", seconds: 5 * 60, subtitle: "Last 5 minutes" },
+  { key: "15m", label: "15 Min", seconds: 15 * 60, subtitle: "Last 15 minutes" },
+  { key: "30m", label: "30 Min", seconds: 30 * 60, subtitle: "Last 30 minutes" },
+  { key: "1h", label: "1 Hour", seconds: 60 * 60, subtitle: "Last 60 minutes" },
+];
+function rangeMeta(key: TimeRange) {
+  return RANGE_OPTIONS.find((r) => r.key === key) ?? RANGE_OPTIONS[2];
+}
+
+function RangeToggle({ value, onChange }: { value: TimeRange; onChange: (v: TimeRange) => void }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1">
+      {RANGE_OPTIONS.map((r) => {
+        const active = r.key === value;
+        return (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => onChange(r.key)}
+            className={cn(
+              "px-3 py-1 text-xs font-medium rounded-full transition-colors",
+              active ? "bg-indigo-600 text-white shadow-sm" : "text-gray-600 hover:text-gray-900",
+            )}
+          >
+            {r.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ---------------- Types ----------------
 type ActiveSession = {
   session_id: string;
@@ -172,15 +208,16 @@ function useTicker(ms: number = 5000) {
 function LiveAnalyticsPage() {
   const { brandIds, isAllBrands, activeBrand } = useBrand();
   const brandLabel = isAllBrands ? "All Brands" : (activeBrand?.name ?? "—");
+  const [range, setRange] = useState<TimeRange>("15m");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/20 via-background to-background">
       <div className="px-4 lg:px-6 py-5 space-y-5 max-w-[1600px] mx-auto">
-        <Header brandLabel={brandLabel} />
-        <PulseBar brandIds={brandIds} />
+        <Header brandLabel={brandLabel} range={range} onRangeChange={setRange} />
+        <PulseBar brandIds={brandIds} range={range} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ActiveSessionsPanel />
-          <EventStreamPanel brandIds={brandIds} />
+          <EventStreamPanel brandIds={brandIds} range={range} />
         </div>
         <TodaysChartsGrid brandIds={brandIds} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -192,7 +229,7 @@ function LiveAnalyticsPage() {
   );
 }
 
-function Header({ brandLabel }: { brandLabel: string }) {
+function Header({ brandLabel, range, onRangeChange }: { brandLabel: string; range: TimeRange; onRangeChange: (v: TimeRange) => void }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -208,6 +245,7 @@ function Header({ brandLabel }: { brandLabel: string }) {
           </span>
           <h1 className="text-2xl font-bold tracking-tight">Live Analytics</h1>
           <Badge variant="outline" className="ml-1 text-[10px] uppercase tracking-wider">Realtime</Badge>
+          <div className="ml-2"><RangeToggle value={range} onChange={onRangeChange} /></div>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
           {brandLabel} · {now.toLocaleTimeString()}
@@ -221,12 +259,14 @@ function Header({ brandLabel }: { brandLabel: string }) {
 }
 
 // ---------------- Pulse Bar ----------------
-function PulseBar({ brandIds }: { brandIds: string[] }) {
-  // Active visitors (last 2 min)
+function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
+  const meta = rangeMeta(range);
+  const windowMs = meta.seconds * 1000;
+  // Active visitors (selected window)
   const { data: liveVisitors = 0 } = useQuery({
-    queryKey: ["live-visitors"],
+    queryKey: ["live-visitors", range],
     queryFn: async () => {
-      const since = new Date(Date.now() - 2 * 60_000).toISOString();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("active_sessions")
         .select("session_id", { count: "exact", head: true })
@@ -236,11 +276,11 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
     refetchInterval: 5000,
   });
 
-  // Add to carts last hour
+  // Add to carts (selected window)
   const { data: atcCount = 0 } = useQuery({
-    queryKey: ["live-atc"],
+    queryKey: ["live-atc", range],
     queryFn: async () => {
-      const since = new Date(Date.now() - 60 * 60_000).toISOString();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
@@ -251,16 +291,16 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
     refetchInterval: 5000,
   });
 
-  // Page views today
-  const { data: pvToday = 0 } = useQuery({
-    queryKey: ["live-pv-today"],
+  // Page views (selected window)
+  const { data: pvWindow = 0 } = useQuery({
+    queryKey: ["live-pv-window", range],
     queryFn: async () => {
-      const start = startOfDayISO();
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { count } = await supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
         .eq("event_name", "page_view")
-        .gte("created_at", start);
+        .gte("created_at", since);
       return count ?? 0;
     },
     refetchInterval: 5000,
@@ -284,11 +324,11 @@ function PulseBar({ brandIds }: { brandIds: string[] }) {
   });
 
   const cards = [
-    { label: "Live Visitors", value: num(liveVisitors), icon: Users, accent: "emerald", live: true },
-    { label: "Add to Cart (1h)", value: num(atcCount), icon: ShoppingCart, accent: "amber" },
+    { label: `Live Visitors (${meta.label})`, value: num(liveVisitors), icon: Users, accent: "emerald", live: true },
+    { label: `Add to Cart (${meta.label})`, value: num(atcCount), icon: ShoppingCart, accent: "amber" },
     { label: "Orders Today", value: num(ordersToday.count), icon: Package, accent: "blue" },
     { label: "Revenue Today", value: BDT.format(ordersToday.revenue), icon: DollarSign, accent: "green" },
-    { label: "Page Views Today", value: num(pvToday), icon: Eye, accent: "purple" },
+    { label: `Page Views (${meta.label})`, value: num(pvWindow), icon: Eye, accent: "purple" },
   ] as const;
 
   return (
@@ -411,18 +451,22 @@ function ActiveSessionsPanel() {
 }
 
 // ---------------- Event Stream ----------------
-function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
+function EventStreamPanel({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
   void brandIds;
   useTicker(15000);
+  const meta = rangeMeta(range);
+  const windowMs = meta.seconds * 1000;
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
   const initialized = useRef(false);
 
   useEffect(() => {
     let cancel = false;
     (async () => {
+      const since = new Date(Date.now() - windowMs).toISOString();
       const { data } = await supabase
         .from("analytics_events")
         .select("id, event_name, product_name, product_id, order_id, value, currency, utm_source, referrer, path, device_type, created_at")
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(50);
       if (cancel) return;
@@ -430,7 +474,7 @@ function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
       initialized.current = true;
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [range, windowMs]);
 
   useEffect(() => {
     const ch = supabase
@@ -443,21 +487,27 @@ function EventStreamPanel({ brandIds }: { brandIds: string[] }) {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  const visibleEvents = useMemo(() => {
+    const cutoff = Date.now() - windowMs;
+    return events.filter((e) => new Date(e.created_at).getTime() >= cutoff);
+  }, [events, windowMs]);
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="h-4 w-4 text-blue-600" /> Live Event Stream
-          <Badge variant="secondary" className="ml-auto tabular-nums">{events.length}</Badge>
+          <Badge variant="secondary" className="ml-auto tabular-nums">{visibleEvents.length}</Badge>
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">{meta.subtitle}</p>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[420px]">
-          {events.length === 0 ? (
+          {visibleEvents.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">No events yet.</div>
           ) : (
             <ul className="divide-y">
-              {events.map((e) => (
+              {visibleEvents.map((e) => (
                 <li key={e.id} className={cn("px-4 py-2.5 border-l-2 flex items-center gap-3 hover:bg-muted/40 transition-colors", eventToneClasses(e.event_name))}>
                   <span className="text-base leading-none">{eventIcon(e.event_name)}</span>
                   <div className="min-w-0 flex-1">
