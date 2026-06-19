@@ -942,6 +942,13 @@ function _WebOrdersPageBody() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
+              <TableHead className="w-[36px] pl-3">
+                <Checkbox
+                  checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                  onCheckedChange={(v) => toggleAllVisible(!!v)}
+                  aria-label="Select all visible"
+                />
+              </TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Created</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[220px]">Customer</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Note</TableHead>
@@ -957,14 +964,14 @@ function _WebOrdersPageBody() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 10 }).map((_, j) => (
                     <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                   {tagFilter.size > 0 ? "No orders match the selected tags" : "No web orders in this status"}
                 </TableCell>
               </TableRow>
