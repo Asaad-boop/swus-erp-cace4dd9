@@ -1371,6 +1371,26 @@ function OrderDetailsPage() {
       <PrintableInvoice order={order} items={items as never} />
       <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
       <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <ReturnDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        orderId={orderId}
+        brandId={order.brand_id ?? null}
+        items={items.map((it) => ({
+          id: it.id, product_id: it.product_id, name: it.name,
+          quantity: it.quantity, unit_price: it.unit_price ?? null, price: it.price ?? null,
+        }))}
+      />
+      <ExchangeDialog
+        open={exchangeOpen}
+        onOpenChange={setExchangeOpen}
+        orderId={orderId}
+        brandId={order.brand_id ?? null}
+        items={items.map((it) => ({
+          id: it.id, product_id: it.product_id, name: it.name,
+          quantity: it.quantity, unit_price: it.unit_price ?? null, price: it.price ?? null,
+        }))}
+      />
       <Dialog open={pendingWebStatus !== null} onOpenChange={(o) => !o && setPendingWebStatus(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
