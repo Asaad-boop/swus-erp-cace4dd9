@@ -619,7 +619,30 @@ export const finalizePayrollRun = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("status", "draft");
     if (error) throw error;
-    return { ok: true };
+    // Fail-soft journal autopost
+    let journal: { posted: boolean; entry_id?: string; reason?: string } = { posted: false };
+    try {
+      const { data: run } = await context.supabase
+        .from("hr_payroll_runs")
+        .select("brand_id")
+        .eq("id", data.id)
+        .maybeSingle();
+      const autopost = await isPayrollAutopostEnabled(context.supabase, run?.brand_id ?? null);
+      if (autopost) {
+        journal = await postPayrollJournal(context.supabase, context.userId, data.id);
+        if (!journal.posted) {
+          await logActivity(context.supabase, context.userId, "hr_payroll_run", data.id,
+            "journal_autopost_failed", { reason: journal.reason });
+        }
+      } else {
+        journal = { posted: false, reason: "autopost disabled" };
+      }
+    } catch (e: any) {
+      journal = { posted: false, reason: e?.message ?? "unknown error" };
+      await logActivity(context.supabase, context.userId, "hr_payroll_run", data.id,
+        "journal_autopost_failed", { reason: journal.reason });
+    }
+    return { ok: true, journal };
   });
 
 export const deletePayrollRun = createServerFn({ method: "POST" })
@@ -662,7 +685,31 @@ export const markPayslipPaid = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw error;
-    return { ok: true };
+    let journal: { posted: boolean; reason?: string } = { posted: false };
+    if (data.payment_status === "paid") {
+      try {
+        // brand from the run
+        const { data: ps } = await context.supabase
+          .from("hr_payslips")
+          .select("hr_payroll_runs(brand_id)")
+          .eq("id", data.id)
+          .maybeSingle();
+        const brandId = (ps as any)?.hr_payroll_runs?.brand_id ?? null;
+        const autopost = await isPayrollAutopostEnabled(context.supabase, brandId);
+        if (autopost) {
+          journal = await postPayslipPaymentJournal(context.supabase, context.userId, data.id, data.payment_method ?? null);
+          if (!journal.posted) {
+            await logActivity(context.supabase, context.userId, "hr_payslip", data.id,
+              "payment_journal_failed", { reason: journal.reason });
+          }
+        }
+      } catch (e: any) {
+        journal = { posted: false, reason: e?.message ?? "unknown error" };
+        await logActivity(context.supabase, context.userId, "hr_payslip", data.id,
+          "payment_journal_failed", { reason: journal.reason });
+      }
+    }
+    return { ok: true, journal };
   });
 
 export const getPayslip = createServerFn({ method: "POST" })
