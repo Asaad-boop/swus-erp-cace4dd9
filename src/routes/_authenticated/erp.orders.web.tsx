@@ -1,9 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat } from "lucide-react";
+import { toast } from "sonner";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBrand } from "@/contexts/brand-context";
 import { OrderDrawer } from "@/components/erp/orders/order-drawer";
 import { cn } from "@/lib/utils";
@@ -23,9 +27,28 @@ import { TagFilterBar, buildFilterOptions } from "@/components/erp/orders/tag-fi
 import { IncompleteOrdersTable } from "@/components/erp/orders/incomplete-orders-table";
 import { useAbandonedCartCount } from "@/hooks/erp/use-abandoned-carts-query";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
+import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } from "@/components/erp/orders/web-orders-filter-bar";
+
+const PAGE_SIZE = 25;
+const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
+
+const searchSchema = z.object({
+  tab: fallback(
+    z.enum(["processing", "incomplete", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled", "all"]),
+    "processing",
+  ).default("processing"),
+  q: fallback(z.string(), "").default(""),
+  source: fallback(z.string(), "all").default("all"),
+  sort: fallback(z.enum(["newest", "oldest", "highest", "lowest", "recent_note"]), "newest").default("newest"),
+  preset: fallback(z.enum(["all", "today", "yesterday", "7d", "30d", "custom"]), "all").default("all"),
+  from: fallback(z.string().nullable(), null).default(null),
+  to: fallback(z.string().nullable(), null).default(null),
+});
+type WebOrdersSearch = z.infer<typeof searchSchema>;
 
 export const Route = createFileRoute("/_authenticated/erp/orders/web")({
   head: () => ({ meta: [{ title: "Web Orders — ERP" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: WebOrdersPage,
 });
 
@@ -74,6 +97,7 @@ type WebOrderRow = {
   brand_id: string | null;
   items_summary?: { name: string; quantity: number; image: string | null; unit_price: number | null }[];
   latest_order_note?: string | null;
+  attribution?: { utm_source: string | null; utm_medium: string | null } | null;
 };
 
 type Breakdown = { total: number; confirmed: number; cancelled: number; returned: number; delivered: number };
@@ -210,57 +234,191 @@ function AllItemsPopover({
 }
 
 function WebOrdersPage() {
+  // placeholder; real component declared below
+  return _WebOrdersPageBody();
+}
+
+function CustomerBadges({ total, confirmRate, delivered }: { total: number; confirmRate: number; delivered: number }) {
+  if (total <= 1) return null;
+  const tooltip = `${total} orders | ${confirmRate}% confirm rate | ${delivered} delivered`;
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 flex-wrap">
+            {total >= 5 ? (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-800">
+                <Star className="h-2.5 w-2.5 fill-current" /> VIP
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 ring-1 ring-indigo-300 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800">
+                <Repeat className="h-2.5 w-2.5" /> {total}x
+              </span>
+            )}
+            {confirmRate < 30 && total >= 3 && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-rose-100 text-rose-800 ring-1 ring-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-800">
+                <AlertTriangle className="h-2.5 w-2.5" /> Low
+              </span>
+            )}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">{tooltip}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function SourcePill({ attribution, siteLabel }: { attribution: { utm_source: string | null; utm_medium: string | null } | null | undefined; siteLabel: string }) {
+  const raw = (attribution?.utm_source ?? "").toLowerCase();
+  let icon = "🔗";
+  let label = "Direct";
+  let tone = "bg-muted/60 text-muted-foreground ring-border";
+  if (raw.includes("facebook") || raw === "fb" || raw.includes("meta")) {
+    icon = "📘"; label = "Facebook"; tone = "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900/60";
+  } else if (raw.includes("instagram") || raw === "ig") {
+    icon = "📷"; label = "Instagram"; tone = "bg-pink-50 text-pink-700 ring-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:ring-pink-900/60";
+  } else if (raw.includes("google")) {
+    icon = "🔍"; label = "Google"; tone = "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60";
+  } else if (raw && raw !== "direct" && raw !== "organic") {
+    icon = "🌐"; label = attribution!.utm_source!.slice(0, 16); tone = "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900/60";
+  } else if (!raw && siteLabel) {
+    icon = "🔗"; label = siteLabel;
+  }
+  return (
+    <span className={cn("inline-flex items-center gap-1 px-2 h-5 rounded-full text-[10px] font-semibold ring-1 ring-inset max-w-[120px]", tone)}>
+      <span>{icon}</span>
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function _WebOrdersPageBody() {
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
   const brandsKey = brandIds.join(",");
-  const [activeTab, setActiveTab] = useState<WebStatus | "all">("processing");
-  const [search, setSearch] = useState("");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const activeTab = search.tab;
+  const sort = search.sort;
+  const sourceFilter = search.source;
+  const datePreset = search.preset;
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
   const [incompletePage, setIncompletePage] = useState(0);
+  const [searchInput, setSearchInput] = useState(search.q);
+  const [debouncedSearch, setDebouncedSearch] = useState(search.q);
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
+
+  // Debounce search input (300ms) → URL + query key
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, q: searchInput || "" }), replace: true });
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  // Sync external URL changes back into input
+  useEffect(() => { if (search.q !== searchInput) setSearchInput(search.q); /* eslint-disable-next-line */ }, [search.q]);
+
   const { data: incompleteCount } = useAbandonedCartCount(activeBrand?.id ?? null, brandIds);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["web-orders", brandsKey, activeTab, search],
-    enabled: brandIds.length > 0 && activeTab !== "incomplete",
+  // Date range from preset
+  const dateRange = useMemo(
+    () => computeDateRange(datePreset, search.from, search.to),
+    [datePreset, search.from, search.to],
+  );
+
+  // Pre-fetch order IDs matching source filter (for fb/insta/google/other)
+  const { data: sourceOrderIds } = useQuery({
+    queryKey: ["web-orders-source-ids", brandsKey, sourceFilter],
+    enabled: brandIds.length > 0 && ["facebook", "instagram", "google", "other"].includes(sourceFilter),
+    staleTime: 60_000,
     queryFn: async () => {
+      const map: Record<string, string> = {
+        facebook: "%facebook%",
+        instagram: "%instagram%",
+        google: "%google%",
+      };
+      let q = applyBrandScope(
+        supabase.from("mkt_order_attributions").select("order_id, utm_source"),
+        brandIds,
+      ).limit(10000);
+      if (sourceFilter === "other") {
+        q = q.not("utm_source", "ilike", "%facebook%")
+          .not("utm_source", "ilike", "%instagram%")
+          .not("utm_source", "ilike", "%google%")
+          .not("utm_source", "is", null);
+      } else {
+        q = q.ilike("utm_source", map[sourceFilter]);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return Array.from(new Set((data ?? []).map((r) => r.order_id)));
+    },
+  });
+
+  // Infinite paginated orders
+  const ordersQueryKey = ["web-orders-inf", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? ""] as const;
+
+  const ordersQuery = useInfiniteQuery({
+    queryKey: ordersQueryKey,
+    enabled: brandIds.length > 0 && activeTab !== "incomplete"
+      && (sourceFilter === "all" || sourceFilter === "direct" || !!sourceOrderIds),
+    initialPageParam: 0,
+    getNextPageParam: (last: { rows: WebOrderRow[]; total: number; nextPage: number | null }) => last.nextPage,
+    queryFn: async ({ pageParam }) => {
+      const page = pageParam as number;
       let q = applyBrandScope(
         supabase
           .from("orders")
           .select(
-            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id",
+            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id,updated_at",
             { count: "exact" },
           ),
         brandIds,
-      )
-        .eq("source", "website")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      ).eq("source", "website");
+
+      // sort
+      if (sort === "newest") q = q.order("created_at", { ascending: false });
+      else if (sort === "oldest") q = q.order("created_at", { ascending: true });
+      else if (sort === "highest") q = q.order("total", { ascending: false });
+      else if (sort === "lowest") q = q.order("total", { ascending: true });
+      else if (sort === "recent_note") q = q.order("updated_at", { ascending: false });
 
       if (activeTab !== "all") q = q.eq("web_status", activeTab);
-      if (search.trim()) {
-        const s = search.trim();
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.trim();
         q = q.or(
           `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%`,
         );
       }
-      const { data, error } = await q;
-      if (error) throw error;
-      const rows = (data ?? []) as WebOrderRow[];
+      if (dateRange.from) q = q.gte("created_at", dateRange.from);
+      if (dateRange.to) q = q.lte("created_at", dateRange.to);
 
-      // fetch items summary
+      if (["facebook", "instagram", "google", "other"].includes(sourceFilter)) {
+        const ids = sourceOrderIds ?? [];
+        if (ids.length === 0) return { rows: [], total: 0, nextPage: null };
+        q = q.in("id", ids);
+      }
+
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      q = q.range(from, to);
+
+      const { data, error, count } = await q;
+      if (error) throw error;
+      let rows = (data ?? []) as WebOrderRow[];
+
+      // fetch items + notes + attribution for this page
       const ids = rows.map((r) => r.id);
       if (ids.length) {
-        const [{ data: items }, { data: orderNotes }] = await Promise.all([
-          supabase
-            .from("order_items")
-            .select("order_id,name,quantity,image,unit_price")
-            .in("order_id", ids),
-          supabase
-            .from("order_notes")
-            .select("order_id,body,created_at")
-            .in("order_id", ids)
-            .order("created_at", { ascending: false }),
+        const [{ data: items }, { data: orderNotes }, { data: attrs }] = await Promise.all([
+          supabase.from("order_items").select("order_id,name,quantity,image,unit_price").in("order_id", ids),
+          supabase.from("order_notes").select("order_id,body,created_at").in("order_id", ids).order("created_at", { ascending: false }),
+          supabase.from("mkt_order_attributions").select("order_id,utm_source,utm_medium").in("order_id", ids),
         ]);
         const byOrder = new Map<string, { name: string; quantity: number; image: string | null; unit_price: number | null }[]>();
         (items ?? []).forEach((it) => {
@@ -272,38 +430,86 @@ function WebOrdersPage() {
         (orderNotes ?? []).forEach((n) => {
           if (!latestNoteByOrder.has(n.order_id) && n.body) latestNoteByOrder.set(n.order_id, n.body);
         });
+        const attrByOrder = new Map<string, { utm_source: string | null; utm_medium: string | null }>();
+        (attrs ?? []).forEach((a) => {
+          if (!attrByOrder.has(a.order_id)) attrByOrder.set(a.order_id, { utm_source: a.utm_source, utm_medium: a.utm_medium });
+        });
         rows.forEach((r) => {
           r.items_summary = byOrder.get(r.id) ?? [];
           r.latest_order_note = latestNoteByOrder.get(r.id) ?? null;
+          r.attribution = attrByOrder.get(r.id) ?? null;
         });
       }
-      return rows;
+
+      // client-side filter for "direct" source (no attribution row)
+      if (sourceFilter === "direct") {
+        rows = rows.filter((r) => !r.attribution || !r.attribution.utm_source);
+      }
+
+      const total = count ?? 0;
+      const fetched = (page + 1) * PAGE_SIZE;
+      return { rows, total, nextPage: fetched < total ? page + 1 : null };
     },
   });
 
-  // counts per status
+  const rows = useMemo(() => ordersQuery.data?.pages.flatMap((p) => p.rows) ?? [], [ordersQuery.data]);
+  const totalRows = ordersQuery.data?.pages[0]?.total ?? 0;
+  const isLoading = ordersQuery.isLoading;
+
+  // counts per status — parallel head count queries
   const { data: counts } = useQuery({
     queryKey: ["web-orders-counts", brandsKey],
     enabled: brandIds.length > 0,
+    staleTime: 30_000,
     queryFn: async () => {
-      const result: Record<string, number> = { all: 0 };
-      const { data, error } = await applyBrandScope(
-        supabase.from("orders").select("web_status"),
-        brandIds,
-      )
-        .eq("source", "website")
-        .limit(5000);
-      if (error) throw error;
-      (data ?? []).forEach((r) => {
-        result.all++;
-        const k = (r as { web_status: string | null }).web_status;
-        if (k) result[k] = (result[k] ?? 0) + 1;
+      const queries = STATUS_KEYS.map(async (st) => {
+        const { count } = await applyBrandScope(
+          supabase.from("orders").select("id", { count: "exact", head: true }),
+          brandIds,
+        ).eq("source", "website").eq("web_status", st);
+        return [st, count ?? 0] as const;
       });
+      const allQ = applyBrandScope(
+        supabase.from("orders").select("id", { count: "exact", head: true }),
+        brandIds,
+      ).eq("source", "website");
+      const [allRes, ...stRes] = await Promise.all([allQ, ...queries]);
+      const result: Record<string, number> = { all: allRes.count ?? 0 };
+      stRes.forEach(([k, v]) => { result[k] = v; });
       return result;
     },
   });
 
-  const rows = data ?? [];
+  // Realtime: new orders for active brand(s)
+  useEffect(() => {
+    if (brandIds.length === 0) return;
+    const channel = supabase
+      .channel(`web-orders-realtime-${brandsKey}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders", filter: `source=eq.website` },
+        (payload) => {
+          const row = payload.new as { id: string; brand_id: string | null; total: number; shipping_name: string | null; guest_name: string | null; shipping_city: string | null };
+          if (!row.brand_id || !brandIds.includes(row.brand_id)) return;
+          const name = row.shipping_name ?? row.guest_name ?? "Customer";
+          const city = row.shipping_city ? ` from ${row.shipping_city}` : "";
+          toast.success(`🎉 New Order! ৳${Number(row.total).toLocaleString()} — ${name}${city}`, {
+            duration: 8000,
+            className: "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60",
+            onDismiss: () => {},
+            action: { label: "Open", onClick: () => setOpenId(row.id) },
+          });
+          setFlashIds((prev) => { const n = new Set(prev); n.add(row.id); return n; });
+          setTimeout(() => {
+            setFlashIds((prev) => { const n = new Set(prev); n.delete(row.id); return n; });
+          }, 3000);
+          queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
+          queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [brandsKey, brandIds, queryClient]);
 
   // customer breakdown by phone — historical totals across all orders in this brand
   const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
@@ -447,6 +653,43 @@ function WebOrdersPage() {
     });
   };
 
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const onLoadMore = useCallback(() => {
+    if (ordersQuery.hasNextPage && !ordersQuery.isFetchingNextPage) {
+      ordersQuery.fetchNextPage();
+    }
+  }, [ordersQuery]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) onLoadMore();
+    }, { rootMargin: "300px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [onLoadMore]);
+
+  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key }), replace: true });
+
+  const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
+    navigate({
+      search: (prev: WebOrdersSearch) => ({
+        ...prev,
+        ...(patch.source !== undefined ? { source: patch.source } : {}),
+        ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
+        ...(patch.datePreset !== undefined ? { preset: patch.datePreset } : {}),
+        ...(patch.dateFrom !== undefined ? { from: patch.dateFrom } : {}),
+        ...(patch.dateTo !== undefined ? { to: patch.dateTo } : {}),
+      }),
+      replace: true,
+    });
+  };
+  const clearAllFilters = () => navigate({
+    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
+    replace: true,
+  });
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -454,12 +697,17 @@ function WebOrdersPage() {
           <h1 className="text-2xl font-bold tracking-tight">Web Orders</h1>
           <p className="text-sm text-muted-foreground">
             {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · Orders from website
+            {activeTab !== "incomplete" && totalRows > 0 && (
+              <span className="ml-2 text-xs">
+                · Showing <span className="font-semibold text-foreground tabular-nums">{rows.length}</span> of <span className="font-semibold text-foreground tabular-nums">{totalRows}</span> orders
+              </span>
+            )}
           </p>
         </div>
         <Input
           placeholder="Search name or phone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="max-w-xs"
         />
       </header>
@@ -498,11 +746,23 @@ function WebOrdersPage() {
         onClear={() => setTagFilter(new Set())}
       />
 
+      <WebOrdersFilterBar
+        state={{
+          datePreset,
+          dateFrom: search.from,
+          dateTo: search.to,
+          source: sourceFilter,
+          sort,
+        }}
+        onChange={(patch) => updateFilters(patch)}
+        onClearAll={clearAllFilters}
+      />
+
       {activeTab === "incomplete" ? (
         <div className="rounded-xl border bg-card overflow-hidden">
           <IncompleteOrdersTable
             brandId={activeBrand?.id ?? null}
-            search={search}
+            search={debouncedSearch}
             page={incompletePage}
             pageSize={50}
             onPageChange={setIncompletePage}
@@ -521,6 +781,7 @@ function WebOrdersPage() {
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[160px]">Success Rate</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[180px]">Tags</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">Site</TableHead>
+              <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[130px]">Source</TableHead>
               <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right w-[110px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -528,14 +789,14 @@ function WebOrdersPage() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <TableCell key={j} className="py-4"><Skeleton className="h-10 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                   {tagFilter.size > 0 ? "No orders match the selected tags" : "No web orders in this status"}
                 </TableCell>
               </TableRow>
@@ -552,10 +813,15 @@ function WebOrdersPage() {
                 const top = topTag(autoTags);
                 const accent = top?.accent ?? STATUS_ACCENT[r.web_status ?? ""] ?? "bg-muted-foreground";
                 const siteLabel = (r.source_website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+                const flash = flashIds.has(r.id);
+                const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
                 return (
                   <TableRow
                     key={r.id}
-                    className="cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top"
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
+                      flash && "animate-in slide-in-from-top-2 bg-emerald-50 dark:bg-emerald-950/40",
+                    )}
                     onClick={() => setOpenId(r.id)}
                   >
                     {/* Created */}
@@ -576,9 +842,10 @@ function WebOrdersPage() {
                     <TableCell className="py-4">
                       <div>
                         <div className="min-w-0 text-xs space-y-0.5">
-                          <div className="flex items-center gap-1 min-w-0">
+                          <div className="flex items-center gap-1 min-w-0 flex-wrap">
                             <span className="font-semibold text-foreground truncate">{name}</span>
                             {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0" />}
+                            <CustomerBadges total={b.total} confirmRate={confirmRate} delivered={b.delivered} />
                           </div>
                           {phone && (
                             <div className="flex items-center gap-1 min-w-0">
@@ -741,6 +1008,11 @@ function WebOrdersPage() {
                       </div>
                     </TableCell>
 
+                    {/* Source */}
+                    <TableCell className="py-4">
+                      <SourcePill attribution={r.attribution} siteLabel={siteLabel} />
+                    </TableCell>
+
                     {/* Actions */}
                     <TableCell className="py-4 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-block">
@@ -757,6 +1029,17 @@ function WebOrdersPage() {
             )}
           </TableBody>
         </Table>
+        {activeTab !== "incomplete" && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+            {ordersQuery.isFetchingNextPage ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading more…</span>
+            ) : ordersQuery.hasNextPage ? (
+              <button onClick={onLoadMore} className="hover:text-foreground">Load more</button>
+            ) : rows.length > 0 ? (
+              <span>End of list · {rows.length} of {totalRows}</span>
+            ) : null}
+          </div>
+        )}
       </div>
       )}
 
