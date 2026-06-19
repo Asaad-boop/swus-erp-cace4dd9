@@ -856,6 +856,8 @@ function OrderDetailsPage() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
   const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
   const [pendingReason, setPendingReason] = useState("");
   const [pendingAdvance, setPendingAdvance] = useState("");
@@ -881,6 +883,19 @@ function OrderDetailsPage() {
           <Button asChild size="sm" variant="ghost">
             <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Web Order Details</Link>
           </Button>
+          {neighbors.total > 0 && (
+            <div className="flex items-center gap-1 ml-1">
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
+                onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
+                title="Previous (←)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+              <span className="text-[10px] text-muted-foreground tabular-nums px-1">
+                {neighbors.index + 1}/{neighbors.total}
+              </span>
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
+                onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
+                title="Next (→)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 text-[11px] rounded-lg border bg-card px-3 py-1.5">
