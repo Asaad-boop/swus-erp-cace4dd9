@@ -781,6 +781,83 @@ function _WebOrdersPageBody() {
     replace: true,
   });
 
+  // ============ FEATURE 1 + 2: status mutations ============
+  const invalidateWebOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
+    queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
+  };
+
+  const inlineStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: WebStatusKey }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status as never })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: ({ id }) => { setInlineBusyId(id); return {}; },
+    onSuccess: (_d, { id }) => {
+      setFlashIds((prev) => { const n = new Set(prev); n.add(id); return n; });
+      setTimeout(() => setFlashIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 1500);
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setInlineBusyId(null),
+  });
+
+  const bulkStatus = useMutation({
+    mutationFn: async (status: WebStatusKey) => {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from("orders")
+        .update({ web_status: status as never })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Updated ${n} order${n === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAddTag = useMutation({
+    mutationFn: async (tag: string) => {
+      const ids = Array.from(selectedIds);
+      const idRows = rows.filter((r) => ids.includes(r.id));
+      await Promise.all(idRows.map(async (r) => {
+        const next = Array.from(new Set([...(r.tags ?? []), tag]));
+        await supabase.from("orders").update({ tags: next as never }).eq("id", r.id);
+      }));
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Tagged ${n} order${n === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+      invalidateWebOrders();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // selection helpers — operate on currently visible filteredRows
+  const visibleIds = useMemo(() => filteredRows.map(({ row }) => row.id), [filteredRows]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+  const toggleSelect = (id: string) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAllVisible = (checked: boolean) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    if (checked) visibleIds.forEach((id) => n.add(id));
+    else visibleIds.forEach((id) => n.delete(id));
+    return n;
+  });
+  const selectedOrderRows = rows.filter((r) => selectedIds.has(r.id));
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
