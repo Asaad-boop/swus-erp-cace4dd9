@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Ban, FileText, Search } from "lucide-react";
@@ -142,7 +142,13 @@ function JournalPage() {
                 <TableCell className="font-mono text-xs">{e.entry_no}</TableCell>
                 <TableCell className="text-sm max-w-[400px] truncate">
                   {e.description ?? <span className="text-muted-foreground">—</span>}
-                  {e.source_type && <Badge variant="outline" className="ml-2 text-xs">{e.source_type}</Badge>}
+                  {e.source_type === "payroll_run" ? (
+                    <Badge variant="secondary" className="ml-2 text-xs bg-indigo-50 text-indigo-700 border-indigo-200">📋 Payroll</Badge>
+                  ) : e.source_type === "payslip_payment" ? (
+                    <Badge variant="secondary" className="ml-2 text-xs bg-emerald-50 text-emerald-700 border-emerald-200">💸 Salary Paid</Badge>
+                  ) : e.source_type ? (
+                    <Badge variant="outline" className="ml-2 text-xs">{e.source_type}</Badge>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <Badge variant={e.status === "posted" ? "default" : e.status === "void" ? "destructive" : "secondary"} className="text-xs">{e.status}</Badge>
