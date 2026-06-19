@@ -21,6 +21,7 @@ import {
   createImportPo, listImportSuppliers,
   updatePoLandedCost,
 } from "@/lib/erp/imports/imports.functions";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
 import { AmountPercentInput } from "@/components/erp/amount-percent-input";
@@ -199,29 +200,35 @@ function NewPoPage() {
       }
 
       const res: any = await createFn({ data: payload });
-      // Persist landed cost details if entered (best-effort; non-blocking)
-      const hasLanded =
+      // Persist landed cost details if any extras entered (best-effort; non-blocking)
+      const hasExtras =
         (landed.freight_cost_bdt || 0) > 0 ||
         (landed.customs_duty_bdt || 0) > 0 ||
-        (landed.other_charges_bdt || 0) > 0 ||
-        items.some((i) => Number(i.unit_cost_foreign) > 0);
-      if (res?.po_id && hasLanded && res?.item_ids?.length === items.length) {
+        (landed.other_charges_bdt || 0) > 0;
+      if (res?.po_id && hasExtras) {
         try {
-          await landedFn({
-            data: {
-              po_id: res.po_id,
-              fx_rate_cny_bdt: landed.fx_rate_cny_bdt || fxRate,
-              fx_rate_source: "manual",
-              freight_cost_bdt: landed.freight_cost_bdt || 0,
-              customs_duty_bdt: landed.customs_duty_bdt || 0,
-              other_charges_bdt: landed.other_charges_bdt || 0,
-              items: res.item_ids.map((id: string, idx: number) => ({
-                id,
-                unit_cost_cny: Number(items[idx].unit_cost_foreign) || 0,
-              })),
-              lock_rate: true,
-            },
-          });
+          const { data: createdItems } = await supabaseClient
+            .from("imp_po_items")
+            .select("id, name_snapshot, quantity, unit_cost_foreign")
+            .eq("po_id", res.po_id)
+            .order("created_at");
+          if (createdItems?.length) {
+            await landedFn({
+              data: {
+                po_id: res.po_id,
+                fx_rate_cny_bdt: landed.fx_rate_cny_bdt || fxRate,
+                fx_rate_source: "manual",
+                freight_cost_bdt: landed.freight_cost_bdt || 0,
+                customs_duty_bdt: landed.customs_duty_bdt || 0,
+                other_charges_bdt: landed.other_charges_bdt || 0,
+                items: createdItems.map((it: any) => ({
+                  id: it.id,
+                  unit_cost_cny: Number(it.unit_cost_foreign) || 0,
+                })),
+                lock_rate: true,
+              },
+            });
+          }
         } catch { /* fail-soft */ }
       }
       return res;
