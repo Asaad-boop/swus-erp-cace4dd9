@@ -1,17 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Printer, Truck, Loader2, Phone, MessageCircle, Plus, Minus, Trash2,
-  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2, Sparkles,
-  ChevronLeft, ChevronRight, RotateCcw, Repeat, Copy, Check,
+  Search, Star, Tag as TagIcon, XCircle, Smartphone, Save, Undo2, CheckCircle2,
+  ChevronLeft, ChevronRight, RotateCcw, Repeat, Copy, Check, MapPin,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
-import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
+import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn } from "@/lib/erp/pathao.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -409,7 +409,6 @@ function OrderDetailsPage() {
   const fetchCities = useServerFn(pathaoCitiesFn);
   const fetchZones = useServerFn(pathaoZonesFn);
   const fetchAreas = useServerFn(pathaoAreasFn);
-  const detectAddress = useServerFn(pathaoDetectAddressFn);
 
   const { data: cities } = useQuery({
     queryKey: ["pathao-cities", order?.brand_id],
@@ -448,34 +447,130 @@ function OrderDetailsPage() {
     },
   });
 
-  const detectLocation = useMutation({
-    mutationFn: async () => {
-      if (!form.address || form.address.trim().length < 3) {
-        throw new Error("Address is too short to detect");
+  /* ----------------------- Smart address auto-detection -------------------- */
+
+  type Hit = { id: string; name: string };
+  type Detection = { city: Hit; zone?: Hit; area?: Hit };
+  const [detection, setDetection] = useState<Detection | null>(null);
+  const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
+  const lastDetectedAddrRef = useRef<string>("");
+
+  const ADDR_STOPWORDS = useMemo(() => new Set([
+    "road","rd","house","hse","flat","floor","block","sector","lane","gali",
+    "near","beside","opposite","main","village","district","upazila","union","ward",
+    "please","plz","kindly","contact","mobile","phone","number","mr","mrs","md",
+    "bangladesh","bd","dhaka-",
+  ]), []);
+
+  const extractKeywords = (raw: string): string[] => {
+    const tokens = raw
+      .toLowerCase()
+      .replace(/[0-9#.,/\-()|:;]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !ADDR_STOPWORDS.has(t));
+    return Array.from(new Set(tokens));
+  };
+
+  const matchList = (list: Hit[], keywords: string[]): Hit[] => {
+    if (!list.length || !keywords.length) return [];
+    const hits = new Map<string, { item: Hit; score: number }>();
+    for (const item of list) {
+      const name = item.name.toLowerCase();
+      let score = 0;
+      for (const kw of keywords) {
+        if (name === kw) score += 5;
+        else if (name.startsWith(kw) || kw.startsWith(name)) score += 3;
+        else if (name.includes(kw) || kw.includes(name)) score += 2;
       }
-      const r = (await detectAddress({
-        data: { address: form.address.trim(), brandId: order?.brand_id ?? undefined },
-      })) as {
-        city: { id: number; name: string } | null;
-        zone: { id: number; name: string } | null;
-        area: { id: number; name: string } | null;
-      };
-      return r;
-    },
-    onSuccess: (r) => {
-      setForm((f) => ({
-        ...f,
-        city_id: r.city ? String(r.city.id) : "",
-        zone_id: r.zone ? String(r.zone.id) : "",
-        area_id: r.area ? String(r.area.id) : "",
-      }));
-      if (!r.city) toast.error("Could not detect city from address");
-      else if (!r.zone) toast.warning(`Found city ${r.city.name} — please pick zone manually`);
-      else if (!r.area) toast.success(`Detected ${r.city.name} → ${r.zone.name}. Pick area if needed.`);
-      else toast.success(`Detected ${r.city.name} → ${r.zone.name} → ${r.area.name}`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+      if (score > 0) hits.set(item.id, { item, score });
+    }
+    return Array.from(hits.values()).sort((a, b) => b.score - a.score).map((x) => x.item);
+  };
+
+  const runDetection = async (address: string, applyResult: boolean) => {
+    const trimmed = address.trim();
+    if (trimmed.length < 4 || !cities || cities.length === 0) return;
+    // Cache hit
+    const cached = detectCacheRef.current.get(trimmed);
+    if (cached) {
+      setCitySuggestions(cached.suggestions);
+      if (applyResult && cached.detection) applyDetection(cached.detection);
+      return;
+    }
+    setDetecting(true);
+    try {
+      const keywords = extractKeywords(trimmed);
+      const cityList: Hit[] = (cities ?? []).map((c) => ({ id: c.id, name: c.name_en }));
+      const cityMatches = matchList(cityList, keywords);
+      if (cityMatches.length === 0) {
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: [] });
+        setCitySuggestions([]);
+        return;
+      }
+      if (cityMatches.length > 1) {
+        const top = cityMatches.slice(0, 4);
+        detectCacheRef.current.set(trimmed, { detection: null, suggestions: top });
+        setCitySuggestions(top);
+        return;
+      }
+      const city = cityMatches[0];
+      // Fetch zones for matched city
+      const zr = await fetchZones({ data: { cityId: Number(city.id), brandId: order?.brand_id ?? undefined } });
+      const zoneList: Hit[] = ((zr as { items: { zone_id: number; zone_name: string }[] }).items ?? [])
+        .map((z) => ({ id: String(z.zone_id), name: z.zone_name }));
+      const zoneMatches = matchList(zoneList, keywords);
+      const zone = zoneMatches[0];
+      let area: Hit | undefined;
+      if (zone) {
+        const ar = await fetchAreas({ data: { zoneId: Number(zone.id), brandId: order?.brand_id ?? undefined } });
+        const areaList: Hit[] = ((ar as { items: { area_id: number; area_name: string }[] }).items ?? [])
+          .map((a) => ({ id: String(a.area_id), name: a.area_name }));
+        area = matchList(areaList, keywords)[0];
+      }
+      const detected: Detection = { city, zone, area };
+      detectCacheRef.current.set(trimmed, { detection: detected, suggestions: [] });
+      setCitySuggestions([]);
+      if (applyResult) applyDetection(detected);
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const applyDetection = (d: Detection) => {
+    setDetection(d);
+    setForm((f) => ({
+      ...f,
+      city_id: d.city.id,
+      zone_id: d.zone?.id ?? "",
+      area_id: d.area?.id ?? "",
+    }));
+  };
+
+  // Debounced auto-detection on address change
+  useEffect(() => {
+    const addr = form.address.trim();
+    if (addr === lastDetectedAddrRef.current) return;
+    if (addr.length < 4) {
+      setCitySuggestions([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      lastDetectedAddrRef.current = addr;
+      // Only auto-apply when user hasn't manually picked a city, or detection is active
+      const canAutoApply = !form.city_id || (detection?.city.id === form.city_id);
+      void runDetection(addr, canAutoApply);
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.address, cities?.length]);
+
+  // Clear the "✓ Detected" chip when user changes city manually away from detection
+  useEffect(() => {
+    if (detection && detection.city.id !== form.city_id) setDetection(null);
+  }, [form.city_id, detection]);
 
   /* ------------------------------ Courier history -------------------------- */
 
@@ -1009,22 +1104,54 @@ function OrderDetailsPage() {
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   className="resize-none"
                 />
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] text-muted-foreground">
-                    AI will pick the matching Pathao city / zone / area.
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1"
-                    disabled={detectLocation.isPending || form.address.trim().length < 3}
-                    onClick={() => detectLocation.mutate()}
-                  >
-                    {detectLocation.isPending
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Sparkles className="h-3 w-3" />}
-                    Detect with AI
-                  </Button>
+                <div className="mt-1.5 space-y-1.5">
+                  {detecting && (
+                    <div className="inline-flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />Detecting location…
+                    </div>
+                  )}
+                  {detection && !detecting && (
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                      <Check className="h-3 w-3" />
+                      <span>
+                        Detected: {detection.city.name}
+                        {detection.zone && ` → ${detection.zone.name}`}
+                        {detection.area && ` → ${detection.area.name}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDetection(null);
+                          setForm((f) => ({ ...f, city_id: "", zone_id: "", area_id: "" }));
+                        }}
+                        className="ml-0.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-500/20 p-0.5"
+                        title="Clear detection"
+                      ><XCircle className="h-3 w-3" /></button>
+                    </div>
+                  )}
+                  {!detection && citySuggestions.length > 0 && !detecting && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-gray-500">
+                        <MapPin className="h-3 w-3" />Did you mean
+                      </span>
+                      {citySuggestions.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({ ...f, city_id: c.id, zone_id: "", area_id: "" }));
+                            // Re-run detection but pin to this city by injecting cached city pick
+                            const trimmed = form.address.trim();
+                            const cached = detectCacheRef.current.get(trimmed);
+                            // Force a fresh detection that auto-applies now that city is chosen
+                            detectCacheRef.current.delete(trimmed);
+                            void runDetection(trimmed, true).catch(() => void cached);
+                          }}
+                          className="inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
+                        >{c.name}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
