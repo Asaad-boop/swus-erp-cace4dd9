@@ -20,7 +20,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Wallet,
@@ -389,6 +388,3 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
     </div>
   );
 }
-
-// Suppress unused import warnings (Progress reserved for future variant)
-export const _ProgressShim = Progress;
