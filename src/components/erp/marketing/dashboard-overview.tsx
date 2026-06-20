@@ -129,11 +129,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
       {/* ROAS COMPARISON */}
       {showToday && d.today.spend_bdt > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">ROAS Comparison — Today</CardTitle>
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-3 border-b border-gray-100">
+            <CardTitle className="text-base">ROAS Reality Check — Today</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <div className="grid gap-4 sm:grid-cols-3">
               <RoasRow
                 label="Meta ROAS"
@@ -161,11 +161,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 7-DAY TREND */}
         {showTrend && (
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="rounded-xl border-gray-100 shadow-sm">
+            <CardHeader className="pb-3 border-b border-gray-100">
               <CardTitle className="text-base">Spend vs Revenue — Last 7 days</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 pt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={d.trend7d} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -222,11 +222,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
         {/* TOP 5 */}
         {showTop && (
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="rounded-xl border-gray-100 shadow-sm">
+            <CardHeader className="pb-3 border-b border-gray-100">
               <CardTitle className="text-base">Top 5 Campaigns — Real ROAS (7d)</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 pt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={d.topCampaigns.map((c) => ({
@@ -263,11 +263,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
       {/* BUDGET PACING */}
       {showPacing && (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-3 border-b border-gray-100">
             <CardTitle className="text-base">Budget Pacing — Active Campaigns (Today)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-5">
             <BudgetSummaryStrip rows={d.budgetPacing} />
             {d.budgetPacing.map((p) => (
               <BudgetRow key={p.campaign_id} row={p} />
