@@ -77,7 +77,7 @@ export const listExpenseFormOptions = createServerFn({ method: "POST" })
         .limit(500),
       context.supabase
         .from("erp_accounts")
-        .select("id, name, currency, is_active")
+        .select("id, name, is_active")
         .eq("brand_id", data.brandId)
         .eq("is_active", true)
         .order("name"),
