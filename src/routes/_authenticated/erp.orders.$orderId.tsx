@@ -1571,6 +1571,9 @@ function OrderDetailsPage() {
           {/* Customer 360 */}
           <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
 
+          {/* Returns & Exchanges cases */}
+          <OrderCasesPanel orderId={orderId} />
+
           {/* Contact info */}
           <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm p-4 space-y-2 text-xs">
             <div className="flex items-center gap-2">
