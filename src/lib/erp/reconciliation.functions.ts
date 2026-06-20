@@ -19,6 +19,9 @@ const RowInput = z.object({
   payout: z.number(),
   store_name: z.string().nullable().optional(),
   raw: z.unknown().optional(),
+  row_type: z.enum(["paid", "return", "partial"]).optional().default("paid"),
+  return_fee: z.number().optional().default(0),
+  partial_amount: z.number().optional().default(0),
 });
 
 function normalizePhone(p: string | null | undefined): string | null {
@@ -123,6 +126,9 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
       matched_order_id: string | null;
       matched_via: string | null;
       amount_diff: number | null;
+      match_type: string;
+      return_fee: number;
+      partial_amount: number;
     };
 
     const rowInserts: RowInsert[] = [];
@@ -202,6 +208,9 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
         matched_order_id: matchedOrderId,
         matched_via: matchedVia,
         amount_diff: amountDiff,
+        match_type: r.row_type ?? "paid",
+        return_fee: r.return_fee ?? 0,
+        partial_amount: r.partial_amount ?? 0,
       });
     }
 
@@ -321,20 +330,25 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         const txnDate = r.invoice_date ?? new Date().toISOString().slice(0, 10);
         const description = `Pathao reconciliation · ${r.consignment_id ?? r.merchant_order_id ?? ""}`;
 
-        // Income (collected)
+        const matchType = (r as { match_type?: string }).match_type ?? "paid";
+        const returnFee = Number((r as { return_fee?: number }).return_fee ?? 0);
+        const partialAmount = Number((r as { partial_amount?: number }).partial_amount ?? 0);
+
+        // Income (collected). For "return" rows, no income (no COD collected).
         let incomeId: string | null = null;
-        if (Number(r.collected) > 0) {
+        const incomeAmount = matchType === "return" ? 0 : (matchType === "partial" && partialAmount > 0 ? partialAmount : Number(r.collected));
+        if (incomeAmount > 0) {
           const { data: inc, error: incErr } = await supabase
             .from("erp_transactions")
             .insert({
               brand_id: brandId,
               txn_type: "income",
               account_id: data.walletAccountId,
-              amount: r.collected,
+              amount: incomeAmount,
               transaction_date: txnDate,
               reference_type: "order",
               reference_id: r.matched_order_id,
-              description: `${description} · collected`,
+              description: `${description} · ${matchType === "partial" ? "partial collected" : "collected"}`,
               created_by: userId,
             })
             .select("id")
@@ -343,9 +357,10 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           incomeId = (inc as { id: string }).id;
         }
 
-        // Expense (total fee)
+        // Expense (total fee + return fee if applicable)
         let expenseId: string | null = null;
-        if (Number(r.total_fee) > 0) {
+        const expenseAmount = Number(r.total_fee) + (matchType === "return" ? returnFee : 0);
+        if (expenseAmount > 0) {
           const { data: exp, error: expErr } = await supabase
             .from("erp_transactions")
             .insert({
@@ -353,11 +368,11 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
               txn_type: "expense",
               account_id: data.walletAccountId,
               category_id: data.feeCategoryId ?? null,
-              amount: r.total_fee,
+              amount: expenseAmount,
               transaction_date: txnDate,
               reference_type: "order",
               reference_id: r.matched_order_id,
-              description: `${description} · courier charges`,
+              description: `${description} · ${matchType === "return" ? "return + courier charges" : "courier charges"}`,
               created_by: userId,
             })
             .select("id")
@@ -366,22 +381,33 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           expenseId = (exp as { id: string }).id;
         }
 
-        // Update order status → delivered + paid
+        // Update order — branch by match_type
+        const orderUpdate: Record<string, unknown> = {
+          reconciliation_status: "reconciled",
+        };
+        if (matchType === "return") {
+          orderUpdate.status = "returned";
+        } else if (matchType === "partial") {
+          orderUpdate.status = "partial_delivered";
+          orderUpdate.payment_status = "partial";
+          orderUpdate.delivered_at = new Date(txnDate).toISOString();
+        } else {
+          orderUpdate.status = "delivered";
+          orderUpdate.payment_status = "paid";
+          orderUpdate.delivered_at = new Date(txnDate).toISOString();
+        }
         const { error: oErr } = await supabase
           .from("orders")
-          .update({
-            status: "delivered" as never,
-            payment_status: "paid",
-            delivered_at: new Date(txnDate).toISOString(),
-          })
+          .update(orderUpdate as never)
           .eq("id", r.matched_order_id);
         if (oErr) throw oErr;
 
         // Update shipment delivery fee if linked
         if (r.consignment_id) {
+          const shipStatus = matchType === "return" ? "Returned" : matchType === "partial" ? "Partial Delivered" : "Delivered";
           await supabase
             .from("courier_shipments")
-            .update({ delivery_fee: r.total_fee, status: "Delivered" })
+            .update({ delivery_fee: r.total_fee, status: shipStatus })
             .eq("consignment_id", r.consignment_id)
             .eq("brand_id", brandId);
         }
