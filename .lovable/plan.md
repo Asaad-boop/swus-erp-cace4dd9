@@ -1,151 +1,102 @@
-## Returns & Exchanges Module — Full Build Plan
+## Pathao Reconciliation Upgrade — Plan
 
-Boro scope, tai implementation shuru korar age plan confirm korte chai. Sob additive, existing dialogs/profitability bhangbe na.
-
----
-
-### PHASE 0 — Database Migration (additive only)
-
-**Extend `erp_return_cases**` (9 new columns):
-
-- `return_status` (default `'initiated'`), `courier_tracking_id`, `courier_name`
-- `qc_condition`, `qc_notes`, `qc_done_by` (FK auth.users), `qc_done_at`
-- `stock_updated` (default false), `refund_status` (default `'pending'`)
-
-**Extend `erp_exchange_cases**` (4 new columns):
-
-- `exchange_status` (default `'initiated'`), `new_order_id` (FK orders)
-- `courier_tracking_id`, `exchange_type_detail`
-
-**New table `erp_return_timeline**`:
-
-- `id`, `case_id`, `case_type` (return|exchange), `status`, `note`, `created_by`, `created_at`
-- GRANTs to authenticated + service_role, RLS scoped to brand access
-- Index on `(case_id, case_type, created_at desc)`
-
-**New helper functions** (SQL):
-
-- `generate_case_number(_type text)` → returns `RET-YYYYMM-XXXX` / `EXC-YYYYMM-XXXX`
-- Trigger on `erp_return_cases` / `erp_exchange_cases` insert → auto add timeline entry
-- Trigger on status change → auto add timeline entry
+Boro additive feature. Existing apply/revert flow untouched. 6 ta feature, 3 phase e bhag korbo.
 
 ---
 
-### PHASE 1 — Dedicated Module `/erp/returns`
+### PHASE 1 — Database Foundation (Migration)
 
-**New routes** under `_authenticated/`:
+**1 ta migration**, sob additive:
 
-- `erp.returns.tsx` — layout with `<Outlet />`
-- `erp.returns.index.tsx` — list page (tabs: All / Returns / Exchanges / Pending QC / Restocked / Closed)
-- `erp.returns.$caseId.tsx` — case detail page
+```sql
+-- orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reconciliation_status text DEFAULT 'pending';
+CREATE INDEX IF NOT EXISTS idx_orders_recon_status ON orders(reconciliation_status, delivered_at);
 
-**List page**:
+-- Auto-set pending jokhon delivered hoy
+CREATE FUNCTION set_reconciliation_pending() ...
+CREATE TRIGGER trg_reconciliation_pending BEFORE UPDATE ON orders ...
 
-- Header + [New Return] [New Exchange] [Export CSV] buttons
-- Filter bar: date range, brand, status, type
-- Combined table (returns + exchanges) with status badges
-- Tab counts pulled with brand scoping
+-- erp_reconciliation_rows
+ALTER TABLE erp_reconciliation_rows
+  ADD COLUMN IF NOT EXISTS match_type text DEFAULT 'paid',  -- paid|return|partial
+  ADD COLUMN IF NOT EXISTS return_fee numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS partial_amount numeric DEFAULT 0;
 
-**Case detail page** (2/3 + 1/3 layout):
+-- payment_status enum e 'partial_paid' add (jodi enum hoy; text hole skip)
+```
 
-- Left: Timeline (vertical, icons + staff + time), QC section (when status=received), Product info
-- Right: Case summary, Financial impact, Courier info, Exchange-specific actions
-
-**Sidebar**: Add "Returns & Exchanges" under Operations group → `/erp/returns`
-
----
-
-### PHASE 2 — Order Detail Integration
-
-In existing Order Detail right sidebar, new "Returns" section:
-
-- **[Initiate Return]** button (shown only for delivered / partial_delivered orders) → opens improved ReturnCaseDialog (order items auto-loaded from THIS order, not last-50 flat list; courier tracking field added; auto-fill refund+WAC kept)
-- **[Initiate Exchange]** button → opens improved ExchangeCaseDialog (exchange_type_detail selector added)
-- **Mini list** of all existing return/exchange cases for this order with [View] deep-link to `/erp/returns/$caseId`
-
-Existing dialogs stay functional from Product Profitability page (no breaking changes).
+Backfill: existing reconciled rows → `reconciliation_status='reconciled'` jate already-applied data clean thake.
 
 ---
 
-### PHASE 3 — QC & Stock Integration
+### PHASE 2 — Server Functions (Logic)
 
-QC section in case detail (visible when `return_status='received'`):
+**File: `src/lib/erp/reconciliation.functions.ts**` (existing edit)
 
-1. Condition selector: Sellable / Damaged / Missing
-2. QC notes textarea
-3. [Complete QC] button:
-  - **Sellable** → `supabase.rpc('adjust_stock_v2', { delta=+qty, unit_cost=WAC, source='return', idempotency_key='return_restock_${id}' })` → status=`restocked`, `stock_updated=true`
-  - **Damaged** → activity_log entry, status=`qc_done`
-  - **Missing** → activity_log entry (courier loss), status=`qc_done`
-4. Timeline entry auto-created
+- `parsePathaoCsv` — `Invoice_type` detect kore `rowType` set: `paid|return|partial`
+- `createPathaoReconciliationRun` — per row:
+  - **return**: `match_type='return'`, `cod_amount=0`, `return_fee=fee`
+  - **partial**: `match_type='partial'`, `partial_amount=actual`, variance track
+  - **paid**: existing logic
+- `applyPathaoReconciliationRun` — branch per match_type:
+  - **paid**: existing (status=delivered, paid)
+  - **return**: status=returned, `reconciliation_status='reconciled'`, expense txn for return_fee, link to erp_return_cases (jodi thake), **paid mark koro na**
+  - **partial**: income txn for partial amount only, `payment_status='partial_paid'`, `reconciliation_status='partial'`
+  - Fail-soft: per-row try/catch, partial success possible
 
----
+**New file: `src/lib/erp/reconciliation-queue.functions.ts**`
 
-### PHASE 4 — Exchange Order Creation
+- `getPendingCodQueue({ brandId, courier?, dateFrom?, dateTo? })` — delivered orders where `reconciliation_status='pending'`, sorted by days pending desc
+- `getOutstandingCod({ brandId })` — pending + delivered > 14 days ago
+- `getReconciliationDashboard({ brandId, month })` — KPIs: pending total, reconciled MTD, outstanding >14d, return fees, net COD + daily series (last 30d) for chart
+- `waiveOrders({ orderIds: string[] })` — bulk set `reconciliation_status='waived'`, audit log
 
-[Create Exchange Order] button on exchange case detail (when type ≠ refund_only):
-
-- Pre-fills new order: same customer, new product/variant, COD=exchange_charge, note=`"Exchange for order #XXXX"`
-- On create → links `new_order_id`, exchange status → `new_order_created`
-- Shows link to new order
-
----
-
-### PHASE 5 — Server Functions
-
-New file: `src/lib/erp/returns/returns.functions.ts`
-
-All `createServerFn` + `requireSupabaseAuth`, brand-scoped:
-
-- `listReturnCases`, `getReturnCaseDetail`, `createReturnCase`, `updateReturnStatus`
-- `completeQC` (triggers stock RPC if sellable)
-- `listExchangeCases`, `getExchangeCaseDetail`, `createExchangeCase`
-- `createExchangeOrder` (uses existing order creation flow internally)
-- `closeCase`, `exportReturnCases` (CSV)
+Authenticated middleware sob jaygay.
 
 ---
 
-### Files To Create / Edit
+### PHASE 3 — UI
 
-**New (10 files)**:
+**Existing routes update:**
 
-- 1 migration (PHASE 0)
-- `src/lib/erp/returns/returns.functions.ts`
-- `src/routes/_authenticated/erp.returns.tsx` (layout)
-- `src/routes/_authenticated/erp.returns.index.tsx`
-- `src/routes/_authenticated/erp.returns.$caseId.tsx`
-- `src/components/erp/returns/returns-table.tsx`
-- `src/components/erp/returns/case-timeline.tsx`
-- `src/components/erp/returns/qc-section.tsx`
-- `src/components/erp/returns/case-summary-panel.tsx`
-- `src/components/erp/returns/return-status-badge.tsx`
-
-**Edit (3-4 files)**:
-
-- `src/components/erp/orders/order-detail-extras.tsx` — add Returns section
-- `src/components/erp/orders/return-case-dialog.tsx` — order-scoped items + tracking field
-- `src/components/erp/orders/exchange-case-dialog.tsx` — exchange_type_detail field
-- Sidebar nav file (find + add Operations entry)
+1. `erp.reconciliation.index.tsx` (dashboard upgrade)
+  - 5 KPI cards (Pending/Reconciled MTD/Outstanding/Return Fees/Net COD)
+  - Recharts bar chart: COD collected vs expected (30 days)
+  - Quick action buttons → Upload / Pending Queue / Outstanding
+2. `erp.reconciliation.tsx` (layout) — tabs nav: Dashboard | Pending COD | Outstanding | Upload Invoice | History
+3. **New leaf routes:**
+  - `erp.reconciliation.pending.tsx` — Pending COD queue table, filters (courier, date), bulk select, color code (red >7 days)
+  - `erp.reconciliation.outstanding.tsx` — Outstanding table, Mark Waived bulk action, Copy Consignment IDs to clipboard, big red total
+4. `erp.reconciliation.invoice.tsx` (existing) — keep upload UI, but result preview ekhon return/partial rows ke alada section e dekhabe
+5. **Run detail page** (jodi thake — `erp.reconciliation.$runId.tsx`) — tabs add: Matched / Mismatch / Unmatched / Returns / Partial; "Apply Returns" button Returns tab e
 
 ---
 
-### Confirmation needed before I start
+### Tech notes / constraints
 
-1. **Migration approval**: Apply PHASE 0 migration first (kichu hoyar age)?
-2. **Exchange order creation**: Existing manual order creation flow ache (`/erp/orders/new` ba similar)? Naki ami simple POS-style create function likhbo?
-3. **Brand scoping**: All queries `brand_id IN (user_brand_access)` — confirmed pattern?
-4. **CSV export**: Server-side generate kore download, naki client-side?
+- All brand-scoped via existing brand context
+- Reconciliation_status backfill safe (default 'pending', delivered+paid orders ke 'reconciled' set korbo)
+- Trigger `BEFORE UPDATE` — no recursion risk
+- Server-side journal/transaction creation reuse existing finance helpers (`createTransaction`, journal posting from completeQC pattern)
+- Charts: Recharts (already installed)
+- No edge functions, all `createServerFn`
 
-Confirm korle PHASE 0 migration diye shuru kori.  
-6:36 PM
+---
 
-**Confirm. Answers:**
+### Order of execution
 
-1. **Migration** — Phase 0 age apply koro ✅
-2. **Exchange order** — simple create function likho (existing flow complex) ✅
-3. **Brand scoping** — confirmed ✅
-4. **CSV export** — client-side ✅
+1. Migration (approval needed)
+2. After approval: server functions
+3. UI routes + dashboard
+4. Verify with browser (Playwright screenshot of new pending tab)
 
-**Phase 0 migration shuru koro.** 🚀
+---
 
-&nbsp;
+### Confirm before proceeding
+
+- Trigger condition: spec e bola `OR 'partial_delivered'` — orders.status e ki `partial_delivered` value exist kore, na `partial_delivery`? Existing data check kore confirm korbo migration write korar age.
+- `payment_status` column type: enum na text — check kore decide korbo `partial_paid` add korte hobe naki sudhu value write korlei hobe.
+
+Approve korle migration likhe submit korbo.  
+Trigger condition: `partial_delivered` — existing status check করে confirm করো before migration। ✅
