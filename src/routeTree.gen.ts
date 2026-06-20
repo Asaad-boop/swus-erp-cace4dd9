@@ -17,6 +17,7 @@ import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
+import { Route as AuthenticatedErpReturnsRouteImport } from './routes/_authenticated/erp.returns'
 import { Route as AuthenticatedErpReorderQueueRouteImport } from './routes/_authenticated/erp.reorder-queue'
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
@@ -149,6 +150,11 @@ const AuthenticatedErpSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
+const AuthenticatedErpReturnsRoute = AuthenticatedErpReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
 const AuthenticatedErpReorderQueueRoute =
   AuthenticatedErpReorderQueueRouteImport.update({
     id: '/reorder-queue',
@@ -696,6 +702,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
+  '/erp/returns': typeof AuthenticatedErpReturnsRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
@@ -787,6 +794,7 @@ export interface FileRoutesByTo {
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
+  '/erp/returns': typeof AuthenticatedErpReturnsRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
@@ -885,6 +893,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/_authenticated/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
+  '/_authenticated/erp/returns': typeof AuthenticatedErpReturnsRoute
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
@@ -986,6 +995,7 @@ export interface FileRouteTypes {
     | '/erp/orders'
     | '/erp/reconciliation'
     | '/erp/reorder-queue'
+    | '/erp/returns'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
@@ -1077,6 +1087,7 @@ export interface FileRouteTypes {
     | '/erp/inventory'
     | '/erp/inventory-reports'
     | '/erp/reorder-queue'
+    | '/erp/returns'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
@@ -1174,6 +1185,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/reconciliation'
     | '/_authenticated/erp/reorder-queue'
+    | '/_authenticated/erp/returns'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
@@ -1326,6 +1338,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/erp/settings'
       preLoaderRoute: typeof AuthenticatedErpSettingsRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/returns': {
+      id: '/_authenticated/erp/returns'
+      path: '/returns'
+      fullPath: '/erp/returns'
+      preLoaderRoute: typeof AuthenticatedErpReturnsRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/reorder-queue': {
@@ -2247,6 +2266,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpReconciliationRoute: typeof AuthenticatedErpReconciliationRouteWithChildren
   AuthenticatedErpReorderQueueRoute: typeof AuthenticatedErpReorderQueueRoute
+  AuthenticatedErpReturnsRoute: typeof AuthenticatedErpReturnsRoute
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
@@ -2275,6 +2295,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpReconciliationRoute:
     AuthenticatedErpReconciliationRouteWithChildren,
   AuthenticatedErpReorderQueueRoute: AuthenticatedErpReorderQueueRoute,
+  AuthenticatedErpReturnsRoute: AuthenticatedErpReturnsRoute,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
