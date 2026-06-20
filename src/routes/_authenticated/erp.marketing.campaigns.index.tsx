@@ -151,7 +151,10 @@ function CampaignsPage() {
                     <TableHead className="text-right">Delivered</TableHead>
                     <TableHead className="text-right">Returned</TableHead>
                     <TableHead className="text-right">Del. Rev.</TableHead>
-                    <TableHead className="text-right">ROAS</TableHead>
+                    <TableHead className="text-right">Meta ROAS</TableHead>
+                    <TableHead className="text-right">Confirmed ROAS</TableHead>
+                    <TableHead className="text-right">Delivered ROAS</TableHead>
+                    <TableHead className="text-right">CPO (Del.)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,8 +193,25 @@ function CampaignsPage() {
                       <TableCell className="text-right">{fmtNum(r.delivered_orders)}</TableCell>
                       <TableCell className="text-right text-red-600">{fmtNum(r.return_orders)}</TableCell>
                       <TableCell className="text-right">{fmtBDT(r.delivered_revenue)}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {r.roas_delivered != null ? `${r.roas_delivered.toFixed(2)}x` : "—"}
+                      <TableCell className="text-right tabular-nums">
+                        {r.roas_meta != null ? `${r.roas_meta.toFixed(2)}x` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.roas_confirmed != null ? (
+                          <span className={r.roas_confirmed >= 1 ? "text-emerald-700" : "text-amber-700"}>
+                            {r.roas_confirmed.toFixed(2)}x
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {r.roas_delivered != null ? (
+                          <span className={r.roas_delivered >= 1 ? "text-emerald-700" : "text-red-600"}>
+                            {r.roas_delivered.toFixed(2)}x
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.cpo_delivered_bdt != null ? fmtBDT(r.cpo_delivered_bdt) : "—"}
                       </TableCell>
                     </TableRow>
                   ))}
