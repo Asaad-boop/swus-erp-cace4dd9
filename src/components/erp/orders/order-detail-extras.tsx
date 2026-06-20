@@ -693,3 +693,79 @@ export function useOrderNeighbors(orderId: string) {
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export { RotateCcw as ReturnIcon, Repeat as ExchangeIcon };
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Order Cases Panel — return/exchange cases for this order                  */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+export function OrderCasesPanel({ orderId }: { orderId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["order-cases", orderId],
+    queryFn: async () => {
+      const sb: any = supabase;
+      const [{ data: rets }, { data: excs }] = await Promise.all([
+        sb.from("erp_return_cases")
+          .select("id, case_number, return_status, refund_amount, qty, created_at")
+          .eq("order_id", orderId).order("created_at", { ascending: false }),
+        sb.from("erp_exchange_cases")
+          .select("id, case_number, exchange_status, exchange_charge_collected, replacement_qty, created_at")
+          .eq("original_order_id", orderId).order("created_at", { ascending: false }),
+      ]);
+      return {
+        rets: (rets ?? []) as Array<{ id: string; case_number?: string; return_status: string; refund_amount: number; qty: number; created_at: string }>,
+        excs: (excs ?? []) as Array<{ id: string; case_number?: string; exchange_status: string; exchange_charge_collected: number; replacement_qty: number; created_at: string }>,
+      };
+    },
+  });
+
+  const total = (data?.rets.length ?? 0) + (data?.excs.length ?? 0);
+
+  return (
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        <RotateCcw className="h-3.5 w-3.5 text-rose-600" />
+        <h3 className="text-[13px] font-semibold">Returns & Exchanges</h3>
+        {total > 0 && (
+          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gray-100 dark:bg-muted text-[10px] font-semibold text-gray-600 tabular-nums">
+            {total}
+          </span>
+        )}
+      </header>
+      <div className="p-4 space-y-2 text-xs">
+        {isLoading ? (
+          <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        ) : total === 0 ? (
+          <p className="text-muted-foreground text-center py-2">No cases yet</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {data!.rets.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+                <RotateCcw className="h-3 w-3 text-emerald-600 shrink-0" />
+                <span className="font-mono text-[11px] truncate">{r.case_number ?? r.id.slice(0, 8)}</span>
+                <span className="text-[10px] text-muted-foreground">qty {r.qty}</span>
+                <span className="ml-auto inline-flex items-center gap-1">
+                  <span className="capitalize text-[10px] rounded px-1.5 py-0.5 bg-muted">{r.return_status.replace(/_/g, " ")}</span>
+                  <span className="tabular-nums text-[10px] text-rose-600">৳{bdt(Number(r.refund_amount ?? 0))}</span>
+                </span>
+                <Link to="/erp/returns/$caseId" params={{ caseId: r.id }} className="text-sky-600 hover:underline text-[11px]">View</Link>
+              </li>
+            ))}
+            {data!.excs.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+                <Repeat className="h-3 w-3 text-indigo-600 shrink-0" />
+                <span className="font-mono text-[11px] truncate">{r.case_number ?? r.id.slice(0, 8)}</span>
+                <span className="text-[10px] text-muted-foreground">qty {r.replacement_qty}</span>
+                <span className="ml-auto inline-flex items-center gap-1">
+                  <span className="capitalize text-[10px] rounded px-1.5 py-0.5 bg-muted">{r.exchange_status.replace(/_/g, " ")}</span>
+                  <span className="tabular-nums text-[10px]">৳{bdt(Number(r.exchange_charge_collected ?? 0))}</span>
+                </span>
+                <Link to="/erp/returns/$caseId" params={{ caseId: r.id }} className="text-sky-600 hover:underline text-[11px]">View</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
