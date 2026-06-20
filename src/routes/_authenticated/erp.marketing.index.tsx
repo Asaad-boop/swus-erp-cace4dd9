@@ -254,6 +254,9 @@ function PerformanceDashboard() {
           </div>
         </div>
 
+        {/* Phase 3 — Today strip, ROAS comparison, charts, budget pacing */}
+        {brandId && <DashboardOverview brandId={brandId} />}
+
         {/* KPI strip */}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
           <KpiCard
