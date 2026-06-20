@@ -138,7 +138,7 @@ export const completeQC = createServerFn({ method: "POST" })
     if (!c) throw new Error("Return case not found");
 
     const now = new Date().toISOString();
-    const nextStatus = data.condition === "sellable" ? "restocked" : "qc_done";
+    const nextStatus = data.condition === "sellable" ? "restocked" : "loss_recorded";
 
     if (data.condition === "sellable" && !c.stock_updated) {
       const wac = Number(c.product?.weighted_avg_cost ?? 0);
@@ -172,6 +172,18 @@ export const completeQC = createServerFn({ method: "POST" })
       note: `QC: ${data.condition}${data.notes ? " — " + data.notes : ""}`,
       created_by: context.userId,
     });
+
+    // Activity log for loss scenarios
+    if (data.condition !== "sellable") {
+      try {
+        await sb.from("activity_log").insert({
+          action: data.condition === "damaged" ? "return_damaged" : "return_missing",
+          entity_type: "erp_return_case",
+          entity_id: c.id,
+          metadata: { product_id: c.product_id, qty: c.qty, notes: data.notes ?? null },
+        });
+      } catch { /* non-fatal */ }
+    }
 
     return { ok: true, restocked: data.condition === "sellable" };
   });
