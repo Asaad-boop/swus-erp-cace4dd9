@@ -1,0 +1,2 @@
+ALTER TABLE public.erp_exchange_cases DROP CONSTRAINT IF EXISTS erp_exchange_cases_exchange_type_check;
+ALTER TABLE public.erp_exchange_cases ADD CONSTRAINT erp_exchange_cases_exchange_type_check CHECK (exchange_type IN ('normal','damage','different_product','refund_only','same_variant','different_variant'));
