@@ -55,6 +55,7 @@ import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
 import { Route as AuthenticatedErpMarketingSyncRouteImport } from './routes/_authenticated/erp.marketing.sync'
+import { Route as AuthenticatedErpMarketingSkuPnlRouteImport } from './routes/_authenticated/erp.marketing.sku-pnl'
 import { Route as AuthenticatedErpMarketingRollupRouteImport } from './routes/_authenticated/erp.marketing.rollup'
 import { Route as AuthenticatedErpMarketingExpensesRouteImport } from './routes/_authenticated/erp.marketing.expenses'
 import { Route as AuthenticatedErpMarketingAttributionRouteImport } from './routes/_authenticated/erp.marketing.attribution'
@@ -365,6 +366,12 @@ const AuthenticatedErpMarketingSyncRoute =
   AuthenticatedErpMarketingSyncRouteImport.update({
     id: '/sync',
     path: '/sync',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
+const AuthenticatedErpMarketingSkuPnlRoute =
+  AuthenticatedErpMarketingSkuPnlRouteImport.update({
+    id: '/sku-pnl',
+    path: '/sku-pnl',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
 const AuthenticatedErpMarketingRollupRoute =
@@ -728,6 +735,7 @@ export interface FileRoutesByFullPath {
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
+  '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -815,6 +823,7 @@ export interface FileRoutesByTo {
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
+  '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -915,6 +924,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/_authenticated/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/_authenticated/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
+  '/_authenticated/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/_authenticated/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
@@ -1015,6 +1025,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
     | '/erp/marketing/rollup'
+    | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
@@ -1102,6 +1113,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
     | '/erp/marketing/rollup'
+    | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
@@ -1201,6 +1213,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/marketing/attribution'
     | '/_authenticated/erp/marketing/expenses'
     | '/_authenticated/erp/marketing/rollup'
+    | '/_authenticated/erp/marketing/sku-pnl'
     | '/_authenticated/erp/marketing/sync'
     | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
@@ -1579,6 +1592,13 @@ declare module '@tanstack/react-router' {
       path: '/sync'
       fullPath: '/erp/marketing/sync'
       preLoaderRoute: typeof AuthenticatedErpMarketingSyncRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
+    '/_authenticated/erp/marketing/sku-pnl': {
+      id: '/_authenticated/erp/marketing/sku-pnl'
+      path: '/sku-pnl'
+      fullPath: '/erp/marketing/sku-pnl'
+      preLoaderRoute: typeof AuthenticatedErpMarketingSkuPnlRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
     '/_authenticated/erp/marketing/rollup': {
@@ -2144,6 +2164,7 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAttributionRoute: typeof AuthenticatedErpMarketingAttributionRoute
   AuthenticatedErpMarketingExpensesRoute: typeof AuthenticatedErpMarketingExpensesRoute
   AuthenticatedErpMarketingRollupRoute: typeof AuthenticatedErpMarketingRollupRoute
+  AuthenticatedErpMarketingSkuPnlRoute: typeof AuthenticatedErpMarketingSkuPnlRoute
   AuthenticatedErpMarketingSyncRoute: typeof AuthenticatedErpMarketingSyncRoute
   AuthenticatedErpMarketingIndexRoute: typeof AuthenticatedErpMarketingIndexRoute
   AuthenticatedErpMarketingCampaignsCampaignIdRoute: typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -2159,6 +2180,7 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
     AuthenticatedErpMarketingExpensesRoute:
       AuthenticatedErpMarketingExpensesRoute,
     AuthenticatedErpMarketingRollupRoute: AuthenticatedErpMarketingRollupRoute,
+    AuthenticatedErpMarketingSkuPnlRoute: AuthenticatedErpMarketingSkuPnlRoute,
     AuthenticatedErpMarketingSyncRoute: AuthenticatedErpMarketingSyncRoute,
     AuthenticatedErpMarketingIndexRoute: AuthenticatedErpMarketingIndexRoute,
     AuthenticatedErpMarketingCampaignsCampaignIdRoute:
