@@ -19,6 +19,20 @@ export const Route = createFileRoute("/_authenticated/erp/returns/")({
 
 type Tab = "all" | "returns" | "exchanges" | "pending_qc" | "restocked" | "closed";
 
+type Row = {
+  id: string;
+  type: "return" | "exchange";
+  caseNumber: string;
+  orderNumber?: string | number | null;
+  customer: string;
+  productTitle: string;
+  productSku?: string | null;
+  status: string;
+  qc: string | null;
+  amount: number;
+  createdAt: string;
+};
+
 function ReturnsListPage() {
   const { brandIds } = useBrand();
   const listRet = useServerFn(listReturnCases);
@@ -40,14 +54,14 @@ function ReturnsListPage() {
   });
 
   const rows = useMemo(() => {
-    const rets = (retQ.data ?? []).map((r: any) => ({
+    const rets: Row[] = (retQ.data ?? []).map((r: any) => ({
       id: r.id, type: "return" as const, caseNumber: r.case_number ?? r.id.slice(0, 8),
       orderNumber: r.order?.order_number, customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
       status: r.return_status, qc: r.qc_condition, amount: Number(r.refund_amount ?? 0),
       createdAt: r.created_at,
     }));
-    const excs = (excQ.data ?? []).map((r: any) => ({
+    const excs: Row[] = (excQ.data ?? []).map((r: any) => ({
       id: r.id, type: "exchange" as const, caseNumber: r.case_number ?? r.id.slice(0, 8),
       orderNumber: r.order?.order_number, customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
@@ -55,22 +69,22 @@ function ReturnsListPage() {
       amount: Number(r.exchange_charge_collected ?? r.refund_amount ?? 0),
       createdAt: r.created_at,
     }));
-    let all: typeof rets = [...rets, ...excs];
+    let all: Row[] = [...rets, ...excs];
     if (tab === "returns") all = rets;
     else if (tab === "exchanges") all = excs;
-    else if (tab === "pending_qc") all = rets.filter((r: typeof rets[number]) => r.status === "received");
-    else if (tab === "restocked") all = rets.filter((r: typeof rets[number]) => r.status === "restocked");
+    else if (tab === "pending_qc") all = rets.filter((r) => r.status === "received");
+    else if (tab === "restocked") all = rets.filter((r) => r.status === "restocked");
     else if (tab === "closed") all = all.filter((r) => r.status === "closed" || r.status === "completed");
     if (q.trim()) {
       const needle = q.toLowerCase();
       all = all.filter((r) =>
-        r.caseNumber?.toLowerCase().includes(needle) ||
+        r.caseNumber?.toString().toLowerCase().includes(needle) ||
         r.orderNumber?.toString().toLowerCase().includes(needle) ||
         r.customer?.toLowerCase().includes(needle) ||
         r.productTitle?.toLowerCase().includes(needle),
       );
     }
-    return all.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+    return all.sort((a: Row, b: Row) => +new Date(b.createdAt) - +new Date(a.createdAt));
   }, [retQ.data, excQ.data, tab, q]);
 
   const counts = {
