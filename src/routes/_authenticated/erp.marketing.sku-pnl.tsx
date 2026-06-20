@@ -307,3 +307,114 @@ function MarginBar({ pct }: { pct: number | null }) {
     </div>
   );
 }
+
+function Line({
+  label, value, units, tone = "default", indent, bold,
+}: {
+  label: string; value: string; units?: string;
+  tone?: "default" | "muted" | "negative" | "positive" | "emerald" | "blue" | "indigo";
+  indent?: boolean; bold?: boolean;
+}) {
+  const toneClass =
+    tone === "muted" ? "text-gray-500" :
+    tone === "negative" ? "text-red-600" :
+    tone === "positive" ? "text-emerald-700" :
+    tone === "emerald" ? "text-emerald-700" :
+    tone === "blue" ? "text-blue-700" :
+    tone === "indigo" ? "text-indigo-700" :
+    "text-gray-900";
+  return (
+    <div className={cn("flex items-baseline justify-between text-sm", indent && "pl-4", bold && "font-semibold")}>
+      <span className={cn(tone === "muted" ? "text-gray-500" : "text-gray-700")}>{label}</span>
+      <span className={cn("tabular-nums", toneClass)}>
+        {value}{units && <span className="text-xs text-muted-foreground ml-2">{units}</span>}
+      </span>
+    </div>
+  );
+}
+
+function MarginBadge({ pct }: { pct: number | null }) {
+  if (pct == null) return null;
+  const cls = pct >= 40 ? "bg-emerald-100 text-emerald-800"
+    : pct >= 20 ? "bg-amber-100 text-amber-800"
+    : "bg-red-100 text-red-800";
+  return <Badge className={cn("ml-2", cls)}>{pct.toFixed(1)}%</Badge>;
+}
+
+function ExpandedDetail({ row: r }: { row: SkuPnlRow }) {
+  const wac = r.units_sold > 0 ? r.gross_cogs / r.units_sold : 0;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-5">
+      {/* REVENUE */}
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Revenue</div>
+        <Line label="Gross Revenue" value={fmtBDT(r.gross_revenue)} units={`${fmtNum(r.units_sold)} units`} tone="muted" />
+        <Line label="− Sellable Returns" value={fmtBDT(r.sellable_returns)} units={`${fmtNum(r.units_returned_sellable)} units, restocked`} tone="negative" indent />
+        <Line label="− Damaged Returns" value={fmtBDT(r.damaged_returns)} units={`${fmtNum(r.units_returned_damaged)} units, written off`} tone="negative" indent />
+        <div className="border-t pt-1.5 mt-1.5">
+          <Line label="Net Revenue" value={fmtBDT(r.net_revenue)} units={`${fmtNum(r.net_units_sold)} net units`} bold />
+        </div>
+      </div>
+
+      {/* COGS */}
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Cost of Goods</div>
+        <Line label="Gross COGS" value={fmtBDT(r.gross_cogs)} units={wac > 0 ? `${fmtNum(r.units_sold)} × ${fmtBDT(wac)} WAC` : undefined} tone="muted" />
+        <Line label="− COGS Reversed" value={fmtBDT(r.cogs_reversed)} units={`${fmtNum(r.units_returned_sellable)} sellable back`} tone="positive" indent />
+        <div className="border-t pt-1.5 mt-1.5">
+          <Line label="Net COGS" value={fmtBDT(r.net_cogs)} bold />
+        </div>
+        {r.damaged_cogs_loss > 0 && (
+          <Line label="Damaged Loss (info)" value={fmtBDT(r.damaged_cogs_loss)} units={`${fmtNum(r.units_returned_damaged)} units`} tone="muted" indent />
+        )}
+        <div className="border-t pt-2 mt-2">
+          <div className="flex items-baseline justify-between text-sm font-semibold">
+            <span className="text-emerald-700">Gross Profit</span>
+            <span className="tabular-nums text-emerald-700">
+              {fmtBDT(r.gross_profit)}
+              {r.net_revenue > 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({((r.gross_profit / r.net_revenue) * 100).toFixed(1)}%)
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* MARKETING */}
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Marketing</div>
+        <Line label="Meta Ad Spend" value={fmtBDT(r.total_ad_spend)} tone="blue" />
+        <Line label="Influencer" value={fmtBDT(r.influencer_spend)} tone="blue" indent />
+        <Line label="UGC / Content" value={fmtBDT(r.ugc_spend)} tone="blue" indent />
+        <Line label="Other" value={fmtBDT(r.other_marketing)} tone="blue" indent />
+        <div className="border-t pt-1.5 mt-1.5">
+          <Line label="Total Marketing" value={fmtBDT(r.total_marketing)} tone="blue" bold />
+        </div>
+      </div>
+
+      {/* NET PROFIT */}
+      <div className="space-y-2 rounded-lg bg-indigo-50/60 border border-indigo-100 p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700/80">Bottom Line</div>
+        <div>
+          <div className="text-xs text-indigo-700/70">Net Profit</div>
+          <div className={cn("text-2xl font-bold tabular-nums", r.net_profit >= 0 ? "text-indigo-700" : "text-red-600")}>
+            {fmtBDT(r.net_profit)}
+            <MarginBadge pct={r.margin_pct} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-100">
+          <div>
+            <div className="text-xs text-indigo-700/70">ROAS</div>
+            <div className="font-semibold text-indigo-700 tabular-nums">{r.roas != null ? `${r.roas.toFixed(2)}x` : "—"}</div>
+          </div>
+          <div>
+            <div className="text-xs text-indigo-700/70">Margin</div>
+            <div className="font-semibold text-indigo-700 tabular-nums">{r.margin_pct != null ? `${r.margin_pct.toFixed(1)}%` : "—"}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
