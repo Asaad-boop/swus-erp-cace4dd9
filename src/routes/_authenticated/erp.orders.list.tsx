@@ -315,6 +315,28 @@ function OrdersPage() {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          {lastSyncedAt && (
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              Last synced {relTimeShort(lastSyncedAt)}
+            </span>
+          )}
+          <Select value={courierStatusFilter} onValueChange={(v) => setCourierStatusFilter(v as CourierBucket | "all")}>
+            <SelectTrigger className="h-9 w-[170px]">
+              <span className="flex items-center gap-1.5 text-xs">
+                <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Courier status" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All courier statuses</SelectItem>
+              {COURIER_BUCKETS.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {COURIER_BUCKET_META[b].label}
+                  {courierCounts[b] ? ` (${courierCounts[b]})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="inline-flex rounded-lg border bg-card shadow-sm overflow-hidden">
             <Button
               variant="ghost"
