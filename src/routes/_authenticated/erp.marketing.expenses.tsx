@@ -391,22 +391,40 @@ type DialogProps = {
   onCreate: (p: any) => Promise<void>;
 };
 
-function ExpenseDialog({ open, onClose, options, onCreate }: DialogProps) {
+function ExpenseDialog({ open, onClose, brandId, options, onCreate }: DialogProps) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<typeof CATEGORY_OPTIONS[number]["value"]>("influencer");
   const [vendor, setVendor] = useState("");
   const [note, setNote] = useState("");
   const [productId, setProductId] = useState<string>(NONE);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: string; title: string; sku?: string | null; image?: string | null } | null>(null);
+  const [productQuery, setProductQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [productOpen, setProductOpen] = useState(false);
   const [campaignId, setCampaignId] = useState<string>(NONE);
   const [accountId, setAccountId] = useState<string>(NONE);
   const [postToFinance, setPostToFinance] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // debounce search input
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(productQuery), 300);
+    return () => clearTimeout(t);
+  }, [productQuery]);
+
+  const searchFn = useServerFn(searchBrandProducts);
+  const productSearchQ = useQuery({
+    queryKey: ["mkt", "expense-product-search", brandId, debouncedQuery],
+    queryFn: () => searchFn({ data: { brandId, query: debouncedQuery || undefined, limit: 10 } }),
+    enabled: !!brandId && productOpen,
+  });
+
   const reset = () => {
     setDate(new Date().toISOString().slice(0, 10));
     setAmount(""); setCategory("influencer"); setVendor(""); setNote("");
-    setProductId(NONE); setCampaignId(NONE); setAccountId(NONE);
+    setProductId(NONE); setSelectedProduct(null); setProductQuery(""); setProductOpen(false);
+    setCampaignId(NONE); setAccountId(NONE);
     setPostToFinance(true);
   };
 
@@ -479,17 +497,82 @@ function ExpenseDialog({ open, onClose, options, onCreate }: DialogProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Product (optional)</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>— None —</SelectItem>
-                  {options.products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-1.5 relative">
+              <Label>Link to Product (optional)</Label>
+              {selectedProduct ? (
+                <div className="flex items-center gap-2 rounded-md border bg-indigo-50/60 border-indigo-200 px-2 py-1.5">
+                  {selectedProduct.image ? (
+                    <img src={selectedProduct.image} alt="" className="h-6 w-6 rounded object-cover" />
+                  ) : (
+                    <Package className="h-4 w-4 text-indigo-600" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{selectedProduct.title}</div>
+                    {selectedProduct.sku && (
+                      <div className="text-[10px] text-muted-foreground truncate">{selectedProduct.sku}</div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedProduct(null); setProductId(NONE); setProductQuery(""); }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={productQuery}
+                      onChange={(e) => { setProductQuery(e.target.value); setProductOpen(true); }}
+                      onFocus={() => setProductOpen(true)}
+                      onBlur={() => setTimeout(() => setProductOpen(false), 150)}
+                      placeholder="Search name or SKU…"
+                      className="pl-8"
+                    />
+                  </div>
+                  {productOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-64 overflow-auto rounded-md border bg-popover shadow-md">
+                      {productSearchQ.isLoading ? (
+                        <div className="py-4 text-center text-xs text-muted-foreground">
+                          <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> Searching…
+                        </div>
+                      ) : (productSearchQ.data ?? []).length === 0 ? (
+                        <div className="py-4 text-center text-xs text-muted-foreground">No products found</div>
+                      ) : (
+                        (productSearchQ.data as any[]).map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setSelectedProduct({ id: p.id, title: p.title, sku: p.sku, image: p.image });
+                              setProductId(p.id);
+                              setProductOpen(false);
+                              setProductQuery("");
+                            }}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-accent text-left"
+                          >
+                            {p.image ? (
+                              <img src={p.image} alt="" className="h-7 w-7 rounded object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="h-7 w-7 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm truncate">{p.title}</div>
+                              {p.sku && <div className="text-[10px] text-muted-foreground truncate">{p.sku}</div>}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Campaign (optional)</Label>
