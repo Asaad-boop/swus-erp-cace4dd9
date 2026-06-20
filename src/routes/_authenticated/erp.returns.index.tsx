@@ -206,6 +206,9 @@ function ReturnsListPage() {
                 <TableCell className="text-right tabular-nums text-xs">৳{r.amount.toLocaleString("en-IN")}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{format(new Date(r.createdAt), "dd MMM, hh:mm a")}</TableCell>
                 <TableCell>
+                  <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
+                </TableCell>
+                <TableCell>
                   <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
                     onClick={(e) => e.stopPropagation()}
                     className="text-muted-foreground hover:text-foreground">
