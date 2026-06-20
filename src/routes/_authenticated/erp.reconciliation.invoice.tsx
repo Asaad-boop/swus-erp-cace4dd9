@@ -121,6 +121,8 @@ function getRowType(invoiceType: string | undefined): "paid" | "return" | "parti
   const t = invoiceType.toLowerCase();
   if (t.includes("return")) return "return";
   if (t.includes("partial")) return "partial";
+  // `delivery` and `insta_fee` (extra delivery fee row, grouped with its
+  // delivery row by Consignment_ID) both count as paid.
   return "paid";
 }
 
@@ -128,6 +130,11 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
   const result = Papa.parse<PathaoRow>(text, {
     header: true,
     skipEmptyLines: true,
+    // Real Pathao headers: "Consignment_ID, Created_Date, Invoice type,
+    // Collected_Amount, Recipient_Name, Recipient_Phone, Collectable_Amount,
+    // COD_fee, Delivery_Fee, Final_Fee, Discount, Additional_Charge,
+    // Compensation_Cost, Promo_Discount, Payout, Merchant_Order_ID, Store_name".
+    // "Invoice type" has a space — normalize to underscore for the typed shape.
     transformHeader: (h) => h.trim().replace(/\s+/g, "_"),
   });
   const rows = (result.data ?? []).filter(
@@ -150,11 +157,14 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
     const types = rs.map((r) => getRowType(r.Invoice_type));
     const rowType: "paid" | "return" | "partial" =
       types.find((t) => t === "return") ?? types.find((t) => t === "partial") ?? "paid";
+    // Aggregate across all sub-rows for this consignment (delivery + insta_fee, etc).
     const collected = rs.reduce((s, r) => s + num(r.Collected_Amount), 0);
     const payout = rs.reduce((s, r) => s + num(r.Payout), 0);
     const deliveryFee = rs.reduce((s, r) => s + num(r.Delivery_Fee), 0);
     const codFee = rs.reduce((s, r) => s + num(r.COD_fee), 0);
     const discount = rs.reduce((s, r) => s + num(r.Discount) + num(r.Promo_Discount), 0);
+    // insta_fee rows post their charge through Delivery_Fee / Final_Fee + negative
+    // Payout, so `collected - payout` already captures every fee Pathao took.
     const otherFee = rs.reduce(
       (s, r) => s + num(r.Additional_Charge) + num(r.Compensation_Cost),
       0,
@@ -163,7 +173,10 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
     const dateStr = primary.Created_Date ? primary.Created_Date.slice(0, 10) : null;
 
     const returnFee = rowType === "return"
-      ? rs.reduce((s, r) => s + num(r.Final_Fee) + num(r.Delivery_Fee) + num(r.Additional_Charge), 0)
+      ? rs.reduce(
+          (s, r) => s + num(r.Final_Fee) + num(r.Delivery_Fee) + num(r.Additional_Charge),
+          0,
+        )
       : 0;
     const partialAmount = rowType === "partial" ? collected : 0;
 
