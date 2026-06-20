@@ -457,3 +457,83 @@ export const createExchangeCase = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true, id: row.id };
   });
+/* ----------------- EXCHANGE: mark replacement sent (with tracking) ----------------- */
+
+export const markExchangeReplacementSent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { caseId: string; trackingId: string; courierName?: string }) =>
+    z.object({ caseId: Uuid, trackingId: z.string().min(1), courierName: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { error } = await sb.from("erp_exchange_cases").update({
+      exchange_status: "replacement_sent",
+      replacement_tracking_id: data.trackingId,
+      replacement_courier: data.courierName ?? null,
+    }).eq("id", data.caseId);
+    if (error) throw error;
+    await sb.from("erp_return_timeline").insert({
+      case_id: data.caseId, case_type: "exchange", status: "replacement_sent",
+      note: `Replacement sent — ${data.courierName ?? "courier"} #${data.trackingId}`,
+      created_by: context.userId,
+    });
+    return { ok: true };
+  });
+
+/* ----------------- EXCHANGE: complete with old-item condition ----------------- */
+
+export const completeExchange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { caseId: string; oldCondition: "sellable" | "damaged" | "missing"; notes?: string }) =>
+    z.object({ caseId: Uuid, oldCondition: z.enum(["sellable", "damaged", "missing"]), notes: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: exc, error: eErr } = await sb.from("erp_exchange_cases")
+      .select("id, brand_id, original_product_id, original_variant_id, replacement_qty, original_item_restocked, original_product:original_product_id(weighted_avg_cost)")
+      .eq("id", data.caseId).maybeSingle();
+    if (eErr) throw eErr;
+    if (!exc) throw new Error("Exchange case not found");
+
+    const qty = Number(exc.replacement_qty ?? 1);
+    if (data.oldCondition === "sellable" && exc.original_product_id && !exc.original_item_restocked) {
+      const wac = Number(exc.original_product?.weighted_avg_cost ?? 0);
+      const { error: rpcErr } = await sb.rpc("adjust_stock_v2", {
+        _product_id: exc.original_product_id,
+        _variant_id: exc.original_variant_id,
+        _delta: qty,
+        _reason: "exchange_restock",
+        _source: "exchange",
+        _unit_cost: wac,
+        _reference_type: "erp_exchange_case",
+        _reference_id: exc.id,
+        _idempotency_key: `exchange_restock_${exc.id}`,
+        _note: "Restocked from exchange completion",
+      });
+      if (rpcErr) throw rpcErr;
+    } else if (data.oldCondition !== "sellable") {
+      try {
+        await sb.from("activity_log").insert({
+          action: data.oldCondition === "damaged" ? "exchange_damaged" : "exchange_missing",
+          entity_type: "erp_exchange_case",
+          entity_id: exc.id,
+          metadata: { product_id: exc.original_product_id, qty, notes: data.notes ?? null },
+        });
+      } catch { /* non-fatal */ }
+    }
+
+    const { error: uErr } = await sb.from("erp_exchange_cases").update({
+      exchange_status: "completed",
+      original_item_restocked: data.oldCondition === "sellable" ? true : exc.original_item_restocked,
+      old_item_condition: data.oldCondition,
+      resolved_at: new Date().toISOString(),
+    }).eq("id", exc.id);
+    if (uErr) throw uErr;
+
+    await sb.from("erp_return_timeline").insert({
+      case_id: exc.id, case_type: "exchange", status: "completed",
+      note: `Old item: ${data.oldCondition}${data.notes ? " — " + data.notes : ""}`,
+      created_by: context.userId,
+    });
+    return { ok: true, restocked: data.oldCondition === "sellable" };
+  });
