@@ -33,7 +33,11 @@ export type CampaignRollupRow = {
   delivered_revenue: number;
   return_orders: number;
   // Computed
+  roas_meta: number | null;
+  roas_confirmed: number | null;
   roas_delivered: number | null;
+  cpo_confirmed_bdt: number | null;
+  cpo_delivered_bdt: number | null;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
@@ -124,13 +128,18 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       const att = attrMap.get(c.id) ?? { confirmed_orders: 0, confirmed_revenue: 0, delivered_orders: 0, delivered_revenue: 0, return_orders: 0 };
       const ctr = ins.impressions > 0 ? (ins.clicks / ins.impressions) * 100 : null;
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
-      const roas_delivered = ins.spend > 0 ? att.delivered_revenue / ins.spend : null;
       const acc = c.mkt_ad_accounts ?? {};
       const currency: string = (acc.currency ?? "USD").toUpperCase();
       const usdFx: number = Number(acc.usd_to_bdt_rate) || 110;
       const fx: number = currency === "BDT" ? 1 : usdFx;
       const spend_bdt = ins.spend * fx;
       const meta_purchase_value_bdt = ins.meta_purchase_value * fx;
+      // ROAS — all in BDT for apples-to-apples
+      const roas_meta = spend_bdt > 0 ? meta_purchase_value_bdt / spend_bdt : null;
+      const roas_confirmed = spend_bdt > 0 ? att.confirmed_revenue / spend_bdt : null;
+      const roas_delivered = spend_bdt > 0 ? att.delivered_revenue / spend_bdt : null;
+      const cpo_confirmed_bdt = att.confirmed_orders > 0 ? spend_bdt / att.confirmed_orders : null;
+      const cpo_delivered_bdt = att.delivered_orders > 0 ? spend_bdt / att.delivered_orders : null;
       return {
         id: c.id,
         external_id: c.external_id,
@@ -149,7 +158,11 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         spend_bdt,
         meta_purchase_value_bdt,
         ...att,
+        roas_meta,
+        roas_confirmed,
         roas_delivered,
+        cpo_confirmed_bdt,
+        cpo_delivered_bdt,
       };
     });
   });
