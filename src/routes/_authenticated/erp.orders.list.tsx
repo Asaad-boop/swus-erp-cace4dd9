@@ -158,7 +158,7 @@ function OrdersPage() {
     setSelectedIds(next);
   };
   const toggleAll = (checked: boolean) => {
-    if (checked) setSelectedIds(new Set(rows.map((r) => r.id)));
+    if (checked) setSelectedIds(new Set(visibleRows.map((r) => r.id)));
     else setSelectedIds(new Set());
   };
 
@@ -399,7 +399,7 @@ function OrdersPage() {
           }
         />
         <OrdersTable
-          rows={rows}
+          rows={visibleRows}
           loading={isLoading}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
@@ -407,18 +407,25 @@ function OrdersPage() {
           onRowClick={setOpenId}
           onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
           pendingStatusIds={pendingIds}
+          shipmentsByOrderId={shipmentsMap}
+          flashOrderIds={flashIds}
+          onSyncRow={(id) => { setSingleSyncId(id); }}
         />
-        {!isLoading && rows.length === 0 && (
+        {!isLoading && visibleRows.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
               <Inbox className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
               <div className="font-semibold">No orders found</div>
-              <div className="text-sm text-muted-foreground">Try adjusting your filters or date range.</div>
+              <div className="text-sm text-muted-foreground">
+                {courierFilterActive
+                  ? `No orders with courier status "${COURIER_BUCKET_META[courierStatusFilter as CourierBucket].label}" on this page.`
+                  : "Try adjusting your filters or date range."}
+              </div>
             </div>
-            {hasActiveFilters && (
-              <Button variant="outline" size="sm" onClick={clearAllFilters}>Clear filters</Button>
+            {(hasActiveFilters || courierFilterActive) && (
+              <Button variant="outline" size="sm" onClick={() => { clearAllFilters(); setCourierStatusFilter("all"); }}>Clear filters</Button>
             )}
           </div>
         )}
