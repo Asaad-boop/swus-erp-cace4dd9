@@ -8,6 +8,94 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const Uuid = z.string().uuid();
 
+/* ----------------- Journal helpers (fail-soft) ----------------- */
+
+async function findOrCreateAccount(
+  sb: any,
+  brandId: string,
+  userId: string,
+  opts: { namePatterns: string[]; type: "asset" | "liability" | "expense" | "income" | "equity"; normal: "debit" | "credit"; fallbackName: string; fallbackCode: string },
+): Promise<string | null> {
+  for (const pat of opts.namePatterns) {
+    const { data } = await sb.from("erp_chart_accounts")
+      .select("id").eq("brand_id", brandId).eq("account_type", opts.type)
+      .eq("is_archived", false).ilike("name", pat).limit(1);
+    if (data && data.length) return data[0].id;
+  }
+  const { data: created } = await sb.from("erp_chart_accounts").insert({
+    brand_id: brandId, code: opts.fallbackCode, name: opts.fallbackName,
+    account_type: opts.type, normal_balance: opts.normal,
+    is_active: true, is_archived: false, created_by: userId,
+  }).select("id").maybeSingle();
+  return created?.id ?? null;
+}
+
+async function postRefundJournal(sb: any, userId: string, caseId: string, brandId: string, amount: number) {
+  if (!(amount > 0) || !brandId) return;
+  try {
+    const { data: existing } = await sb.from("erp_journal_entries")
+      .select("id").eq("source_type", "return_case").eq("source_id", caseId)
+      .is("deleted_at", null).maybeSingle();
+    if (existing) return;
+    const salesReturnsId = await findOrCreateAccount(sb, brandId, userId, {
+      namePatterns: ["%sales returns%", "%returns and allowances%"],
+      type: "expense", normal: "debit",
+      fallbackName: "Sales Returns & Allowances", fallbackCode: "4100",
+    });
+    const refundsPayableId = await findOrCreateAccount(sb, brandId, userId, {
+      namePatterns: ["%refunds payable%", "%refund payable%"],
+      type: "liability", normal: "credit",
+      fallbackName: "Refunds Payable", fallbackCode: "2500",
+    });
+    if (!salesReturnsId || !refundsPayableId) return;
+    await sb.rpc("create_journal_entry", {
+      _brand_id: brandId,
+      _entry_date: new Date().toISOString().slice(0, 10),
+      _description: `Return refund — case ${caseId.slice(0, 8)}`,
+      _lines: [
+        { account_id: salesReturnsId, debit: amount, credit: 0, description: "Sales returns" },
+        { account_id: refundsPayableId, debit: 0, credit: amount, description: "Refund payable to customer" },
+      ],
+      _source_type: "return_case",
+      _source_id: caseId,
+      _status: "posted",
+    });
+  } catch { /* fail-soft */ }
+}
+
+async function postExchangeChargeJournal(sb: any, userId: string, caseId: string, brandId: string, amount: number) {
+  if (!(amount > 0) || !brandId) return;
+  try {
+    const { data: existing } = await sb.from("erp_journal_entries")
+      .select("id").eq("source_type", "exchange_case").eq("source_id", caseId)
+      .is("deleted_at", null).maybeSingle();
+    if (existing) return;
+    const cashId = await findOrCreateAccount(sb, brandId, userId, {
+      namePatterns: ["%cash in hand%", "%bkash%", "%cash%"],
+      type: "asset", normal: "debit",
+      fallbackName: "Cash in Hand", fallbackCode: "1100",
+    });
+    const exchangeRevenueId = await findOrCreateAccount(sb, brandId, userId, {
+      namePatterns: ["%exchange revenue%", "%exchange income%"],
+      type: "income", normal: "credit",
+      fallbackName: "Exchange Revenue", fallbackCode: "4200",
+    });
+    if (!cashId || !exchangeRevenueId) return;
+    await sb.rpc("create_journal_entry", {
+      _brand_id: brandId,
+      _entry_date: new Date().toISOString().slice(0, 10),
+      _description: `Exchange charge — case ${caseId.slice(0, 8)}`,
+      _lines: [
+        { account_id: cashId, debit: amount, credit: 0, description: "Exchange charge collected" },
+        { account_id: exchangeRevenueId, debit: 0, credit: amount, description: "Exchange revenue" },
+      ],
+      _source_type: "exchange_case",
+      _source_id: caseId,
+      _status: "posted",
+    });
+  } catch { /* fail-soft */ }
+}
+
 /* ----------------- LIST ----------------- */
 
 export const listReturnCases = createServerFn({ method: "POST" })
@@ -132,7 +220,7 @@ export const completeQC = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: c, error: cErr } = await sb.from("erp_return_cases")
-      .select("id, brand_id, product_id, variant_id, qty, stock_updated, return_status, product:product_id(weighted_avg_cost)")
+      .select("id, brand_id, product_id, variant_id, qty, stock_updated, stock_restored, return_status, product:product_id(weighted_avg_cost)")
       .eq("id", data.caseId).maybeSingle();
     if (cErr) throw cErr;
     if (!c) throw new Error("Return case not found");
@@ -140,7 +228,10 @@ export const completeQC = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const nextStatus = data.condition === "sellable" ? "restocked" : "loss_recorded";
 
-    if (data.condition === "sellable" && !c.stock_updated) {
+    if (data.condition === "sellable") {
+      if (c.stock_updated || c.stock_restored) {
+        throw new Error("Already restocked");
+      }
       const wac = Number(c.product?.weighted_avg_cost ?? 0);
       const { error: rpcErr } = await sb.rpc("adjust_stock_v2", {
         _product_id: c.product_id,
@@ -163,6 +254,8 @@ export const completeQC = createServerFn({ method: "POST" })
       qc_done_by: context.userId,
       qc_done_at: now,
       stock_updated: data.condition === "sellable" ? true : c.stock_updated,
+      stock_restored: data.condition === "sellable" ? true : c.stock_restored,
+      stock_restored_at: data.condition === "sellable" ? now : undefined,
       return_status: nextStatus,
     }).eq("id", data.caseId);
     if (uErr) throw uErr;
@@ -392,6 +485,7 @@ export const createReturnCase = createServerFn({ method: "POST" })
       created_by: context.userId,
     }).select("id").single();
     if (error) throw error;
+    await postRefundJournal(sb, context.userId, row.id, data.brandId, Number(data.refundAmount ?? 0));
     return { ok: true, id: row.id };
   });
 
@@ -455,6 +549,7 @@ export const createExchangeCase = createServerFn({ method: "POST" })
       created_by: context.userId,
     }).select("id").single();
     if (error) throw error;
+    await postExchangeChargeJournal(sb, context.userId, row.id, data.brandId, Number(data.exchangeChargeCollected ?? 0));
     return { ok: true, id: row.id };
   });
 /* ----------------- EXCHANGE: mark replacement sent (with tracking) ----------------- */
