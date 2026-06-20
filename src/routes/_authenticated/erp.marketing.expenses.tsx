@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, ExternalLink, Download, Search } from "lucide-react";
+import {
+  Loader2, Plus, Trash2, ExternalLink, Download, Search, Receipt, Package, Megaphone,
+} from "lucide-react";
 import { format } from "date-fns";
 
 import { useBrand } from "@/contexts/brand-context";
@@ -23,6 +25,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
+import { MktSubtypeBadge, MktChip } from "@/components/erp/marketing/_ui/MktBadges";
+import { cn } from "@/lib/utils";
 
 import {
   listMarketingExpenses,
@@ -49,21 +54,18 @@ const CATEGORY_OPTIONS = [
 
 const NONE = "__none__";
 
-function categoryBadge(c: string) {
-  const map: Record<string, string> = {
-    influencer: "bg-purple-100 text-purple-800",
-    content: "bg-blue-100 text-blue-800",
-    photoshoot: "bg-pink-100 text-pink-800",
-    agency: "bg-amber-100 text-amber-800",
-    boost: "bg-emerald-100 text-emerald-800",
-    print_design: "bg-orange-100 text-orange-800",
-    event: "bg-fuchsia-100 text-fuchsia-800",
-    sms_email: "bg-cyan-100 text-cyan-800",
-    other: "bg-slate-100 text-slate-800",
-  };
-  const label = CATEGORY_OPTIONS.find((o) => o.value === c)?.label ?? c;
-  return <Badge className={`${map[c] ?? "bg-slate-100 text-slate-800"} hover:opacity-90`}>{label}</Badge>;
-}
+/* Subtype tile color map for the click-to-filter strip */
+const SUBTYPE_TILE: Record<string, { dot: string; text: string; bg: string; icon: string }> = {
+  influencer:   { dot: "bg-purple-500",  text: "text-purple-700",  bg: "bg-purple-50/60",  icon: "👤" },
+  content:      { dot: "bg-blue-500",    text: "text-blue-700",    bg: "bg-blue-50/60",    icon: "🎬" },
+  boost:        { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50/60", icon: "📱" },
+  print_design: { dot: "bg-orange-500",  text: "text-orange-700",  bg: "bg-orange-50/60",  icon: "🖨️" },
+  sms_email:    { dot: "bg-cyan-500",    text: "text-cyan-700",    bg: "bg-cyan-50/60",    icon: "📧" },
+  agency:       { dot: "bg-amber-500",   text: "text-amber-700",   bg: "bg-amber-50/60",   icon: "🏢" },
+  event:        { dot: "bg-fuchsia-500", text: "text-fuchsia-700", bg: "bg-fuchsia-50/60", icon: "🎫" },
+  photoshoot:   { dot: "bg-pink-500",    text: "text-pink-700",    bg: "bg-pink-50/60",    icon: "📸" },
+  other:        { dot: "bg-slate-400",   text: "text-slate-700",   bg: "bg-slate-50/60",   icon: "•" },
+};
 
 function ExpensesPage() {
   const qc = useQueryClient();
@@ -169,7 +171,7 @@ function ExpensesPage() {
   if (!brandId) {
     if (isAllBrands) {
       return (
-        <Card>
+        <Card className="rounded-xl border-gray-100 shadow-sm">
           <CardContent className="py-8 space-y-3 max-w-sm">
             <p className="text-sm">All-Brands mode — kon brand er expenses dekhbe?</p>
             <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
@@ -183,7 +185,7 @@ function ExpensesPage() {
       );
     }
     return (
-      <Card>
+      <Card className="rounded-xl border-gray-100 shadow-sm">
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
           Select a brand first.
         </CardContent>
@@ -192,22 +194,54 @@ function ExpensesPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Per-subtype monthly summary */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
-        {CATEGORY_OPTIONS.filter((c) => c.value !== "other" && c.value !== "agency" && c.value !== "photoshoot").map((c) => (
-          <Card key={c.value}>
-            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">{c.label}</CardTitle></CardHeader>
-            <CardContent className="text-lg font-semibold tabular-nums">
-              ৳ {(monthSubtotals.get(c.value) ?? 0).toLocaleString()}
-              <div className="text-[10px] text-muted-foreground font-normal">this month</div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      <MktPageHeader
+        title="Marketing Expenses"
+        subtitle="Influencer, UGC, boosting, print, events — sob manual mkt expense ekhane"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={downloadCsv} disabled={!rows.length} className="bg-white gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
+            <Button size="sm" onClick={() => setOpen(true)} className="bg-[#1877F2] hover:bg-[#1664d4] gap-1.5">
+              <Plus className="h-4 w-4" /> Add Expense
+            </Button>
+          </>
+        }
+      />
+
+      {/* Per-subtype tiles (click-to-filter) */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        {CATEGORY_OPTIONS.filter((c) => c.value !== "other" && c.value !== "agency" && c.value !== "photoshoot").map((c) => {
+          const t = SUBTYPE_TILE[c.value] ?? SUBTYPE_TILE.other;
+          const isActive = filterCategory === c.value;
+          const v = monthSubtotals.get(c.value) ?? 0;
+          return (
+            <button
+              key={c.value}
+              onClick={() => setFilterCategory(isActive ? "__all__" : c.value)}
+              className={cn(
+                "text-left rounded-xl border bg-white shadow-sm p-4 transition-all duration-150 hover:shadow-md hover:-translate-y-px",
+                isActive ? "border-[#1877F2] ring-2 ring-[#1877F2]/30" : "border-gray-100",
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate">
+                  {c.label}
+                </span>
+                <span className={cn("text-base", t.text)}>{t.icon}</span>
+              </div>
+              <div className={cn("text-lg font-bold tabular-nums", v > 0 ? "text-foreground" : "text-muted-foreground")}>
+                ৳{Math.round(v).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">this month</div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter bar */}
-      <Card>
+      <Card className="rounded-xl border-gray-100 shadow-sm">
         <CardContent className="p-3 flex flex-wrap items-center gap-2">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger className="w-44"><SelectValue placeholder="All categories" /></SelectTrigger>
@@ -241,34 +275,32 @@ function ExpensesPage() {
             <span><b className="text-foreground">{totals.count}</b> entries</span>
             <span><b className="text-foreground">৳ {totals.total.toLocaleString()}</b> total</span>
             <span><b className="text-foreground">{totals.posted}</b> posted</span>
-            <Button variant="outline" size="sm" onClick={downloadCsv} disabled={!rows.length}>
-              <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div>
-            <CardTitle>Manual Marketing Expenses</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Influencer, content, photoshoot, agency etc. Auto-posts to Finance jodi account select koro.
-            </p>
-          </div>
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> Add Expense
-          </Button>
+      <Card className="rounded-xl border-gray-100 shadow-sm">
+        <CardHeader className="border-b border-gray-100 py-4">
+          <CardTitle className="text-base">Expense entries</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {expensesQ.isLoading ? (
             <div className="py-10 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : rows.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">No expenses yet.</div>
+            <MktEmptyState
+              icon={Receipt}
+              title="No expenses yet"
+              subtitle="Influencer payment, UGC, boosting etc. ekhane add korun — auto-post to Finance possible."
+              action={
+                <Button size="sm" onClick={() => setOpen(true)} className="bg-[#1877F2] hover:bg-[#1664d4] gap-1.5">
+                  <Plus className="h-4 w-4" /> Add first expense
+                </Button>
+              }
+            />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50/60 hover:bg-gray-50/60 border-b border-gray-100">
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Vendor</TableHead>
@@ -282,33 +314,33 @@ function ExpensesPage() {
               </TableHeader>
               <TableBody>
                 {rows.map((r: any) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
+                  <TableRow key={r.id} className="hover:bg-gray-50/60 transition-colors">
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                       {r.date ? format(new Date(r.date), "dd MMM yyyy") : "—"}
                     </TableCell>
-                    <TableCell>{categoryBadge(r.category)}</TableCell>
+                    <TableCell><MktSubtypeBadge subtype={r.category} /></TableCell>
                     <TableCell className="text-sm">{r.vendor || "—"}</TableCell>
                     <TableCell className="text-sm">
                       {r.products?.name ? (
-                        <Badge variant="outline" className="font-normal">{r.products.name}</Badge>
+                        <MktChip tone="indigo"><Package className="h-3 w-3" />{r.products.name}</MktChip>
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-sm">
                       {r.mkt_campaigns?.name ? (
-                        <Badge variant="outline" className="font-normal">{r.mkt_campaigns.name}</Badge>
+                        <MktChip tone="blue"><Megaphone className="h-3 w-3" />{r.mkt_campaigns.name}</MktChip>
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-sm">{r.erp_accounts?.name || "—"}</TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right font-semibold tabular-nums">
                       {r.currency || "BDT"} {Number(r.amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       {r.transaction_id ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 gap-1">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
                           <ExternalLink className="h-3 w-3" /> Posted
                         </Badge>
                       ) : (
-                        <Badge variant="outline">Not posted</Badge>
+                        <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">Not posted</Badge>
                       )}
                     </TableCell>
                     <TableCell>

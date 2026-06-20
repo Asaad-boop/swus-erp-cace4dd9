@@ -129,11 +129,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
       {/* ROAS COMPARISON */}
       {showToday && d.today.spend_bdt > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">ROAS Comparison — Today</CardTitle>
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-3 border-b border-gray-100">
+            <CardTitle className="text-base">ROAS Reality Check — Today</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <div className="grid gap-4 sm:grid-cols-3">
               <RoasRow
                 label="Meta ROAS"
@@ -161,11 +161,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 7-DAY TREND */}
         {showTrend && (
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="rounded-xl border-gray-100 shadow-sm">
+            <CardHeader className="pb-3 border-b border-gray-100">
               <CardTitle className="text-base">Spend vs Revenue — Last 7 days</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 pt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={d.trend7d} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -222,11 +222,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
         {/* TOP 5 */}
         {showTop && (
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="rounded-xl border-gray-100 shadow-sm">
+            <CardHeader className="pb-3 border-b border-gray-100">
               <CardTitle className="text-base">Top 5 Campaigns — Real ROAS (7d)</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 pt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={d.topCampaigns.map((c) => ({
@@ -263,11 +263,11 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
 
       {/* BUDGET PACING */}
       {showPacing && (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-3 border-b border-gray-100">
             <CardTitle className="text-base">Budget Pacing — Active Campaigns (Today)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-5">
             <BudgetSummaryStrip rows={d.budgetPacing} />
             {d.budgetPacing.map((p) => (
               <BudgetRow key={p.campaign_id} row={p} />
@@ -293,24 +293,26 @@ function TodayKpi({
   tone?: "good" | "bad";
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+    <Card className="rounded-xl border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
             {label}
           </span>
-          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#1877F2]/8 text-[#1877F2]">
+            <Icon className="h-3.5 w-3.5" />
+          </span>
         </div>
         <div
           className={cn(
-            "text-xl font-semibold tabular-nums",
+            "text-2xl font-bold tabular-nums leading-tight",
             tone === "good" && "text-emerald-600",
             tone === "bad" && "text-red-600",
           )}
         >
           {value}
         </div>
-        {sub ? <div className="text-xs text-muted-foreground mt-0.5">{sub}</div> : null}
+        {sub ? <div className="text-xs text-muted-foreground mt-1">{sub}</div> : null}
       </CardContent>
     </Card>
   );
@@ -328,19 +330,19 @@ function RoasRow({
   tone: "meta" | "confirmed" | "delivered";
 }) {
   const cls = {
-    meta: "text-sky-600",
-    confirmed: "text-primary",
-    delivered: "text-emerald-600",
+    meta:      { text: "text-[#1877F2]", bg: "bg-[#1877F2]/8",  ring: "ring-[#1877F2]/20" },
+    confirmed: { text: "text-purple-600", bg: "bg-purple-50",   ring: "ring-purple-200" },
+    delivered: { text: "text-emerald-600", bg: "bg-emerald-50", ring: "ring-emerald-200" },
   }[tone];
   return (
-    <div className="rounded-lg border bg-card/50 p-4">
-      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+    <div className={cn("rounded-xl border border-gray-100 p-5 ring-1", cls.bg, cls.ring)}>
+      <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-1">
         {label}
       </div>
-      <div className={cn("text-2xl font-bold tabular-nums", cls)}>
+      <div className={cn("text-3xl font-bold tabular-nums", cls.text)}>
         {fmtMult(value)}
       </div>
-      <div className="text-xs text-muted-foreground mt-1">{hint}</div>
+      <div className="text-xs text-muted-foreground mt-1.5">{hint}</div>
     </div>
   );
 }
