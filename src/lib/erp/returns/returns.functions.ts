@@ -180,7 +180,7 @@ export const completeQC = createServerFn({ method: "POST" })
           action: data.condition === "damaged" ? "return_damaged" : "return_missing",
           entity_type: "erp_return_case",
           entity_id: c.id,
-          metadata: { product_id: c.product_id, qty: c.qty, notes: data.notes ?? null },
+          details: { product_id: c.product_id, qty: c.qty, notes: data.notes ?? null }, performed_by: context.userId,
         });
       } catch { /* non-fatal */ }
     }
@@ -517,7 +517,7 @@ export const completeExchange = createServerFn({ method: "POST" })
           action: data.oldCondition === "damaged" ? "exchange_damaged" : "exchange_missing",
           entity_type: "erp_exchange_case",
           entity_id: exc.id,
-          metadata: { product_id: exc.original_product_id, qty, notes: data.notes ?? null },
+          details: { product_id: exc.original_product_id, qty, notes: data.notes ?? null }, performed_by: context.userId,
         });
       } catch { /* non-fatal */ }
     }
