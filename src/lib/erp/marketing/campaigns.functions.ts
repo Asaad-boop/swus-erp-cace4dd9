@@ -21,6 +21,11 @@ export type CampaignRollupRow = {
   meta_purchases: number;
   meta_purchase_value: number;
   meta_leads: number;
+  // Currency / FX (per account)
+  currency: string;
+  fx_rate: number; // 1 unit of account currency in BDT
+  spend_bdt: number;
+  meta_purchase_value_bdt: number;
   // Attribution-derived
   confirmed_orders: number;
   confirmed_revenue: number;
