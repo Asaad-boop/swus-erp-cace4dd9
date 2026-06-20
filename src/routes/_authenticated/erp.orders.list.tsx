@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Download, RefreshCw, Inbox } from "lucide-react";
+import { Plus, Download, RefreshCw, Inbox, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBrand } from "@/contexts/brand-context";
 import { useOrdersQuery, useOrderStatusCounts, type OrdersFilter } from "@/hooks/erp/use-orders-query";
+import { useCourierShipments, normalizeCourierStatus, COURIER_BUCKETS, COURIER_BUCKET_META, type CourierBucket, type CourierShipmentRow } from "@/hooks/erp/use-courier-shipments";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { OrdersStatusTabs } from "@/components/erp/orders/orders-status-tabs";
 import { OrdersToolbar } from "@/components/erp/orders/orders-toolbar";
@@ -59,7 +60,82 @@ function OrdersPage() {
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [singleSyncId, setSingleSyncId] = useState<string | null>(null);
   const [phoneHistOpen, setPhoneHistOpen] = useState(false);
+  const [courierStatusFilter, setCourierStatusFilter] = useState<CourierBucket | "all">("all");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+
+  // Bulk fetch live courier shipments for the current page
+  const pageOrderIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const { data: shipmentsMap = {} } = useCourierShipments(pageOrderIds);
+
+  // Apply client-side courier status filter
+  const visibleRows = useMemo(() => {
+    if (courierStatusFilter === "all") return rows;
+    return rows.filter((r) => {
+      const s = shipmentsMap[r.id];
+      const bucket = s ? normalizeCourierStatus(s.status) : null;
+      return bucket === courierStatusFilter;
+    });
+  }, [rows, shipmentsMap, courierStatusFilter]);
+
+  // Realtime: subscribe to courier_shipments UPDATE/INSERT
+  useEffect(() => {
+    if (pageOrderIds.length === 0) return;
+    const orderIdSet = new Set(pageOrderIds);
+    const idsKey = [...pageOrderIds].sort().join(",");
+    const queryKey = ["courier-shipments", idsKey] as const;
+    const channel = supabase
+      .channel(`courier-status-live-${idsKey.slice(0, 32)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "courier_shipments" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as CourierShipmentRow | undefined;
+          if (!row?.order_id || !orderIdSet.has(row.order_id)) return;
+          if (payload.eventType === "DELETE") {
+            qc.setQueryData<Record<string, CourierShipmentRow>>(queryKey, (old) => {
+              if (!old) return old;
+              const next = { ...old };
+              delete next[row.order_id];
+              return next;
+            });
+            return;
+          }
+          const newRow = payload.new as CourierShipmentRow;
+          qc.setQueryData<Record<string, CourierShipmentRow>>(queryKey, (old) => {
+            const prev = old?.[newRow.order_id];
+            // Only replace if this shipment is newer
+            if (prev && prev.updated_at && newRow.updated_at && prev.updated_at > newRow.updated_at) {
+              return old;
+            }
+            return { ...(old ?? {}), [newRow.order_id]: newRow };
+          });
+          // Flash row briefly
+          setFlashIds((s) => { const n = new Set(s); n.add(newRow.order_id); return n; });
+          setTimeout(() => {
+            setFlashIds((s) => { const n = new Set(s); n.delete(newRow.order_id); return n; });
+          }, 2500);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pageOrderIds, qc]);
+
+  const courierFilterActive = courierStatusFilter !== "all";
+  const courierCounts = useMemo(() => {
+    const counts: Partial<Record<CourierBucket, number>> = {};
+    for (const r of rows) {
+      const s = shipmentsMap[r.id];
+      const b = s ? normalizeCourierStatus(s.status) : null;
+      if (!b) continue;
+      counts[b] = (counts[b] ?? 0) + 1;
+    }
+    return counts;
+  }, [rows, shipmentsMap]);
 
   // BUG 1: clear selection when page/filter/tab/view changes
   useEffect(() => {
