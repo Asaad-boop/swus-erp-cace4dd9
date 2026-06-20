@@ -26,7 +26,7 @@ import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 import {
   OrderTimeline, ShipmentPanel, CustomerHistoryPanel, AttributionPanel,
-  ReturnDialog, ExchangeDialog, useOrderNeighbors,
+  ReturnDialog, ExchangeDialog, useOrderNeighbors, OrderCasesPanel,
 } from "@/components/erp/orders/order-detail-extras";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { cn } from "@/lib/utils";
@@ -1570,6 +1570,9 @@ function OrderDetailsPage() {
 
           {/* Customer 360 */}
           <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
+
+          {/* Returns & Exchanges cases */}
+          <OrderCasesPanel orderId={orderId} />
 
           {/* Contact info */}
           <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm p-4 space-y-2 text-xs">

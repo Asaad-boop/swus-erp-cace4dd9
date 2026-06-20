@@ -17,6 +17,7 @@ import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
+import { Route as AuthenticatedErpReturnsRouteImport } from './routes/_authenticated/erp.returns'
 import { Route as AuthenticatedErpReorderQueueRouteImport } from './routes/_authenticated/erp.reorder-queue'
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
@@ -30,6 +31,7 @@ import { Route as AuthenticatedErpDiagnosticsRouteImport } from './routes/_authe
 import { Route as AuthenticatedErpCrmRouteImport } from './routes/_authenticated/erp.crm'
 import { Route as AuthenticatedErpCourierRouteImport } from './routes/_authenticated/erp.courier'
 import { Route as AuthenticatedErpStocktakeIndexRouteImport } from './routes/_authenticated/erp.stocktake.index'
+import { Route as AuthenticatedErpReturnsIndexRouteImport } from './routes/_authenticated/erp.returns.index'
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
 import { Route as AuthenticatedErpPurchaseOrdersIndexRouteImport } from './routes/_authenticated/erp.purchase-orders.index'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
@@ -47,6 +49,7 @@ import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/publi
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
 import { Route as AuthenticatedErpStocktakeNewRouteImport } from './routes/_authenticated/erp.stocktake.new'
 import { Route as AuthenticatedErpStocktakeSessionIdRouteImport } from './routes/_authenticated/erp.stocktake.$sessionId'
+import { Route as AuthenticatedErpReturnsCaseIdRouteImport } from './routes/_authenticated/erp.returns.$caseId'
 import { Route as AuthenticatedErpReconciliationInvoiceRouteImport } from './routes/_authenticated/erp.reconciliation.invoice'
 import { Route as AuthenticatedErpPurchaseOrdersNewRouteImport } from './routes/_authenticated/erp.purchase-orders.new'
 import { Route as AuthenticatedErpPurchaseOrdersPoIdRouteImport } from './routes/_authenticated/erp.purchase-orders.$poId'
@@ -149,6 +152,11 @@ const AuthenticatedErpSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
+const AuthenticatedErpReturnsRoute = AuthenticatedErpReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
 const AuthenticatedErpReorderQueueRoute =
   AuthenticatedErpReorderQueueRouteImport.update({
     id: '/reorder-queue',
@@ -220,6 +228,12 @@ const AuthenticatedErpStocktakeIndexRoute =
     id: '/stocktake/',
     path: '/stocktake/',
     getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpReturnsIndexRoute =
+  AuthenticatedErpReturnsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedErpReturnsRoute,
   } as any)
 const AuthenticatedErpReconciliationIndexRoute =
   AuthenticatedErpReconciliationIndexRouteImport.update({
@@ -319,6 +333,12 @@ const AuthenticatedErpStocktakeSessionIdRoute =
     id: '/stocktake/$sessionId',
     path: '/stocktake/$sessionId',
     getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpReturnsCaseIdRoute =
+  AuthenticatedErpReturnsCaseIdRouteImport.update({
+    id: '/$caseId',
+    path: '/$caseId',
+    getParentRoute: () => AuthenticatedErpReturnsRoute,
   } as any)
 const AuthenticatedErpReconciliationInvoiceRoute =
   AuthenticatedErpReconciliationInvoiceRouteImport.update({
@@ -696,6 +716,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
+  '/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
@@ -744,6 +765,7 @@ export interface FileRoutesByFullPath {
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
@@ -761,6 +783,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
+  '/erp/returns/': typeof AuthenticatedErpReturnsIndexRoute
   '/erp/stocktake/': typeof AuthenticatedErpStocktakeIndexRoute
   '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -832,6 +855,7 @@ export interface FileRoutesByTo {
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
@@ -849,6 +873,7 @@ export interface FileRoutesByTo {
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/purchase-orders': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationIndexRoute
+  '/erp/returns': typeof AuthenticatedErpReturnsIndexRoute
   '/erp/stocktake': typeof AuthenticatedErpStocktakeIndexRoute
   '/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -885,6 +910,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
   '/_authenticated/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/_authenticated/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
+  '/_authenticated/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
@@ -933,6 +959,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/_authenticated/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/_authenticated/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/_authenticated/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/_authenticated/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/_authenticated/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
@@ -950,6 +977,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/_authenticated/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/_authenticated/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
+  '/_authenticated/erp/returns/': typeof AuthenticatedErpReturnsIndexRoute
   '/_authenticated/erp/stocktake/': typeof AuthenticatedErpStocktakeIndexRoute
   '/_authenticated/erp/hr/attendance/muster': typeof AuthenticatedErpHrAttendanceMusterRoute
   '/_authenticated/erp/hr/employees/$id': typeof AuthenticatedErpHrEmployeesIdRoute
@@ -986,6 +1014,7 @@ export interface FileRouteTypes {
     | '/erp/orders'
     | '/erp/reconciliation'
     | '/erp/reorder-queue'
+    | '/erp/returns'
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
@@ -1034,6 +1063,7 @@ export interface FileRouteTypes {
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
+    | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
     | '/api/public/cron/run-recurring'
@@ -1051,6 +1081,7 @@ export interface FileRouteTypes {
     | '/erp/orders/'
     | '/erp/purchase-orders/'
     | '/erp/reconciliation/'
+    | '/erp/returns/'
     | '/erp/stocktake/'
     | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
@@ -1122,6 +1153,7 @@ export interface FileRouteTypes {
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
+    | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
     | '/api/public/cron/run-recurring'
@@ -1139,6 +1171,7 @@ export interface FileRouteTypes {
     | '/erp/orders'
     | '/erp/purchase-orders'
     | '/erp/reconciliation'
+    | '/erp/returns'
     | '/erp/stocktake'
     | '/erp/hr/attendance/muster'
     | '/erp/hr/employees/$id'
@@ -1174,6 +1207,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders'
     | '/_authenticated/erp/reconciliation'
     | '/_authenticated/erp/reorder-queue'
+    | '/_authenticated/erp/returns'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
@@ -1222,6 +1256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/purchase-orders/$poId'
     | '/_authenticated/erp/purchase-orders/new'
     | '/_authenticated/erp/reconciliation/invoice'
+    | '/_authenticated/erp/returns/$caseId'
     | '/_authenticated/erp/stocktake/$sessionId'
     | '/_authenticated/erp/stocktake/new'
     | '/api/public/cron/run-recurring'
@@ -1239,6 +1274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/'
     | '/_authenticated/erp/purchase-orders/'
     | '/_authenticated/erp/reconciliation/'
+    | '/_authenticated/erp/returns/'
     | '/_authenticated/erp/stocktake/'
     | '/_authenticated/erp/hr/attendance/muster'
     | '/_authenticated/erp/hr/employees/$id'
@@ -1326,6 +1362,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/erp/settings'
       preLoaderRoute: typeof AuthenticatedErpSettingsRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/returns': {
+      id: '/_authenticated/erp/returns'
+      path: '/returns'
+      fullPath: '/erp/returns'
+      preLoaderRoute: typeof AuthenticatedErpReturnsRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/reorder-queue': {
@@ -1418,6 +1461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/stocktake/'
       preLoaderRoute: typeof AuthenticatedErpStocktakeIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/returns/': {
+      id: '/_authenticated/erp/returns/'
+      path: '/'
+      fullPath: '/erp/returns/'
+      preLoaderRoute: typeof AuthenticatedErpReturnsIndexRouteImport
+      parentRoute: typeof AuthenticatedErpReturnsRoute
     }
     '/_authenticated/erp/reconciliation/': {
       id: '/_authenticated/erp/reconciliation/'
@@ -1537,6 +1587,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/stocktake/$sessionId'
       preLoaderRoute: typeof AuthenticatedErpStocktakeSessionIdRouteImport
       parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/returns/$caseId': {
+      id: '/_authenticated/erp/returns/$caseId'
+      path: '/$caseId'
+      fullPath: '/erp/returns/$caseId'
+      preLoaderRoute: typeof AuthenticatedErpReturnsCaseIdRouteImport
+      parentRoute: typeof AuthenticatedErpReturnsRoute
     }
     '/_authenticated/erp/reconciliation/invoice': {
       id: '/_authenticated/erp/reconciliation/invoice'
@@ -2234,6 +2291,22 @@ const AuthenticatedErpReconciliationRouteWithChildren =
     AuthenticatedErpReconciliationRouteChildren,
   )
 
+interface AuthenticatedErpReturnsRouteChildren {
+  AuthenticatedErpReturnsCaseIdRoute: typeof AuthenticatedErpReturnsCaseIdRoute
+  AuthenticatedErpReturnsIndexRoute: typeof AuthenticatedErpReturnsIndexRoute
+}
+
+const AuthenticatedErpReturnsRouteChildren: AuthenticatedErpReturnsRouteChildren =
+  {
+    AuthenticatedErpReturnsCaseIdRoute: AuthenticatedErpReturnsCaseIdRoute,
+    AuthenticatedErpReturnsIndexRoute: AuthenticatedErpReturnsIndexRoute,
+  }
+
+const AuthenticatedErpReturnsRouteWithChildren =
+  AuthenticatedErpReturnsRoute._addFileChildren(
+    AuthenticatedErpReturnsRouteChildren,
+  )
+
 interface AuthenticatedErpRouteChildren {
   AuthenticatedErpCourierRoute: typeof AuthenticatedErpCourierRoute
   AuthenticatedErpCrmRoute: typeof AuthenticatedErpCrmRouteWithChildren
@@ -2247,6 +2320,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
   AuthenticatedErpReconciliationRoute: typeof AuthenticatedErpReconciliationRouteWithChildren
   AuthenticatedErpReorderQueueRoute: typeof AuthenticatedErpReorderQueueRoute
+  AuthenticatedErpReturnsRoute: typeof AuthenticatedErpReturnsRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
   AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
@@ -2275,6 +2349,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpReconciliationRoute:
     AuthenticatedErpReconciliationRouteWithChildren,
   AuthenticatedErpReorderQueueRoute: AuthenticatedErpReorderQueueRoute,
+  AuthenticatedErpReturnsRoute: AuthenticatedErpReturnsRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
   AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
@@ -2321,13 +2396,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

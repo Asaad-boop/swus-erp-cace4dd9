@@ -1,87 +1,151 @@
-## Marketing Module — Premium UI Redesign Plan
+## Returns & Exchanges Module — Full Build Plan
 
-**Scope:** Visual-only redesign of 6 Marketing pages. Zero logic / query / server-function changes. Routes, data shapes, props — all preserved.
-
----
-
-### Design System (shared, applied first)
-
-Create `src/components/erp/marketing/_ui/` with reusable primitives — used across all 6 pages so styling stays consistent and changes propagate.
-
-- `MktPageHeader.tsx` — 56px header (title left, actions right, border-b)
-- `MktKpiCard.tsx` — icon + label + big number + sub + trend arrow
-- `MktDecisionBadge.tsx` — scale/monitor/optimize/kill colored pill
-- `MktStatusBadge.tsx` — active/paused/deleted dot + label
-- `MktBudgetBadge.tsx` — on-track / near-limit / over-budget (pulse)
-- `MktEmptyState.tsx` — icon-in-blue-circle + title + subtitle + CTA
-- `MktSkeleton.tsx` — content-shape skeletons (card, row, chart)
-- `MktSubtypeBadge.tsx` — expense subtype color map
-
-Tailwind tokens used: existing semantic tokens + the spec hexes (Meta blue `#1877F2`, emerald `#10B981`, amber `#F59E0B`, red `#EF4444`, purple `#8B5CF6`). No `tailwind.config.js` edits — colors applied as inline `bg-[#1877F2]` only where semantic tokens don't fit; prefer existing `bg-emerald-50` / `text-emerald-700` etc.
-
-The marketing tab strip in `erp.marketing.tsx` gets the pill style (active = Meta blue) — same pattern as HR redesign.
+Boro scope, tai implementation shuru korar age plan confirm korte chai. Sob additive, existing dialogs/profitability bhangbe na.
 
 ---
 
-### Page-by-page changes (visual only)
+### PHASE 0 — Database Migration (additive only)
 
-**1. `erp.marketing.index.tsx` — Dashboard**
-- Header: title + date-range + Sync Now + last synced
-- Today's strip: 6 KPI cards (existing data: spend, revenue, real ROAS, orders, CPO, conv-rate)
-- ROAS Reality Check card (Meta / Confirmed / Delivered side by side, already wired)
-- Charts row: Spend vs Revenue line (7d) + Top-5 ROAS horizontal bar
-- Decision Buckets: 4 click-to-filter cards (already wired — restyle)
-- Budget Pacing: summary strip + compact per-campaign cards with pulse on over
-- Campaign table at bottom (compact, decision badge, click → detail)
+**Extend `erp_return_cases**` (9 new columns):
 
-**2. `erp.marketing.campaigns.index.tsx` — Campaigns list**
-- Header + KPI strip (Total Spend / Revenue / Avg ROAS / Active count)
-- Filter bar (search + status + decision + date)
-- **Switch from table → grid of campaign cards** (status dot, decision badge, dual currency spend, real vs meta ROAS, View Detail link)
+- `return_status` (default `'initiated'`), `courier_tracking_id`, `courier_name`
+- `qc_condition`, `qc_notes`, `qc_done_by` (FK auth.users), `qc_done_at`
+- `stock_updated` (default false), `refund_status` (default `'pending'`)
 
-**3. `erp.marketing.campaigns.$campaignId.tsx` — Campaign detail**
-- Header card with inline metrics
-- 2/3 + 1/3 split: left = perf chart + Linked Products table (margin color); right = Campaign Info + Ad Sets list
-- Existing `LinkedProductsCard`, search dialog, link/unlink fns untouched — just restyle wrapper
+**Extend `erp_exchange_cases**` (4 new columns):
 
-**4. `erp.marketing.sku-pnl.tsx` — SKU P&L**
-- Summary cards (already present — restyle)
-- Premium table: inline margin progress-bar, sticky totals row, expandable rows show campaign breakdown per SKU (uses already-fetched `adSpendByProduct` data — purely presentational)
-- Unallocated amber card below table with "Go to Campaigns" CTA
+- `exchange_status` (default `'initiated'`), `new_order_id` (FK orders)
+- `courier_tracking_id`, `exchange_type_detail`
 
-**5. `erp.marketing.expenses.tsx` — Manual expenses**
-- Per-subtype KPI strip (6 cards, click-to-filter — restyle existing)
-- Table: type badge colored, product/campaign chips
-- Add Expense form moved to slide-over (Sheet) with pill type-selector
+**New table `erp_return_timeline**`:
 
-**6. `erp.marketing.attribution.tsx` — Attribution**
-- Stats strip (attributed / unattributed / attribution rate %)
-- Table with confidence badge column
+- `id`, `case_id`, `case_type` (return|exchange), `status`, `note`, `created_by`, `created_at`
+- GRANTs to authenticated + service_role, RLS scoped to brand access
+- Index on `(case_id, case_type, created_at desc)`
+
+**New helper functions** (SQL):
+
+- `generate_case_number(_type text)` → returns `RET-YYYYMM-XXXX` / `EXC-YYYYMM-XXXX`
+- Trigger on `erp_return_cases` / `erp_exchange_cases` insert → auto add timeline entry
+- Trigger on status change → auto add timeline entry
 
 ---
 
-### Global patterns
-- Card: `rounded-xl border-gray-100 shadow-sm hover:shadow-md transition-all`
-- Card hover lift: `hover:-translate-y-px`
-- Loading: shape-matched skeletons (not generic spinners)
-- Animations: `animate-fade-in` on data load, `animate-pulse` on over-budget, smooth `transition-[width]` on budget bars
+### PHASE 1 — Dedicated Module `/erp/returns`
+
+**New routes** under `_authenticated/`:
+
+- `erp.returns.tsx` — layout with `<Outlet />`
+- `erp.returns.index.tsx` — list page (tabs: All / Returns / Exchanges / Pending QC / Restocked / Closed)
+- `erp.returns.$caseId.tsx` — case detail page
+
+**List page**:
+
+- Header + [New Return] [New Exchange] [Export CSV] buttons
+- Filter bar: date range, brand, status, type
+- Combined table (returns + exchanges) with status badges
+- Tab counts pulled with brand scoping
+
+**Case detail page** (2/3 + 1/3 layout):
+
+- Left: Timeline (vertical, icons + staff + time), QC section (when status=received), Product info
+- Right: Case summary, Financial impact, Courier info, Exchange-specific actions
+
+**Sidebar**: Add "Returns & Exchanges" under Operations group → `/erp/returns`
 
 ---
 
-### Out of scope (per "no logic changes")
-- No new server fns, no schema changes, no query shape changes
-- No data added — if a card has no data, it stays hidden (per memory rule)
-- Route paths unchanged
-- All existing handlers, dialogs, mutations wired as-is
+### PHASE 2 — Order Detail Integration
+
+In existing Order Detail right sidebar, new "Returns" section:
+
+- **[Initiate Return]** button (shown only for delivered / partial_delivered orders) → opens improved ReturnCaseDialog (order items auto-loaded from THIS order, not last-50 flat list; courier tracking field added; auto-fill refund+WAC kept)
+- **[Initiate Exchange]** button → opens improved ExchangeCaseDialog (exchange_type_detail selector added)
+- **Mini list** of all existing return/exchange cases for this order with [View] deep-link to `/erp/returns/$caseId`
+
+Existing dialogs stay functional from Product Profitability page (no breaking changes).
 
 ---
 
-### Order of execution
-1. Build `_ui/` primitives
-2. Restyle tab strip (`erp.marketing.tsx`)
-3. Dashboard → Campaigns list → Campaign detail → SKU P&L → Expenses → Attribution
-4. Visual smoke-test each page via Playwright screenshot
+### PHASE 3 — QC & Stock Integration
 
-Estimated ~8–10 file edits + 8 new primitive files. ~1 implementation pass per page.
+QC section in case detail (visible when `return_status='received'`):
 
-**Confirm to proceed, or tell me which pages to prioritise / drop.**
+1. Condition selector: Sellable / Damaged / Missing
+2. QC notes textarea
+3. [Complete QC] button:
+  - **Sellable** → `supabase.rpc('adjust_stock_v2', { delta=+qty, unit_cost=WAC, source='return', idempotency_key='return_restock_${id}' })` → status=`restocked`, `stock_updated=true`
+  - **Damaged** → activity_log entry, status=`qc_done`
+  - **Missing** → activity_log entry (courier loss), status=`qc_done`
+4. Timeline entry auto-created
+
+---
+
+### PHASE 4 — Exchange Order Creation
+
+[Create Exchange Order] button on exchange case detail (when type ≠ refund_only):
+
+- Pre-fills new order: same customer, new product/variant, COD=exchange_charge, note=`"Exchange for order #XXXX"`
+- On create → links `new_order_id`, exchange status → `new_order_created`
+- Shows link to new order
+
+---
+
+### PHASE 5 — Server Functions
+
+New file: `src/lib/erp/returns/returns.functions.ts`
+
+All `createServerFn` + `requireSupabaseAuth`, brand-scoped:
+
+- `listReturnCases`, `getReturnCaseDetail`, `createReturnCase`, `updateReturnStatus`
+- `completeQC` (triggers stock RPC if sellable)
+- `listExchangeCases`, `getExchangeCaseDetail`, `createExchangeCase`
+- `createExchangeOrder` (uses existing order creation flow internally)
+- `closeCase`, `exportReturnCases` (CSV)
+
+---
+
+### Files To Create / Edit
+
+**New (10 files)**:
+
+- 1 migration (PHASE 0)
+- `src/lib/erp/returns/returns.functions.ts`
+- `src/routes/_authenticated/erp.returns.tsx` (layout)
+- `src/routes/_authenticated/erp.returns.index.tsx`
+- `src/routes/_authenticated/erp.returns.$caseId.tsx`
+- `src/components/erp/returns/returns-table.tsx`
+- `src/components/erp/returns/case-timeline.tsx`
+- `src/components/erp/returns/qc-section.tsx`
+- `src/components/erp/returns/case-summary-panel.tsx`
+- `src/components/erp/returns/return-status-badge.tsx`
+
+**Edit (3-4 files)**:
+
+- `src/components/erp/orders/order-detail-extras.tsx` — add Returns section
+- `src/components/erp/orders/return-case-dialog.tsx` — order-scoped items + tracking field
+- `src/components/erp/orders/exchange-case-dialog.tsx` — exchange_type_detail field
+- Sidebar nav file (find + add Operations entry)
+
+---
+
+### Confirmation needed before I start
+
+1. **Migration approval**: Apply PHASE 0 migration first (kichu hoyar age)?
+2. **Exchange order creation**: Existing manual order creation flow ache (`/erp/orders/new` ba similar)? Naki ami simple POS-style create function likhbo?
+3. **Brand scoping**: All queries `brand_id IN (user_brand_access)` — confirmed pattern?
+4. **CSV export**: Server-side generate kore download, naki client-side?
+
+Confirm korle PHASE 0 migration diye shuru kori.  
+6:36 PM
+
+**Confirm. Answers:**
+
+1. **Migration** — Phase 0 age apply koro ✅
+2. **Exchange order** — simple create function likho (existing flow complex) ✅
+3. **Brand scoping** — confirmed ✅
+4. **CSV export** — client-side ✅
+
+**Phase 0 migration shuru koro.** 🚀
+
+&nbsp;
