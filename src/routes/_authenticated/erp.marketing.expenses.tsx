@@ -288,8 +288,16 @@ function ExpensesPage() {
                     </TableCell>
                     <TableCell>{categoryBadge(r.category)}</TableCell>
                     <TableCell className="text-sm">{r.vendor || "—"}</TableCell>
-                    <TableCell className="text-sm">{r.products?.name || "—"}</TableCell>
-                    <TableCell className="text-sm">{r.mkt_campaigns?.name || "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {r.products?.name ? (
+                        <Badge variant="outline" className="font-normal">{r.products.name}</Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {r.mkt_campaigns?.name ? (
+                        <Badge variant="outline" className="font-normal">{r.mkt_campaigns.name}</Badge>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="text-sm">{r.erp_accounts?.name || "—"}</TableCell>
                     <TableCell className="text-right font-medium">
                       {r.currency || "BDT"} {Number(r.amount).toLocaleString()}
