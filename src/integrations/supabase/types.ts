@@ -6154,6 +6154,7 @@ export type Database = {
           advance_txn_id: string | null
           alternate_phone: string | null
           assigned_to: string | null
+          attribution_landing_page: string | null
           auto_call_enabled: boolean | null
           brand_id: string | null
           call_attempt_count: number
@@ -6179,6 +6180,10 @@ export type Database = {
           discount_amount: number
           duplicate_flag: boolean
           expected_delivery_date: string | null
+          fb_ad_id: string | null
+          fb_adset_id: string | null
+          fb_campaign_id: string | null
+          fbclid: string | null
           guest_email: string | null
           guest_name: string | null
           guest_phone: string | null
@@ -6239,6 +6244,11 @@ export type Database = {
           transaction_id: string | null
           updated_at: string
           user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           verified_at: string | null
           web_status: Database["public"]["Enums"]["web_order_status"] | null
         }
@@ -6254,6 +6264,7 @@ export type Database = {
           advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
+          attribution_landing_page?: string | null
           auto_call_enabled?: boolean | null
           brand_id?: string | null
           call_attempt_count?: number
@@ -6279,6 +6290,10 @@ export type Database = {
           discount_amount?: number
           duplicate_flag?: boolean
           expected_delivery_date?: string | null
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          fbclid?: string | null
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
@@ -6339,6 +6354,11 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           verified_at?: string | null
           web_status?: Database["public"]["Enums"]["web_order_status"] | null
         }
@@ -6354,6 +6374,7 @@ export type Database = {
           advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
+          attribution_landing_page?: string | null
           auto_call_enabled?: boolean | null
           brand_id?: string | null
           call_attempt_count?: number
@@ -6379,6 +6400,10 @@ export type Database = {
           discount_amount?: number
           duplicate_flag?: boolean
           expected_delivery_date?: string | null
+          fb_ad_id?: string | null
+          fb_adset_id?: string | null
+          fb_campaign_id?: string | null
+          fbclid?: string | null
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
@@ -6439,6 +6464,11 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           verified_at?: string | null
           web_status?: Database["public"]["Enums"]["web_order_status"] | null
         }
