@@ -39,12 +39,12 @@ export const getPendingCodQueue = createServerFn({ method: "GET" })
 
     const now = Date.now();
     const orders = ((rows ?? []) as Array<Record<string, unknown>>).map((o) => {
-      const deliveredAt = o.delivered_at ? new Date(o.delivered_at).getTime() : null;
+      const deliveredAt = o.delivered_at ? new Date(o.delivered_at as string).getTime() : null;
       const daysPending = deliveredAt ? Math.floor((now - deliveredAt) / 86400000) : null;
       return { ...o, days_pending: daysPending };
     });
 
-    const totalAmount = orders.reduce((s, o) => s + Number(o.total ?? 0), 0);
+    const totalAmount = orders.reduce((s, o) => s + Number((o as { total?: unknown }).total ?? 0), 0);
 
     return { orders, totalCount: orders.length, totalAmount };
   });
@@ -80,7 +80,7 @@ export const getOutstandingCod = createServerFn({ method: "GET" })
         ? Math.floor((now - new Date(o.delivered_at as string).getTime()) / 86400000) - data.thresholdDays
         : 0,
     }));
-    const totalAmount = orders.reduce((s, o) => s + Number(o.total ?? 0), 0);
+    const totalAmount = orders.reduce((s, o) => s + Number((o as { total?: unknown }).total ?? 0), 0);
     return { orders, totalCount: orders.length, totalAmount };
   });
 
