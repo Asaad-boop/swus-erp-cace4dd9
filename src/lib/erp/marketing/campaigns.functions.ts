@@ -21,6 +21,11 @@ export type CampaignRollupRow = {
   meta_purchases: number;
   meta_purchase_value: number;
   meta_leads: number;
+  // Currency / FX (per account)
+  currency: string;
+  fx_rate: number; // 1 unit of account currency in BDT
+  spend_bdt: number;
+  meta_purchase_value_bdt: number;
   // Attribution-derived
   confirmed_orders: number;
   confirmed_revenue: number;
@@ -57,7 +62,9 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
-      .select("id,external_id,name,objective,status,effective_status,account_id,daily_budget,mkt_ad_accounts(name,currency)")
+      .select(
+        "id,external_id,name,objective,status,effective_status,account_id,daily_budget,mkt_ad_accounts(name,currency,usd_to_bdt_rate)",
+      )
       .eq("brand_id", data.brandId)
       .order("name");
     if (cErr) throw cErr;
@@ -118,6 +125,12 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       const ctr = ins.impressions > 0 ? (ins.clicks / ins.impressions) * 100 : null;
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
       const roas_delivered = ins.spend > 0 ? att.delivered_revenue / ins.spend : null;
+      const acc = c.mkt_ad_accounts ?? {};
+      const currency: string = (acc.currency ?? "USD").toUpperCase();
+      const usdFx: number = Number(acc.usd_to_bdt_rate) || 110;
+      const fx: number = currency === "BDT" ? 1 : usdFx;
+      const spend_bdt = ins.spend * fx;
+      const meta_purchase_value_bdt = ins.meta_purchase_value * fx;
       return {
         id: c.id,
         external_id: c.external_id,
@@ -126,11 +139,15 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         status: c.status,
         effective_status: c.effective_status,
         account_id: c.account_id,
-        account_name: c.mkt_ad_accounts?.name ?? null,
+        account_name: acc.name ?? null,
         daily_budget: c.daily_budget,
         ...ins,
         ctr,
         cpm,
+        currency,
+        fx_rate: fx,
+        spend_bdt,
+        meta_purchase_value_bdt,
         ...att,
         roas_delivered,
       };
