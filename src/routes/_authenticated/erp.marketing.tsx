@@ -20,9 +20,9 @@ const tabs = [
 function MarketingLayout() {
   const { pathname } = useLocation();
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-border bg-card px-4 md:px-6">
-        <div className="flex items-end gap-1 overflow-x-auto">
+    <div className="flex flex-col h-full bg-[#F8F9FA]">
+      <div className="border-b border-gray-100 bg-white px-4 md:px-6 py-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
           {tabs.map((t) => {
             const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
             return (
@@ -30,10 +30,10 @@ function MarketingLayout() {
                 key={t.to}
                 to={t.to as never}
                 className={cn(
-                  "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                  "px-3.5 py-1.5 text-sm font-medium rounded-full transition-all whitespace-nowrap",
                   active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                    ? "bg-[#1877F2] text-white shadow-sm"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
                 )}
               >
                 {t.label}
