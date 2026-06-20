@@ -1,0 +1,270 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { format, subDays } from "date-fns";
+import {
+  Loader2, Search, ArrowRight, Wallet, Receipt, Activity, Target, Package, Download,
+} from "lucide-react";
+
+import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { listCampaignsRollup, type CampaignRollupRow } from "@/lib/erp/marketing/campaigns.functions";
+import { MktKpiCard } from "@/components/erp/marketing/_ui/MktKpiCard";
+import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
+import { MktStatusBadge } from "@/components/erp/marketing/_ui/MktBadges";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/")({
+  component: CampaignsPage,
+});
+
+const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+
+const fmtNum = (n: number) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const fmtBDT = (n: number) => `৳${Math.round(Number(n) || 0).toLocaleString()}`;
+const fmtUSD = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+function CampaignsPage() {
+  const { brandId, picker } = useBrandPicker();
+  const [rangeKey, setRangeKey] = useState("30d");
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { from, to } = useMemo(() => {
+    const days = RANGES[rangeKey] ?? 30;
+    const today = new Date();
+    return { from: format(subDays(today, days - 1), "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
+  }, [rangeKey]);
+
+  const list = useServerFn(listCampaignsRollup);
+  const rollup = useQuery({
+    queryKey: ["mkt", "campaigns", brandId, from, to],
+    queryFn: () => list({ data: { brandId: brandId!, from, to } }),
+    enabled: !!brandId,
+  });
+
+  const filtered: CampaignRollupRow[] = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const rows = rollup.data ?? [];
+    return rows.filter((r) => {
+      if (term && !r.name.toLowerCase().includes(term) && !r.external_id.includes(term)) return false;
+      if (statusFilter !== "all") {
+        const s = (r.effective_status ?? r.status ?? "").toUpperCase();
+        if (statusFilter === "active" && s !== "ACTIVE") return false;
+        if (statusFilter === "paused" && s !== "PAUSED") return false;
+      }
+      return true;
+    });
+  }, [rollup.data, q, statusFilter]);
+
+  const totals = useMemo(() => filtered.reduce(
+    (a, r) => {
+      a.spend += r.spend;
+      a.spend_bdt += r.spend_bdt;
+      a.delivered_revenue += r.delivered_revenue;
+      a.delivered_orders += r.delivered_orders;
+      a.confirmed_orders += r.confirmed_orders;
+      if (r.roas_delivered != null) { a.roas_sum += r.roas_delivered; a.roas_n += 1; }
+      if (((r.effective_status ?? r.status ?? "").toUpperCase()) === "ACTIVE") a.active += 1;
+      return a;
+    },
+    { spend: 0, spend_bdt: 0, delivered_revenue: 0, delivered_orders: 0, confirmed_orders: 0, roas_sum: 0, roas_n: 0, active: 0 },
+  ), [filtered]);
+
+  const avgRoas = totals.roas_n > 0 ? totals.roas_sum / totals.roas_n : null;
+
+  const exportCsv = () => {
+    const header = ["Campaign", "Status", "Spend BDT", "Spend USD", "Meta Revenue BDT", "Delivered Rev", "Delivered Orders", "Meta ROAS", "Delivered ROAS"];
+    const lines = [header.join(",")];
+    for (const r of filtered) {
+      lines.push([
+        `"${r.name.replace(/"/g, '""')}"`,
+        r.effective_status ?? r.status ?? "",
+        r.spend_bdt, r.spend, r.meta_purchase_value_bdt, r.delivered_revenue, r.delivered_orders,
+        r.roas_meta ?? "", r.roas_delivered ?? "",
+      ].join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `campaigns-${from}_${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <div className="space-y-6">
+      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
+      <MktPageHeader
+        title="Campaigns"
+        subtitle="Meta vs Confirmed vs Delivered — last sync er upor base kore"
+        actions={
+          <>
+            <Select value={rangeKey} onValueChange={setRangeKey}>
+              <SelectTrigger className="w-32 bg-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="bg-white gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Export
+            </Button>
+          </>
+        }
+      />
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MktKpiCard
+          icon={Wallet}
+          label="Total Spend"
+          value={fmtBDT(totals.spend_bdt)}
+          sub={fmtUSD(totals.spend)}
+        />
+        <MktKpiCard
+          icon={Receipt}
+          label="Delivered Revenue"
+          value={fmtBDT(totals.delivered_revenue)}
+          sub={`${fmtNum(totals.delivered_orders)} orders`}
+        />
+        <MktKpiCard
+          icon={Target}
+          label="Avg Delivered ROAS"
+          value={avgRoas != null ? `${avgRoas.toFixed(2)}x` : "—"}
+          tone={avgRoas == null ? "neutral" : avgRoas >= 2 ? "good" : avgRoas >= 1 ? "neutral" : "bad"}
+        />
+        <MktKpiCard
+          icon={Activity}
+          label="Active Campaigns"
+          value={`${totals.active}`}
+          sub={`of ${filtered.length} total`}
+        />
+      </div>
+
+      {/* Filter bar */}
+      <Card className="rounded-xl border-gray-100 shadow-sm">
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search campaigns or IDs…" className="pl-8" />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="ml-auto text-xs text-muted-foreground">
+            Showing <b className="text-foreground">{filtered.length}</b> of {rollup.data?.length ?? 0}
+          </span>
+        </CardContent>
+      </Card>
+
+      {/* Card grid */}
+      {rollup.isLoading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Loading campaigns…
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardContent>
+            <MktEmptyState
+              icon={Package}
+              title="No campaigns yet"
+              subtitle="Ad Accounts page theke sync korun, campaigns automatically import hobe."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((r) => (
+            <CampaignCard key={r.id} row={r} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CampaignCard({ row: r }: { row: CampaignRollupRow }) {
+  const isProfit = r.roas_delivered != null && r.roas_delivered >= 1;
+  return (
+    <Link
+      to="/erp/marketing/campaigns/$campaignId"
+      params={{ campaignId: r.id }}
+      className="group block"
+    >
+      <Card className="rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150 h-full">
+        <CardContent className="p-5 space-y-4">
+          {/* Top row: status + objective */}
+          <div className="flex items-start justify-between gap-2">
+            <MktStatusBadge status={r.effective_status ?? r.status} />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              {r.objective ?? "—"}
+            </span>
+          </div>
+
+          {/* Title */}
+          <div>
+            <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-[#1877F2] transition-colors">
+              {r.name}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.account_name}</p>
+          </div>
+
+          {/* Spend */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Spend</div>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">{fmtBDT(r.spend_bdt)}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{fmtUSD(r.spend)}</span>
+            </div>
+          </div>
+
+          {/* ROAS dual + orders */}
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">ROAS</div>
+              <div className="mt-0.5 space-y-0.5">
+                <div className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-700" : r.roas_delivered != null ? "text-red-600" : "text-muted-foreground")}>
+                  {r.roas_delivered != null ? `${r.roas_delivered.toFixed(2)}x` : "—"}
+                  <span className="ml-1 text-[10px] font-normal text-muted-foreground">real</span>
+                </div>
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {r.roas_meta != null ? `${r.roas_meta.toFixed(2)}x` : "—"}
+                  <span className="ml-1 text-[10px]">meta</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Orders</div>
+              <div className="mt-0.5 space-y-0.5">
+                <div className="text-sm font-semibold tabular-nums text-foreground">
+                  {fmtNum(r.delivered_orders)}
+                  <span className="ml-1 text-[10px] font-normal text-muted-foreground">delivered</span>
+                </div>
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {fmtNum(r.confirmed_orders)}
+                  <span className="ml-1 text-[10px]">confirmed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* View Detail */}
+          <div className="flex items-center justify-end text-xs font-medium text-[#1877F2] opacity-0 group-hover:opacity-100 transition-opacity">
+            View detail <ArrowRight className="h-3 w-3 ml-1" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
