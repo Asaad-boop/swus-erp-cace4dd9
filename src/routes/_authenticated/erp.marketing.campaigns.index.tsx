@@ -31,6 +31,12 @@ function fmtNum(n: number) {
 function fmtMoney(n: number, currency = "BDT") {
   return `${currency} ${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
+function fmtBDT(n: number) {
+  return `৳${Math.round(Number(n) || 0).toLocaleString()}`;
+}
+function fmtUSD(n: number) {
+  return `$${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
 function statusTone(s: string | null) {
   const v = (s ?? "").toUpperCase();
   if (v === "ACTIVE") return "bg-emerald-100 text-emerald-800";
@@ -70,14 +76,16 @@ function CampaignsPage() {
     return filtered.reduce(
       (a, r) => {
         a.spend += r.spend;
+        a.spend_bdt += r.spend_bdt;
         a.meta_purchases += r.meta_purchases;
         a.meta_purchase_value += r.meta_purchase_value;
+        a.meta_purchase_value_bdt += r.meta_purchase_value_bdt;
         a.confirmed_orders += r.confirmed_orders;
         a.delivered_orders += r.delivered_orders;
         a.delivered_revenue += r.delivered_revenue;
         return a;
       },
-      { spend: 0, meta_purchases: 0, meta_purchase_value: 0, confirmed_orders: 0, delivered_orders: 0, delivered_revenue: 0 },
+      { spend: 0, spend_bdt: 0, meta_purchases: 0, meta_purchase_value: 0, meta_purchase_value_bdt: 0, confirmed_orders: 0, delivered_orders: 0, delivered_revenue: 0 },
     );
   }, [filtered]);
 
@@ -108,12 +116,12 @@ function CampaignsPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <KpiCard label="Spend" value={fmtMoney(totals.spend)} />
+        <KpiCard label="Spend" value={fmtBDT(totals.spend_bdt)} sub={fmtUSD(totals.spend)} />
         <KpiCard label="Meta Purchases" value={fmtNum(totals.meta_purchases)} />
-        <KpiCard label="Meta Revenue" value={fmtMoney(totals.meta_purchase_value)} />
+        <KpiCard label="Meta Revenue" value={fmtBDT(totals.meta_purchase_value_bdt)} sub={fmtUSD(totals.meta_purchase_value)} />
         <KpiCard label="Confirmed" value={fmtNum(totals.confirmed_orders)} />
         <KpiCard label="Delivered" value={fmtNum(totals.delivered_orders)} />
-        <KpiCard label="Delivered Revenue" value={fmtMoney(totals.delivered_revenue)} />
+        <KpiCard label="Delivered Revenue" value={fmtBDT(totals.delivered_revenue)} />
       </div>
 
       <Card>
@@ -167,15 +175,21 @@ function CampaignsPage() {
                           {r.effective_status ?? r.status ?? "—"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{fmtMoney(r.spend)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="font-medium tabular-nums">{fmtBDT(r.spend_bdt)}</div>
+                        <div className="text-xs text-muted-foreground tabular-nums">{fmtUSD(r.spend)}</div>
+                      </TableCell>
                       <TableCell className="text-right">{fmtNum(r.impressions)}</TableCell>
                       <TableCell className="text-right">{r.ctr != null ? `${r.ctr.toFixed(2)}%` : "—"}</TableCell>
                       <TableCell className="text-right">{fmtNum(r.meta_purchases)}</TableCell>
-                      <TableCell className="text-right">{fmtMoney(r.meta_purchase_value)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="font-medium tabular-nums">{fmtBDT(r.meta_purchase_value_bdt)}</div>
+                        <div className="text-xs text-muted-foreground tabular-nums">{fmtUSD(r.meta_purchase_value)}</div>
+                      </TableCell>
                       <TableCell className="text-right">{fmtNum(r.confirmed_orders)}</TableCell>
                       <TableCell className="text-right">{fmtNum(r.delivered_orders)}</TableCell>
                       <TableCell className="text-right text-red-600">{fmtNum(r.return_orders)}</TableCell>
-                      <TableCell className="text-right">{fmtMoney(r.delivered_revenue)}</TableCell>
+                      <TableCell className="text-right">{fmtBDT(r.delivered_revenue)}</TableCell>
                       <TableCell className="text-right font-medium">
                         {r.roas_delivered != null ? `${r.roas_delivered.toFixed(2)}x` : "—"}
                       </TableCell>
@@ -191,12 +205,13 @@ function CampaignsPage() {
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card>
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground uppercase tracking-wide">{label}</div>
         <div className="text-xl font-semibold mt-1">{value}</div>
+        {sub ? <div className="text-xs text-muted-foreground mt-0.5">{sub}</div> : null}
       </CardContent>
     </Card>
   );
