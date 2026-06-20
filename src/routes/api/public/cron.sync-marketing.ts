@@ -27,6 +27,7 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
           name: string;
           structure?: { ok: boolean; rows?: number; error?: string };
           insights?: { ok: boolean; rows?: number; error?: string };
+          finance?: any;
         }> = [];
 
         for (const acc of accounts ?? []) {
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
           try {
             const r = await runInsightsSync(supabaseAdmin, acc.id, { days: 3 });
             out.insights = { ok: true, rows: r.rows };
+            out.finance = (r as any)?.meta?.finance ?? null;
           } catch (e: any) {
             out.insights = { ok: false, error: String(e?.message ?? e) };
           }
