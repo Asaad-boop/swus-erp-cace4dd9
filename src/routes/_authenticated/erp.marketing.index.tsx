@@ -103,37 +103,42 @@ function fmtMult(n: number | null) {
 
 const DECISIONS: Record<
   DecisionBucket,
-  { label: string; cls: string; dot: string; chip: string }
+  { label: string; cls: string; dot: string; chip: string; icon: string }
 > = {
   scale: {
     label: "Scale Up",
-    cls: "border-emerald-500/30 bg-emerald-500/5",
+    cls: "border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50",
     dot: "bg-emerald-500",
-    chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    chip: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: "🚀",
   },
   monitor: {
     label: "Monitor",
-    cls: "border-amber-500/30 bg-amber-500/5",
+    cls: "border-amber-200 bg-amber-50/60 hover:bg-amber-50",
     dot: "bg-amber-500",
-    chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    chip: "bg-amber-50 text-amber-700 border-amber-200",
+    icon: "👀",
   },
   optimize: {
     label: "Optimize",
-    cls: "border-orange-500/30 bg-orange-500/5",
-    dot: "bg-orange-500",
-    chip: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+    cls: "border-purple-200 bg-purple-50/60 hover:bg-purple-50",
+    dot: "bg-purple-500",
+    chip: "bg-purple-50 text-purple-700 border-purple-200",
+    icon: "⚙️",
   },
   kill: {
     label: "Kill",
-    cls: "border-rose-500/30 bg-rose-500/5",
-    dot: "bg-rose-500",
-    chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    cls: "border-red-200 bg-red-50/60 hover:bg-red-50",
+    dot: "bg-red-500",
+    chip: "bg-red-50 text-red-600 border-red-200",
+    icon: "💀",
   },
   insufficient: {
     label: "Not enough data",
-    cls: "border-border bg-muted/30",
+    cls: "border-gray-200 bg-gray-50/60",
     dot: "bg-muted-foreground",
-    chip: "bg-muted text-muted-foreground border-border",
+    chip: "bg-gray-50 text-gray-600 border-gray-200",
+    icon: "•",
   },
 };
 
@@ -366,17 +371,17 @@ function PerformanceDashboard() {
                   key={key}
                   onClick={() => setBucketFilter(isActive ? "all" : key)}
                   className={cn(
-                    "text-left rounded-lg border p-3 transition-all hover:shadow-sm",
+                    "text-left rounded-xl border bg-white p-4 transition-all duration-150 shadow-sm hover:shadow-md hover:-translate-y-px",
                     d.cls,
-                    isActive && "ring-2 ring-primary",
+                    isActive && "ring-2 ring-[#1877F2] border-[#1877F2]/40",
                   )}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className={cn("h-2 w-2 rounded-full", d.dot)} />
+                      <span className="text-base" aria-hidden>{d.icon}</span>
                       <span className="text-sm font-semibold">{d.label}</span>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground">{rows.length}</span>
+                    <span className="text-lg font-bold tabular-nums">{rows.length}</span>
                   </div>
                   {rows.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No campaigns</p>
@@ -385,7 +390,7 @@ function PerformanceDashboard() {
                       {rows.slice(0, 3).map((row) => (
                         <li key={row.campaign_id} className="text-xs">
                           <div className="truncate font-medium">{row.name}</div>
-                          <div className="text-muted-foreground">
+                          <div className="text-muted-foreground tabular-nums">
                             {fmtBDT(row.total_spend_bdt)} · {fmtMult(row.true_roas)}
                           </div>
                         </li>
