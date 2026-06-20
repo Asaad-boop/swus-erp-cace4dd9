@@ -218,6 +218,20 @@ export function ShipmentPanel({
             {shipment.delivery_fee != null && (
               <div className="flex items-center justify-between"><span className="text-muted-foreground">Delivery Fee</span><span>৳{bdt(Number(shipment.delivery_fee))}</span></div>
             )}
+            {(shipment as any).rider_name && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Rider</span>
+                <span className="font-medium">{(shipment as any).rider_name}</span>
+              </div>
+            )}
+            {(shipment as any).rider_phone && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Rider Phone</span>
+                <a href={`tel:${(shipment as any).rider_phone}`} className="text-sky-600 hover:underline font-mono text-[11px]">
+                  📞 {(shipment as any).rider_phone}
+                </a>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Updated</span>
               <span>{formatDistanceToNow(new Date(shipment.updated_at ?? shipment.created_at), { addSuffix: true })}</span>
