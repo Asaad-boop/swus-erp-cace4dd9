@@ -22,7 +22,7 @@ export const getPendingCodQueue = createServerFn({ method: "GET" })
     let q = supabase
       .from("orders")
       .select(
-        "id, order_number, shipping_name, shipping_phone, total, status, payment_status, delivered_at, created_at, courier_provider, courier_consignment_id",
+        "id, shipping_name, shipping_phone, total, status, payment_status, delivered_at, created_at, courier_name, tracking_number",
       )
       .eq("brand_id", data.brandId)
       .in("status", ["delivered", "partial_delivered"])
@@ -30,7 +30,7 @@ export const getPendingCodQueue = createServerFn({ method: "GET" })
       .order("delivered_at", { ascending: true, nullsFirst: false })
       .limit(500);
 
-    if (data.courier) q = q.eq("courier_provider", data.courier);
+    if (data.courier) q = q.eq("courier_name", data.courier);
     if (data.dateFrom) q = q.gte("delivered_at", data.dateFrom);
     if (data.dateTo) q = q.lte("delivered_at", data.dateTo);
 
@@ -38,7 +38,7 @@ export const getPendingCodQueue = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const now = Date.now();
-    const orders = (rows ?? []).map((o) => {
+    const orders = ((rows ?? []) as Array<Record<string, unknown>>).map((o) => {
       const deliveredAt = o.delivered_at ? new Date(o.delivered_at).getTime() : null;
       const daysPending = deliveredAt ? Math.floor((now - deliveredAt) / 86400000) : null;
       return { ...o, days_pending: daysPending };
@@ -63,7 +63,7 @@ export const getOutstandingCod = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("orders")
       .select(
-        "id, order_number, shipping_name, shipping_phone, total, delivered_at, courier_provider, courier_consignment_id",
+        "id, shipping_name, shipping_phone, total, delivered_at, courier_name, tracking_number",
       )
       .eq("brand_id", data.brandId)
       .in("status", ["delivered", "partial_delivered"])
@@ -74,10 +74,10 @@ export const getOutstandingCod = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const now = Date.now();
-    const orders = (rows ?? []).map((o) => ({
+    const orders = ((rows ?? []) as Array<Record<string, unknown>>).map((o) => ({
       ...o,
       days_overdue: o.delivered_at
-        ? Math.floor((now - new Date(o.delivered_at).getTime()) / 86400000) - data.thresholdDays
+        ? Math.floor((now - new Date(o.delivered_at as string).getTime()) / 86400000) - data.thresholdDays
         : 0,
     }));
     const totalAmount = orders.reduce((s, o) => s + Number(o.total ?? 0), 0);
