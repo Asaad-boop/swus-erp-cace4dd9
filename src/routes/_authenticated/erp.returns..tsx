@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ReturnStatusBadge } from "@/components/erp/returns/return-status-badge";
 import {
@@ -374,5 +373,3 @@ function ConditionBtn({ active, onClick, icon, label, tone }: {
   );
 }
 
-// Quiet unused-import lint while keeping the symbol available for future use
-void Badge;
