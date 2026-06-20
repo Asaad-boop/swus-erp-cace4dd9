@@ -19,7 +19,7 @@ import {
 } from "@/lib/erp/returns/returns.functions";
 import { CaseActionButton } from "@/components/erp/returns/case-action-button";
 
-export const Route = createFileRoute("/_authenticated/erp/returns/$caseId")({
+export const Route = createFileRoute("/_authenticated/erp/returns/")({
   head: () => ({ meta: [{ title: "Case Detail — Returns" }] }),
   component: CaseDetailPage,
 });
