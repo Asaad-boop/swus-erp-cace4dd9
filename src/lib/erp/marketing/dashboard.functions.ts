@@ -43,6 +43,10 @@ export type DashboardSummary = {
     spent_today_bdt: number;
     pct: number;
     status: "ok" | "warn" | "over";
+    lifetime_budget_bdt: number | null;
+    spent_this_month_bdt: number;
+    pct_lifetime: number | null;
+    projected_monthly_bdt: number;
   }>;
 };
 
