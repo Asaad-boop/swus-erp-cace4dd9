@@ -2246,15 +2246,18 @@ export type Database = {
           id: string
           invoice_date: string | null
           match_status: string
+          match_type: string | null
           matched_order_id: string | null
           matched_via: string | null
           merchant_order_id: string | null
           note: string | null
           other_fee: number
+          partial_amount: number | null
           payout: number
           raw: Json | null
           recipient_name: string | null
           recipient_phone: string | null
+          return_fee: number | null
           run_id: string
           store_name: string | null
           total_fee: number
@@ -2273,15 +2276,18 @@ export type Database = {
           id?: string
           invoice_date?: string | null
           match_status?: string
+          match_type?: string | null
           matched_order_id?: string | null
           matched_via?: string | null
           merchant_order_id?: string | null
           note?: string | null
           other_fee?: number
+          partial_amount?: number | null
           payout?: number
           raw?: Json | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          return_fee?: number | null
           run_id: string
           store_name?: string | null
           total_fee?: number
@@ -2300,15 +2306,18 @@ export type Database = {
           id?: string
           invoice_date?: string | null
           match_status?: string
+          match_type?: string | null
           matched_order_id?: string | null
           matched_via?: string | null
           merchant_order_id?: string | null
           note?: string | null
           other_fee?: number
+          partial_amount?: number | null
           payout?: number
           raw?: Json | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          return_fee?: number | null
           run_id?: string
           store_name?: string | null
           total_fee?: number
@@ -6320,6 +6329,7 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["payment_status"]
           pipeline_log: Json
           priority: Database["public"]["Enums"]["order_priority"]
+          reconciliation_status: string | null
           refund_amount: number
           rejection_reason: string | null
           return_note: string | null
@@ -6430,6 +6440,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           pipeline_log?: Json
           priority?: Database["public"]["Enums"]["order_priority"]
+          reconciliation_status?: string | null
           refund_amount?: number
           rejection_reason?: string | null
           return_note?: string | null
@@ -6540,6 +6551,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           pipeline_log?: Json
           priority?: Database["public"]["Enums"]["order_priority"]
+          reconciliation_status?: string | null
           refund_amount?: number
           rejection_reason?: string | null
           return_note?: string | null
