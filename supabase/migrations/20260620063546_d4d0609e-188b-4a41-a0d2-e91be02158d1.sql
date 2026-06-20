@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_product_profitability_report(uuid, uuid, uuid, date, date, text, text[], text[]) TO authenticated, service_role;
