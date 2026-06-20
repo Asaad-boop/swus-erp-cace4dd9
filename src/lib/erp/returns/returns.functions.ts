@@ -274,7 +274,7 @@ export const searchOrdersForCase = createServerFn({ method: "POST" })
     const needle = (data.q ?? "").trim();
     if (needle) {
       const like = `%${needle}%`;
-      q = q.or(`shipping_name.ilike.${like},shipping_phone.ilike.${like},id::text.ilike.${like}`);
+      q = q.or(`shipping_name.ilike.${like},shipping_phone.ilike.${like}`);
     }
     const { data: rows, error } = await q;
     if (error) throw error;
