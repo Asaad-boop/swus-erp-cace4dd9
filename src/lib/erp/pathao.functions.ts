@@ -476,9 +476,24 @@ export const pathaoTrackFn = createServerFn({ method: "POST" })
     const status = info?.order_status || info?.data?.order_status || info?.status || null;
 
     if (status) {
+      const payload = info?.data ?? info ?? {};
+      const norm = String(status).toLowerCase().replace(/[\s-]+/g, "_");
+      const isActiveDelivery = /assigned_for_delivery|on_delivery|out_for_delivery/.test(norm);
+      const riderName = isActiveDelivery
+        ? (payload?.delivery_man_name ?? payload?.delivery_man?.name ?? null)
+        : null;
+      const riderPhone = isActiveDelivery
+        ? (payload?.delivery_man_phone ?? payload?.delivery_man?.phone ?? null)
+        : null;
       await supabase
         .from("courier_shipments")
-        .update({ status, response_payload: info as never, updated_at: new Date().toISOString() })
+        .update({
+          status,
+          response_payload: info as never,
+          rider_name: riderName,
+          rider_phone: riderPhone,
+          updated_at: new Date().toISOString(),
+        } as never)
         .eq("id", ship.id);
     }
     return { status, info };
