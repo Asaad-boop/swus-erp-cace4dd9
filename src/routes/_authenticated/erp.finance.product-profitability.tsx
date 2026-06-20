@@ -53,7 +53,7 @@ type Report = {
   items: Array<{ order_id: string; item_id: string; date: string; status: string; source: string; qty: number; unit_price: number; line_total: number; unit_cost: number | null; discount_alloc: number | null; delivery_alloc: number | null; courier_cost: number | null }>;
   returns: Array<{ id: string; order_id: string; return_type: string; condition: string; qty: number; refund: number; cost_loss: number; status: string; created_at: string }>;
   exchanges: Array<{ id: string; original_order_id: string; exchange_type: string; old_condition: string; replacement_product_id: string | null; qty: number; loss: number; status: string; created_at: string }>;
-  marketing: Array<{ expense_type: string; amount: number; note: string | null; created_at: string }>;
+ marketing: Array<{ expense_type: string; amount: number; note: string | null; created_at: string; kind?: "allocation" | "manual"; allocation_date?: string | null }>;
   warnings: string[];
 };
 
