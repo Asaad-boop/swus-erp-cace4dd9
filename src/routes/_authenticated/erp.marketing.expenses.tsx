@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
-  Loader2, Plus, Trash2, ExternalLink, Download, Search, Receipt, Package, Megaphone,
+  Loader2, Plus, Trash2, ExternalLink, Download, Search, Receipt, Package, Megaphone, X,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -35,6 +35,7 @@ import {
   createMarketingExpense,
   deleteMarketingExpense,
 } from "@/lib/erp/marketing/expenses.functions";
+import { searchBrandProducts } from "@/lib/erp/marketing/campaigns.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/expenses")({
   component: ExpensesPage,
