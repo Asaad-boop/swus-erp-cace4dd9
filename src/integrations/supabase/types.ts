@@ -713,6 +713,8 @@ export type Database = {
           provider: string
           request_payload: Json
           response_payload: Json
+          rider_name: string | null
+          rider_phone: string | null
           status: string | null
           tracking_code: string | null
           updated_at: string
@@ -729,6 +731,8 @@ export type Database = {
           provider: string
           request_payload?: Json
           response_payload?: Json
+          rider_name?: string | null
+          rider_phone?: string | null
           status?: string | null
           tracking_code?: string | null
           updated_at?: string
@@ -745,6 +749,8 @@ export type Database = {
           provider?: string
           request_payload?: Json
           response_payload?: Json
+          rider_name?: string | null
+          rider_phone?: string | null
           status?: string | null
           tracking_code?: string | null
           updated_at?: string

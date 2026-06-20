@@ -10,6 +10,8 @@ export type CourierShipmentRow = {
   tracking_code: string | null;
   updated_at: string | null;
   created_at: string | null;
+  rider_name: string | null;
+  rider_phone: string | null;
 };
 
 export type CourierBucket =
@@ -20,6 +22,7 @@ export type CourierBucket =
   | "delivered"
   | "failed"
   | "returned"
+  | "on_hold"
   | "cancelled";
 
 export const COURIER_BUCKETS: CourierBucket[] = [
@@ -30,21 +33,23 @@ export const COURIER_BUCKETS: CourierBucket[] = [
   "delivered",
   "failed",
   "returned",
+  "on_hold",
   "cancelled",
 ];
 
 export function normalizeCourierStatus(raw: string | null | undefined): CourierBucket | null {
   if (!raw) return null;
-  const x = raw.toLowerCase().trim();
+  const x = raw.toLowerCase().trim().replace(/[\s-]+/g, "_");
   if (!x) return null;
-  if (/(deliver(ed)?$|^delivered|partial.?deliver|^delivery.?success)/.test(x)) return "delivered";
-  if (/out.?for.?deliver|on.?the.?way|hub.?in/.test(x)) return "out_for_delivery";
-  if (/transit|in.?transit|in_transit|on.?route|forwarded|reached/.test(x)) return "in_transit";
-  if (/picked|pick.?up|collected/.test(x)) return "picked_up";
-  if (/return/.test(x)) return "returned";
-  if (/fail|unsuccess|reject|lost|damag/.test(x)) return "failed";
+  if (/(^delivered$|delivered$|partial.?deliver|delivery.?success)/.test(x)) return "delivered";
+  if (/out.?for.?deliver|on.?the.?way|on_delivery|assigned_for_delivery/.test(x)) return "out_for_delivery";
   if (/cancel/.test(x)) return "cancelled";
-  if (/pending|created|new|requested|assigned|booked/.test(x)) return "pending";
+  if (/return/.test(x)) return "returned";
+  if (/^hold$|on_hold|lost|damag/.test(x)) return "on_hold";
+  if (/fail|unsuccess|reject/.test(x)) return "on_hold";
+  if (/transit|forwarded|reached|sorting_hub|last_mile_hub|received_at/.test(x)) return "in_transit";
+  if (/picked|pick_up|collected/.test(x)) return "picked_up";
+  if (/pending|created|new|requested|assigned_for_pickup|booked/.test(x)) return "pending";
   return "pending";
 }
 
@@ -56,6 +61,7 @@ export const COURIER_BUCKET_META: Record<CourierBucket, { label: string; classNa
   delivered: { label: "Delivered", className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60", emoji: "✅" },
   failed: { label: "Failed", className: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60", emoji: "❌" },
   returned: { label: "Returned", className: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60" },
+  on_hold: { label: "On Hold", className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60", pulse: true },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -73,7 +79,7 @@ export function useCourierShipments(orderIds: string[]) {
     queryFn: async (): Promise<Record<string, CourierShipmentRow>> => {
       const { data, error } = await supabase
         .from("courier_shipments")
-        .select("id,order_id,provider,status,consignment_id,tracking_code,updated_at,created_at")
+        .select("id,order_id,provider,status,consignment_id,tracking_code,updated_at,created_at,rider_name,rider_phone")
         .in("order_id", ids)
         .order("updated_at", { ascending: false });
       if (error) throw error;
