@@ -26,8 +26,8 @@ export const listReturnCases = createServerFn({ method: "POST" })
       .select(`id, case_number, brand_id, order_id, product_id, sku, return_type, item_condition, qty,
                refund_amount, return_status, qc_condition, stock_updated, courier_tracking_id, courier_name,
                created_at, created_by,
-               order:order_id ( id, order_number, shipping_name, shipping_phone ),
-               product:product_id ( id, title, sku, image_url )`)
+               order:order_id ( id, shipping_name, shipping_phone ),
+               product:product_id ( id, title, sku, image )`)
       .order("created_at", { ascending: false }).limit(500);
     if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
     if (data.status && data.status !== "all") q = q.eq("return_status", data.status);
@@ -53,8 +53,8 @@ export const listExchangeCases = createServerFn({ method: "POST" })
       .select(`id, case_number, brand_id, original_order_id, original_product_id, exchange_type,
                exchange_type_detail, exchange_status, replacement_product_id, replacement_qty,
                new_order_id, refund_amount, exchange_charge_collected, created_at, created_by,
-               order:original_order_id ( id, order_number, shipping_name, shipping_phone ),
-               product:original_product_id ( id, title, sku, image_url ),
+               order:original_order_id ( id, shipping_name, shipping_phone ),
+               product:original_product_id ( id, title, sku, image ),
                replacement:replacement_product_id ( id, title, sku )`)
       .order("created_at", { ascending: false }).limit(500);
     if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
@@ -75,8 +75,8 @@ export const getCaseDetail = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     // Try return first
     const { data: ret } = await sb.from("erp_return_cases")
-      .select(`*, order:order_id ( id, order_number, shipping_name, shipping_phone, shipping_address, total ),
-               product:product_id ( id, title, sku, image_url, weighted_avg_cost ),
+      .select(`*, order:order_id ( id, shipping_name, shipping_phone, shipping_address, total ),
+               product:product_id ( id, title, sku, image, weighted_avg_cost ),
                item:order_item_id ( id, quantity, unit_price, line_total, unit_cost_snapshot, variant_id )`)
       .eq("id", data.caseId).maybeSingle();
     if (ret) {
@@ -86,10 +86,10 @@ export const getCaseDetail = createServerFn({ method: "POST" })
       return { type: "return" as const, case: ret, timeline: tl ?? [] };
     }
     const { data: exc } = await sb.from("erp_exchange_cases")
-      .select(`*, order:original_order_id ( id, order_number, shipping_name, shipping_phone, shipping_address ),
-               product:original_product_id ( id, title, sku, image_url ),
+      .select(`*, order:original_order_id ( id, shipping_name, shipping_phone, shipping_address ),
+               product:original_product_id ( id, title, sku, image ),
                replacement:replacement_product_id ( id, title, sku, price ),
-               new_order:new_order_id ( id, order_number, status )`)
+               new_order:new_order_id ( id, status )`)
       .eq("id", data.caseId).maybeSingle();
     if (!exc) throw new Error("Case not found");
     const { data: tl } = await sb.from("erp_return_timeline")
@@ -210,7 +210,7 @@ export const createExchangeOrder = createServerFn({ method: "POST" })
       source: "manual",
       status: "new",
       notes: `Exchange for order ${exc.original_order_id}`,
-    }).select("id, order_number").single();
+    }).select("id").single();
     if (oErr) throw oErr;
 
     await sb.from("order_items").insert({
@@ -229,11 +229,11 @@ export const createExchangeOrder = createServerFn({ method: "POST" })
 
     await sb.from("erp_return_timeline").insert({
       case_id: exc.id, case_type: "exchange", status: "new_order_created",
-      note: `Exchange order #${order.order_number} created`,
+      note: `Exchange order #${String(order.id).slice(0, 8)} created`,
       created_by: context.userId,
     });
 
-    return { ok: true, orderId: order.id, orderNumber: order.order_number };
+    return { ok: true, orderId: order.id, orderNumber: String(order.id).slice(0, 8) };
   });
 
 /* ----------------- ORDER -> CASES (for order detail mini list) ----------------- */
