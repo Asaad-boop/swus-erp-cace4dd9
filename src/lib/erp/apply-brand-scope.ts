@@ -8,7 +8,7 @@ export function applyBrandScope<T>(
   brandIds: string[] | null | undefined,
   column: string = "brand_id",
 ): T {
-  if (!brandIds || brandIds.length === 0) return query;
+  if (!brandIds || brandIds.length === 0) return query.in(column, ['__none__']);
   // @ts-expect-error - Supabase query builder is generic
   return query.in(column, brandIds);
 }

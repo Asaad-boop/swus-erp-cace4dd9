@@ -3,7 +3,11 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/public/cron/run-recurring")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const secret = request.headers.get('x-cron-secret');
+        if (!secret || secret !== process.env.CRON_SECRET) {
+          return new Response('Unauthorized', { status: 401 });
+        }
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data, error } = await supabaseAdmin.rpc("run_recurring_rules", { _brand_id: null } as never);
