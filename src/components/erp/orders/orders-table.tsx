@@ -45,10 +45,10 @@ type Props = {
   onToggleAll: (checked: boolean) => void;
   onRowClick: (id: string) => void;
   onStatusChange: (id: string, status: OrderStatus) => void;
-  pendingStatusId?: string | null;
+  pendingStatusIds?: Set<string>;
 };
 
-export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusId }: Props) {
+export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusIds }: Props) {
   const copyText = (text: string, label: string) => {
     navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`));
   };
@@ -290,7 +290,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       id: "actions",
       cell: ({ row }) => {
         const o = row.original;
-        const busy = pendingStatusId === o.id;
+        const busy = pendingStatusIds?.has(o.id) ?? false;
         const next = NEXT_STATUS[o.status];
         const nextLabel = next ? statusBadge(next).label : null;
         return (
