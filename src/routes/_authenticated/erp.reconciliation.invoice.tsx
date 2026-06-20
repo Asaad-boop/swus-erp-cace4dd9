@@ -100,6 +100,9 @@ type NormalizedRow = {
   payout: number;
   store_name: string | null;
   raw: PathaoRow[];
+  row_type: "paid" | "return" | "partial";
+  return_fee: number;
+  partial_amount: number;
 };
 
 function num(v: string | undefined): number {
@@ -111,6 +114,14 @@ function num(v: string | undefined): number {
 function cleanPhone(v: string | undefined): string | null {
   if (!v) return null;
   return String(v).replace(/"/g, "").trim() || null;
+}
+
+function getRowType(invoiceType: string | undefined): "paid" | "return" | "partial" {
+  if (!invoiceType) return "paid";
+  const t = invoiceType.toLowerCase();
+  if (t.includes("return")) return "return";
+  if (t.includes("partial")) return "partial";
+  return "paid";
 }
 
 function parsePathaoCsv(text: string): NormalizedRow[] {
@@ -133,7 +144,12 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
 
   const out: NormalizedRow[] = [];
   for (const [, rs] of groups) {
+    // Prefer a "delivery" row, else fall back to the first
     const primary = rs.find((r) => (r.Invoice_type ?? "").toLowerCase() === "delivery") ?? rs[0];
+    // Row type: detect from any row in the group (return/partial dominates)
+    const types = rs.map((r) => getRowType(r.Invoice_type));
+    const rowType: "paid" | "return" | "partial" =
+      types.find((t) => t === "return") ?? types.find((t) => t === "partial") ?? "paid";
     const collected = rs.reduce((s, r) => s + num(r.Collected_Amount), 0);
     const payout = rs.reduce((s, r) => s + num(r.Payout), 0);
     const deliveryFee = rs.reduce((s, r) => s + num(r.Delivery_Fee), 0);
@@ -145,6 +161,11 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
     );
     const totalFee = collected - payout;
     const dateStr = primary.Created_Date ? primary.Created_Date.slice(0, 10) : null;
+
+    const returnFee = rowType === "return"
+      ? rs.reduce((s, r) => s + num(r.Final_Fee) + num(r.Delivery_Fee) + num(r.Additional_Charge), 0)
+      : 0;
+    const partialAmount = rowType === "partial" ? collected : 0;
 
     out.push({
       consignment_id: primary.Consignment_ID || null,
@@ -161,6 +182,9 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
       payout,
       store_name: primary.Store_name || null,
       raw: rs,
+      row_type: rowType,
+      return_fee: returnFee,
+      partial_amount: partialAmount,
     });
   }
   return out;
@@ -192,7 +216,10 @@ function ReconciliationPage() {
   const createMut = useMutation({
     mutationFn: async () => {
       if (!preview || preview.length === 0) throw new Error("No rows parsed");
-      const rows = preview.map(({ raw: _raw, ...rest }) => ({ ...rest, raw: { count: _raw.length } }));
+      const rows = preview.map(({ raw: _raw, ...rest }) => ({
+        ...rest,
+        raw: { count: _raw.length, row_type: rest.row_type },
+      }));
       return await createFn({
         data: {
           brandId,
@@ -249,6 +276,17 @@ function ReconciliationPage() {
     );
   }, [preview]);
 
+  const previewByType = useMemo(() => {
+    if (!preview) return { paid: 0, return: 0, partial: 0 };
+    return preview.reduce(
+      (a, r) => {
+        a[r.row_type] = (a[r.row_type] ?? 0) + 1;
+        return a;
+      },
+      { paid: 0, return: 0, partial: 0 } as Record<"paid" | "return" | "partial", number>,
+    );
+  }, [preview]);
+
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
@@ -302,6 +340,20 @@ function ReconciliationPage() {
               <Stat label="Courier fees" value={fmtBdt(previewTotals.fee)} tone="warn" />
               <Stat label="Net payout" value={fmtBdt(previewTotals.payout)} tone="good" />
               {filename && <Stat label="File" value={filename} />}
+            </div>
+          )}
+
+          {preview && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700">
+                ✅ {previewByType.paid} paid
+              </Badge>
+              <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700">
+                ↩ {previewByType.return} returns
+              </Badge>
+              <Badge variant="outline" className="border-sky-500/50 bg-sky-500/10 text-sky-700">
+                📦 {previewByType.partial} partial
+              </Badge>
             </div>
           )}
         </CardContent>
