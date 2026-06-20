@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Plus, Download, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Download, RefreshCw, Inbox } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBrand } from "@/contexts/brand-context";
 import { useOrdersQuery, useOrderStatusCounts, type OrdersFilter } from "@/hooks/erp/use-orders-query";
+import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { OrdersStatusTabs } from "@/components/erp/orders/orders-status-tabs";
 import { OrdersToolbar } from "@/components/erp/orders/orders-toolbar";
 import { OrdersBulkActions } from "@/components/erp/orders/orders-bulk-actions";
@@ -18,7 +20,7 @@ import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-uplo
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
 import { PhoneHistorySyncDialog } from "@/components/erp/orders/phone-history-sync-dialog";
-import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderStatus } from "@/lib/erp/orders";
+import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
   head: () => ({ meta: [{ title: "Orders — ERP" }] }),
@@ -34,6 +36,7 @@ function OrdersPage() {
   });
   const [view, setView] = useState<"orders" | "incomplete">("orders");
   const [incompletePage, setIncompletePage] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   const effective = useMemo<OrdersFilter>(
     () => ({
@@ -51,11 +54,27 @@ function OrdersPage() {
   const total = data?.total ?? 0;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState<string | null>(null);
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
   const [phoneHistOpen, setPhoneHistOpen] = useState(false);
+
+  // BUG 1: clear selection when page/filter/tab/view changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [
+    filter.page,
+    filter.pageSize,
+    filter.search,
+    filter.source,
+    filter.courier,
+    filter.dateFrom,
+    filter.dateTo,
+    filter.statuses.join(","),
+    view,
+  ]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -72,38 +91,129 @@ function OrdersPage() {
       const { error } = await supabase.rpc("transition_order_status", { _order_id: id, _new_status: status });
       if (error) throw error;
     },
+    onMutate: async ({ id, status }) => {
+      setPendingIds((prev) => {
+        const n = new Set(prev); n.add(id); return n;
+      });
+      await qc.cancelQueries({ queryKey: ["orders"] });
+      const queryKey = ["orders", effective] as const;
+      const previous = qc.getQueryData<{ rows: OrderRow[]; total: number }>(queryKey);
+      if (previous) {
+        qc.setQueryData(queryKey, {
+          ...previous,
+          rows: previous.rows.map((o) => (o.id === id ? { ...o, status } : o)),
+        });
+      }
+      return { previous, queryKey };
+    },
     onSuccess: () => {
       toast.success("Status updated");
-      qc.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ctx.queryKey, ctx.previous);
+      toast.error(e.message);
+    },
+    onSettled: (_d, _e, vars) => {
+      setPendingIds((prev) => {
+        const n = new Set(prev); n.delete(vars.id); return n;
+      });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
+    },
   });
 
   const bulkStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
       const ids = Array.from(selectedIds);
-      await Promise.all(ids.map((id) =>
-        supabase.rpc("transition_order_status", { _order_id: id, _new_status: status })
-      ));
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          const { error } = await supabase.rpc("transition_order_status", { _order_id: id, _new_status: status });
+          if (error) throw error;
+          return id;
+        }),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const succeeded = results.length - failed;
+      return { failed, succeeded };
     },
-    onSuccess: () => {
-      toast.success(`Updated ${selectedIds.size} orders`);
+    onSuccess: ({ failed, succeeded }) => {
+      if (failed > 0) toast.error(`${failed} orders failed, ${succeeded} succeeded`);
+      else toast.success(`${succeeded} orders updated`);
       setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleExport = () => {
-    const csv = exportOrdersCsv(rows);
-    downloadCsv(`orders-${activeBrand?.slug ?? "all"}-${new Date().toISOString().slice(0,10)}.csv`, csv);
+  // BUG 3: export ALL filtered orders, not just current page
+  const handleExport = async () => {
+    const brandsArr = effective.brandIds && effective.brandIds.length > 0
+      ? effective.brandIds
+      : effective.brandId ? [effective.brandId] : [];
+    if (brandsArr.length === 0) return;
+    setExporting(true);
+    const tid = toast.loading("Preparing export…");
+    try {
+      const pageSize = 500;
+      const all: OrderRow[] = [];
+      for (let page = 0; ; page++) {
+        let q = applyBrandScope(
+          supabase.from("orders").select(
+            "id,invoice_no,created_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number"
+          ),
+          brandsArr,
+        ).order("created_at", { ascending: false });
+        if (effective.statuses.length > 0) {
+          q = q.in("status", effective.statuses);
+          if (effective.statuses.includes("confirmed")) {
+            q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+          }
+        } else {
+          q = q.neq("status", "new");
+          q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+        }
+        if (effective.source) q = q.eq("source", effective.source as never);
+        if (effective.courier) q = q.eq("courier_name", effective.courier);
+        if (effective.dateFrom) q = q.gte("created_at", effective.dateFrom);
+        if (effective.dateTo) q = q.lte("created_at", effective.dateTo);
+        if (effective.search.trim()) {
+          const s = effective.search.trim();
+          q = q.or(
+            `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,tracking_number.ilike.%${s}%`,
+          );
+        }
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        const { data, error } = await q.range(from, to);
+        if (error) throw error;
+        const batch = (data ?? []) as unknown as OrderRow[];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        if (all.length > 50000) break;
+      }
+      const csv = exportOrdersCsv(all);
+      downloadCsv(`orders-${activeBrand?.slug ?? "all"}-${new Date().toISOString().slice(0,10)}.csv`, csv);
+      toast.success(`Exported ${all.length.toLocaleString()} orders`, { id: tid });
+    } catch (e) {
+      toast.error((e as Error).message, { id: tid });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleRefresh = () => {
     qc.invalidateQueries({ queryKey: ["orders"] });
+    qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
     qc.invalidateQueries({ queryKey: ["abandoned-carts"] });
     qc.invalidateQueries({ queryKey: ["abandoned-carts-count"] });
   };
+
+  const clearAllFilters = () => {
+    setFilter((f) => ({ ...f, search: "", source: null, courier: null, dateFrom: null, dateTo: null, statuses: [], page: 0 }));
+    setView("orders");
+  };
+  const hasActiveFilters = !!(filter.search || filter.source || filter.courier || filter.dateFrom || filter.dateTo || filter.statuses.length > 0);
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
   const activeTab = view === "incomplete" ? "incomplete" : tabForStatuses(effective.statuses);
@@ -139,8 +249,8 @@ function OrdersPage() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
             </Button>
-            <Button variant="ghost" size="sm" className="h-9 rounded-none gap-1.5" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5" /> Export
+            <Button variant="ghost" size="sm" className="h-9 rounded-none gap-1.5" onClick={handleExport} disabled={exporting}>
+              <Download className={`h-3.5 w-3.5 ${exporting ? "animate-pulse" : ""}`} /> {exporting ? "Exporting…" : "Export"}
             </Button>
           </div>
           <Link to="/erp/orders/new">
@@ -168,14 +278,17 @@ function OrdersPage() {
           }}
         />
         {view === "incomplete" ? (
-          <IncompleteOrdersTable
-            brandId={effective.brandId}
-            search=""
-            page={incompletePage}
-            pageSize={50}
-            onPageChange={setIncompletePage}
-            onOpenOrder={setOpenId}
-          />
+          <>
+            <OrdersToolbar filter={effective} onChange={setFilter} />
+            <IncompleteOrdersTable
+              brandId={effective.brandId}
+              search={effective.search}
+              page={incompletePage}
+              pageSize={50}
+              onPageChange={setIncompletePage}
+              onOpenOrder={setOpenId}
+            />
+          </>
         ) : (
           <>
           <OrdersToolbar
@@ -217,16 +330,43 @@ function OrdersPage() {
           onToggleAll={toggleAll}
           onRowClick={setOpenId}
           onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
-          pendingStatusId={statusMutation.isPending ? statusMutation.variables?.id : null}
+          pendingStatusIds={pendingIds}
         />
+        {!isLoading && rows.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+              <Inbox className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="font-semibold">No orders found</div>
+              <div className="text-sm text-muted-foreground">Try adjusting your filters or date range.</div>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="outline" size="sm" onClick={clearAllFilters}>Clear filters</Button>
+            )}
+          </div>
+        )}
           </>
         )}
       </div>
 
       {view === "orders" && (
       <div className="flex items-center justify-between text-sm rounded-xl border bg-card px-4 py-2.5 shadow-sm">
-        <div className="text-muted-foreground">
-          Page <span className="font-semibold text-foreground tabular-nums">{filter.page + 1}</span> of <span className="font-semibold text-foreground tabular-nums">{totalPages}</span>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <span>
+            Page <span className="font-semibold text-foreground tabular-nums">{filter.page + 1}</span> of <span className="font-semibold text-foreground tabular-nums">{totalPages}</span>
+          </span>
+          <Select
+            value={String(filter.pageSize)}
+            onValueChange={(v) => setFilter((f) => ({ ...f, pageSize: Number(v), page: 0 }))}
+          >
+            <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25 / page</SelectItem>
+              <SelectItem value="50">50 / page</SelectItem>
+              <SelectItem value="100">100 / page</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled={filter.page === 0} onClick={() => setFilter({ ...filter, page: filter.page - 1 })}>Prev</Button>
