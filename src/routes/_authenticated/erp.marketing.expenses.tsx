@@ -193,20 +193,60 @@ function ExpensesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Spend</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">৳ {totals.total.toLocaleString()}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Entries</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{totals.count}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Posted to Finance</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{totals.posted}<span className="text-base text-muted-foreground"> / {totals.count}</span></CardContent>
-        </Card>
+      {/* Per-subtype monthly summary */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+        {CATEGORY_OPTIONS.filter((c) => c.value !== "other" && c.value !== "agency" && c.value !== "photoshoot").map((c) => (
+          <Card key={c.value}>
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">{c.label}</CardTitle></CardHeader>
+            <CardContent className="text-lg font-semibold tabular-nums">
+              ৳ {(monthSubtotals.get(c.value) ?? 0).toLocaleString()}
+              <div className="text-[10px] text-muted-foreground font-normal">this month</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Filter bar */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="All categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All categories</SelectItem>
+              {CATEGORY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterProduct} onValueChange={setFilterProduct}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="All products" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All products</SelectItem>
+              {(optsQ.data?.products ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterCampaign} onValueChange={setFilterCampaign}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="All campaigns" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All campaigns</SelectItem>
+              {(optsQ.data?.campaigns ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-40" />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-40" />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Vendor / note…" className="pl-8 w-56" />
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            <span><b className="text-foreground">{totals.count}</b> entries</span>
+            <span><b className="text-foreground">৳ {totals.total.toLocaleString()}</b> total</span>
+            <span><b className="text-foreground">{totals.posted}</b> posted</span>
+            <Button variant="outline" size="sm" onClick={downloadCsv} disabled={!rows.length}>
+              <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
