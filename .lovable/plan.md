@@ -1,121 +1,87 @@
-## Import Landed Cost Workflow — Simplified
+## Marketing Module — Premium UI Redesign Plan
 
-Existing flow (FX/freight/customs `LandedCostCard`, `imp_post_to_inventory` RPC) thakbe — kichu drop hobe na. Notun simplified shipping-weight + carton-receive flow additive add hobe.
-
----
-
-### PHASE 0 — Migration (additive only)
-
-`**imp_purchase_orders**` — add:
-
-- `shipping_weight_kg numeric`
-- `shipping_rate_per_kg numeric`
-- `shipping_cost_bdt numeric` (manual override OR auto kg×rate)
-- *(`other_charges_bdt` already ache — reuse)*
-
-`**imp_cartons**` — add:
-
-- `cost_share_bdt numeric` (auto-computed on save)
-- *(`weight_kg` already ache — reuse)*
-
-`**imp_carton_items**` — add:
-
-- `received_qty integer`
-- `damaged_qty integer NOT NULL DEFAULT 0`
-- `usable_qty integer GENERATED ALWAYS AS (COALESCE(received_qty,0) - COALESCE(damaged_qty,0)) STORED`
-- *(`quantity_expected`, `quantity_ok`, `quantity_damaged` already ache — touch korbo na, parallel column rakhbo)*
+**Scope:** Visual-only redesign of 6 Marketing pages. Zero logic / query / server-function changes. Routes, data shapes, props — all preserved.
 
 ---
 
-### PHASE 1 — Arrived BD: Shipping Cost Card
+### Design System (shared, applied first)
 
-New component `ShippingCostCard` — `erp.imports.orders.$orderId.tsx` e render when `po.status === 'arrived_bd'`.
+Create `src/components/erp/marketing/_ui/` with reusable primitives — used across all 6 pages so styling stays consistent and changes propagate.
 
-Fields: total weight (kg), rate (৳/kg), auto total = kg×rate, other charges. Save button → server fn `saveShippingCost({ po_id, shipping_weight_kg, shipping_rate_per_kg, other_charges_bdt })`. Triggers carton cost-share recompute.
+- `MktPageHeader.tsx` — 56px header (title left, actions right, border-b)
+- `MktKpiCard.tsx` — icon + label + big number + sub + trend arrow
+- `MktDecisionBadge.tsx` — scale/monitor/optimize/kill colored pill
+- `MktStatusBadge.tsx` — active/paused/deleted dot + label
+- `MktBudgetBadge.tsx` — on-track / near-limit / over-budget (pulse)
+- `MktEmptyState.tsx` — icon-in-blue-circle + title + subtitle + CTA
+- `MktSkeleton.tsx` — content-shape skeletons (card, row, chart)
+- `MktSubtypeBadge.tsx` — expense subtype color map
 
----
+Tailwind tokens used: existing semantic tokens + the spec hexes (Meta blue `#1877F2`, emerald `#10B981`, amber `#F59E0B`, red `#EF4444`, purple `#8B5CF6`). No `tailwind.config.js` edits — colors applied as inline `bg-[#1877F2]` only where semantic tokens don't fit; prefer existing `bg-emerald-50` / `text-emerald-700` etc.
 
-### PHASE 2 — Carton Cost Split
-
-Server fn `recomputeCartonCostShares(po_id)`:
-
-- Read all cartons for PO + their `weight_kg`
-- If sum(weight_kg) > 0 → `cost_share = (carton.weight / total_weight) × shipping_cost_bdt`
-- Else → equal split: `shipping_cost_bdt / carton_count`
-- Bulk update `imp_cartons.cost_share_bdt`
-
-Carton list table: add inline weight input + show computed cost share. Save weight → trigger recompute.
+The marketing tab strip in `erp.marketing.tsx` gets the pill style (active = Meta blue) — same pattern as HR redesign.
 
 ---
 
-### PHASE 3 — Carton Received: Quantity Check
+### Page-by-page changes (visual only)
 
-New component `CartonReceiveDialog` (opened from carton row when stage allows). Per item row:
+**1. `erp.marketing.index.tsx` — Dashboard**
+- Header: title + date-range + Sync Now + last synced
+- Today's strip: 6 KPI cards (existing data: spend, revenue, real ROAS, orders, CPO, conv-rate)
+- ROAS Reality Check card (Meta / Confirmed / Delivered side by side, already wired)
+- Charts row: Spend vs Revenue line (7d) + Top-5 ROAS horizontal bar
+- Decision Buckets: 4 click-to-filter cards (already wired — restyle)
+- Budget Pacing: summary strip + compact per-campaign cards with pulse on over
+- Campaign table at bottom (compact, decision badge, click → detail)
 
-- Expected (read-only from `quantity_expected`)
-- Received (input)
-- Damaged (input)
-- Usable (auto, generated col)
+**2. `erp.marketing.campaigns.index.tsx` — Campaigns list**
+- Header + KPI strip (Total Spend / Revenue / Avg ROAS / Active count)
+- Filter bar (search + status + decision + date)
+- **Switch from table → grid of campaign cards** (status dot, decision badge, dual currency spend, real vs meta ROAS, View Detail link)
 
-Server fn `saveCartonReceipt({ carton_id, items: [{po_item_id, received_qty, damaged_qty}] })` → upsert `imp_carton_items` rows.
+**3. `erp.marketing.campaigns.$campaignId.tsx` — Campaign detail**
+- Header card with inline metrics
+- 2/3 + 1/3 split: left = perf chart + Linked Products table (margin color); right = Campaign Info + Ad Sets list
+- Existing `LinkedProductsCard`, search dialog, link/unlink fns untouched — just restyle wrapper
 
----
+**4. `erp.marketing.sku-pnl.tsx` — SKU P&L**
+- Summary cards (already present — restyle)
+- Premium table: inline margin progress-bar, sticky totals row, expandable rows show campaign breakdown per SKU (uses already-fetched `adSpendByProduct` data — purely presentational)
+- Unallocated amber card below table with "Go to Campaigns" CTA
 
-### PHASE 4 — Landed Cost Summary
+**5. `erp.marketing.expenses.tsx` — Manual expenses**
+- Per-subtype KPI strip (6 cards, click-to-filter — restyle existing)
+- Table: type badge colored, product/campaign chips
+- Add Expense form moved to slide-over (Sheet) with pill type-selector
 
-New component `LandedCostSummary` (per carton or per item):
-
-```text
-product_cost  = po_item.unit_cost_cny × po.fx_rate_cny_bdt
-shipping_share = carton.cost_share_bdt / sum(usable_qty in carton)
-other_share    = po.other_charges_bdt / sum(usable_qty in PO)
-landed_cost    = product_cost + shipping_share + other_share
-```
-
-Computed client-side from already-loaded data. Shows breakdown card with usable/damaged counts.
-
----
-
-### PHASE 5 — Post to Inventory
-
-New server fn `postCartonReceiptToInventory({ carton_id })`:
-
-1. Load carton items + PO + cost shares
-2. For each item with `usable_qty > 0`: `supabase.rpc('adjust_stock_v2', { _delta: usable_qty, _unit_cost: landed_cost, _reason: 'import_receive', _source: 'import', _reference_type: 'imp_carton', _reference_id: carton_id, _idempotency_key: 'imp:'||carton_id||':'||po_item_id })`
-3. For each with `damaged_qty > 0`: separate `adjust_stock_v2` call with `_delta: -damaged_qty` (only if previously posted) — OR just log to activity_log (skip negative if usable was the posted qty). **Pick:** log damaged to `activity_log` only (no negative stock movement — usable was never received as +ve in first place).
-4. Mark carton `posted_at = now()`, status → 'in_stock'
-5. WAC updates auto via existing trigger on `stock_movements`
-
-Idempotent via `_idempotency_key`.
+**6. `erp.marketing.attribution.tsx` — Attribution**
+- Stats strip (attributed / unattributed / attribution rate %)
+- Table with confidence badge column
 
 ---
 
-### Files
-
-**New:**
-
-- `supabase/migrations/<ts>_import_landed_cost_simplified.sql`
-- `src/components/erp/imports/shipping-cost-card.tsx`
-- `src/components/erp/imports/carton-receive-dialog.tsx`
-- `src/components/erp/imports/landed-cost-summary.tsx`
-
-**Edited:**
-
-- `src/lib/erp/imports/imports.functions.ts` — add `saveShippingCost`, `recomputeCartonCostShares`, `saveCartonReceipt`, `postCartonReceiptToInventory`
-- `src/routes/_authenticated/erp.imports.orders.$orderId.tsx` — mount ShippingCostCard + carton receive trigger + landed summary
-- (carton list section in same route) — weight input column
-
-**Untouched:** existing `LandedCostCard`, `imp_post_to_inventory` RPC, FX/freight/customs flow. New workflow runs parallel.
+### Global patterns
+- Card: `rounded-xl border-gray-100 shadow-sm hover:shadow-md transition-all`
+- Card hover lift: `hover:-translate-y-px`
+- Loading: shape-matched skeletons (not generic spinners)
+- Animations: `animate-fade-in` on data load, `animate-pulse` on over-budget, smooth `transition-[width]` on budget bars
 
 ---
 
-### Open question
-
-Damaged qty handling — confirm: log only to `activity_log` (no stock movement, since damaged was never in usable count), OR also write a `damaged_import` movement with delta=0 for audit trail?
+### Out of scope (per "no logic changes")
+- No new server fns, no schema changes, no query shape changes
+- No data added — if a card has no data, it stays hidden (per memory rule)
+- Route paths unchanged
+- All existing handlers, dialogs, mutations wired as-is
 
 ---
 
-Confirm korle implement shuru korbo.  
-**Confirm.** Damaged qty → `activity_log` only (no stock movement) ✅
+### Order of execution
+1. Build `_ui/` primitives
+2. Restyle tab strip (`erp.marketing.tsx`)
+3. Dashboard → Campaigns list → Campaign detail → SKU P&L → Expenses → Attribution
+4. Visual smoke-test each page via Playwright screenshot
 
-Build শুরু করো। 🚀
+Estimated ~8–10 file edits + 8 new primitive files. ~1 implementation pass per page.
+
+**Confirm to proceed, or tell me which pages to prioritise / drop.**
