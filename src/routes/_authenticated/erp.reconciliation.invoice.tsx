@@ -276,6 +276,17 @@ function ReconciliationPage() {
     );
   }, [preview]);
 
+  const previewByType = useMemo(() => {
+    if (!preview) return { paid: 0, return: 0, partial: 0 };
+    return preview.reduce(
+      (a, r) => {
+        a[r.row_type] = (a[r.row_type] ?? 0) + 1;
+        return a;
+      },
+      { paid: 0, return: 0, partial: 0 } as Record<"paid" | "return" | "partial", number>,
+    );
+  }, [preview]);
+
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl">
       {picker && <div className="flex justify-end -mb-1">{picker}</div>}
@@ -329,6 +340,20 @@ function ReconciliationPage() {
               <Stat label="Courier fees" value={fmtBdt(previewTotals.fee)} tone="warn" />
               <Stat label="Net payout" value={fmtBdt(previewTotals.payout)} tone="good" />
               {filename && <Stat label="File" value={filename} />}
+            </div>
+          )}
+
+          {preview && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700">
+                ✅ {previewByType.paid} paid
+              </Badge>
+              <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700">
+                ↩ {previewByType.return} returns
+              </Badge>
+              <Badge variant="outline" className="border-sky-500/50 bg-sky-500/10 text-sky-700">
+                📦 {previewByType.partial} partial
+              </Badge>
             </div>
           )}
         </CardContent>
