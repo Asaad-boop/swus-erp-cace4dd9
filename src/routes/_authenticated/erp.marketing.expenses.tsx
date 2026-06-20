@@ -408,7 +408,7 @@ function ExpenseDialog({ open, onClose, brandId, options, onCreate }: DialogProp
   const [saving, setSaving] = useState(false);
 
   // debounce search input
-  React.useEffect(() => {
+  useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(productQuery), 300);
     return () => clearTimeout(t);
   }, [productQuery]);
