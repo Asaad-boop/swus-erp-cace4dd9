@@ -291,6 +291,41 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       ),
     },
     {
+      header: "Live Status",
+      id: "live_courier_status",
+      cell: ({ row }) => {
+        const o = row.original;
+        const shipment = shipmentsByOrderId?.[o.id];
+        const flash = flashOrderIds?.has(o.id) ?? false;
+        if (!shipment) {
+          if (!onSyncRow) return <span className="text-muted-foreground/40 text-xs">—</span>;
+          return (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSyncRow(o.id); }}
+              className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+              title="Sync courier status"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          );
+        }
+        return (
+          <div className="flex items-center gap-1">
+            <CourierStatusBadge shipment={shipment} flash={flash} />
+            {onSyncRow && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onSyncRow(o.id); }}
+                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                title="Re-sync courier status"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       header: "",
       id: "actions",
       cell: ({ row }) => {
