@@ -2,7 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const CATEGORIES = ["influencer", "content", "photoshoot", "agency", "boost", "other"] as const;
+const CATEGORIES = [
+  "influencer",
+  "content",
+  "photoshoot",
+  "agency",
+  "boost",
+  "print_design",
+  "event",
+  "sms_email",
+  "other",
+] as const;
 
 async function assertRole(supabase: any, userId: string) {
   const [{ data: admin }, { data: ops }] = await Promise.all([

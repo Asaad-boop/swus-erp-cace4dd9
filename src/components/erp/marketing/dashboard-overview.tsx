@@ -267,7 +267,8 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Budget Pacing — Active Campaigns (Today)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            <BudgetSummaryStrip rows={d.budgetPacing} />
             {d.budgetPacing.map((p) => (
               <BudgetRow key={p.campaign_id} row={p} />
             ))}
@@ -354,14 +355,15 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
         : "bg-emerald-500";
   const badge =
     row.status === "over" ? (
-      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🔴 Over</Badge>
+      <Badge className="bg-red-100 text-red-700 hover:bg-red-100 animate-pulse">🔴 Over</Badge>
     ) : row.status === "warn" ? (
       <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">🟡 Near</Badge>
     ) : (
       <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">🟢 On track</Badge>
     );
-  // Projected month at current daily pace (= daily_budget × 30 if we hit it, vs current pace × 30)
-  const projected = row.spent_today_bdt * 30;
+  const projected = row.projected_monthly_bdt || row.spent_today_bdt * 30;
+  const hasLifetime = row.lifetime_budget_bdt != null && row.lifetime_budget_bdt > 0;
+  const lifetimePct = Math.min(100, row.pct_lifetime ?? 0);
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-1.5">
@@ -380,11 +382,62 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
         <span className="ml-auto tabular-nums font-medium">{row.pct.toFixed(0)}%</span>
       </div>
       <div className="relative h-2 w-full rounded-full bg-muted overflow-hidden">
-        <div className={cn("h-full transition-all", tone)} style={{ width: `${pct}%` }} />
+        <div
+          className={cn("h-full transition-all", tone, row.status === "over" && "animate-pulse")}
+          style={{ width: `${pct}%` }}
+        />
       </div>
+      {hasLifetime && (
+        <div className="mt-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <span>
+              Lifetime: <span className="text-foreground">{fmtBDT(row.lifetime_budget_bdt!)}</span>
+            </span>
+            <span>·</span>
+            <span>
+              MTD: <span className="text-foreground">{fmtBDT(row.spent_this_month_bdt)}</span>
+            </span>
+            <span className="ml-auto tabular-nums font-medium">{lifetimePct.toFixed(0)}%</span>
+          </div>
+          <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-sky-500 transition-all" style={{ width: `${lifetimePct}%` }} />
+          </div>
+        </div>
+      )}
       <div className="text-xs text-muted-foreground mt-1">
         Projected ~ {fmtBDT(projected)}/month at current pace
       </div>
+    </div>
+  );
+}
+
+function BudgetSummaryStrip({ rows }: { rows: DashboardSummary["budgetPacing"] }) {
+  const totalDaily = rows.reduce((s, r) => s + r.daily_budget_bdt, 0);
+  const totalSpent = rows.reduce((s, r) => s + r.spent_today_bdt, 0);
+  const overCount = rows.filter((r) => r.status === "over").length;
+  const overallPct = totalDaily > 0 ? (totalSpent / totalDaily) * 100 : 0;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border bg-muted/30 p-3">
+      <SummaryStat label="Total Daily Budget" value={fmtBDT(totalDaily)} />
+      <SummaryStat label="Spent Today" value={fmtBDT(totalSpent)} sub={`${overallPct.toFixed(0)}% used`} />
+      <SummaryStat label="Active Campaigns" value={String(rows.length)} />
+      <SummaryStat
+        label="Over Limit"
+        value={String(overCount)}
+        tone={overCount > 0 ? "bad" : undefined}
+      />
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "bad" }) {
+  return (
+    <div>
+      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</div>
+      <div className={cn("text-lg font-semibold tabular-nums mt-0.5", tone === "bad" && "text-red-600 animate-pulse")}>
+        {value}
+      </div>
+      {sub ? <div className="text-xs text-muted-foreground">{sub}</div> : null}
     </div>
   );
 }

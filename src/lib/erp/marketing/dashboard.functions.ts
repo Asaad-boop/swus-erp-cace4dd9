@@ -43,6 +43,10 @@ export type DashboardSummary = {
     spent_today_bdt: number;
     pct: number;
     status: "ok" | "warn" | "over";
+    lifetime_budget_bdt: number | null;
+    spent_this_month_bdt: number;
+    pct_lifetime: number | null;
+    projected_monthly_bdt: number;
   }>;
 };
 
@@ -100,7 +104,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: campaigns } = await supabase
       .from("mkt_campaigns")
       .select(
-        "id, name, account_id, daily_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
+        "id, name, account_id, daily_budget, lifetime_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
       )
       .eq("brand_id", brandId);
     const campMap = new Map<string, any>(
@@ -255,6 +259,29 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
         (spendTodayByCampaign.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0) * fx,
       );
     }
+    // Month-to-date spend per campaign (for lifetime budget pacing)
+    const monthStartBD = todayBD.slice(0, 7) + "-01";
+    const { data: monthInsights } = await supabase
+      .from("mkt_insights_daily")
+      .select("account_id, campaign_id, spend")
+      .eq("brand_id", brandId)
+      .gte("date", monthStartBD)
+      .lte("date", todayBD);
+    const spendMonthByCampaign = new Map<string, number>();
+    for (const r of monthInsights ?? []) {
+      if (!r.campaign_id) continue;
+      const fx = accFx.get(r.account_id) ?? 1;
+      spendMonthByCampaign.set(
+        r.campaign_id,
+        (spendMonthByCampaign.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0) * fx,
+      );
+    }
+    const daysInMonth = new Date(
+      Number(todayBD.slice(0, 4)),
+      Number(todayBD.slice(5, 7)),
+      0,
+    ).getDate();
+    const dayOfMonth = Number(todayBD.slice(8, 10));
     const budgetPacing: DashboardSummary["budgetPacing"] = [];
     for (const c of (campaigns ?? []) as any[]) {
       const status = (c.effective_status ?? c.status ?? "").toUpperCase();
@@ -270,6 +297,13 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const spent = spendTodayByCampaign.get(c.id) ?? 0;
       const pct = budgetBdt > 0 ? (spent / budgetBdt) * 100 : 0;
       const status_ = pct >= 90 ? "over" : pct >= 70 ? "warn" : "ok";
+      // Lifetime budget (optional)
+      const rawLifetime = c.lifetime_budget != null ? Number(c.lifetime_budget) : 0;
+      const lifetimeBdt = rawLifetime > 0 ? (rawLifetime / 100) * fx : null;
+      const spentMonth = spendMonthByCampaign.get(c.id) ?? 0;
+      const pctLifetime = lifetimeBdt && lifetimeBdt > 0 ? (spentMonth / lifetimeBdt) * 100 : null;
+      // Projected month = month-to-date pace × days_in_month
+      const projectedMonthly = dayOfMonth > 0 ? (spentMonth / dayOfMonth) * daysInMonth : 0;
       budgetPacing.push({
         campaign_id: c.id,
         name: c.name,
@@ -277,6 +311,10 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
         spent_today_bdt: spent,
         pct,
         status: status_ as "ok" | "warn" | "over",
+        lifetime_budget_bdt: lifetimeBdt,
+        spent_this_month_bdt: spentMonth,
+        pct_lifetime: pctLifetime,
+        projected_monthly_bdt: projectedMonthly,
       });
     }
     budgetPacing.sort((a, b) => b.pct - a.pct);

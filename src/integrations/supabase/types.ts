@@ -8442,6 +8442,9 @@ export type Database = {
         | "boost"
         | "other"
         | "meta_ads"
+        | "print_design"
+        | "event"
+        | "sms_email"
       mkt_sync_kind: "structure" | "insights" | "attribution" | "finance_post"
       mkt_sync_status: "running" | "success" | "error"
       order_priority: "low" | "normal" | "high" | "urgent"
@@ -8696,6 +8699,9 @@ export const Constants = {
         "boost",
         "other",
         "meta_ads",
+        "print_design",
+        "event",
+        "sms_email",
       ],
       mkt_sync_kind: ["structure", "insights", "attribution", "finance_post"],
       mkt_sync_status: ["running", "success", "error"],
