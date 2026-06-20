@@ -43,6 +43,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
+import { DashboardOverview } from "@/components/erp/marketing/dashboard-overview";
 import { cn } from "@/lib/utils";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
