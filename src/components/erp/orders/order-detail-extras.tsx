@@ -154,7 +154,7 @@ export function ShipmentPanel({
     queryFn: async () => {
       const { data } = await supabase
         .from("courier_shipments")
-        .select("id, provider, consignment_id, tracking_code, status, delivery_fee, updated_at, created_at")
+        .select("id, provider, consignment_id, tracking_code, status, delivery_fee, updated_at, created_at, rider_name, rider_phone")
         .eq("order_id", orderId)
         .order("created_at", { ascending: false })
         .limit(1).maybeSingle();
