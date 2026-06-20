@@ -8511,6 +8511,8 @@ export type Database = {
         | "partial_return"
         | "pending_return"
         | "paid"
+        | "return_in_transit"
+        | "completed"
       payment_status: "unpaid" | "partial" | "paid" | "refunded"
       web_order_status:
         | "processing"
@@ -8769,6 +8771,8 @@ export const Constants = {
         "partial_return",
         "pending_return",
         "paid",
+        "return_in_transit",
+        "completed",
       ],
       payment_status: ["unpaid", "partial", "paid", "refunded"],
       web_order_status: [
