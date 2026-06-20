@@ -206,6 +206,19 @@ function ProductProfitabilityPage() {
               <p className="text-sm text-muted-foreground">True unit economics — orders, COGS, courier, returns, exchanges, ads.</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            {brandId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => backfillMut.mutate()}
+                disabled={backfillMut.isPending}
+                title="Re-snapshot all brand orders (admin only)"
+              >
+                <RefreshCcw className={cn("h-3 w-3 mr-1", backfillMut.isPending && "animate-spin")} />
+                {backfillMut.isPending ? "Re-snapshotting…" : "Re-snapshot"}
+              </Button>
+            )}
           {r && (
             <div className="flex items-center gap-2 rounded-lg border bg-card/80 backdrop-blur px-3 py-2">
               {r.product.image ? (
@@ -224,6 +237,7 @@ function ProductProfitabilityPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
 
