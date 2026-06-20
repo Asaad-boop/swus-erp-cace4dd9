@@ -49,9 +49,10 @@ function SkuPnlPage() {
   const totals = useMemo(() => filtered.reduce(
     (a, r) => {
       a.revenue += r.revenue; a.cogs += r.cogs; a.ad_spend += r.ad_spend;
+      a.manual_expenses += r.manual_expenses ?? 0;
       a.returns += r.returns; a.net_profit += r.net_profit; return a;
     },
-    { revenue: 0, cogs: 0, ad_spend: 0, returns: 0, net_profit: 0 },
+    { revenue: 0, cogs: 0, ad_spend: 0, manual_expenses: 0, returns: 0, net_profit: 0 },
   ), [filtered]);
 
   return (
@@ -61,7 +62,7 @@ function SkuPnlPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">SKU Profit & Loss</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Revenue − COGS − Ad Spend − Returns = Net Profit (per product).
+            Revenue − COGS − Ad Spend − Other Marketing − Returns = Net Profit (per product).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -80,10 +81,11 @@ function SkuPnlPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Kpi label="Revenue" value={fmtBDT(totals.revenue)} />
         <Kpi label="COGS" value={fmtBDT(totals.cogs)} />
         <Kpi label="Ad Spend" value={fmtBDT(totals.ad_spend)} sub={query.data?.unallocated_ad_spend ? `+${fmtBDT(query.data.unallocated_ad_spend)} unallocated` : undefined} />
+        <Kpi label="Other Marketing" value={fmtBDT(totals.manual_expenses)} sub={query.data?.unallocated_manual_expenses ? `+${fmtBDT(query.data.unallocated_manual_expenses)} unallocated` : undefined} />
         <Kpi label="Returns" value={fmtBDT(totals.returns)} />
         <Kpi label="Net Profit" value={fmtBDT(totals.net_profit)} tone={totals.net_profit >= 0 ? "good" : "bad"} />
       </div>
@@ -110,6 +112,7 @@ function SkuPnlPage() {
                     <TableHead className="text-right">Revenue</TableHead>
                     <TableHead className="text-right">COGS</TableHead>
                     <TableHead className="text-right">Ad Spend</TableHead>
+                    <TableHead className="text-right">Other Mkt</TableHead>
                     <TableHead className="text-right">Returns ৳</TableHead>
                     <TableHead className="text-right">Net Profit</TableHead>
                     <TableHead className="text-right">Margin</TableHead>
@@ -128,6 +131,7 @@ function SkuPnlPage() {
                       <TableCell className="text-right tabular-nums">{fmtBDT(r.revenue)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtBDT(r.cogs)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtBDT(r.ad_spend)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtBDT(r.manual_expenses ?? 0)}</TableCell>
                       <TableCell className="text-right tabular-nums text-red-600">{fmtBDT(r.returns)}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
                         <span className={r.net_profit >= 0 ? "text-emerald-700" : "text-red-600"}>

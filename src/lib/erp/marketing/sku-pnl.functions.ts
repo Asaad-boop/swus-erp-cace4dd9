@@ -12,6 +12,7 @@ export type SkuPnlRow = {
   revenue: number;
   cogs: number;
   ad_spend: number;
+  manual_expenses: number;
   returns: number;
   net_profit: number;
   margin_pct: number | null;
@@ -34,7 +35,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       to: z.string().optional(),
     }).parse(d),
   )
-  .handler(async ({ data, context }): Promise<{ rows: SkuPnlRow[]; unallocated_ad_spend: number; from: string; to: string }> => {
+  .handler(async ({ data, context }): Promise<{ rows: SkuPnlRow[]; unallocated_ad_spend: number; unallocated_manual_expenses: number; from: string; to: string }> => {
     const supabase = context.supabase;
     const { from, to } = defaults(data);
     const toEnd = `${to}T23:59:59.999Z`;
@@ -167,6 +168,40 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       }
     }
 
+    // 3b) Manual expenses (BDT) — direct product_id, or allocated via linked campaign weights
+    const { data: manExp } = await supabase
+      .from("mkt_manual_expenses")
+      .select("amount, currency, product_id, campaign_id")
+      .eq("brand_id", data.brandId)
+      .gte("date", from)
+      .lte("date", to);
+    const manualByProduct = new Map<string, number>();
+    let unallocatedManual = 0;
+    for (const e of (manExp ?? []) as any[]) {
+      const cur = (e.currency ?? "BDT").toUpperCase();
+      const fx = cur === "BDT" ? 1 : 110;
+      const amt = (Number(e.amount) || 0) * fx;
+      if (amt <= 0) continue;
+      if (e.product_id) {
+        manualByProduct.set(e.product_id, (manualByProduct.get(e.product_id) ?? 0) + amt);
+        productIds.add(e.product_id);
+      } else if (e.campaign_id) {
+        const ls = linksByCamp.get(e.campaign_id) ?? [];
+        const tw = ls.reduce((s, x) => s + x.weight, 0);
+        if (ls.length && tw > 0) {
+          for (const l of ls) {
+            const share = (l.weight / tw) * amt;
+            manualByProduct.set(l.product_id, (manualByProduct.get(l.product_id) ?? 0) + share);
+            productIds.add(l.product_id);
+          }
+        } else {
+          unallocatedManual += amt;
+        }
+      } else {
+        unallocatedManual += amt;
+      }
+    }
+
     // Ensure meta for products that only appeared via ad allocations
     const missingMeta = Array.from(productIds).filter((id) => !productMeta.has(id));
     if (missingMeta.length) {
@@ -181,12 +216,13 @@ export const getSkuPnl = createServerFn({ method: "POST" })
 
     // 4) Build rows
     const rows: SkuPnlRow[] = [];
-    const allIds = new Set<string>([...perProduct.keys(), ...adSpendByProduct.keys()]);
+    const allIds = new Set<string>([...perProduct.keys(), ...adSpendByProduct.keys(), ...manualByProduct.keys()]);
     for (const pid of allIds) {
       const a = perProduct.get(pid) ?? { delivered_qty: 0, returned_qty: 0, revenue: 0, cogs: 0, returns: 0 };
       const adSpend = adSpendByProduct.get(pid) ?? 0;
+      const manualExp = manualByProduct.get(pid) ?? 0;
       const meta = productMeta.get(pid);
-      const net = a.revenue - a.cogs - adSpend - a.returns;
+      const net = a.revenue - a.cogs - adSpend - manualExp - a.returns;
       rows.push({
         product_id: pid,
         sku: meta?.sku ?? null,
@@ -197,6 +233,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         revenue: +a.revenue.toFixed(2),
         cogs: +a.cogs.toFixed(2),
         ad_spend: +adSpend.toFixed(2),
+        manual_expenses: +manualExp.toFixed(2),
         returns: +a.returns.toFixed(2),
         net_profit: +net.toFixed(2),
         margin_pct: a.revenue > 0 ? +((net / a.revenue) * 100).toFixed(2) : null,
@@ -204,5 +241,5 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       });
     }
     rows.sort((a, b) => b.net_profit - a.net_profit);
-    return { rows, unallocated_ad_spend: +unallocated.toFixed(2), from, to };
+    return { rows, unallocated_ad_spend: +unallocated.toFixed(2), unallocated_manual_expenses: +unallocatedManual.toFixed(2), from, to };
   });
