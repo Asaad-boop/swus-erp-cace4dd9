@@ -61,7 +61,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       .from("order_items")
       .select("product_id, quantity, line_total, unit_cost_snapshot, orders!inner(status, brand_id, created_at)")
       .eq("orders.brand_id", data.brandId)
-      .in("orders.status", ["delivered", "completed"])
+      .eq("orders.status", "delivered")
       .gte("orders.created_at", fromStart)
       .lte("orders.created_at", toEnd);
     if (iErr) throw iErr;
