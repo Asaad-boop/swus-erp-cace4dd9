@@ -109,8 +109,8 @@ function CaseDetailPage() {
           {/* Product Info */}
           <Section title="Product" icon={<Package className="h-4 w-4" />}>
             <div className="flex items-start gap-3">
-              {c.product?.image_url
-                ? <img src={c.product.image_url} alt="" className="h-16 w-16 rounded-md object-cover ring-1 ring-border" />
+              {c.product?.image
+                ? <img src={c.product.image} alt="" className="h-16 w-16 rounded-md object-cover ring-1 ring-border" />
                 : <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{c.product?.title ?? "—"}</div>
@@ -121,7 +121,7 @@ function CaseDetailPage() {
               </div>
               {c.order && (
                 <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }} className="text-xs text-sky-600 hover:underline inline-flex items-center gap-1">
-                  Order #{c.order.order_number} <ExternalLink className="h-3 w-3" />
+                  Order #{String(c.order.id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                 </Link>
               )}
             </div>
@@ -180,7 +180,7 @@ function CaseDetailPage() {
                   <p className="text-emerald-600 inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Exchange order created</p>
                   <Link to="/erp/orders/$orderId" params={{ orderId: c.new_order_id }}
                     className="inline-flex items-center gap-1 text-sky-600 hover:underline">
-                    View Order #{c.new_order?.order_number ?? c.new_order_id.slice(0, 8)} <ExternalLink className="h-3 w-3" />
+                    View Order #{String(c.new_order_id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                   </Link>
                 </div>
               ) : c.exchange_type_detail !== "refund_only" && c.replacement_product_id ? (
