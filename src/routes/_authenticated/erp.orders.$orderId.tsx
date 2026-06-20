@@ -26,7 +26,7 @@ import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 import {
   OrderTimeline, ShipmentPanel, CustomerHistoryPanel, AttributionPanel,
-  ReturnDialog, ExchangeDialog, useOrderNeighbors,
+  ReturnDialog, ExchangeDialog, useOrderNeighbors, OrderCasesPanel,
 } from "@/components/erp/orders/order-detail-extras";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { cn } from "@/lib/utils";
