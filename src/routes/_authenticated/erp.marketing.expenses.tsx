@@ -609,7 +609,7 @@ function ExpenseDialog({ open, onClose, brandId, options, onCreate }: DialogProp
                   <SelectContent>
                     <SelectItem value={NONE}>— Select —</SelectItem>
                     {options.accounts.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} ({a.currency})</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
