@@ -2,12 +2,18 @@ import { cn } from "@/lib/utils";
 
 const TONES: Record<string, { cls: string; label: string; pulse?: boolean }> = {
   initiated: { cls: "bg-slate-500/10 text-slate-700 dark:text-slate-300 ring-slate-500/30", label: "Initiated" },
+  courier_picked: { cls: "bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-blue-500/30", label: "Courier Picked", pulse: true },
   in_transit: { cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/30", label: "In Transit", pulse: true },
   return_in_transit: { cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/30", label: "Return In Transit", pulse: true },
   received: { cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", label: "Received" },
   return_received: { cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", label: "Return Received" },
+  qc_pending: { cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", label: "QC Pending", pulse: true },
   qc_done: { cls: "bg-purple-500/10 text-purple-700 dark:text-purple-300 ring-purple-500/30", label: "QC Done" },
   restocked: { cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", label: "Restocked" },
+  loss_recorded: { cls: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", label: "Loss Recorded" },
+  processing: { cls: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-indigo-500/30", label: "Processing", pulse: true },
+  replacement_sent: { cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/30", label: "Replacement Sent", pulse: true },
+  replacement_delivered: { cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", label: "Replacement Delivered" },
   closed: { cls: "bg-slate-500/10 text-slate-600 dark:text-slate-400 ring-slate-500/30", label: "Closed" },
   completed: { cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", label: "Completed" },
   new_order_created: { cls: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-indigo-500/30", label: "New Order Created" },

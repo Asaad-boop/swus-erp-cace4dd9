@@ -15,6 +15,7 @@ import { ReturnStatusBadge } from "@/components/erp/returns/return-status-badge"
 import {
   getCaseDetail, completeQC, updateReturnStatus, createExchangeOrder,
 } from "@/lib/erp/returns/returns.functions";
+import { CaseActionButton } from "@/components/erp/returns/case-action-button";
 
 export const Route = createFileRoute("/_authenticated/erp/returns/$caseId")({
   head: () => ({ meta: [{ title: "Case Detail — Returns" }] }),
@@ -43,7 +44,7 @@ function CaseDetailPage() {
   const c: any = data.case;
   const isExchange = data.type === "exchange";
   const status = isExchange ? c.exchange_status : c.return_status;
-  const showQC = !isExchange && status === "received";
+  const showQC = false; // handled by CaseActionButton dialog
 
   const closeCase = () => {
     if (!confirm("Close this case?")) return;
@@ -66,6 +67,7 @@ function CaseDetailPage() {
           <ReturnStatusBadge status={status} />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
           {status !== "closed" && status !== "completed" && (
             <Button variant="outline" size="sm" onClick={closeCase}>Close Case</Button>
           )}

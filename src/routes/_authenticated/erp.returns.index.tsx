@@ -13,6 +13,7 @@ import { ReturnStatusBadge } from "@/components/erp/returns/return-status-badge"
 import { listReturnCases, listExchangeCases } from "@/lib/erp/returns/returns.functions";
 import { NewReturnDialog } from "@/components/erp/returns/new-return-dialog";
 import { NewExchangeDialog } from "@/components/erp/returns/new-exchange-dialog";
+import { CaseActionButton } from "@/components/erp/returns/case-action-button";
 
 export const Route = createFileRoute("/_authenticated/erp/returns/")({
   head: () => ({ meta: [{ title: "Returns & Exchanges — ERP" }] }),
@@ -175,15 +176,16 @@ function ReturnsListPage() {
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead className="w-[200px]">Action</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(retQ.isLoading || excQ.isLoading) && (
-              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
             )}
             {!retQ.isLoading && !excQ.isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">No cases found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">No cases found</TableCell></TableRow>
             )}
             {rows.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/40 cursor-pointer"
@@ -203,6 +205,9 @@ function ReturnsListPage() {
                 <TableCell><ReturnStatusBadge status={r.status} /></TableCell>
                 <TableCell className="text-right tabular-nums text-xs">৳{r.amount.toLocaleString("en-IN")}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{format(new Date(r.createdAt), "dd MMM, hh:mm a")}</TableCell>
+                <TableCell>
+                  <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
+                </TableCell>
                 <TableCell>
                   <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
                     onClick={(e) => e.stopPropagation()}
