@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, Plus, Trash2, ExternalLink, Download, Search } from "lucide-react";
 import { format } from "date-fns";
 
 import { useBrand } from "@/contexts/brand-context";
@@ -37,10 +37,13 @@ export const Route = createFileRoute("/_authenticated/erp/marketing/expenses")({
 
 const CATEGORY_OPTIONS = [
   { value: "influencer", label: "Influencer" },
-  { value: "content", label: "Content" },
+  { value: "content", label: "UGC / Content" },
   { value: "photoshoot", label: "Photoshoot" },
   { value: "agency", label: "Agency" },
-  { value: "boost", label: "Boost / Promotion" },
+  { value: "boost", label: "Boosted Post" },
+  { value: "print_design", label: "Print / Design" },
+  { value: "event", label: "Event" },
+  { value: "sms_email", label: "SMS / Email" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -53,9 +56,13 @@ function categoryBadge(c: string) {
     photoshoot: "bg-pink-100 text-pink-800",
     agency: "bg-amber-100 text-amber-800",
     boost: "bg-emerald-100 text-emerald-800",
+    print_design: "bg-orange-100 text-orange-800",
+    event: "bg-fuchsia-100 text-fuchsia-800",
+    sms_email: "bg-cyan-100 text-cyan-800",
     other: "bg-slate-100 text-slate-800",
   };
-  return <Badge className={`${map[c] ?? "bg-slate-100 text-slate-800"} hover:opacity-90`}>{c}</Badge>;
+  const label = CATEGORY_OPTIONS.find((o) => o.value === c)?.label ?? c;
+  return <Badge className={`${map[c] ?? "bg-slate-100 text-slate-800"} hover:opacity-90`}>{label}</Badge>;
 }
 
 function ExpensesPage() {
