@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Download, RefreshCw, Inbox } from "lucide-react";
+import { Plus, Download, RefreshCw, Inbox, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBrand } from "@/contexts/brand-context";
 import { useOrdersQuery, useOrderStatusCounts, type OrdersFilter } from "@/hooks/erp/use-orders-query";
+import { useCourierShipments, normalizeCourierStatus, COURIER_BUCKETS, COURIER_BUCKET_META, type CourierBucket, type CourierShipmentRow } from "@/hooks/erp/use-courier-shipments";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { OrdersStatusTabs } from "@/components/erp/orders/orders-status-tabs";
 import { OrdersToolbar } from "@/components/erp/orders/orders-toolbar";
@@ -59,7 +60,82 @@ function OrdersPage() {
   const [pathaoBulkOpen, setPathaoBulkOpen] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [singleSyncId, setSingleSyncId] = useState<string | null>(null);
   const [phoneHistOpen, setPhoneHistOpen] = useState(false);
+  const [courierStatusFilter, setCourierStatusFilter] = useState<CourierBucket | "all">("all");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+
+  // Bulk fetch live courier shipments for the current page
+  const pageOrderIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const { data: shipmentsMap = {} } = useCourierShipments(pageOrderIds);
+
+  // Apply client-side courier status filter
+  const visibleRows = useMemo(() => {
+    if (courierStatusFilter === "all") return rows;
+    return rows.filter((r) => {
+      const s = shipmentsMap[r.id];
+      const bucket = s ? normalizeCourierStatus(s.status) : null;
+      return bucket === courierStatusFilter;
+    });
+  }, [rows, shipmentsMap, courierStatusFilter]);
+
+  // Realtime: subscribe to courier_shipments UPDATE/INSERT
+  useEffect(() => {
+    if (pageOrderIds.length === 0) return;
+    const orderIdSet = new Set(pageOrderIds);
+    const idsKey = [...pageOrderIds].sort().join(",");
+    const queryKey = ["courier-shipments", idsKey] as const;
+    const channel = supabase
+      .channel(`courier-status-live-${idsKey.slice(0, 32)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "courier_shipments" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as CourierShipmentRow | undefined;
+          if (!row?.order_id || !orderIdSet.has(row.order_id)) return;
+          if (payload.eventType === "DELETE") {
+            qc.setQueryData<Record<string, CourierShipmentRow>>(queryKey, (old) => {
+              if (!old) return old;
+              const next = { ...old };
+              delete next[row.order_id];
+              return next;
+            });
+            return;
+          }
+          const newRow = payload.new as CourierShipmentRow;
+          qc.setQueryData<Record<string, CourierShipmentRow>>(queryKey, (old) => {
+            const prev = old?.[newRow.order_id];
+            // Only replace if this shipment is newer
+            if (prev && prev.updated_at && newRow.updated_at && prev.updated_at > newRow.updated_at) {
+              return old;
+            }
+            return { ...(old ?? {}), [newRow.order_id]: newRow };
+          });
+          // Flash row briefly
+          setFlashIds((s) => { const n = new Set(s); n.add(newRow.order_id); return n; });
+          setTimeout(() => {
+            setFlashIds((s) => { const n = new Set(s); n.delete(newRow.order_id); return n; });
+          }, 2500);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pageOrderIds, qc]);
+
+  const courierFilterActive = courierStatusFilter !== "all";
+  const courierCounts = useMemo(() => {
+    const counts: Partial<Record<CourierBucket, number>> = {};
+    for (const r of rows) {
+      const s = shipmentsMap[r.id];
+      const b = s ? normalizeCourierStatus(s.status) : null;
+      if (!b) continue;
+      counts[b] = (counts[b] ?? 0) + 1;
+    }
+    return counts;
+  }, [rows, shipmentsMap]);
 
   // BUG 1: clear selection when page/filter/tab/view changes
   useEffect(() => {
@@ -82,7 +158,7 @@ function OrdersPage() {
     setSelectedIds(next);
   };
   const toggleAll = (checked: boolean) => {
-    if (checked) setSelectedIds(new Set(rows.map((r) => r.id)));
+    if (checked) setSelectedIds(new Set(visibleRows.map((r) => r.id)));
     else setSelectedIds(new Set());
   };
 
@@ -239,6 +315,28 @@ function OrdersPage() {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          {lastSyncedAt && (
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              Last synced {relTimeShort(lastSyncedAt)}
+            </span>
+          )}
+          <Select value={courierStatusFilter} onValueChange={(v) => setCourierStatusFilter(v as CourierBucket | "all")}>
+            <SelectTrigger className="h-9 w-[170px]">
+              <span className="flex items-center gap-1.5 text-xs">
+                <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Courier status" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All courier statuses</SelectItem>
+              {COURIER_BUCKETS.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {COURIER_BUCKET_META[b].label}
+                  {courierCounts[b] ? ` (${courierCounts[b]})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="inline-flex rounded-lg border bg-card shadow-sm overflow-hidden">
             <Button
               variant="ghost"
@@ -323,7 +421,7 @@ function OrdersPage() {
           }
         />
         <OrdersTable
-          rows={rows}
+          rows={visibleRows}
           loading={isLoading}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
@@ -331,18 +429,25 @@ function OrdersPage() {
           onRowClick={setOpenId}
           onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
           pendingStatusIds={pendingIds}
+          shipmentsByOrderId={shipmentsMap}
+          flashOrderIds={flashIds}
+          onSyncRow={(id) => { setSingleSyncId(id); }}
         />
-        {!isLoading && rows.length === 0 && (
+        {!isLoading && visibleRows.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
               <Inbox className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
               <div className="font-semibold">No orders found</div>
-              <div className="text-sm text-muted-foreground">Try adjusting your filters or date range.</div>
+              <div className="text-sm text-muted-foreground">
+                {courierFilterActive
+                  ? `No orders with courier status "${COURIER_BUCKET_META[courierStatusFilter as CourierBucket].label}" on this page.`
+                  : "Try adjusting your filters or date range."}
+              </div>
             </div>
-            {hasActiveFilters && (
-              <Button variant="outline" size="sm" onClick={clearAllFilters}>Clear filters</Button>
+            {(hasActiveFilters || courierFilterActive) && (
+              <Button variant="outline" size="sm" onClick={() => { clearAllFilters(); setCourierStatusFilter("all"); }}>Clear filters</Button>
             )}
           </div>
         )}
@@ -397,9 +502,25 @@ function OrdersPage() {
         open={syncOpen}
         onOpenChange={(o) => {
           setSyncOpen(o);
-          if (!o) setSelectedIds(new Set());
+          if (!o) {
+            setSelectedIds(new Set());
+            setLastSyncedAt(Date.now());
+            qc.invalidateQueries({ queryKey: ["courier-shipments"] });
+          }
         }}
         orderIds={Array.from(selectedIds)}
+      />
+
+      <CourierStatusSyncDialog
+        open={singleSyncId !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setSingleSyncId(null);
+            setLastSyncedAt(Date.now());
+            qc.invalidateQueries({ queryKey: ["courier-shipments"] });
+          }
+        }}
+        orderIds={singleSyncId ? [singleSyncId] : []}
       />
 
       <PhoneHistorySyncDialog
@@ -420,4 +541,14 @@ function OrdersPage() {
       />
     </div>
   );
+}
+
+function relTimeShort(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "just now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }

@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { BrandBadge } from "@/components/erp/brand-badge";
+import { CourierStatusBadge } from "@/components/erp/orders/courier-status-badge";
+import type { CourierShipmentRow } from "@/hooks/erp/use-courier-shipments";
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   confirmed: "ready_to_pack",
@@ -46,9 +48,12 @@ type Props = {
   onRowClick: (id: string) => void;
   onStatusChange: (id: string, status: OrderStatus) => void;
   pendingStatusIds?: Set<string>;
+  shipmentsByOrderId?: Record<string, CourierShipmentRow>;
+  flashOrderIds?: Set<string>;
+  onSyncRow?: (orderId: string) => void;
 };
 
-export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusIds }: Props) {
+export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusIds, shipmentsByOrderId, flashOrderIds, onSyncRow }: Props) {
   const copyText = (text: string, label: string) => {
     navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`));
   };
@@ -284,6 +289,41 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       cell: ({ row }) => (
         <div className="text-xs capitalize whitespace-nowrap">{row.original.source ?? "—"}</div>
       ),
+    },
+    {
+      header: "Live Status",
+      id: "live_courier_status",
+      cell: ({ row }) => {
+        const o = row.original;
+        const shipment = shipmentsByOrderId?.[o.id];
+        const flash = flashOrderIds?.has(o.id) ?? false;
+        if (!shipment) {
+          if (!onSyncRow) return <span className="text-muted-foreground/40 text-xs">—</span>;
+          return (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSyncRow(o.id); }}
+              className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+              title="Sync courier status"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          );
+        }
+        return (
+          <div className="flex items-center gap-1">
+            <CourierStatusBadge shipment={shipment} flash={flash} />
+            {onSyncRow && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onSyncRow(o.id); }}
+                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                title="Re-sync courier status"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "",
