@@ -104,7 +104,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: campaigns } = await supabase
       .from("mkt_campaigns")
       .select(
-        "id, name, account_id, daily_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
+        "id, name, account_id, daily_budget, lifetime_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
       )
       .eq("brand_id", brandId);
     const campMap = new Map<string, any>(
