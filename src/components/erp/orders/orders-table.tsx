@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { AdvanceBadge } from "@/components/erp/orders/advance-badge";
 import { BrandBadge } from "@/components/erp/brand-badge";
+import { CourierStatusBadge } from "@/components/erp/orders/courier-status-badge";
+import type { CourierShipmentRow } from "@/hooks/erp/use-courier-shipments";
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   confirmed: "ready_to_pack",
@@ -46,9 +48,12 @@ type Props = {
   onRowClick: (id: string) => void;
   onStatusChange: (id: string, status: OrderStatus) => void;
   pendingStatusIds?: Set<string>;
+  shipmentsByOrderId?: Record<string, CourierShipmentRow>;
+  flashOrderIds?: Set<string>;
+  onSyncRow?: (orderId: string) => void;
 };
 
-export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusIds }: Props) {
+export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onToggleAll, onRowClick, onStatusChange, pendingStatusIds, shipmentsByOrderId, flashOrderIds, onSyncRow }: Props) {
   const copyText = (text: string, label: string) => {
     navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`));
   };
