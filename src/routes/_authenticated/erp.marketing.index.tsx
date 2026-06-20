@@ -43,6 +43,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
+import { DashboardOverview } from "@/components/erp/marketing/dashboard-overview";
 import { cn } from "@/lib/utils";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
@@ -252,6 +253,9 @@ function PerformanceDashboard() {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Phase 3 — Today strip, ROAS comparison, charts, budget pacing */}
+        {brandId && <DashboardOverview brandId={brandId} />}
 
         {/* KPI strip */}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
