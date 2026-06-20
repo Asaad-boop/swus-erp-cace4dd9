@@ -73,6 +73,13 @@ function ExpensesPage() {
   const brandId = effectiveBrand?.id ?? null;
 
   const [open, setOpen] = useState(false);
+  // Filters
+  const [filterCategory, setFilterCategory] = useState<string>("__all__");
+  const [filterProduct, setFilterProduct] = useState<string>("__all__");
+  const [filterCampaign, setFilterCampaign] = useState<string>("__all__");
+  const [filterFrom, setFilterFrom] = useState<string>("");
+  const [filterTo, setFilterTo] = useState<string>("");
+  const [search, setSearch] = useState("");
 
   const listFn = useServerFn(listMarketingExpenses);
   const optsFn = useServerFn(listExpenseFormOptions);
@@ -80,8 +87,8 @@ function ExpensesPage() {
   const deleteFn = useServerFn(deleteMarketingExpense);
 
   const expensesQ = useQuery({
-    queryKey: ["mkt", "expenses", brandId],
-    queryFn: () => listFn({ data: { brandId: brandId! } }),
+    queryKey: ["mkt", "expenses", brandId, filterFrom, filterTo],
+    queryFn: () => listFn({ data: { brandId: brandId!, from: filterFrom || undefined, to: filterTo || undefined } }),
     enabled: !!brandId,
   });
 
@@ -101,13 +108,63 @@ function ExpensesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = expensesQ.data ?? [];
+  const allRows = expensesQ.data ?? [];
+
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (allRows as any[]).filter((r) => {
+      if (filterCategory !== "__all__" && r.category !== filterCategory) return false;
+      if (filterProduct !== "__all__" && r.product_id !== filterProduct) return false;
+      if (filterCampaign !== "__all__" && r.campaign_id !== filterCampaign) return false;
+      if (term && !(`${r.vendor ?? ""} ${r.note ?? ""}`.toLowerCase().includes(term))) return false;
+      return true;
+    });
+  }, [allRows, filterCategory, filterProduct, filterCampaign, search]);
 
   const totals = useMemo(() => {
     const total = rows.reduce((s, r: any) => s + Number(r.amount || 0), 0);
     const posted = rows.filter((r: any) => r.transaction_id).length;
     return { total, posted, count: rows.length };
   }, [rows]);
+
+  // Per-subtype monthly totals (current month, scoped to all rows in window)
+  const monthSubtotals = useMemo(() => {
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const m = new Map<string, number>();
+    for (const r of allRows as any[]) {
+      if (!(r.date ?? "").startsWith(ym)) continue;
+      m.set(r.category, (m.get(r.category) ?? 0) + Number(r.amount || 0));
+    }
+    return m;
+  }, [allRows]);
+
+  const downloadCsv = () => {
+    const header = ["Date", "Category", "Vendor", "Product", "Campaign", "Account", "Amount", "Currency", "Posted", "Note"];
+    const lines = [header.join(",")];
+    for (const r of rows as any[]) {
+      const cells = [
+        r.date ?? "",
+        r.category ?? "",
+        r.vendor ?? "",
+        r.products?.name ?? "",
+        r.mkt_campaigns?.name ?? "",
+        r.erp_accounts?.name ?? "",
+        String(r.amount ?? 0),
+        r.currency ?? "BDT",
+        r.transaction_id ? "Yes" : "No",
+        r.note ?? "",
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`);
+      lines.push(cells.join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `marketing-expenses-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!brandId) {
     if (isAllBrands) {
