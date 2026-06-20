@@ -55,11 +55,11 @@ function ReturnsListPage() {
       amount: Number(r.exchange_charge_collected ?? r.refund_amount ?? 0),
       createdAt: r.created_at,
     }));
-    let all = [...rets, ...excs];
+    let all: typeof rets = [...rets, ...excs];
     if (tab === "returns") all = rets;
     else if (tab === "exchanges") all = excs;
-    else if (tab === "pending_qc") all = rets.filter((r) => r.status === "received");
-    else if (tab === "restocked") all = rets.filter((r) => r.status === "restocked");
+    else if (tab === "pending_qc") all = rets.filter((r: typeof rets[number]) => r.status === "received");
+    else if (tab === "restocked") all = rets.filter((r: typeof rets[number]) => r.status === "restocked");
     else if (tab === "closed") all = all.filter((r) => r.status === "closed" || r.status === "completed");
     if (q.trim()) {
       const needle = q.toLowerCase();
