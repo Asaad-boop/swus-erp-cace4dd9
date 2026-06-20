@@ -62,9 +62,9 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
-      .select("id,external_id,name,objective,status,effective_status,account_id,daily_budget,mkt_ad_accounts(name,currency)")
-      // need usd_to_bdt_rate too for dual-currency display
-      // (kept legacy select string above for diff clarity)
+      .select(
+        "id,external_id,name,objective,status,effective_status,account_id,daily_budget,mkt_ad_accounts(name,currency,usd_to_bdt_rate)",
+      )
       .eq("brand_id", data.brandId)
       .order("name");
     if (cErr) throw cErr;
