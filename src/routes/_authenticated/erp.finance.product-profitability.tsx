@@ -833,6 +833,17 @@ function PnLPill({ label, value, sub, tone, icon: Icon, big }: { label: string; 
 
 function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Report["marketing"]; onAllocate: () => void; canAllocate: boolean }) {
   const total = marketing.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+  const allocTotal = marketing.filter((m) => m.kind === "allocation").reduce((s, m) => s + (Number(m.amount) || 0), 0);
+  const manualTotal = marketing.filter((m) => m.kind === "manual").reduce((s, m) => s + (Number(m.amount) || 0), 0);
+  const manualByType = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of marketing) {
+      if (x.kind !== "manual") continue;
+      const t = x.expense_type || "other";
+      m.set(t, (m.get(t) || 0) + (Number(x.amount) || 0));
+    }
+    return Array.from(m.entries()).map(([type, total]) => ({ type, total })).sort((a, b) => b.total - a.total);
+  }, [marketing]);
   const byType = useMemo(() => {
     const m = new Map<string, { total: number; count: number }>();
     for (const x of marketing) {
@@ -852,6 +863,31 @@ function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Repor
 
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border bg-muted/20 p-3 grid grid-cols-3 gap-3 text-sm">
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Campaign Allocations</div>
+          <div className="font-semibold tabular-nums">{fmtBdt(allocTotal)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Manual Expenses</div>
+          <div className="font-semibold tabular-nums">{fmtBdt(manualTotal)}</div>
+          {manualByType.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {manualByType.map((g) => (
+                <Badge key={g.type} variant="outline" className="font-normal text-[10px] gap-1">
+                  <span className="capitalize">{g.type}</span>
+                  <span className="tabular-nums">{fmtBdt(g.total)}</span>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Marketing</div>
+          <div className="font-bold tabular-nums text-violet-600 dark:text-violet-400">{fmtBdt(total)}</div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary" className="font-normal">Total: <span className="font-semibold ml-1 tabular-nums">{fmtBdt(total)}</span></Badge>
@@ -890,15 +926,21 @@ function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Repor
         <Table>
           <TableHeader><TableRow>
             <TableHead className="w-28">Date</TableHead>
+            <TableHead className="w-24">Source</TableHead>
             <TableHead>Type</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Note</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {sorted.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No marketing allocations <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
+            {sorted.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No marketing expenses <Megaphone className="inline h-3 w-3 ml-1" /></TableCell></TableRow>}
             {sorted.map((m, i) => (
               <TableRow key={i}>
-                <TableCell className="whitespace-nowrap text-xs tabular-nums">{m.created_at?.slice(0, 10)}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs tabular-nums">{(m.allocation_date ?? m.created_at)?.slice(0, 10)}</TableCell>
+                <TableCell>
+                  <Badge variant={m.kind === "manual" ? "secondary" : "outline"} className="text-[10px] capitalize">
+                    {m.kind === "manual" ? "Manual" : "Allocation"}
+                  </Badge>
+                </TableCell>
                 <TableCell><Badge variant="outline" className="capitalize">{m.expense_type}</Badge></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtBdt(m.amount)}</TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-md truncate">{m.note ?? "—"}</TableCell>
