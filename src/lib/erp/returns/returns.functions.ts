@@ -26,8 +26,8 @@ export const listReturnCases = createServerFn({ method: "POST" })
       .select(`id, case_number, brand_id, order_id, product_id, sku, return_type, item_condition, qty,
                refund_amount, return_status, qc_condition, stock_updated, courier_tracking_id, courier_name,
                created_at, created_by,
-               order:order_id ( id, order_number, shipping_name, shipping_phone ),
-               product:product_id ( id, title, sku, image_url )`)
+               order:order_id ( id, shipping_name, shipping_phone ),
+               product:product_id ( id, title, sku, image )`)
       .order("created_at", { ascending: false }).limit(500);
     if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
     if (data.status && data.status !== "all") q = q.eq("return_status", data.status);
@@ -53,8 +53,8 @@ export const listExchangeCases = createServerFn({ method: "POST" })
       .select(`id, case_number, brand_id, original_order_id, original_product_id, exchange_type,
                exchange_type_detail, exchange_status, replacement_product_id, replacement_qty,
                new_order_id, refund_amount, exchange_charge_collected, created_at, created_by,
-               order:original_order_id ( id, order_number, shipping_name, shipping_phone ),
-               product:original_product_id ( id, title, sku, image_url ),
+               order:original_order_id ( id, shipping_name, shipping_phone ),
+               product:original_product_id ( id, title, sku, image ),
                replacement:replacement_product_id ( id, title, sku )`)
       .order("created_at", { ascending: false }).limit(500);
     if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
@@ -75,8 +75,8 @@ export const getCaseDetail = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     // Try return first
     const { data: ret } = await sb.from("erp_return_cases")
-      .select(`*, order:order_id ( id, order_number, shipping_name, shipping_phone, shipping_address, total ),
-               product:product_id ( id, title, sku, image_url, weighted_avg_cost ),
+      .select(`*, order:order_id ( id, shipping_name, shipping_phone, shipping_address, total ),
+               product:product_id ( id, title, sku, image, weighted_avg_cost ),
                item:order_item_id ( id, quantity, unit_price, line_total, unit_cost_snapshot, variant_id )`)
       .eq("id", data.caseId).maybeSingle();
     if (ret) {
@@ -86,10 +86,10 @@ export const getCaseDetail = createServerFn({ method: "POST" })
       return { type: "return" as const, case: ret, timeline: tl ?? [] };
     }
     const { data: exc } = await sb.from("erp_exchange_cases")
-      .select(`*, order:original_order_id ( id, order_number, shipping_name, shipping_phone, shipping_address ),
-               product:original_product_id ( id, title, sku, image_url ),
+      .select(`*, order:original_order_id ( id, shipping_name, shipping_phone, shipping_address ),
+               product:original_product_id ( id, title, sku, image ),
                replacement:replacement_product_id ( id, title, sku, price ),
-               new_order:new_order_id ( id, order_number, status )`)
+               new_order:new_order_id ( id, status )`)
       .eq("id", data.caseId).maybeSingle();
     if (!exc) throw new Error("Case not found");
     const { data: tl } = await sb.from("erp_return_timeline")
@@ -210,7 +210,7 @@ export const createExchangeOrder = createServerFn({ method: "POST" })
       source: "manual",
       status: "new",
       notes: `Exchange for order ${exc.original_order_id}`,
-    }).select("id, order_number").single();
+    }).select("id").single();
     if (oErr) throw oErr;
 
     await sb.from("order_items").insert({
@@ -229,11 +229,11 @@ export const createExchangeOrder = createServerFn({ method: "POST" })
 
     await sb.from("erp_return_timeline").insert({
       case_id: exc.id, case_type: "exchange", status: "new_order_created",
-      note: `Exchange order #${order.order_number} created`,
+      note: `Exchange order #${String(order.id).slice(0, 8)} created`,
       created_by: context.userId,
     });
 
-    return { ok: true, orderId: order.id, orderNumber: order.order_number };
+    return { ok: true, orderId: order.id, orderNumber: String(order.id).slice(0, 8) };
   });
 
 /* ----------------- ORDER -> CASES (for order detail mini list) ----------------- */
@@ -255,4 +255,193 @@ export const listCasesForOrder = createServerFn({ method: "POST" })
       returns: rets ?? [],
       exchanges: excs ?? [],
     };
+  });
+
+/* ----------------- HELPERS for New Case dialogs ----------------- */
+
+export const searchOrdersForCase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandIds?: string[]; q?: string }) =>
+    z.object({ brandIds: z.array(Uuid).optional(), q: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    let q = sb.from("orders")
+      .select("id, shipping_name, shipping_phone, shipping_address, total, status, created_at, brand_id")
+      .order("created_at", { ascending: false })
+      .limit(25);
+    if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
+    const needle = (data.q ?? "").trim();
+    if (needle) {
+      const like = `%${needle}%`;
+      q = q.or(`shipping_name.ilike.${like},shipping_phone.ilike.${like}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const listItemsForOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { orderId: string }) => z.object({ orderId: Uuid }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: items, error } = await sb.from("order_items")
+      .select("id, product_id, variant_id, name, variant_label, quantity, unit_price, line_total, unit_cost_snapshot, image, product:product_id(id, title, sku, image, brand_id)")
+      .eq("order_id", data.orderId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return items ?? [];
+  });
+
+export const searchProductsForCase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandIds?: string[]; q?: string }) =>
+    z.object({ brandIds: z.array(Uuid).optional(), q: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    let q = sb.from("products")
+      .select("id, title, sku, image, price, brand_id")
+      .limit(25);
+    if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
+    const needle = (data.q ?? "").trim();
+    if (needle) {
+      const like = `%${needle}%`;
+      q = q.or(`title.ilike.${like},sku.ilike.${like}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const listVariantsForProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { productId: string }) => z.object({ productId: Uuid }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: rows, error } = await sb.from("product_variants")
+      .select("id, sku, price_override, stock, image")
+      .eq("product_id", data.productId)
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const createReturnCase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    brandId: string;
+    orderId: string;
+    orderItemId?: string;
+    productId?: string;
+    variantId?: string;
+    sku?: string;
+    returnType: string;
+    itemCondition: string;
+    qty: number;
+    refundAmount?: number;
+    courierTrackingId?: string;
+    courierName?: string;
+    note?: string;
+  }) => z.object({
+    brandId: Uuid,
+    orderId: Uuid,
+    orderItemId: Uuid.optional(),
+    productId: Uuid.optional(),
+    variantId: Uuid.optional(),
+    sku: z.string().optional(),
+    returnType: z.string(),
+    itemCondition: z.string(),
+    qty: z.number().min(1),
+    refundAmount: z.number().optional(),
+    courierTrackingId: z.string().optional(),
+    courierName: z.string().optional(),
+    note: z.string().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: row, error } = await sb.from("erp_return_cases").insert({
+      brand_id: data.brandId,
+      order_id: data.orderId,
+      order_item_id: data.orderItemId ?? null,
+      product_id: data.productId ?? null,
+      variant_id: data.variantId ?? null,
+      sku: data.sku ?? null,
+      return_type: data.returnType,
+      item_condition: data.itemCondition,
+      qty: data.qty,
+      refund_amount: data.refundAmount ?? 0,
+      courier_tracking_id: data.courierTrackingId ?? null,
+      courier_name: data.courierName ?? null,
+      note: data.note ?? null,
+      return_status: "initiated",
+      created_by: context.userId,
+    }).select("id").single();
+    if (error) throw error;
+    return { ok: true, id: row.id };
+  });
+
+export const createExchangeCase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    brandId: string;
+    orderId: string;
+    orderItemId?: string;
+    originalProductId?: string;
+    originalVariantId?: string;
+    originalSku?: string;
+    exchangeType: string;
+    exchangeTypeDetail?: string;
+    oldItemCondition: string;
+    replacementProductId?: string;
+    replacementVariantId?: string;
+    replacementSku?: string;
+    replacementQty?: number;
+    exchangeChargeCollected?: number;
+    returnDeliveryCost?: number;
+    note?: string;
+  }) => z.object({
+    brandId: Uuid,
+    orderId: Uuid,
+    orderItemId: Uuid.optional(),
+    originalProductId: Uuid.optional(),
+    originalVariantId: Uuid.optional(),
+    originalSku: z.string().optional(),
+    exchangeType: z.string(),
+    exchangeTypeDetail: z.string().optional(),
+    oldItemCondition: z.string(),
+    replacementProductId: Uuid.optional(),
+    replacementVariantId: Uuid.optional(),
+    replacementSku: z.string().optional(),
+    replacementQty: z.number().min(1).optional(),
+    exchangeChargeCollected: z.number().optional(),
+    returnDeliveryCost: z.number().optional(),
+    note: z.string().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: row, error } = await sb.from("erp_exchange_cases").insert({
+      brand_id: data.brandId,
+      original_order_id: data.orderId,
+      original_order_item_id: data.orderItemId ?? null,
+      original_product_id: data.originalProductId ?? null,
+      original_variant_id: data.originalVariantId ?? null,
+      original_sku: data.originalSku ?? null,
+      exchange_type: data.exchangeType,
+      exchange_type_detail: data.exchangeTypeDetail ?? data.exchangeType,
+      old_item_condition: data.oldItemCondition,
+      replacement_product_id: data.replacementProductId ?? null,
+      replacement_variant_id: data.replacementVariantId ?? null,
+      replacement_sku: data.replacementSku ?? null,
+      replacement_qty: data.replacementQty ?? 1,
+      exchange_charge_collected: data.exchangeChargeCollected ?? 0,
+      return_delivery_cost: data.returnDeliveryCost ?? 0,
+      note: data.note ?? null,
+      exchange_status: "initiated",
+      created_by: context.userId,
+    }).select("id").single();
+    if (error) throw error;
+    return { ok: true, id: row.id };
   });

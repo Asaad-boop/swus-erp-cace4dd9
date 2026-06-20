@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
-import { Download, RotateCcw, Repeat, Search, ChevronRight } from "lucide-react";
+import { Download, RotateCcw, Repeat, Search, ChevronRight, Plus } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReturnStatusBadge } from "@/components/erp/returns/return-status-badge";
 import { listReturnCases, listExchangeCases } from "@/lib/erp/returns/returns.functions";
+import { NewReturnDialog } from "@/components/erp/returns/new-return-dialog";
+import { NewExchangeDialog } from "@/components/erp/returns/new-exchange-dialog";
 
 export const Route = createFileRoute("/_authenticated/erp/returns/")({
   head: () => ({ meta: [{ title: "Returns & Exchanges — ERP" }] }),
@@ -35,12 +37,15 @@ type Row = {
 
 function ReturnsListPage() {
   const { brandIds } = useBrand();
+  const navigate = useNavigate();
   const listRet = useServerFn(listReturnCases);
   const listExc = useServerFn(listExchangeCases);
   const [tab, setTab] = useState<Tab>("all");
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [newReturnOpen, setNewReturnOpen] = useState(false);
+  const [newExchangeOpen, setNewExchangeOpen] = useState(false);
 
   const retQ = useQuery({
     queryKey: ["returns-list", brandIds, from, to],
@@ -56,14 +61,16 @@ function ReturnsListPage() {
   const rows = useMemo(() => {
     const rets: Row[] = (retQ.data ?? []).map((r: any) => ({
       id: r.id, type: "return" as const, caseNumber: r.case_number ?? r.id.slice(0, 8),
-      orderNumber: r.order?.order_number, customer: r.order?.shipping_name ?? "—",
+      orderNumber: r.order_id ? String(r.order_id).slice(0, 8) : null,
+      customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
       status: r.return_status, qc: r.qc_condition, amount: Number(r.refund_amount ?? 0),
       createdAt: r.created_at,
     }));
     const excs: Row[] = (excQ.data ?? []).map((r: any) => ({
       id: r.id, type: "exchange" as const, caseNumber: r.case_number ?? r.id.slice(0, 8),
-      orderNumber: r.order?.order_number, customer: r.order?.shipping_name ?? "—",
+      orderNumber: r.original_order_id ? String(r.original_order_id).slice(0, 8) : null,
+      customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
       status: r.exchange_status, qc: null,
       amount: Number(r.exchange_charge_collected ?? r.refund_amount ?? 0),
@@ -122,6 +129,8 @@ function ReturnsListPage() {
           <p className="text-xs text-muted-foreground">Manage return and exchange cases across all brands</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setNewReturnOpen(true)}><Plus className="h-4 w-4 mr-1" />New Return</Button>
+          <Button size="sm" variant="secondary" onClick={() => setNewExchangeOpen(true)}><Plus className="h-4 w-4 mr-1" />New Exchange</Button>
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-1" />Export CSV</Button>
         </div>
       </div>
@@ -177,7 +186,8 @@ function ReturnsListPage() {
               <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">No cases found</TableCell></TableRow>
             )}
             {rows.map((r) => (
-              <TableRow key={r.id} className="hover:bg-muted/40">
+              <TableRow key={r.id} className="hover:bg-muted/40 cursor-pointer"
+                onClick={() => navigate({ to: "/erp/returns/$caseId", params: { caseId: r.id } })}>
                 <TableCell className="font-mono text-xs">{r.caseNumber}</TableCell>
                 <TableCell>
                   {r.type === "return"
@@ -194,7 +204,9 @@ function ReturnsListPage() {
                 <TableCell className="text-right tabular-nums text-xs">৳{r.amount.toLocaleString("en-IN")}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{format(new Date(r.createdAt), "dd MMM, hh:mm a")}</TableCell>
                 <TableCell>
-                  <Link to="/erp/returns/$caseId" params={{ caseId: r.id }} className="text-muted-foreground hover:text-foreground">
+                  <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-muted-foreground hover:text-foreground">
                     <ChevronRight className="h-4 w-4" />
                   </Link>
                 </TableCell>
@@ -203,6 +215,9 @@ function ReturnsListPage() {
           </TableBody>
         </Table>
       </div>
+
+      <NewReturnDialog open={newReturnOpen} onOpenChange={setNewReturnOpen} />
+      <NewExchangeDialog open={newExchangeOpen} onOpenChange={setNewExchangeOpen} />
     </div>
   );
 }
