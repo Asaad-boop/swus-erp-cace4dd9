@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
-  Loader2, Plus, Trash2, ExternalLink, Download, Search, Receipt, Package, Megaphone, Tag,
+  Loader2, Plus, Trash2, ExternalLink, Download, Search, Receipt, Package, Megaphone,
 } from "lucide-react";
 import { format } from "date-fns";
 
