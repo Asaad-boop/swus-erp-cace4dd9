@@ -1640,6 +1640,7 @@ export type Database = {
           new_order_id: string | null
           note: string | null
           old_item_condition: string
+          original_item_restocked: boolean
           original_order_id: string
           original_order_item_id: string | null
           original_product_id: string | null
@@ -1647,11 +1648,13 @@ export type Database = {
           original_variant_id: string | null
           product_cost_loss: number
           refund_amount: number
+          replacement_courier: string | null
           replacement_delivery_cost: number
           replacement_order_id: string | null
           replacement_product_id: string | null
           replacement_qty: number
           replacement_sku: string | null
+          replacement_tracking_id: string | null
           replacement_variant_id: string | null
           resolved_at: string | null
           return_delivery_cost: number
@@ -1672,6 +1675,7 @@ export type Database = {
           new_order_id?: string | null
           note?: string | null
           old_item_condition: string
+          original_item_restocked?: boolean
           original_order_id: string
           original_order_item_id?: string | null
           original_product_id?: string | null
@@ -1679,11 +1683,13 @@ export type Database = {
           original_variant_id?: string | null
           product_cost_loss?: number
           refund_amount?: number
+          replacement_courier?: string | null
           replacement_delivery_cost?: number
           replacement_order_id?: string | null
           replacement_product_id?: string | null
           replacement_qty?: number
           replacement_sku?: string | null
+          replacement_tracking_id?: string | null
           replacement_variant_id?: string | null
           resolved_at?: string | null
           return_delivery_cost?: number
@@ -1704,6 +1710,7 @@ export type Database = {
           new_order_id?: string | null
           note?: string | null
           old_item_condition?: string
+          original_item_restocked?: boolean
           original_order_id?: string
           original_order_item_id?: string | null
           original_product_id?: string | null
@@ -1711,11 +1718,13 @@ export type Database = {
           original_variant_id?: string | null
           product_cost_loss?: number
           refund_amount?: number
+          replacement_courier?: string | null
           replacement_delivery_cost?: number
           replacement_order_id?: string | null
           replacement_product_id?: string | null
           replacement_qty?: number
           replacement_sku?: string | null
+          replacement_tracking_id?: string | null
           replacement_variant_id?: string | null
           resolved_at?: string | null
           return_delivery_cost?: number
