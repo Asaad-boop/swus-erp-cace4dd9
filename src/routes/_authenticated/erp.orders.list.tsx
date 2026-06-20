@@ -502,9 +502,25 @@ function OrdersPage() {
         open={syncOpen}
         onOpenChange={(o) => {
           setSyncOpen(o);
-          if (!o) setSelectedIds(new Set());
+          if (!o) {
+            setSelectedIds(new Set());
+            setLastSyncedAt(Date.now());
+            qc.invalidateQueries({ queryKey: ["courier-shipments"] });
+          }
         }}
         orderIds={Array.from(selectedIds)}
+      />
+
+      <CourierStatusSyncDialog
+        open={singleSyncId !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setSingleSyncId(null);
+            setLastSyncedAt(Date.now());
+            qc.invalidateQueries({ queryKey: ["courier-shipments"] });
+          }
+        }}
+        orderIds={singleSyncId ? [singleSyncId] : []}
       />
 
       <PhoneHistorySyncDialog
@@ -525,4 +541,14 @@ function OrdersPage() {
       />
     </div>
   );
+}
+
+function relTimeShort(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "just now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
