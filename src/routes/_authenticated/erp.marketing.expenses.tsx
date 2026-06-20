@@ -150,7 +150,7 @@ function ExpensesPage() {
         r.date ?? "",
         r.category ?? "",
         r.vendor ?? "",
-        r.products?.name ?? "",
+        r.products?.title ?? "",
         r.mkt_campaigns?.name ?? "",
         r.erp_accounts?.name ?? "",
         String(r.amount ?? 0),
@@ -255,7 +255,7 @@ function ExpensesPage() {
             <SelectTrigger className="w-48"><SelectValue placeholder="All products" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All products</SelectItem>
-              {(optsQ.data?.products ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {(optsQ.data?.products ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterCampaign} onValueChange={setFilterCampaign}>
@@ -322,8 +322,8 @@ function ExpensesPage() {
                     <TableCell><MktSubtypeBadge subtype={r.category} /></TableCell>
                     <TableCell className="text-sm">{r.vendor || "—"}</TableCell>
                     <TableCell className="text-sm">
-                      {r.products?.name ? (
-                        <MktChip tone="indigo"><Package className="h-3 w-3" />{r.products.name}</MktChip>
+                      {r.products?.title ? (
+                        <MktChip tone="indigo"><Package className="h-3 w-3" />{r.products.title}</MktChip>
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-sm">

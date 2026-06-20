@@ -39,7 +39,7 @@ export const listMarketingExpenses = createServerFn({ method: "POST" })
       .select(`
         id, date, amount, currency, vendor, category, note, attachment_url,
         product_id, campaign_id, account_id, transaction_id, created_at,
-        products:product_id ( id, name ),
+        products:product_id ( id, title ),
         mkt_campaigns:campaign_id ( id, name ),
         erp_accounts:account_id ( id, name )
       `)
@@ -65,9 +65,9 @@ export const listExpenseFormOptions = createServerFn({ method: "POST" })
     const [products, campaigns, accounts] = await Promise.all([
       context.supabase
         .from("products")
-        .select("id, name")
+        .select("id, title")
         .eq("brand_id", data.brandId)
-        .order("name")
+        .order("title")
         .limit(1000),
       context.supabase
         .from("mkt_campaigns")
