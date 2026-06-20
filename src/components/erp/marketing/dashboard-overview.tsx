@@ -267,7 +267,8 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Budget Pacing — Active Campaigns (Today)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            <BudgetSummaryStrip rows={d.budgetPacing} />
             {d.budgetPacing.map((p) => (
               <BudgetRow key={p.campaign_id} row={p} />
             ))}
