@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, FileSpreadsheet, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/reconciliation")({
@@ -9,6 +9,8 @@ export const Route = createFileRoute("/_authenticated/erp/reconciliation")({
 
 const tabs = [
   { to: "/erp/reconciliation", label: "Overview", icon: LayoutDashboard, exact: true },
+  { to: "/erp/reconciliation/pending", label: "Pending COD", icon: Clock, exact: false },
+  { to: "/erp/reconciliation/outstanding", label: "Outstanding", icon: AlertCircle, exact: false },
   { to: "/erp/reconciliation/invoice", label: "Invoice Upload", icon: FileSpreadsheet, exact: false },
 ] as const;
 

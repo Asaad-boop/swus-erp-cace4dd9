@@ -50,6 +50,8 @@ import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/publ
 import { Route as AuthenticatedErpStocktakeNewRouteImport } from './routes/_authenticated/erp.stocktake.new'
 import { Route as AuthenticatedErpStocktakeSessionIdRouteImport } from './routes/_authenticated/erp.stocktake.$sessionId'
 import { Route as AuthenticatedErpReturnsCaseIdRouteImport } from './routes/_authenticated/erp.returns.$caseId'
+import { Route as AuthenticatedErpReconciliationPendingRouteImport } from './routes/_authenticated/erp.reconciliation.pending'
+import { Route as AuthenticatedErpReconciliationOutstandingRouteImport } from './routes/_authenticated/erp.reconciliation.outstanding'
 import { Route as AuthenticatedErpReconciliationInvoiceRouteImport } from './routes/_authenticated/erp.reconciliation.invoice'
 import { Route as AuthenticatedErpPurchaseOrdersNewRouteImport } from './routes/_authenticated/erp.purchase-orders.new'
 import { Route as AuthenticatedErpPurchaseOrdersPoIdRouteImport } from './routes/_authenticated/erp.purchase-orders.$poId'
@@ -339,6 +341,18 @@ const AuthenticatedErpReturnsCaseIdRoute =
     id: '/$caseId',
     path: '/$caseId',
     getParentRoute: () => AuthenticatedErpReturnsRoute,
+  } as any)
+const AuthenticatedErpReconciliationPendingRoute =
+  AuthenticatedErpReconciliationPendingRouteImport.update({
+    id: '/pending',
+    path: '/pending',
+    getParentRoute: () => AuthenticatedErpReconciliationRoute,
+  } as any)
+const AuthenticatedErpReconciliationOutstandingRoute =
+  AuthenticatedErpReconciliationOutstandingRouteImport.update({
+    id: '/outstanding',
+    path: '/outstanding',
+    getParentRoute: () => AuthenticatedErpReconciliationRoute,
   } as any)
 const AuthenticatedErpReconciliationInvoiceRoute =
   AuthenticatedErpReconciliationInvoiceRouteImport.update({
@@ -765,6 +779,8 @@ export interface FileRoutesByFullPath {
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/erp/reconciliation/outstanding': typeof AuthenticatedErpReconciliationOutstandingRoute
+  '/erp/reconciliation/pending': typeof AuthenticatedErpReconciliationPendingRoute
   '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
@@ -855,6 +871,8 @@ export interface FileRoutesByTo {
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/erp/reconciliation/outstanding': typeof AuthenticatedErpReconciliationOutstandingRoute
+  '/erp/reconciliation/pending': typeof AuthenticatedErpReconciliationPendingRoute
   '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
@@ -959,6 +977,8 @@ export interface FileRoutesById {
   '/_authenticated/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/_authenticated/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
   '/_authenticated/erp/reconciliation/invoice': typeof AuthenticatedErpReconciliationInvoiceRoute
+  '/_authenticated/erp/reconciliation/outstanding': typeof AuthenticatedErpReconciliationOutstandingRoute
+  '/_authenticated/erp/reconciliation/pending': typeof AuthenticatedErpReconciliationPendingRoute
   '/_authenticated/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/_authenticated/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/_authenticated/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
@@ -1063,6 +1083,8 @@ export interface FileRouteTypes {
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
+    | '/erp/reconciliation/outstanding'
+    | '/erp/reconciliation/pending'
     | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
@@ -1153,6 +1175,8 @@ export interface FileRouteTypes {
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
     | '/erp/reconciliation/invoice'
+    | '/erp/reconciliation/outstanding'
+    | '/erp/reconciliation/pending'
     | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
@@ -1256,6 +1280,8 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/purchase-orders/$poId'
     | '/_authenticated/erp/purchase-orders/new'
     | '/_authenticated/erp/reconciliation/invoice'
+    | '/_authenticated/erp/reconciliation/outstanding'
+    | '/_authenticated/erp/reconciliation/pending'
     | '/_authenticated/erp/returns/$caseId'
     | '/_authenticated/erp/stocktake/$sessionId'
     | '/_authenticated/erp/stocktake/new'
@@ -1594,6 +1620,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/returns/$caseId'
       preLoaderRoute: typeof AuthenticatedErpReturnsCaseIdRouteImport
       parentRoute: typeof AuthenticatedErpReturnsRoute
+    }
+    '/_authenticated/erp/reconciliation/pending': {
+      id: '/_authenticated/erp/reconciliation/pending'
+      path: '/pending'
+      fullPath: '/erp/reconciliation/pending'
+      preLoaderRoute: typeof AuthenticatedErpReconciliationPendingRouteImport
+      parentRoute: typeof AuthenticatedErpReconciliationRoute
+    }
+    '/_authenticated/erp/reconciliation/outstanding': {
+      id: '/_authenticated/erp/reconciliation/outstanding'
+      path: '/outstanding'
+      fullPath: '/erp/reconciliation/outstanding'
+      preLoaderRoute: typeof AuthenticatedErpReconciliationOutstandingRouteImport
+      parentRoute: typeof AuthenticatedErpReconciliationRoute
     }
     '/_authenticated/erp/reconciliation/invoice': {
       id: '/_authenticated/erp/reconciliation/invoice'
@@ -2275,6 +2315,8 @@ const AuthenticatedErpOrdersRouteWithChildren =
 
 interface AuthenticatedErpReconciliationRouteChildren {
   AuthenticatedErpReconciliationInvoiceRoute: typeof AuthenticatedErpReconciliationInvoiceRoute
+  AuthenticatedErpReconciliationOutstandingRoute: typeof AuthenticatedErpReconciliationOutstandingRoute
+  AuthenticatedErpReconciliationPendingRoute: typeof AuthenticatedErpReconciliationPendingRoute
   AuthenticatedErpReconciliationIndexRoute: typeof AuthenticatedErpReconciliationIndexRoute
 }
 
@@ -2282,6 +2324,10 @@ const AuthenticatedErpReconciliationRouteChildren: AuthenticatedErpReconciliatio
   {
     AuthenticatedErpReconciliationInvoiceRoute:
       AuthenticatedErpReconciliationInvoiceRoute,
+    AuthenticatedErpReconciliationOutstandingRoute:
+      AuthenticatedErpReconciliationOutstandingRoute,
+    AuthenticatedErpReconciliationPendingRoute:
+      AuthenticatedErpReconciliationPendingRoute,
     AuthenticatedErpReconciliationIndexRoute:
       AuthenticatedErpReconciliationIndexRoute,
   }
@@ -2396,13 +2442,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
