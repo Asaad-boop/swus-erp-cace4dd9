@@ -1628,11 +1628,16 @@ export type Database = {
       erp_exchange_cases: {
         Row: {
           brand_id: string
+          case_number: string | null
+          courier_tracking_id: string | null
           created_at: string
           created_by: string | null
           exchange_charge_collected: number
+          exchange_status: string
           exchange_type: string
+          exchange_type_detail: string | null
           id: string
+          new_order_id: string | null
           note: string | null
           old_item_condition: string
           original_order_id: string
@@ -1655,11 +1660,16 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          case_number?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           exchange_charge_collected?: number
+          exchange_status?: string
           exchange_type: string
+          exchange_type_detail?: string | null
           id?: string
+          new_order_id?: string | null
           note?: string | null
           old_item_condition: string
           original_order_id: string
@@ -1682,11 +1692,16 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          case_number?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           exchange_charge_collected?: number
+          exchange_status?: string
           exchange_type?: string
+          exchange_type_detail?: string | null
           id?: string
+          new_order_id?: string | null
           note?: string | null
           old_item_condition?: string
           original_order_id?: string
@@ -1714,6 +1729,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_new_order_id_fkey"
+            columns: ["new_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_new_order_id_fkey"
+            columns: ["new_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "erp_exchange_cases_original_order_id_fkey"
@@ -2496,6 +2525,9 @@ export type Database = {
       erp_return_cases: {
         Row: {
           brand_id: string
+          case_number: string | null
+          courier_name: string | null
+          courier_tracking_id: string | null
           created_at: string
           created_by: string | null
           customer_paid_delivery: number
@@ -2508,20 +2540,30 @@ export type Database = {
           packaging_loss: number
           product_cost_loss: number
           product_id: string | null
+          qc_condition: string | null
+          qc_done_at: string | null
+          qc_done_by: string | null
+          qc_notes: string | null
           qty: number
           refund_amount: number
+          refund_status: string
           resolved_at: string | null
           return_delivery_cost: number
+          return_status: string
           return_type: string
           sku: string | null
           status: string
           stock_restored: boolean
           stock_restored_at: string | null
+          stock_updated: boolean
           updated_at: string
           variant_id: string | null
         }
         Insert: {
           brand_id: string
+          case_number?: string | null
+          courier_name?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_paid_delivery?: number
@@ -2534,20 +2576,30 @@ export type Database = {
           packaging_loss?: number
           product_cost_loss?: number
           product_id?: string | null
+          qc_condition?: string | null
+          qc_done_at?: string | null
+          qc_done_by?: string | null
+          qc_notes?: string | null
           qty?: number
           refund_amount?: number
+          refund_status?: string
           resolved_at?: string | null
           return_delivery_cost?: number
+          return_status?: string
           return_type: string
           sku?: string | null
           status?: string
           stock_restored?: boolean
           stock_restored_at?: string | null
+          stock_updated?: boolean
           updated_at?: string
           variant_id?: string | null
         }
         Update: {
           brand_id?: string
+          case_number?: string | null
+          courier_name?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_paid_delivery?: number
@@ -2560,15 +2612,22 @@ export type Database = {
           packaging_loss?: number
           product_cost_loss?: number
           product_id?: string | null
+          qc_condition?: string | null
+          qc_done_at?: string | null
+          qc_done_by?: string | null
+          qc_notes?: string | null
           qty?: number
           refund_amount?: number
+          refund_status?: string
           resolved_at?: string | null
           return_delivery_cost?: number
+          return_status?: string
           return_type?: string
           sku?: string | null
           status?: string
           stock_restored?: boolean
           stock_restored_at?: string | null
+          stock_updated?: boolean
           updated_at?: string
           variant_id?: string | null
         }
@@ -2616,6 +2675,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      erp_return_timeline: {
+        Row: {
+          case_id: string
+          case_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          status: string
+        }
+        Insert: {
+          case_id: string
+          case_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status: string
+        }
+        Update: {
+          case_id?: string
+          case_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       erp_settings: {
         Row: {
@@ -7756,6 +7845,7 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      generate_case_number: { Args: { _type: string }; Returns: string }
       get_actual_roas_daily: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
