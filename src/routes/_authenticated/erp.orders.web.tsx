@@ -485,7 +485,8 @@ function _WebOrdersPageBody() {
 
   // Paginated orders (page 1-indexed in URL)
   const page = search.page ?? 1;
-  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page] as const;
+  const pageSize = search.pageSize ?? DEFAULT_PAGE_SIZE; // 0 = All
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
 
   const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
@@ -527,9 +528,14 @@ function _WebOrdersPageBody() {
         q = q.in("id", ids);
       }
 
-      const from = pageIdx * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      q = q.range(from, to);
+      if (pageSize > 0) {
+        const from = pageIdx * pageSize;
+        const to = from + pageSize - 1;
+        q = q.range(from, to);
+      } else {
+        // "All" — cap at supabase max
+        q = q.range(0, 9999);
+      }
 
       const { data, error, count } = await q;
       if (error) throw error;
@@ -576,7 +582,7 @@ function _WebOrdersPageBody() {
 
   const rows = useMemo<WebOrderRow[]>(() => ordersQuery.data?.rows ?? [], [ordersQuery.data]);
   const totalRows = ordersQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalRows / pageSize)) : 1;
   const isLoading = ordersQuery.isLoading;
 
   // counts per status — parallel head count queries
