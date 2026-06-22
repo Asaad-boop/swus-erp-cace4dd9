@@ -400,19 +400,6 @@ export function ErpSidebar() {
             </div>
           ))}
 
-          {/* Quick actions */}
-          <div className={cn(collapsed ? "mt-3 pt-3 border-t border-border/60" : "mt-4")}>
-            {!collapsed && (
-              <div className="px-3 mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground/70 font-semibold">
-                <Zap className="h-3 w-3" /> Quick Actions
-              </div>
-            )}
-            <div className="space-y-0.5">
-              {quickLinks.map((l) => <NavLinkItem key={l.to} {...l} />)}
-              <QuickActionButton label="Add Expense" icon={TrendingDown} tone="text-red-600" onClick={() => openTxn("expense")} collapsed={collapsed} />
-              <QuickActionButton label="Add Income" icon={TrendingUp} tone="text-emerald-600" onClick={() => openTxn("income")} collapsed={collapsed} />
-            </div>
-          </div>
         </nav>
 
         <div className={cn("border-t border-border text-[11px] text-muted-foreground", collapsed ? "py-2 text-center" : "px-4 py-2.5")}>
