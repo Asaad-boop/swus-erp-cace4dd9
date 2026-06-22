@@ -1194,9 +1194,15 @@ function classifySource(raw: string | null | undefined): string {
 function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
   const [open, setOpen] = useState(true);
   const today = useMemo(() => {
-    const s = new Date(); s.setHours(0,0,0,0);
-    const e = new Date(); e.setHours(23,59,59,999);
-    return { from: s.toISOString(), to: e.toISOString() };
+    // BD timezone (UTC+6) — compute today's window in BD then convert to UTC for DB
+    const BD = 6 * 60 * 60 * 1000;
+    const bdNow = new Date(Date.now() + BD);
+    const bdStart = new Date(bdNow); bdStart.setUTCHours(0, 0, 0, 0);
+    const bdEnd = new Date(bdNow); bdEnd.setUTCHours(23, 59, 59, 999);
+    return {
+      from: new Date(bdStart.getTime() - BD).toISOString(),
+      to: new Date(bdEnd.getTime() - BD).toISOString(),
+    };
   }, []);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -1223,11 +1229,12 @@ function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: bo
   }, [rows]);
   const totalSource = sourceData.reduce((s, d) => s + d.value, 0);
 
-  const currentHour = new Date().getHours();
+  const BD_MS = 6 * 60 * 60 * 1000;
+  const currentHour = new Date(Date.now() + BD_MS).getUTCHours();
   const hourly = useMemo(() => {
     const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, created: 0, confirmed: 0 }));
     for (const r of rows) {
-      const h = new Date(r.created_at).getHours();
+      const h = new Date(new Date(r.created_at).getTime() + BD_MS).getUTCHours();
       if (h < 0 || h > 23) continue;
       buckets[h].created += 1;
       if (CONFIRMED_STATUSES.has((r.status ?? "").toLowerCase())) buckets[h].confirmed += 1;
