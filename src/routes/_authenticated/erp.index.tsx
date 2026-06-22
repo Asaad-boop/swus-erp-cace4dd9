@@ -270,12 +270,12 @@ function KpiStrip({
 
   const cards = [
     { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, sub: trendSub(data?.ordersTrend), tone: "indigo", to: "/erp/orders/web" },
-    { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web?status=confirmed" },
-    { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web?status=shipped" },
+    { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
+    { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
     { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), sub: trendSub(data?.revTrend), tone: "emerald", to: "/erp/finance" },
     { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
-    { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web?status=processing" },
-    { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web?status=cancelled" },
+    { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
+    { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
     { icon: TrendingUp, label: "AOV", value: BDT(data?.aov ?? 0), sub: "avg order value", tone: "slate" },
     { icon: UserPlus, label: "New Customers", value: data?.newCust ?? 0, sub: "first orders", tone: "violet" },
     { icon: Repeat, label: "Returning", value: data?.retCust ?? 0, sub: "repeat customers", tone: "violet" },
@@ -1008,7 +1008,7 @@ function NeedsAttention({ brandIds, enabled }: { brandIds: string[]; enabled: bo
       const codAmount = (overdueCod.data ?? []).reduce((s: number, r: any) =>
         s + Math.max(0, Number(r.total ?? 0) - Number(r.partial_amount ?? 0)), 0);
       const items: Array<{ level: "red"|"amber"|"green"; text: string; count?: string; to: string }> = [];
-      if ((stuck.count ?? 0) > 0) items.push({ level: "red", text: `Orders stuck in Processing > 3 days`, count: String(stuck.count), to: "/erp/orders/web?status=processing" });
+      if ((stuck.count ?? 0) > 0) items.push({ level: "red", text: `Orders stuck in Processing > 3 days`, count: String(stuck.count), to: "/erp/orders/web" });
       if (codAmount > 0) items.push({ level: "red", text: `COD overdue > 14 days`, count: BDT(codAmount), to: "/erp/reconciliation" });
       if ((oldQc.count ?? 0) > 0) items.push({ level: "amber", text: `Returns pending QC > 2 days`, count: String(oldQc.count), to: "/erp/returns" });
       if ((lowStock.count ?? 0) > 0) items.push({ level: "amber", text: `Products below reorder point`, count: String(lowStock.count), to: "/erp/inventory" });
