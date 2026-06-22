@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, UserPlus, Upload, Download, Phone, Mail, Trash2, UserMinus, Building2, Users } from "lucide-react";
+import { Search, UserPlus, Upload, Download, Phone, Mail, Trash2, UserMinus, Building2, Users, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,7 +266,12 @@ function EmployeesList() {
                     <TableCell className="text-sm text-gray-600 whitespace-nowrap tabular-nums">{r.joining_date}</TableCell>
                     <TableCell className="text-right text-sm tabular-nums font-medium text-gray-900">{r.gross_salary ? `৳${Number(r.gross_salary).toLocaleString("en-BD")}` : "—"}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        {access.canManageEmployees && (
+                          <Link to="/erp/hr/employees/$id" params={{ id: r.id }} title="Edit" className="text-gray-400 hover:text-indigo-600">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        )}
                         {r.phone && <a href={`tel:${r.phone}`} title="Call" className="text-gray-400 hover:text-indigo-600"><Phone className="h-3.5 w-3.5" /></a>}
                         {r.email && <a href={`mailto:${r.email}`} title="Email" className="text-gray-400 hover:text-indigo-600"><Mail className="h-3.5 w-3.5" /></a>}
                       </div>

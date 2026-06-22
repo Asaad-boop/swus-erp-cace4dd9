@@ -13,16 +13,18 @@ export function useHrAccess() {
   const { roles, isLoading, userId, isAdmin, hasRole, hasAnyRole } = useCurrentRole();
 
   const isOps = hasRole("operations" as AppRole);
+  const isHrAdmin = hasRole("hr_admin" as AppRole);
+  const isHrManager = hasRole("hr_manager" as AppRole);
   const isAccountant = hasRole("accountant" as AppRole);
   const isWarehouse = hasRole("warehouse_staff" as AppRole);
 
-  const canAccess = isAdmin || isOps || isAccountant;
-  const canSeeSalary = isAdmin || isOps;
-  const canManagePayroll = isAdmin || isOps;
-  const canApproveLeave = isAdmin || isOps;
+  const canAccess = isAdmin || isHrAdmin || isHrManager || isOps || isAccountant;
+  const canSeeSalary = isAdmin || isHrAdmin || isOps;
+  const canManagePayroll = isAdmin || isHrAdmin || isOps;
+  const canApproveLeave = isAdmin || isHrAdmin || isOps;
   const canMarkAttendance = isAdmin || isOps || isWarehouse;
-  const canManageDocuments = isAdmin || isOps;
-  const canManageEmployees = isAdmin || isOps;
+  const canManageDocuments = isAdmin || isHrAdmin || isOps;
+  const canManageEmployees = isAdmin || isHrAdmin || isOps;
   const canDelete = isAdmin;
 
   return {
@@ -30,6 +32,8 @@ export function useHrAccess() {
     roles,
     isLoading,
     isAdmin,
+    isHrAdmin,
+    isHrManager,
     isOps,
     isAccountant,
     isWarehouse,
