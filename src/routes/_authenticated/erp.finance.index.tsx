@@ -15,39 +15,17 @@ import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
 import { FinanceDrilldownSheet } from "@/components/erp/finance/finance-drilldown-sheet";
 import { BdWalletsWidget } from "@/components/erp/finance/bd-wallets-widget";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
   head: () => ({ meta: [{ title: "Finance Dashboard — ERP" }] }),
   component: OverviewPage,
 });
-
-type Preset = "today" | "7d" | "30d" | "this_month" | "last_month" | "this_year" | "custom";
-
-function rangeFor(preset: Preset, customFrom?: string, customTo?: string) {
-  const today = new Date();
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const start = (d: Date) => { d.setHours(0, 0, 0, 0); return d; };
-  switch (preset) {
-    case "today": return { from: iso(today), to: iso(today) };
-    case "7d": { const f = new Date(today); f.setDate(f.getDate() - 6); return { from: iso(f), to: iso(today) }; }
-    case "30d": { const f = new Date(today); f.setDate(f.getDate() - 29); return { from: iso(f), to: iso(today) }; }
-    case "this_month": return { from: iso(start(new Date(today.getFullYear(), today.getMonth(), 1))), to: iso(today) };
-    case "last_month": {
-      const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const t = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { from: iso(f), to: iso(t) };
-    }
-    case "this_year": return { from: `${today.getFullYear()}-01-01`, to: iso(today) };
-    case "custom": return { from: customFrom || iso(today), to: customTo || iso(today) };
-  }
-}
 
 const PROVIDER_LABEL: Record<string, string> = {
   pathao: "Pathao", steadfast: "SteadFast", redx: "RedX",
@@ -58,10 +36,8 @@ const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8
 
 function OverviewPage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
-  const [preset, setPreset] = useState<Preset>("this_month");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const { from, to } = useMemo(() => rangeFor(preset, customFrom, customTo), [preset, customFrom, customTo]);
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("this_month"));
+  const { from, to } = range;
 
   const fetchOverview = useServerFn(getFinanceOverview);
 
@@ -94,29 +70,7 @@ function OverviewPage() {
             {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 items-end">
-          <div className="min-w-[160px]">
-            <Label className="text-xs">Period</Label>
-            <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="this_month">This month</SelectItem>
-                <SelectItem value="last_month">Last month</SelectItem>
-                <SelectItem value="this_year">This year</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {preset === "custom" && (
-            <>
-              <div><Label className="text-xs">From</Label><Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></div>
-              <div><Label className="text-xs">To</Label><Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></div>
-            </>
-          )}
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </header>
 
       {q.isLoading && <div className="text-sm text-muted-foreground">Loading dashboard…</div>}
