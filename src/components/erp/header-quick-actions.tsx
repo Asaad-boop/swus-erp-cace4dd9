@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { PackagePlus, TrendingDown, TrendingUp, Search } from "lucide-react";
 import { useErpQuickActions } from "@/contexts/erp-quick-actions";
 import { useGlobalSearch } from "@/components/erp/global-search";
@@ -43,6 +45,22 @@ function ActionButton({
 export function HeaderQuickActions() {
   const { openTxn } = useErpQuickActions();
   const { openSearch } = useGlobalSearch();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "n") { e.preventDefault(); navigate({ to: "/erp/orders/new" }); }
+      else if (k === "i") { e.preventDefault(); openTxn("income"); }
+      else if (k === "e") { e.preventDefault(); openTxn("expense"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigate, openTxn]);
+
   return (
     <TooltipProvider>
       <div className="hidden md:flex items-center gap-1.5 pr-2 border-r border-border/60 mr-1">
