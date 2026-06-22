@@ -356,22 +356,22 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Brand Comparison</CardTitle>
+        <CardTitle className="text-lg font-semibold">Brand Comparison</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm border-separate border-spacing-0">
           <thead>
-            <tr className="text-left text-xs text-muted-foreground border-b">
-              <th className="py-2 pr-4 font-medium">Metric</th>
+            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="py-3 pr-4 font-semibold border-b">Metric</th>
               {brands.map(b => (
-                <th key={b.id} className="py-2 pr-4 font-medium">
+                <th key={b.id} className="py-3 pr-4 font-semibold border-b">
                   <div className="flex items-center gap-2">
                     {b.logo_url && <img src={b.logo_url} alt="" className="size-5 rounded object-cover" />}
                     {b.name}
                   </div>
                 </th>
               ))}
-              <th className="py-2 pr-4 font-medium">Combined</th>
+              <th className="py-3 pr-4 font-semibold border-b text-right">Combined</th>
             </tr>
           </thead>
           <BrandComparisonRows brands={brands} range={range} />
@@ -426,16 +426,16 @@ function BrandComparisonRows({ brands, range }: { brands: Brand[]; range: Return
   return (
     <tbody>
       {rows.map(row => (
-        <tr key={row.label} className="border-b last:border-0">
-          <td className="py-2.5 pr-4 text-muted-foreground">{row.label}</td>
+        <tr key={row.label} className="hover:bg-muted/30 transition-colors">
+          <td className="py-3 pr-4 text-muted-foreground border-b">{row.label}</td>
           {queries.map((q, i) => (
-            <td key={brands[i].id} className="py-2.5 pr-4 font-medium tabular-nums">
+            <td key={brands[i].id} className="py-3 pr-4 font-medium tabular-nums border-b">
               {q.isLoading ? <Skeleton className="h-4 w-16" /> :
                 (row.fmt ? row.fmt(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0)
                   : String(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0))}
             </td>
           ))}
-          <td className="py-2.5 pr-4 font-semibold tabular-nums">
+          <td className="py-3 pr-4 font-semibold tabular-nums border-b text-right">
             {row.key === "returnRate" ? "—" : (row.fmt ? row.fmt(sumKey(row.key as any)) : sumKey(row.key as any))}
           </td>
         </tr>
