@@ -67,12 +67,14 @@ const RoleEnum = z.enum(APP_ROLES);
 
 export const createAppUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { email: string; password: string; displayName?: string; roles: string[] }) =>
+  .inputValidator((d: { email: string; password: string; displayName?: string; phone?: string; roles: string[]; brandIds?: string[] }) =>
     z.object({
       email: z.string().trim().email().max(255),
       password: z.string().min(6).max(72),
       displayName: z.string().trim().max(100).optional(),
+      phone: z.string().trim().max(30).optional(),
       roles: z.array(RoleEnum).max(10),
+      brandIds: z.array(z.string().uuid()).max(50).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -83,6 +85,7 @@ export const createAppUser = createServerFn({ method: "POST" })
       email: data.email,
       password: data.password,
       email_confirm: true,
+      phone: data.phone || undefined,
       user_metadata: data.displayName ? { display_name: data.displayName } : undefined,
     });
     if (error) throw error;
@@ -96,6 +99,12 @@ export const createAppUser = createServerFn({ method: "POST" })
       const rows = data.roles.map((r) => ({ user_id: newUserId, role: r }));
       const { error: rErr } = await supabaseAdmin.from("user_roles").insert(rows);
       if (rErr) throw rErr;
+    }
+
+    if (data.brandIds && data.brandIds.length) {
+      const rows = data.brandIds.map((bid) => ({ user_id: newUserId, brand_id: bid, created_by: context.userId }));
+      const { error: bErr } = await supabaseAdmin.from("user_brand_access").insert(rows);
+      if (bErr) throw bErr;
     }
 
     return { id: newUserId };
