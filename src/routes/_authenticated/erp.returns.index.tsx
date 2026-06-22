@@ -408,58 +408,63 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 }) {
   if (!row) return null;
   const isReturn = row.type === "return";
+  const serif = { fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' };
   return (
-    <aside className="sticky top-4 rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden animate-fade-in">
-      <header className={cn(
-        "px-4 py-3 flex items-center gap-2 border-b border-stone-200 dark:border-border",
-        isReturn ? "bg-[#0D4F4C]/5" : "bg-[#D4A574]/10",
-      )}>
-        <span className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-lg",
-          isReturn ? "bg-[#0D4F4C] text-white" : "bg-[#D4A574] text-[#1C1917]",
-        )}>
-          {isReturn ? <RotateCcw className="h-3.5 w-3.5" /> : <Repeat className="h-3.5 w-3.5" />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="font-mono text-[11px] font-semibold truncate">{row.caseNumber}</div>
-          <div className="text-[10px] text-stone-500 truncate">{isReturn ? "Return" : "Exchange"} · {row.customer}</div>
+    <aside className="sticky top-4 rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 dark:border-border shadow-[0_4px_12px_-4px_rgba(13,79,76,0.12),0_24px_48px_-16px_rgba(13,79,76,0.16)] animate-fade-in">
+      {/* Editorial header */}
+      <header className="relative bg-[#0D4F4C] text-[#FBF8F3] px-5 pt-5 pb-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#D4A574]">
+            {isReturn ? "Return Case" : "Exchange Case"}
+          </div>
+          <button onClick={onClose} className="p-1 -m-1 text-[#FBF8F3]/60 hover:text-[#FBF8F3]" aria-label="Close preview">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <button onClick={onClose} className="p-1 text-stone-400 hover:text-[#0D4F4C]" aria-label="Close preview">
-          <X className="h-4 w-4" />
-        </button>
+        <div className="font-mono text-[12px] mt-1.5 text-[#FBF8F3]/70">{row.caseNumber}</div>
+        <div className="mt-4">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[#FBF8F3]/50">
+            {isReturn ? "Refund amount" : "Exchange charge"}
+          </div>
+          <div className="mt-1 text-[44px] leading-none tracking-tight" style={serif}>
+            {row.amount > 0 ? (
+              <>৳{row.amount.toLocaleString("en-IN")}</>
+            ) : (
+              <span className="text-[#FBF8F3]/40">—</span>
+            )}
+          </div>
+        </div>
+        <div className="mt-4"><ReturnStatusBadge status={row.status} /></div>
       </header>
-      <div className="p-4 space-y-3 text-xs">
-        <div>
-          <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Status</div>
-          <ReturnStatusBadge status={row.status} />
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Product</div>
-          <div className="text-sm font-medium leading-snug">{row.productTitle}</div>
-          {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-100">
+
+      <div className="p-5 space-y-4 text-xs bg-[#FBF8F3]/40 dark:bg-transparent">
+        <PreviewRow label="Customer" value={row.customer} />
+        <PreviewRow label="Product" value={
           <div>
-            <div className="text-[10px] uppercase tracking-wide text-stone-500">Amount</div>
-            <div className="text-base font-bold tabular-nums text-[#0D4F4C]">
-              {row.amount > 0 ? `৳${row.amount.toLocaleString("en-IN")}` : "—"}
-            </div>
+            <div className="text-[13px] font-medium text-[#1C1917] leading-snug">{row.productTitle}</div>
+            {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
           </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-stone-500">Order</div>
-            <div className="text-sm font-mono">{row.orderNumber ? `#${row.orderNumber}` : "—"}</div>
-          </div>
-        </div>
-        <div className="text-[11px] text-stone-500 pt-2 border-t border-stone-100">
-          Created {format(new Date(row.createdAt), "dd MMM yyyy, hh:mm a")}
-        </div>
-        <div className="flex items-center gap-2 pt-3 border-t border-stone-100">
+        } />
+        <PreviewRow label="Order" value={row.orderNumber ? <span className="font-mono">#{row.orderNumber}</span> : "—"} />
+        <PreviewRow label="Created" value={format(new Date(row.createdAt), "dd MMM yyyy, hh:mm a")} />
+
+        <div className="flex items-center gap-2 pt-3 border-t border-stone-200">
           <CaseActionButton caseId={caseId} type={row.type} status={row.status} />
-          <Button onClick={onOpenFull} variant="outline" size="sm" className="ml-auto border-[#0D4F4C]/30 text-[#0D4F4C] hover:bg-[#0D4F4C]/5">
-            Open <ExternalLink className="h-3.5 w-3.5 ml-1" />
+          <Button onClick={onOpenFull} size="sm"
+            className="ml-auto bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white">
+            Open case <ExternalLink className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
       </div>
     </aside>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-start gap-3">
+      <div className="text-[10px] uppercase tracking-[0.14em] text-stone-500 pt-0.5">{label}</div>
+      <div className="text-[12px] text-[#1C1917] dark:text-foreground min-w-0">{value}</div>
+    </div>
   );
 }
