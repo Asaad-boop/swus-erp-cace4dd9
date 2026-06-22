@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Download, RotateCcw, Repeat, Search, ChevronRight, Plus,
-  Package, ClipboardCheck, Wallet, Inbox,
+  Package, ClipboardCheck, Wallet, Inbox, ExternalLink, X,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ function ReturnsListPage() {
   const [to, setTo] = useState("");
   const [newReturnOpen, setNewReturnOpen] = useState(false);
   const [newExchangeOpen, setNewExchangeOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const retQ = useQuery({
     queryKey: ["returns-list", brandIds, from, to],
@@ -130,25 +131,27 @@ function ReturnsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-background">
-      <div className="p-4 md:p-8 space-y-6 max-w-[1400px] mx-auto">
+    <div className="min-h-screen bg-[#FBF8F3] dark:bg-background">
+      <div className="p-4 md:p-6 space-y-5 max-w-[1500px] mx-auto">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Returns &amp; Exchanges</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-[26px] font-bold tracking-tight text-[#0D4F4C] dark:text-foreground" style={{ fontFamily: 'ui-serif, Georgia, serif' }}>
+              Returns &amp; Exchanges
+            </h1>
+            <p className="text-xs text-stone-500 dark:text-muted-foreground mt-1">
               {counts.all} total cases
               {lastUpdated && <> · Last updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}</>}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setNewReturnOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button size="sm" onClick={() => setNewReturnOpen(true)} className="bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white shadow-sm">
               <Plus className="h-4 w-4 mr-1" />New Return
             </Button>
-            <Button size="sm" onClick={() => setNewExchangeOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
+            <Button size="sm" onClick={() => setNewExchangeOpen(true)} className="bg-[#D4A574] hover:bg-[#C49560] text-[#1C1917] shadow-sm">
               <Plus className="h-4 w-4 mr-1" />New Exchange
             </Button>
-            <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Button variant="outline" size="sm" onClick={exportCsv} className="border-stone-300 dark:border-border">
               <Download className="h-4 w-4 mr-1" />Export
             </Button>
           </div>
@@ -156,10 +159,10 @@ function ReturnsListPage() {
 
         {/* KPI Strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard accent="amber" icon={<Package className="h-4 w-4" />} label="Total Returns" value={counts.returns} />
-          <KpiCard accent="violet" icon={<Repeat className="h-4 w-4" />} label="Exchanges" value={counts.exchanges} />
-          <KpiCard accent="amber" pulse icon={<ClipboardCheck className="h-4 w-4" />} label="Pending QC" value={counts.pending_qc} />
-          <KpiCard accent="emerald" icon={<Wallet className="h-4 w-4" />} label="Refunds" value={`৳${totalRefunds.toLocaleString("en-IN")}`} />
+          <KpiCard accent="teal" icon={<Package className="h-4 w-4" />} label="Total Returns" value={counts.returns} />
+          <KpiCard accent="sand" icon={<Repeat className="h-4 w-4" />} label="Exchanges" value={counts.exchanges} />
+          <KpiCard accent="rose" pulse icon={<ClipboardCheck className="h-4 w-4" />} label="Pending QC" value={counts.pending_qc} />
+          <KpiCard accent="ink" icon={<Wallet className="h-4 w-4" />} label="Refunds" value={`৳${totalRefunds.toLocaleString("en-IN")}`} />
         </div>
 
         {/* Pill tabs */}
@@ -180,32 +183,48 @@ function ReturnsListPage() {
         </div>
 
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-white dark:bg-card p-2 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card p-2 shadow-sm">
           <div className="flex-1 min-w-[240px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
             <Input className="pl-9 h-9 border-0 shadow-none focus-visible:ring-1"
               placeholder="Search order#, customer, product…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <div className="flex items-center gap-2">
             <Input type="date" className="h-9 w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
-            <span className="text-xs text-muted-foreground">–</span>
+            <span className="text-xs text-stone-400">–</span>
             <Input type="date" className="h-9 w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
           </div>
         </div>
 
-        {/* Cases list */}
-        <div className="rounded-xl border bg-white dark:bg-card overflow-hidden shadow-sm">
-          {(retQ.isLoading || excQ.isLoading) ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
-          ) : rows.length === 0 ? (
-            <EmptyState onNew={() => setNewReturnOpen(true)} />
-          ) : (
-            <ul className="divide-y">
-              {rows.map((r, i) => (
-                <CaseRow key={r.id} r={r} index={i}
-                  onOpen={() => navigate({ to: "/erp/returns/$caseId", params: { caseId: r.id } })} />
-              ))}
-            </ul>
+        {/* Split: list + preview */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className={cn(
+            "rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden shadow-sm",
+            selectedId ? "lg:col-span-3" : "lg:col-span-5",
+          )}>
+            {(retQ.isLoading || excQ.isLoading) ? (
+              <div className="py-16 text-center text-sm text-stone-500">Loading…</div>
+            ) : rows.length === 0 ? (
+              <EmptyState onNew={() => setNewReturnOpen(true)} />
+            ) : (
+              <ul className="divide-y divide-stone-100 dark:divide-border max-h-[calc(100vh-340px)] overflow-y-auto">
+                {rows.map((r, i) => (
+                  <CaseRow key={r.id} r={r} index={i} selected={selectedId === r.id}
+                    onOpen={() => setSelectedId(r.id)} />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {selectedId && (
+            <div className="hidden lg:block lg:col-span-2">
+              <PreviewPane
+                caseId={selectedId}
+                row={rows.find((r) => r.id === selectedId)}
+                onClose={() => setSelectedId(null)}
+                onOpenFull={() => navigate({ to: "/erp/returns/$caseId", params: { caseId: selectedId } })}
+              />
+            </div>
           )}
         </div>
 
@@ -219,10 +238,10 @@ function ReturnsListPage() {
 /* ---------- Sub-components ---------- */
 
 const ACCENTS = {
-  amber: "border-l-amber-500 bg-amber-50/40 text-amber-700",
-  violet: "border-l-violet-500 bg-violet-50/40 text-violet-700",
-  emerald: "border-l-emerald-500 bg-emerald-50/40 text-emerald-700",
-  indigo: "border-l-indigo-500 bg-indigo-50/40 text-indigo-700",
+  teal: "border-l-[#0D4F4C] bg-[#0D4F4C]/5 text-[#0D4F4C]",
+  sand: "border-l-[#D4A574] bg-[#D4A574]/10 text-[#8B6F3D]",
+  rose: "border-l-[#E11D48] bg-[#E11D48]/5 text-[#E11D48]",
+  ink: "border-l-[#1C1917] bg-[#1C1917]/5 text-[#1C1917]",
 } as const;
 
 function KpiCard({ icon, label, value, accent, pulse }: {
@@ -230,15 +249,15 @@ function KpiCard({ icon, label, value, accent, pulse }: {
 }) {
   return (
     <div className={cn(
-      "relative rounded-xl border border-l-4 bg-white dark:bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
+      "relative rounded-xl border border-stone-200 dark:border-border border-l-[3px] bg-white dark:bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
       ACCENTS[accent].split(" ")[0],
     )}>
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.08em] text-stone-500 dark:text-muted-foreground font-medium">
         <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-md", ACCENTS[accent])}>{icon}</span>
         {label}
-        {pulse && Number(value) > 0 && <span className="ml-auto h-2 w-2 rounded-full bg-rose-500 animate-pulse" />}
+        {pulse && Number(value) > 0 && <span className="ml-auto h-2 w-2 rounded-full bg-[#E11D48] animate-pulse" />}
       </div>
-      <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
+      <div className="mt-2 text-[26px] font-bold tabular-nums tracking-tight text-[#1C1917] dark:text-foreground">{value}</div>
     </div>
   );
 }
@@ -248,17 +267,17 @@ function PillTab({ active, onClick, children }: { active: boolean; onClick: () =
     <button onClick={onClick} className={cn(
       "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
       active
-        ? "bg-indigo-600 text-white shadow-sm"
-        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-muted dark:text-foreground",
+        ? "bg-[#0D4F4C] text-white shadow-sm"
+        : "bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-muted dark:text-foreground",
     )}>{children}</button>
   );
 }
 
 function Count({ children }: { children: React.ReactNode }) {
-  return <span className="ml-1.5 opacity-70 tabular-nums">{children}</span>;
+  return <span className="ml-1.5 opacity-60 tabular-nums">{children}</span>;
 }
 
-function CaseRow({ r, index, onOpen }: { r: Row; index: number; onOpen: () => void }) {
+function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen: () => void; selected?: boolean }) {
   const isReturn = r.type === "return";
   return (
     <li
@@ -266,13 +285,14 @@ function CaseRow({ r, index, onOpen }: { r: Row; index: number; onOpen: () => vo
       style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}
       className={cn(
         "group relative flex items-center gap-4 pl-4 pr-3 py-3 cursor-pointer animate-fade-in",
-        "border-l-[3px] hover:bg-gray-50/80 dark:hover:bg-muted/40 transition-colors",
-        isReturn ? "border-l-amber-500" : "border-l-violet-500",
+        "border-l-[3px] hover:bg-[#FBF8F3] dark:hover:bg-muted/40 transition-colors",
+        isReturn ? "border-l-[#0D4F4C]" : "border-l-[#D4A574]",
+        selected && "bg-[#0D4F4C]/5 dark:bg-muted/60",
       )}
     >
       <span className={cn(
         "inline-flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
-        isReturn ? "bg-amber-50 text-amber-600" : "bg-violet-50 text-violet-600",
+        isReturn ? "bg-[#0D4F4C]/10 text-[#0D4F4C]" : "bg-[#D4A574]/20 text-[#8B6F3D]",
       )}>
         {isReturn ? <RotateCcw className="h-4 w-4" /> : <Repeat className="h-4 w-4" />}
       </span>
@@ -280,19 +300,19 @@ function CaseRow({ r, index, onOpen }: { r: Row; index: number; onOpen: () => vo
       <div className="min-w-0 flex-1 grid grid-cols-12 items-center gap-3">
         <div className="col-span-12 md:col-span-3 min-w-0">
           <div className="font-mono text-[11px] font-semibold truncate">{r.caseNumber}</div>
-          <div className="text-[11px] text-muted-foreground truncate">
+          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate">
             {r.orderNumber ? <>#{r.orderNumber}</> : "—"} · {r.customer}
           </div>
         </div>
         <div className="col-span-7 md:col-span-4 min-w-0">
           <div className="text-xs font-medium truncate">{r.productTitle}</div>
-          {r.productSku && <div className="text-[10px] font-mono text-muted-foreground truncate">{r.productSku}</div>}
+          {r.productSku && <div className="text-[10px] font-mono text-stone-500 dark:text-muted-foreground truncate">{r.productSku}</div>}
         </div>
         <div className="col-span-5 md:col-span-2"><ReturnStatusBadge status={r.status} /></div>
         <div className="hidden md:block md:col-span-1 text-right tabular-nums text-xs font-semibold">
-          {r.amount > 0 ? `৳${r.amount.toLocaleString("en-IN")}` : <span className="text-muted-foreground font-normal">—</span>}
+          {r.amount > 0 ? `৳${r.amount.toLocaleString("en-IN")}` : <span className="text-stone-400 font-normal">—</span>}
         </div>
-        <div className="hidden md:block md:col-span-2 text-[11px] text-muted-foreground text-right">
+        <div className="hidden md:block md:col-span-2 text-[11px] text-stone-500 dark:text-muted-foreground text-right">
           {format(new Date(r.createdAt), "dd MMM, hh:mm a")}
         </div>
       </div>
@@ -300,7 +320,7 @@ function CaseRow({ r, index, onOpen }: { r: Row; index: number; onOpen: () => vo
       <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
         <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
         <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
-          className="text-muted-foreground hover:text-foreground p-1">
+          className="text-stone-400 hover:text-[#0D4F4C] p-1">
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
@@ -311,16 +331,77 @@ function CaseRow({ r, index, onOpen }: { r: Row; index: number; onOpen: () => vo
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
     <div className="py-16 px-6 text-center">
-      <div className="mx-auto h-14 w-14 rounded-full bg-gray-100 dark:bg-muted flex items-center justify-center text-muted-foreground">
+      <div className="mx-auto h-14 w-14 rounded-full bg-[#0D4F4C]/10 dark:bg-muted flex items-center justify-center text-[#0D4F4C]">
         <Inbox className="h-7 w-7" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold">No return cases yet</h3>
-      <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+      <h3 className="mt-4 text-sm font-semibold text-[#1C1917] dark:text-foreground">No return cases yet</h3>
+      <p className="mt-1 text-xs text-stone-500 dark:text-muted-foreground max-w-sm mx-auto">
         Returns and exchanges from orders will appear here. Create one to start tracking.
       </p>
-      <Button size="sm" onClick={onNew} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
+      <Button size="sm" onClick={onNew} className="mt-4 bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white">
         <Plus className="h-4 w-4 mr-1" />New Return
       </Button>
     </div>
+  );
+}
+
+function PreviewPane({ caseId, row, onClose, onOpenFull }: {
+  caseId: string; row?: Row; onClose: () => void; onOpenFull: () => void;
+}) {
+  if (!row) return null;
+  const isReturn = row.type === "return";
+  return (
+    <aside className="sticky top-4 rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden animate-fade-in">
+      <header className={cn(
+        "px-4 py-3 flex items-center gap-2 border-b border-stone-200 dark:border-border",
+        isReturn ? "bg-[#0D4F4C]/5" : "bg-[#D4A574]/10",
+      )}>
+        <span className={cn(
+          "inline-flex h-7 w-7 items-center justify-center rounded-lg",
+          isReturn ? "bg-[#0D4F4C] text-white" : "bg-[#D4A574] text-[#1C1917]",
+        )}>
+          {isReturn ? <RotateCcw className="h-3.5 w-3.5" /> : <Repeat className="h-3.5 w-3.5" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="font-mono text-[11px] font-semibold truncate">{row.caseNumber}</div>
+          <div className="text-[10px] text-stone-500 truncate">{isReturn ? "Return" : "Exchange"} · {row.customer}</div>
+        </div>
+        <button onClick={onClose} className="p-1 text-stone-400 hover:text-[#0D4F4C]" aria-label="Close preview">
+          <X className="h-4 w-4" />
+        </button>
+      </header>
+      <div className="p-4 space-y-3 text-xs">
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Status</div>
+          <ReturnStatusBadge status={row.status} />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Product</div>
+          <div className="text-sm font-medium leading-snug">{row.productTitle}</div>
+          {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
+        </div>
+        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-100">
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-stone-500">Amount</div>
+            <div className="text-base font-bold tabular-nums text-[#0D4F4C]">
+              {row.amount > 0 ? `৳${row.amount.toLocaleString("en-IN")}` : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-stone-500">Order</div>
+            <div className="text-sm font-mono">{row.orderNumber ? `#${row.orderNumber}` : "—"}</div>
+          </div>
+        </div>
+        <div className="text-[11px] text-stone-500 pt-2 border-t border-stone-100">
+          Created {format(new Date(row.createdAt), "dd MMM yyyy, hh:mm a")}
+        </div>
+        <div className="flex items-center gap-2 pt-3 border-t border-stone-100">
+          <CaseActionButton caseId={caseId} type={row.type} status={row.status} />
+          <Button onClick={onOpenFull} variant="outline" size="sm" className="ml-auto border-[#0D4F4C]/30 text-[#0D4F4C] hover:bg-[#0D4F4C]/5">
+            Open <ExternalLink className="h-3.5 w-3.5 ml-1" />
+          </Button>
+        </div>
+      </div>
+    </aside>
   );
 }
