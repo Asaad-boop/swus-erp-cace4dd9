@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { format, subDays } from "date-fns";
 import {
   Loader2, Search, ArrowRight, Wallet, Receipt, Activity, Target, Package, Download,
 } from "lucide-react";
@@ -16,13 +15,12 @@ import { listCampaignsRollup, type CampaignRollupRow } from "@/lib/erp/marketing
 import { MktKpiCard } from "@/components/erp/marketing/_ui/MktKpiCard";
 import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
 import { MktStatusBadge } from "@/components/erp/marketing/_ui/MktBadges";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/")({
   component: CampaignsPage,
 });
-
-const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 const fmtNum = (n: number) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 const fmtBDT = (n: number) => `৳${Math.round(Number(n) || 0).toLocaleString()}`;
@@ -30,15 +28,11 @@ const fmtUSD = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { m
 
 function CampaignsPage() {
   const { brandId, picker } = useBrandPicker();
-  const [rangeKey, setRangeKey] = useState("30d");
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { from, to } = useMemo(() => {
-    const days = RANGES[rangeKey] ?? 30;
-    const today = new Date();
-    return { from: format(subDays(today, days - 1), "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
-  }, [rangeKey]);
+  const { from, to } = range;
 
   const list = useServerFn(listCampaignsRollup);
   const rollup = useQuery({
@@ -104,14 +98,7 @@ function CampaignsPage() {
         subtitle="Meta vs Confirmed vs Delivered — last sync er upor base kore"
         actions={
           <>
-            <Select value={rangeKey} onValueChange={setRangeKey}>
-              <SelectTrigger className="w-32 bg-white"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <DateRangePicker value={range} onChange={setRange} />
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="bg-white gap-1.5">
               <Download className="h-3.5 w-3.5" /> Export
             </Button>

@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { format, subDays } from "date-fns";
 import {
   Loader2, Search, TrendingUp, TrendingDown, Wallet, Package, Megaphone,
   Receipt, AlertTriangle, ArrowRight, Download, PieChart, ChevronRight,
@@ -11,33 +10,28 @@ import {
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getSkuPnl, type SkuPnlRow } from "@/lib/erp/marketing/sku-pnl.functions";
 import { MktKpiCard } from "@/components/erp/marketing/_ui/MktKpiCard";
 import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/sku-pnl")({
   component: SkuPnlPage,
 });
 
-const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 const fmtBDT = (n: number) => `৳${Math.round(Number(n) || 0).toLocaleString()}`;
 const fmtNum = (n: number) => Number(n).toLocaleString();
 
 function SkuPnlPage() {
   const { brandId, picker } = useBrandPicker();
-  const [rangeKey, setRangeKey] = useState("30d");
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
   const [q, setQ] = useState("");
 
-  const { from, to } = useMemo(() => {
-    const days = RANGES[rangeKey] ?? 30;
-    const today = new Date();
-    return { from: format(subDays(today, days - 1), "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
-  }, [rangeKey]);
+  const { from, to } = range;
 
   const fn = useServerFn(getSkuPnl);
   const query = useQuery({
@@ -113,14 +107,7 @@ function SkuPnlPage() {
         subtitle="Revenue − COGS − Ad Spend − Other Marketing − Returns = Net Profit (per product)"
         actions={
           <>
-            <Select value={rangeKey} onValueChange={setRangeKey}>
-              <SelectTrigger className="w-32 bg-white"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <DateRangePicker value={range} onChange={setRange} />
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title / SKU…" className="pl-8 w-64 bg-white" />
