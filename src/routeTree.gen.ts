@@ -69,6 +69,7 @@ import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/
 import { Route as AuthenticatedErpImportsSettingsRouteImport } from './routes/_authenticated/erp.imports.settings'
 import { Route as AuthenticatedErpImportsReportsRouteImport } from './routes/_authenticated/erp.imports.reports'
 import { Route as AuthenticatedErpImportsAgentsRouteImport } from './routes/_authenticated/erp.imports.agents'
+import { Route as AuthenticatedErpHrStaffRouteImport } from './routes/_authenticated/erp.hr.staff'
 import { Route as AuthenticatedErpHrShiftsRouteImport } from './routes/_authenticated/erp.hr.shifts'
 import { Route as AuthenticatedErpHrSettingsRouteImport } from './routes/_authenticated/erp.hr.settings'
 import { Route as AuthenticatedErpHrReportsRouteImport } from './routes/_authenticated/erp.hr.reports'
@@ -457,6 +458,11 @@ const AuthenticatedErpImportsAgentsRoute =
     path: '/agents',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpHrStaffRoute = AuthenticatedErpHrStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedErpHrRoute,
+} as any)
 const AuthenticatedErpHrShiftsRoute =
   AuthenticatedErpHrShiftsRouteImport.update({
     id: '/shifts',
@@ -771,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/reports': typeof AuthenticatedErpHrReportsRoute
   '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
+  '/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
@@ -864,6 +871,7 @@ export interface FileRoutesByTo {
   '/erp/hr/reports': typeof AuthenticatedErpHrReportsRoute
   '/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
+  '/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
@@ -971,6 +979,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/reports': typeof AuthenticatedErpHrReportsRoute
   '/_authenticated/erp/hr/settings': typeof AuthenticatedErpHrSettingsRoute
   '/_authenticated/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
+  '/_authenticated/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/_authenticated/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
   '/_authenticated/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/_authenticated/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
@@ -1078,6 +1087,7 @@ export interface FileRouteTypes {
     | '/erp/hr/reports'
     | '/erp/hr/settings'
     | '/erp/hr/shifts'
+    | '/erp/hr/staff'
     | '/erp/imports/agents'
     | '/erp/imports/reports'
     | '/erp/imports/settings'
@@ -1171,6 +1181,7 @@ export interface FileRouteTypes {
     | '/erp/hr/reports'
     | '/erp/hr/settings'
     | '/erp/hr/shifts'
+    | '/erp/hr/staff'
     | '/erp/imports/agents'
     | '/erp/imports/reports'
     | '/erp/imports/settings'
@@ -1277,6 +1288,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr/reports'
     | '/_authenticated/erp/hr/settings'
     | '/_authenticated/erp/hr/shifts'
+    | '/_authenticated/erp/hr/staff'
     | '/_authenticated/erp/imports/agents'
     | '/_authenticated/erp/imports/reports'
     | '/_authenticated/erp/imports/settings'
@@ -1767,6 +1779,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsAgentsRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/hr/staff': {
+      id: '/_authenticated/erp/hr/staff'
+      path: '/staff'
+      fullPath: '/erp/hr/staff'
+      preLoaderRoute: typeof AuthenticatedErpHrStaffRouteImport
+      parentRoute: typeof AuthenticatedErpHrRoute
+    }
     '/_authenticated/erp/hr/shifts': {
       id: '/_authenticated/erp/hr/shifts'
       path: '/shifts'
@@ -2221,6 +2240,7 @@ interface AuthenticatedErpHrRouteChildren {
   AuthenticatedErpHrReportsRoute: typeof AuthenticatedErpHrReportsRoute
   AuthenticatedErpHrSettingsRoute: typeof AuthenticatedErpHrSettingsRoute
   AuthenticatedErpHrShiftsRoute: typeof AuthenticatedErpHrShiftsRouteWithChildren
+  AuthenticatedErpHrStaffRoute: typeof AuthenticatedErpHrStaffRoute
   AuthenticatedErpHrIndexRoute: typeof AuthenticatedErpHrIndexRoute
   AuthenticatedErpHrEmployeesIdRoute: typeof AuthenticatedErpHrEmployeesIdRoute
   AuthenticatedErpHrEmployeesNewRoute: typeof AuthenticatedErpHrEmployeesNewRoute
@@ -2238,6 +2258,7 @@ const AuthenticatedErpHrRouteChildren: AuthenticatedErpHrRouteChildren = {
   AuthenticatedErpHrReportsRoute: AuthenticatedErpHrReportsRoute,
   AuthenticatedErpHrSettingsRoute: AuthenticatedErpHrSettingsRoute,
   AuthenticatedErpHrShiftsRoute: AuthenticatedErpHrShiftsRouteWithChildren,
+  AuthenticatedErpHrStaffRoute: AuthenticatedErpHrStaffRoute,
   AuthenticatedErpHrIndexRoute: AuthenticatedErpHrIndexRoute,
   AuthenticatedErpHrEmployeesIdRoute: AuthenticatedErpHrEmployeesIdRoute,
   AuthenticatedErpHrEmployeesNewRoute: AuthenticatedErpHrEmployeesNewRoute,
@@ -2464,13 +2485,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
