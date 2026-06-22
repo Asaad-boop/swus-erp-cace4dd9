@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,14 +11,9 @@ import { Trash2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/fx")({
-  head: () => ({ meta: [{ title: "FX Rates — Finance ERP" }] }),
-  component: FxPage,
-});
-
 type FX = { id: string; from_ccy: string; to_ccy: string; rate: number; rate_date: string };
 
-function FxPage() {
+export function FxPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [form, setForm] = useState({ from_ccy: "USD", to_ccy: "BDT", rate: "", rate_date: new Date().toISOString().slice(0, 10) });

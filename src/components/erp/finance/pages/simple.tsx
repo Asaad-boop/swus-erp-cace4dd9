@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Download, Plus, Wallet, TrendingUp, TrendingDown, ArrowRightLeft, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,12 +19,7 @@ import { downloadCsv } from "@/lib/erp/orders";
 import { TransactionForm } from "@/components/erp/finance/transaction-form";
 import { AccountForm } from "@/components/erp/finance/account-form";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/simple")({
-  head: () => ({ meta: [{ title: "Finance — ERP" }] }),
-  component: FinancePage,
-});
-
-function FinancePage() {
+export function FinancePage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
 

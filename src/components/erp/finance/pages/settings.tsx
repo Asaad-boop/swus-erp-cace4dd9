@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, Sparkles, ShieldAlert, Wallet } from "lucide-react";
@@ -11,12 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
-  head: () => ({ meta: [{ title: "Finance Settings — ERP" }] }),
-  component: SettingsPage,
-});
-
-function SettingsPage() {
+export function SettingsPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
 

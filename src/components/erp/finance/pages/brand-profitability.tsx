@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Layers3, TrendingDown, TrendingUp, AlertCircle, Search } from "lucide-react";
@@ -13,11 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/_authenticated/erp/finance/brand-profitability")({
-  head: () => ({ meta: [{ title: "Brand Profitability — Finance" }] }),
-  component: BrandProfitabilityPage,
-});
 
 type Row = {
   product_id: string; name: string; sku: string | null; image: string | null; current_stock: number;
@@ -39,7 +34,7 @@ function downloadCsv(name: string, rows: (string | number | null)[][]) {
 
 type SortKey = "net_profit" | "revenue" | "delivered_qty" | "roi_percent" | "return_loss";
 
-function BrandProfitabilityPage() {
+export function BrandProfitabilityPage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const [dateFrom, setDateFrom] = useState(daysAgo(30));
   const [dateTo, setDateTo] = useState(today());

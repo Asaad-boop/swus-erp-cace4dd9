@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, Link2, Link2Off, FileText } from "lucide-react";
@@ -14,11 +13,6 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { fmtBdt } from "@/lib/erp/finance";
-
-export const Route = createFileRoute("/_authenticated/erp/finance/reconciliation")({
-  head: () => ({ meta: [{ title: "Reconciliation — Finance ERP" }] }),
-  component: ReconPage,
-});
 
 type COA = { id: string; code: string; name: string; account_type: string };
 type Import = { id: string; account_id: string; source: string; period_start: string | null; period_end: string | null; imported_at: string; total_lines: number; matched_lines: number };
@@ -57,7 +51,7 @@ function parseCsv(text: string) {
   return out;
 }
 
-function ReconPage() {
+export function ReconPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [accountId, setAccountId] = useState<string>("");

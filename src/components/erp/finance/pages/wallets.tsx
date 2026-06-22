@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightLeft, Banknote, Building2, Coins, Landmark, Plus, Smartphone, Truck, Wallet as WalletIcon, FileText, Pencil } from "lucide-react";
@@ -15,11 +14,6 @@ import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
 import { cn } from "@/lib/utils";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
-
-export const Route = createFileRoute("/_authenticated/erp/finance/wallets")({
-  head: () => ({ meta: [{ title: "Wallets — Finance" }] }),
-  component: WalletsPage,
-});
 
 type Wallet = Account & { wallet_type: string; account_subtype?: string | null };
 
@@ -41,7 +35,7 @@ const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color
   { key: "other",          label: "Other",          icon: WalletIcon, color: "text-muted-foreground" },
 ];
 
-function WalletsPage() {
+export function WalletsPage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
 

@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Ban, FileText, Search } from "lucide-react";
@@ -15,11 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { fmtBdt } from "@/lib/erp/finance";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/journal")({
-  head: () => ({ meta: [{ title: "Journal — Finance ERP" }] }),
-  component: JournalPage,
-});
-
 type Entry = {
   id: string; entry_no: string; entry_date: string; description: string | null;
   status: "draft" | "posted" | "void"; source_type: string | null;
@@ -29,7 +23,7 @@ type Entry = {
 
 type COA = { id: string; code: string; name: string; account_type: string };
 
-function JournalPage() {
+export function JournalPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);

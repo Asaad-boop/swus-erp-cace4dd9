@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,14 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/audit")({
-  head: () => ({ meta: [{ title: "Audit Log — Finance ERP" }] }),
-  component: AuditPage,
-});
-
 type Row = { id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; before_data: unknown; after_data: unknown; created_at: string };
 
-function AuditPage() {
+export function AuditPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Row | null>(null);

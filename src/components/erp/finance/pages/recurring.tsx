@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Play, Pause, Trash2, RefreshCw } from "lucide-react";
@@ -16,11 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { fmtBdt } from "@/lib/erp/finance";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/recurring")({
-  head: () => ({ meta: [{ title: "Recurring — Finance ERP" }] }),
-  component: RecurringPage,
-});
-
 type Rule = {
   id: string; name: string; description: string | null; frequency: string; interval_n: number;
   start_date: string; next_run_date: string; end_date: string | null;
@@ -29,7 +23,7 @@ type Rule = {
 };
 type COA = { id: string; code: string; name: string; account_type: string };
 
-function RecurringPage() {
+export function RecurringPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);

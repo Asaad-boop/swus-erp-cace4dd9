@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,11 +19,6 @@ import { RemittanceForm, type RemittanceRow } from "@/components/erp/finance/rem
 import { CodCollectionDialog } from "@/components/erp/finance/cod-collection-dialog";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/cod-remittance")({
-  head: () => ({ meta: [{ title: "COD Remittance — Finance" }] }),
-  component: CodRemittancePage,
-});
-
 type Wallet = { id: string; name: string; account_subtype: string | null; account_type: string | null; brand_id: string; current_balance: number };
 
 const STATUS_META: Record<string, { label: string; color: string; icon: typeof Clock }> = {
@@ -33,7 +27,7 @@ const STATUS_META: Record<string, { label: string; color: string; icon: typeof C
   reconciled: { label: "Reconciled", color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",            icon: ShieldCheck },
 };
 
-function CodRemittancePage() {
+export function CodRemittancePage() {
   const { activeBrand, brandIds, isAllBrands } = useBrand();
   const brandId = activeBrand?.id ?? null;
   const qc = useQueryClient();

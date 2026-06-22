@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -34,11 +33,6 @@ import { ProductExpenseAllocationDialog } from "@/components/erp/finance/product
 import { Plus, RefreshCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-export const Route = createFileRoute("/_authenticated/erp/finance/product-profitability")({
-  head: () => ({ meta: [{ title: "Product Profitability — Finance" }] }),
-  component: ProductProfitabilityPage,
-});
 
 type ProductRow = { id: string; title: string; sku: string | null; image: string | null; brand_id: string | null; stock: number | null };
 
@@ -76,7 +70,7 @@ function downloadCsv(filename: string, rows: (string | number | null)[][]) {
   URL.revokeObjectURL(url);
 }
 
-function ProductProfitabilityPage() {
+export function ProductProfitabilityPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   const [productId, setProductId] = useState<string | null>(null);

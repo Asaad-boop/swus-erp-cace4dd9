@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Wallet, AlertCircle, Download, FileSpreadsheet, Printer } from "lucide-react";
@@ -18,11 +17,6 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { exportAgedExcel, exportAgedPdf } from "@/lib/erp/finance-aged-export";
-
-export const Route = createFileRoute("/_authenticated/erp/finance/receivables")({
-  head: () => ({ meta: [{ title: "Receivables — Finance ERP" }] }),
-  component: ReceivablesPage,
-});
 
 type ARRow = {
   order_id: string; customer_name: string; customer_phone: string | null;
@@ -44,7 +38,7 @@ function bucketFor(age: number) {
   return BUCKETS.findIndex((b) => age >= b.min && age <= b.max);
 }
 
-function ReceivablesPage() {
+export function ReceivablesPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");

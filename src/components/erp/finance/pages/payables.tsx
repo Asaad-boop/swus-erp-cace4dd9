@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Wallet, AlertCircle, Download, FileSpreadsheet, Printer } from "lucide-react";
@@ -20,11 +19,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { exportAgedExcel, exportAgedPdf } from "@/lib/erp/finance-aged-export";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/payables")({
-  head: () => ({ meta: [{ title: "Payables — Finance ERP" }] }),
-  component: PayablesPage,
-});
-
 type APRow = {
   bill_id: string; supplier_id: string; supplier_name: string;
   bill_no: string; bill_date: string; due_date: string | null;
@@ -42,7 +36,7 @@ const BUCKETS = [
   { label: "30+ days", min: 31, max: Infinity },
 ] as const;
 
-function PayablesPage() {
+export function PayablesPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
