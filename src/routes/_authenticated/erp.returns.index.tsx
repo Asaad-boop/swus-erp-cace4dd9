@@ -134,100 +134,95 @@ function ReturnsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FBF8F3] dark:bg-background">
-      {/* Editorial dark hero band */}
-      <section className="relative bg-[#0D4F4C] text-[#FBF8F3] overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, #FBF8F3 1px, transparent 0)",
-            backgroundSize: "24px 24px",
-          }}
-        />
-        <div className="relative max-w-[1500px] mx-auto px-4 md:px-8 pt-8 pb-10">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[#D4A574]/90 mb-2">
-                ERP · Reverse Logistics
-              </div>
-              <h1
-                className="text-[40px] md:text-[52px] leading-[1.02] tracking-tight text-[#FBF8F3]"
-                style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
-              >
-                Returns <span className="italic text-[#D4A574]">&amp;</span> Exchanges
+    <div className="min-h-screen bg-[#F7F5F0] dark:bg-background">
+      {/* Refined light header */}
+      <header className="bg-white/70 dark:bg-card/40 backdrop-blur-sm border-b border-stone-200/70 dark:border-border sticky top-0 z-20">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-medium">ERP · Reverse Logistics</div>
+            <div className="flex items-baseline gap-3 mt-0.5">
+              <h1 className="text-[22px] md:text-[26px] font-semibold tracking-tight text-[#1C1917] dark:text-foreground truncate"
+                style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}>
+                Returns <span className="italic text-[#B8893F]">&amp;</span> Exchanges
               </h1>
-              <p className="text-[12px] text-[#FBF8F3]/60 mt-2">
-                {counts.all} total cases
+              <span className="hidden md:inline text-[11px] text-stone-500 tabular-nums">
+                {counts.all} cases
                 {lastUpdated && <> · Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}</>}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button size="sm" onClick={() => setNewReturnOpen(true)}
-                className="bg-[#D4A574] hover:bg-[#C49560] text-[#1C1917] shadow-sm font-medium">
-                <Plus className="h-4 w-4 mr-1" />New Return
-              </Button>
-              <Button size="sm" onClick={() => setNewExchangeOpen(true)} variant="outline"
-                className="bg-transparent border-[#FBF8F3]/25 text-[#FBF8F3] hover:bg-[#FBF8F3]/10 hover:text-[#FBF8F3]">
-                <Plus className="h-4 w-4 mr-1" />New Exchange
-              </Button>
-              <Button variant="ghost" size="sm" onClick={exportCsv}
-                className="text-[#FBF8F3]/80 hover:bg-[#FBF8F3]/10 hover:text-[#FBF8F3]">
-                <Download className="h-4 w-4 mr-1" />Export
-              </Button>
+              </span>
             </div>
           </div>
-
-          {/* Inline stat strip */}
-          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-y-4 md:gap-y-0 md:divide-x divide-[#FBF8F3]/10 border-t border-[#FBF8F3]/10 pt-6">
-            <HeroStat label="Returns" value={counts.returns} />
-            <HeroStat label="Exchanges" value={counts.exchanges} />
-            <HeroStat label="Pending QC" value={counts.pending_qc} pulse />
-            <HeroStat label="Refunds Total" value={`৳${totalRefunds.toLocaleString("en-IN")}`} accent />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button size="sm" onClick={() => setNewReturnOpen(true)}
+              className="bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white shadow-sm h-8 px-3">
+              <Plus className="h-3.5 w-3.5 mr-1" />Return
+            </Button>
+            <Button size="sm" onClick={() => setNewExchangeOpen(true)}
+              className="bg-[#B8893F] hover:bg-[#A0762E] text-white shadow-sm h-8 px-3">
+              <Plus className="h-3.5 w-3.5 mr-1" />Exchange
+            </Button>
+            <Button variant="ghost" size="sm" onClick={exportCsv}
+              className="text-stone-600 hover:bg-stone-100 h-8 w-8 p-0" aria-label="Export">
+              <Download className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </section>
+      </header>
 
-      <div className="max-w-[1500px] mx-auto px-4 md:px-8 py-6 space-y-5">
-        {/* Underline tabs + inline filter */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-stone-200 dark:border-border">
-          <div className="flex gap-1 -mb-px overflow-x-auto">
-            <UnderlineTab active={tab === "all"} onClick={() => setTab("all")} label="All" count={counts.all} />
-            <UnderlineTab active={tab === "returns"} onClick={() => setTab("returns")} label="Returns" count={counts.returns} icon={<RotateCcw className="h-3 w-3" />} />
-            <UnderlineTab active={tab === "exchanges"} onClick={() => setTab("exchanges")} label="Exchanges" count={counts.exchanges} icon={<Repeat className="h-3 w-3" />} />
-            <UnderlineTab active={tab === "pending_qc"} onClick={() => setTab("pending_qc")} label="Pending QC" count={counts.pending_qc} alert={counts.pending_qc > 0} />
-            <UnderlineTab active={tab === "restocked"} onClick={() => setTab("restocked")} label="Restocked" count={counts.restocked} />
-            <UnderlineTab active={tab === "closed"} onClick={() => setTab("closed")} label="Closed" count={counts.closed} />
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-6 space-y-5">
+        {/* Status pipeline KPI strip — premium */}
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          <PipelineCard label="All Cases" value={counts.all} active={tab === "all"}
+            onClick={() => setTab("all")} accent="#1C1917" sub={`${counts.returns} returns · ${counts.exchanges} exchanges`} />
+          <PipelineCard label="Pending QC" value={counts.pending_qc} active={tab === "pending_qc"}
+            onClick={() => setTab("pending_qc")} accent="#D97706" pulse={counts.pending_qc > 0}
+            sub="Action required" />
+          <PipelineCard label="Restocked" value={counts.restocked} active={tab === "restocked"}
+            onClick={() => setTab("restocked")} accent="#059669" sub="Back in stock" />
+          <PipelineCard label="Closed" value={counts.closed} active={tab === "closed"}
+            onClick={() => setTab("closed")} accent="#64748B" sub="Resolved" />
+          <PipelineCard label="Refunds Total" value={`৳${totalRefunds.toLocaleString("en-IN")}`}
+            onClick={() => {}} accent="#E11D48" sub="This view" mono />
+        </section>
+
+        {/* Type segment + filters row */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex items-center rounded-xl bg-white dark:bg-card p-1 border border-stone-200 shadow-[0_1px_2px_rgba(0,0,0,0.03)] w-full md:w-auto">
+            <SegBtn active={tab === "all"} onClick={() => setTab("all")} label="All" count={counts.all} />
+            <SegBtn active={tab === "returns"} onClick={() => setTab("returns")} label="Returns" count={counts.returns}
+              icon={<RotateCcw className="h-3 w-3" />} color="#0D4F4C" />
+            <SegBtn active={tab === "exchanges"} onClick={() => setTab("exchanges")} label="Exchanges" count={counts.exchanges}
+              icon={<Repeat className="h-3 w-3" />} color="#B8893F" />
           </div>
-          <div className="flex items-center gap-2 pb-2 md:pb-0">
-            <div className="relative">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 md:flex-none">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-              <Input className="pl-8 h-8 w-[220px] text-xs bg-white dark:bg-card border-stone-200"
-                placeholder="Search case, order, customer…" value={q} onChange={(e) => setQ(e.target.value)} />
+              <Input className="pl-8 h-9 w-full md:w-[260px] text-xs bg-white dark:bg-card border-stone-200 rounded-lg"
+                placeholder="Search case, order, customer, product…" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <Input type="date" className="h-8 w-[130px] text-xs" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
-            <Input type="date" className="h-8 w-[130px] text-xs" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
+            <Input type="date" className="h-9 w-[140px] text-xs rounded-lg" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
+            <Input type="date" className="h-9 w-[140px] text-xs rounded-lg" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
           </div>
         </div>
 
         {/* Split: list + preview */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className={cn(
-            "rounded-2xl border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden shadow-[0_1px_2px_rgba(13,79,76,0.04),0_8px_24px_-12px_rgba(13,79,76,0.08)]",
-            selectedId ? "lg:col-span-3" : "lg:col-span-5",
-          )}>
-            <div className="px-5 py-2.5 border-b border-stone-100 dark:border-border bg-[#FBF8F3]/50 dark:bg-transparent flex items-center justify-between">
+          <div className={cn("space-y-2", selectedId ? "lg:col-span-3" : "lg:col-span-5")}>
+            <div className="flex items-center justify-between px-1">
               <span className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
                 {rows.length} {rows.length === 1 ? "case" : "cases"}
               </span>
-              <span className="text-[10px] text-stone-400 hidden md:block">Click a row to preview</span>
+              <span className="text-[10px] text-stone-400 hidden md:flex items-center gap-1">
+                <SlidersHorizontal className="h-3 w-3" /> Sorted newest first
+              </span>
             </div>
             {(retQ.isLoading || excQ.isLoading) ? (
-              <div className="py-16 text-center text-sm text-stone-500">Loading…</div>
+              <div className="py-20 text-center text-sm text-stone-500 bg-white rounded-2xl border border-stone-200">Loading…</div>
             ) : rows.length === 0 ? (
-              <EmptyState onNew={() => setNewReturnOpen(true)} />
+              <div className="bg-white rounded-2xl border border-stone-200">
+                <EmptyState onNew={() => setNewReturnOpen(true)} />
+              </div>
             ) : (
-              <ul className="divide-y divide-stone-100 dark:divide-border max-h-[calc(100vh-380px)] overflow-y-auto">
+              <ul className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1 -mr-1">
                 {rows.map((r, i) => (
                   <CaseRow key={r.id} r={r} index={i} selected={selectedId === r.id}
                     onOpen={() => setSelectedId(r.id)} />
