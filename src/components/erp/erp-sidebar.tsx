@@ -25,6 +25,7 @@ const groups: NavGroup[] = [
     label: "Sales",
     items: [
       { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
+      { to: "/erp/orders/list", label: "Order List", icon: ClipboardList },
       { to: "/erp/orders/new", label: "Create Order", icon: PlusCircle },
     ],
   },
