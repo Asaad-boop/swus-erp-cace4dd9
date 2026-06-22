@@ -285,7 +285,10 @@ function NewOrderPage() {
   const [advanceTxnId, setAdvanceTxnId] = useState("");
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.unit_price * i.quantity, 0), [items]);
-  const grandTotal = Math.max(0, subtotal + Number(shippingFee || 0) - Number(discount || 0) - Number(advance || 0));
+  // Grand total = items + shipping − discount (advance is NOT subtracted; DB trigger enforces this)
+  const grandTotal = Math.max(0, subtotal + Number(shippingFee || 0) - Number(discount || 0));
+  // Payable = what customer still owes (e.g. via COD) after advance
+  const payable = Math.max(0, grandTotal - Number(advance || 0));
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
 
   // ── submit ────────────────────────────────────────────────────────────
