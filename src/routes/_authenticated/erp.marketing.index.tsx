@@ -529,17 +529,28 @@ function KpiCard({
   label,
   value,
   sub,
+  tone = "indigo",
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   sub?: string;
+  tone?: "indigo" | "sky" | "violet" | "amber" | "emerald";
 }) {
+  const toneCls: Record<string, string> = {
+    indigo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
+    sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
+    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+  };
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{label}</span>
+    <Card className="p-4 transition-shadow hover:shadow-md">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={cn("grid h-7 w-7 place-items-center rounded-lg ring-1", toneCls[tone])}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
       <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
