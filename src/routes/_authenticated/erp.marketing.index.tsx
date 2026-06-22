@@ -72,6 +72,8 @@ import {
   ExternalLink,
   RotateCcw,
   BarChart3,
+  Receipt,
+  Target,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
