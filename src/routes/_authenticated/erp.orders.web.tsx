@@ -1267,11 +1267,36 @@ function _WebOrdersPageBody() {
         </Table>
         {activeTab !== "incomplete" && totalRows > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-            <div className="text-xs text-muted-foreground">
-              Showing <span className="font-medium text-foreground">{(page - 1) * PAGE_SIZE + 1}</span>
-              –<span className="font-medium text-foreground">{Math.min(page * PAGE_SIZE, totalRows)}</span>
-              {" of "}<span className="font-medium text-foreground">{totalRows}</span>
-              {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-muted-foreground">
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {pageSize > 0 ? (page - 1) * pageSize + 1 : 1}
+                </span>
+                –
+                <span className="font-medium text-foreground">
+                  {pageSize > 0 ? Math.min(page * pageSize, totalRows) : rows.length}
+                </span>
+                {" of "}<span className="font-medium text-foreground">{totalRows}</span>
+                {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Rows</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => navigate({
+                    search: (prev: WebOrdersSearch) => ({ ...prev, pageSize: Number(v), page: 1 }),
+                    replace: true,
+                  })}
+                >
+                  <SelectTrigger className="h-8 w-[84px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n === 0 ? "All" : n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(1)}>First</Button>
