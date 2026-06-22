@@ -294,46 +294,11 @@ function ProductProfitabilityPage() {
               <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
                 <CalendarIcon className="h-3 w-3" /> DATE RANGE
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal h-10">
-                    <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="truncate">
-                      {format(isoToDate(dateFrom), "dd MMM yyyy")} — {format(isoToDate(dateTo), "dd MMM yyyy")}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="flex">
-                    <div className="border-r p-2 w-[160px] flex flex-col gap-0.5 bg-muted/20">
-                      {DATE_PRESETS.map((p) => (
-                        <Button
-                          key={p.key}
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start h-8 text-xs font-normal"
-                          onClick={() => { const [a,b] = p.range(); setDateFrom(a); setDateTo(b); }}
-                        >
-                          {p.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="p-2">
-                      <Calendar
-                        mode="range"
-                        numberOfMonths={2}
-                        defaultMonth={isoToDate(dateFrom)}
-                        selected={{ from: isoToDate(dateFrom), to: isoToDate(dateTo) }}
-                        onSelect={(range) => {
-                          if (range?.from) setDateFrom(dateToIso(range.from));
-                          if (range?.to) setDateTo(dateToIso(range.to));
-                        }}
-                        className={cn("p-0 pointer-events-auto")}
-                      />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <DateRangePicker
+                className="w-full h-10 justify-start"
+                value={{ presetKey: "custom", label: "Custom", from: dateFrom, to: dateTo } as MktRangeValue}
+                onChange={(v) => { setDateFrom(v.from); setDateTo(v.to); }}
+              />
             </div>
             <div className="md:col-span-3">
               <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
