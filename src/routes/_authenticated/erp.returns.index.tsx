@@ -254,44 +254,59 @@ function ReturnsListPage() {
 
 /* ---------- Sub-components ---------- */
 
-const ACCENTS = {
-  teal: "border-l-[#0D4F4C] bg-[#0D4F4C]/5 text-[#0D4F4C]",
-  sand: "border-l-[#D4A574] bg-[#D4A574]/10 text-[#8B6F3D]",
-  rose: "border-l-[#E11D48] bg-[#E11D48]/5 text-[#E11D48]",
-  ink: "border-l-[#1C1917] bg-[#1C1917]/5 text-[#1C1917]",
-} as const;
-
-function KpiCard({ icon, label, value, accent, pulse }: {
-  icon: React.ReactNode; label: string; value: React.ReactNode; accent: keyof typeof ACCENTS; pulse?: boolean;
+function HeroStat({ label, value, pulse, accent }: {
+  label: string; value: React.ReactNode; pulse?: boolean; accent?: boolean;
 }) {
   return (
-    <div className={cn(
-      "relative rounded-xl border border-stone-200 dark:border-border border-l-[3px] bg-white dark:bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
-      ACCENTS[accent].split(" ")[0],
-    )}>
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.08em] text-stone-500 dark:text-muted-foreground font-medium">
-        <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-md", ACCENTS[accent])}>{icon}</span>
+    <div className="px-0 md:px-6 first:pl-0">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-[#FBF8F3]/55 flex items-center gap-1.5">
         {label}
-        {pulse && Number(value) > 0 && <span className="ml-auto h-2 w-2 rounded-full bg-[#E11D48] animate-pulse" />}
+        {pulse && Number(value) > 0 && (
+          <span className="h-1.5 w-1.5 rounded-full bg-[#D4A574] animate-pulse" />
+        )}
       </div>
-      <div className="mt-2 text-[26px] font-bold tabular-nums tracking-tight text-[#1C1917] dark:text-foreground">{value}</div>
+      <div
+        className={cn(
+          "mt-1.5 text-[34px] leading-none tracking-tight tabular-nums",
+          accent ? "text-[#D4A574]" : "text-[#FBF8F3]",
+        )}
+        style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
 
-function PillTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function UnderlineTab({ active, onClick, label, count, icon, alert }: {
+  active: boolean; onClick: () => void; label: string; count: number;
+  icon?: React.ReactNode; alert?: boolean;
+}) {
   return (
-    <button onClick={onClick} className={cn(
-      "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
-      active
-        ? "bg-[#0D4F4C] text-white shadow-sm"
-        : "bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-muted dark:text-foreground",
-    )}>{children}</button>
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative inline-flex items-center gap-1.5 px-3 pt-2.5 pb-3 text-[12px] font-medium transition-colors border-b-2 whitespace-nowrap",
+        active
+          ? "text-[#0D4F4C] border-[#0D4F4C]"
+          : "text-stone-500 border-transparent hover:text-[#1C1917]",
+      )}
+    >
+      {icon}
+      {label}
+      <span className={cn(
+        "tabular-nums text-[10px] px-1.5 py-0.5 rounded-full",
+        active ? "bg-[#0D4F4C]/10 text-[#0D4F4C]" : "bg-stone-100 text-stone-600",
+      )}>{count}</span>
+      {alert && <span className="h-1.5 w-1.5 rounded-full bg-[#E11D48] animate-pulse" />}
+    </button>
   );
 }
 
-function Count({ children }: { children: React.ReactNode }) {
-  return <span className="ml-1.5 opacity-60 tabular-nums">{children}</span>;
+function initials(name: string) {
+  return (name || "—")
+    .split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "").join("") || "—";
 }
 
 function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen: () => void; selected?: boolean }) {
@@ -301,43 +316,69 @@ function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen
       onClick={onOpen}
       style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}
       className={cn(
-        "group relative flex items-center gap-4 pl-4 pr-3 py-3 cursor-pointer animate-fade-in",
-        "border-l-[3px] hover:bg-[#FBF8F3] dark:hover:bg-muted/40 transition-colors",
-        isReturn ? "border-l-[#0D4F4C]" : "border-l-[#D4A574]",
-        selected && "bg-[#0D4F4C]/5 dark:bg-muted/60",
+        "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 pl-5 pr-3 py-4 cursor-pointer animate-fade-in",
+        "hover:bg-[#FBF8F3] dark:hover:bg-muted/40 transition-colors",
+        selected && "bg-[#FBF8F3] dark:bg-muted/60",
       )}
     >
-      <span className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
-        isReturn ? "bg-[#0D4F4C]/10 text-[#0D4F4C]" : "bg-[#D4A574]/20 text-[#8B6F3D]",
-      )}>
-        {isReturn ? <RotateCcw className="h-4 w-4" /> : <Repeat className="h-4 w-4" />}
-      </span>
+      {selected && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#0D4F4C]" />}
 
-      <div className="min-w-0 flex-1 grid grid-cols-12 items-center gap-3">
-        <div className="col-span-12 md:col-span-3 min-w-0">
-          <div className="font-mono text-[11px] font-semibold truncate">{r.caseNumber}</div>
-          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate">
-            {r.orderNumber ? <>#{r.orderNumber}</> : "—"} · {r.customer}
+      {/* Avatar + type indicator */}
+      <div className="relative shrink-0">
+        <div className={cn(
+          "h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-semibold tracking-wide",
+          "bg-[#FBF8F3] text-[#0D4F4C] ring-1 ring-stone-200",
+        )}>
+          {initials(r.customer)}
+        </div>
+        <span className={cn(
+          "absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white dark:ring-card flex items-center justify-center",
+          isReturn ? "bg-[#0D4F4C] text-white" : "bg-[#D4A574] text-[#1C1917]",
+        )}>
+          {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
+        </span>
+      </div>
+
+      {/* Main content */}
+      <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-3 md:gap-5">
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold truncate text-[#1C1917] dark:text-foreground leading-tight">
+            {r.productTitle}
+          </div>
+          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate mt-0.5 flex items-center gap-1.5">
+            <span className="font-mono">{r.caseNumber}</span>
+            <span className="text-stone-300">·</span>
+            <span>{r.customer}</span>
+            {r.orderNumber && <><span className="text-stone-300">·</span><span className="font-mono">#{r.orderNumber}</span></>}
           </div>
         </div>
-        <div className="col-span-7 md:col-span-4 min-w-0">
-          <div className="text-xs font-medium truncate">{r.productTitle}</div>
-          {r.productSku && <div className="text-[10px] font-mono text-stone-500 dark:text-muted-foreground truncate">{r.productSku}</div>}
+
+        <div className="flex items-center gap-2 min-w-0">
+          <ReturnStatusBadge status={r.status} />
+          <span className="text-[11px] text-stone-400 hidden lg:inline truncate">
+            {format(new Date(r.createdAt), "dd MMM")}
+          </span>
         </div>
-        <div className="col-span-5 md:col-span-2"><ReturnStatusBadge status={r.status} /></div>
-        <div className="hidden md:block md:col-span-1 text-right tabular-nums text-xs font-semibold">
-          {r.amount > 0 ? `৳${r.amount.toLocaleString("en-IN")}` : <span className="text-stone-400 font-normal">—</span>}
-        </div>
-        <div className="hidden md:block md:col-span-2 text-[11px] text-stone-500 dark:text-muted-foreground text-right">
-          {format(new Date(r.createdAt), "dd MMM, hh:mm a")}
+
+        <div className="text-right tabular-nums">
+          {r.amount > 0 ? (
+            <div
+              className="text-[18px] leading-none text-[#0D4F4C] dark:text-foreground"
+              style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
+            >
+              ৳{r.amount.toLocaleString("en-IN")}
+            </div>
+          ) : (
+            <span className="text-stone-300 text-sm">—</span>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
         <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
         <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
-          className="text-stone-400 hover:text-[#0D4F4C] p-1">
+          className="text-stone-300 hover:text-[#0D4F4C] p-1.5 rounded-md hover:bg-stone-100 transition-colors">
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
