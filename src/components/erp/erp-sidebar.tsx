@@ -6,10 +6,11 @@ import {
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2,
+  FileBarChart, Target, Banknote, Building2, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useErpQuickActions } from "@/contexts/erp-quick-actions";
+import { useGlobalSearch } from "@/components/erp/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
@@ -130,6 +131,7 @@ const ACTIVE_GROUP_KEY = "sidebar_active_group";
 export function ErpSidebar() {
   const location = useLocation();
   const { openTxn } = useErpQuickActions();
+  const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
