@@ -60,6 +60,7 @@ function ErpLayout() {
         </div>
         <Toaster richColors position="top-right" />
       </div>
+      </GlobalSearchProvider>
       </ErpQuickActionsProvider>
     </BrandProvider>
   );
