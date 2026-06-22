@@ -903,7 +903,7 @@ function NewOrderPage() {
           <div className="ml-auto flex items-center gap-4">
             <div className="hidden text-right md:block">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payable</div>
-              <div className="text-lg font-black tabular-nums text-indigo-600">৳ {grandTotal.toLocaleString()}</div>
+              <div className="text-lg font-black tabular-nums text-indigo-600">৳ {payable.toLocaleString()}</div>
             </div>
             <Button
               size="lg"
