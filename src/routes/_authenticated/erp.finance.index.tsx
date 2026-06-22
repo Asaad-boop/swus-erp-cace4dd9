@@ -8,12 +8,11 @@ import {
   PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Sparkles, Landmark,
 } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  AreaChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, PieChart, Pie, Cell, Legend, Line, ComposedChart,
 } from "recharts";
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
