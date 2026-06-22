@@ -142,7 +142,7 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="px-4 md:px-6 py-6 max-w-[1600px] mx-auto space-y-6">
+      <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
         {isAllBrands && brands.length > 1 && (
@@ -269,10 +269,10 @@ function KpiStrip({
   });
 
   const cards = [
-    { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, sub: trendSub(data?.ordersTrend), tone: "indigo", to: "/erp/orders/web" },
+    { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, trend: data?.ordersTrend, sub: "vs previous", tone: "indigo", to: "/erp/orders/web" },
     { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
     { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
-    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), sub: trendSub(data?.revTrend), tone: "emerald", to: "/erp/finance" },
+    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
     { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
     { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
     { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
@@ -282,29 +282,48 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {cards.map((c, i) => (
         <button
           key={i}
           onClick={() => c.to && onNav(c.to)}
           className={cn(
-            "group text-left bg-card rounded-xl border p-4 hover:shadow-md transition-all",
-            c.to && "cursor-pointer hover:-translate-y-0.5"
+            "group text-left bg-card rounded-xl border p-5 hover:shadow-lg transition-all duration-200",
+            c.to && "cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20"
           )}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
-            <span className={cn("rounded-md p-1.5", toneBg(c.tone))}>
-              <c.icon className={cn("size-3.5", toneFg(c.tone))} />
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
+            <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
+              <c.icon className={cn("size-4", toneFg(c.tone))} />
             </span>
           </div>
-          {isLoading ? <Skeleton className="h-7 w-24" /> : (
-            <div className="text-xl md:text-2xl font-bold tracking-tight">{c.value}</div>
+          {isLoading ? <Skeleton className="h-9 w-28" /> : (
+            <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
           )}
-          <div className="text-xs text-muted-foreground mt-1 truncate">{c.sub}</div>
+          <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
+            {typeof (c as any).trend === "number" ? (
+              <TrendChip trend={(c as any).trend} />
+            ) : null}
+            <span className="text-xs text-muted-foreground truncate">{c.sub}</span>
+          </div>
         </button>
       ))}
     </div>
+  );
+}
+
+function TrendChip({ trend }: { trend: number }) {
+  const up = trend >= 0;
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+      up ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+         : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+    )}>
+      {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+      {Math.abs(trend).toFixed(1)}%
+    </span>
   );
 }
 
