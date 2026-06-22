@@ -23,26 +23,6 @@ export function CameraScanner({
     let cancelled = false;
     setError(null);
 
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        startLoop();
-      } catch (err) {
-        setError((err as Error).message || "Camera unavailable");
-      }
-    })();
-
     const startLoop = () => {
       const tick = () => {
         const video = videoRef.current;
@@ -77,6 +57,26 @@ export function CameraScanner({
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
+
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        startLoop();
+      } catch (err) {
+        setError((err as Error).message || "Camera unavailable");
+      }
+    })();
 
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
