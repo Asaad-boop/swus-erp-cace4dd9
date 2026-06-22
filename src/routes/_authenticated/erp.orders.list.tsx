@@ -32,7 +32,7 @@ function OrdersPage() {
   const qc = useQueryClient();
   const { activeBrand, brandIds, isAllBrands } = useBrand();
   const [filter, setFilter] = useState<OrdersFilter>({
-    brandId: null, brandIds: [], search: "", statuses: [], source: null,
+    brandId: null, brandIds: [], search: "", statuses: ["confirmed"], source: null,
     dateFrom: null, dateTo: null, courier: null, page: 0, pageSize: 50,
   });
   const [view, setView] = useState<"orders" | "incomplete">("orders");
