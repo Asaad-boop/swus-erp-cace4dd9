@@ -70,7 +70,6 @@ import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedErpMarketingSyncRouteImport } from './routes/_authenticated/erp.marketing.sync'
 import { Route as AuthenticatedErpMarketingSkuPnlRouteImport } from './routes/_authenticated/erp.marketing.sku-pnl'
 import { Route as AuthenticatedErpMarketingRollupRouteImport } from './routes/_authenticated/erp.marketing.rollup'
-import { Route as AuthenticatedErpMarketingPerformanceRouteImport } from './routes/_authenticated/erp.marketing.performance'
 import { Route as AuthenticatedErpMarketingExpensesRouteImport } from './routes/_authenticated/erp.marketing.expenses'
 import { Route as AuthenticatedErpMarketingAttributionRouteImport } from './routes/_authenticated/erp.marketing.attribution'
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
@@ -467,12 +466,6 @@ const AuthenticatedErpMarketingRollupRoute =
     path: '/rollup',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
-const AuthenticatedErpMarketingPerformanceRoute =
-  AuthenticatedErpMarketingPerformanceRouteImport.update({
-    id: '/performance',
-    path: '/performance',
-    getParentRoute: () => AuthenticatedErpMarketingRoute,
-  } as any)
 const AuthenticatedErpMarketingExpensesRoute =
   AuthenticatedErpMarketingExpensesRouteImport.update({
     id: '/expenses',
@@ -842,7 +835,6 @@ export interface FileRoutesByFullPath {
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
-  '/erp/marketing/performance': typeof AuthenticatedErpMarketingPerformanceRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
   '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
@@ -943,7 +935,6 @@ export interface FileRoutesByTo {
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
-  '/erp/marketing/performance': typeof AuthenticatedErpMarketingPerformanceRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
   '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
@@ -1059,7 +1050,6 @@ export interface FileRoutesById {
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
   '/_authenticated/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/_authenticated/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
-  '/_authenticated/erp/marketing/performance': typeof AuthenticatedErpMarketingPerformanceRoute
   '/_authenticated/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
   '/_authenticated/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/_authenticated/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
@@ -1175,7 +1165,6 @@ export interface FileRouteTypes {
     | '/erp/marketing/accounts'
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
-    | '/erp/marketing/performance'
     | '/erp/marketing/rollup'
     | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
@@ -1276,7 +1265,6 @@ export interface FileRouteTypes {
     | '/erp/marketing/accounts'
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
-    | '/erp/marketing/performance'
     | '/erp/marketing/rollup'
     | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
@@ -1391,7 +1379,6 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/marketing/accounts'
     | '/_authenticated/erp/marketing/attribution'
     | '/_authenticated/erp/marketing/expenses'
-    | '/_authenticated/erp/marketing/performance'
     | '/_authenticated/erp/marketing/rollup'
     | '/_authenticated/erp/marketing/sku-pnl'
     | '/_authenticated/erp/marketing/sync'
@@ -1881,13 +1868,6 @@ declare module '@tanstack/react-router' {
       path: '/rollup'
       fullPath: '/erp/marketing/rollup'
       preLoaderRoute: typeof AuthenticatedErpMarketingRollupRouteImport
-      parentRoute: typeof AuthenticatedErpMarketingRoute
-    }
-    '/_authenticated/erp/marketing/performance': {
-      id: '/_authenticated/erp/marketing/performance'
-      path: '/performance'
-      fullPath: '/erp/marketing/performance'
-      preLoaderRoute: typeof AuthenticatedErpMarketingPerformanceRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
     '/_authenticated/erp/marketing/expenses': {
@@ -2454,7 +2434,6 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAccountsRoute: typeof AuthenticatedErpMarketingAccountsRoute
   AuthenticatedErpMarketingAttributionRoute: typeof AuthenticatedErpMarketingAttributionRoute
   AuthenticatedErpMarketingExpensesRoute: typeof AuthenticatedErpMarketingExpensesRoute
-  AuthenticatedErpMarketingPerformanceRoute: typeof AuthenticatedErpMarketingPerformanceRoute
   AuthenticatedErpMarketingRollupRoute: typeof AuthenticatedErpMarketingRollupRoute
   AuthenticatedErpMarketingSkuPnlRoute: typeof AuthenticatedErpMarketingSkuPnlRoute
   AuthenticatedErpMarketingSyncRoute: typeof AuthenticatedErpMarketingSyncRoute
@@ -2471,8 +2450,6 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
       AuthenticatedErpMarketingAttributionRoute,
     AuthenticatedErpMarketingExpensesRoute:
       AuthenticatedErpMarketingExpensesRoute,
-    AuthenticatedErpMarketingPerformanceRoute:
-      AuthenticatedErpMarketingPerformanceRoute,
     AuthenticatedErpMarketingRollupRoute: AuthenticatedErpMarketingRollupRoute,
     AuthenticatedErpMarketingSkuPnlRoute: AuthenticatedErpMarketingSkuPnlRoute,
     AuthenticatedErpMarketingSyncRoute: AuthenticatedErpMarketingSyncRoute,
@@ -2665,13 +2642,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
