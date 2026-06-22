@@ -6,7 +6,7 @@ import {
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2, Search, PackageCheck,
+  FileBarChart, Target, Banknote, Building2, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useErpQuickActions } from "@/contexts/erp-quick-actions";
@@ -42,7 +42,6 @@ const groups: Group[] = [
       { to: "/erp/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
       { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
       { to: "/erp/courier", label: "Courier", icon: Truck },
-      { to: "/erp/dispatch", label: "Dispatch", icon: PackageCheck },
       { to: "/erp/returns", label: "Returns & Exchanges", icon: RotateCcw },
       { to: "/erp/reconciliation", label: "COD Reconciliation", icon: FileSpreadsheet },
       { to: "/erp/suppliers", label: "Suppliers", icon: Users },
