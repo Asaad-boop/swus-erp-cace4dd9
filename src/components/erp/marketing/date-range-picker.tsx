@@ -1,9 +1,11 @@
 import * as React from "react";
-import { format } from "date-fns";
+import { format, isValid, parse } from "date-fns";
 import { CalendarIcon, Check } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +59,34 @@ export function buildPreset(key: string): MktRangeValue {
       const e = endOfMonth(s);
       return { presetKey: key, label: "Last month", from: ymd(s), to: ymd(e) };
     }
+    case "this_week": {
+      const dow = today.getDay(); // 0=Sun
+      const start = addDays(today, -dow);
+      return { presetKey: key, label: "This week", from: ymd(start), to: ymd(today) };
+    }
+    case "last_week": {
+      const dow = today.getDay();
+      const end = addDays(today, -dow - 1);
+      const start = addDays(end, -6);
+      return { presetKey: key, label: "Last week", from: ymd(start), to: ymd(end) };
+    }
+    case "qtd": {
+      const q = Math.floor(today.getMonth() / 3);
+      const start = new Date(today.getFullYear(), q * 3, 1);
+      return { presetKey: key, label: "Quarter to date", from: ymd(start), to: ymd(today) };
+    }
+    case "ytd": {
+      const start = new Date(today.getFullYear(), 0, 1);
+      return { presetKey: key, label: "Year to date", from: ymd(start), to: ymd(today) };
+    }
+    case "last_6m": {
+      const start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+      return { presetKey: key, label: "Last 6 months", from: ymd(start), to: ymd(today) };
+    }
+    case "last_12m": {
+      const start = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+      return { presetKey: key, label: "Last 12 months", from: ymd(start), to: ymd(today) };
+    }
     case "lifetime":
       return { presetKey: key, label: "Lifetime", from: "2020-01-01", to: ymd(today) };
     default:
@@ -67,12 +97,18 @@ export function buildPreset(key: string): MktRangeValue {
 const PRESETS: { key: string; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
+  { key: "this_week", label: "This week" },
+  { key: "last_week", label: "Last week" },
   { key: "7d", label: "Last 7 days" },
   { key: "14d", label: "Last 14 days" },
   { key: "30d", label: "Last 30 days" },
+  { key: "90d", label: "Last 90 days" },
   { key: "this_month", label: "This month" },
   { key: "last_month", label: "Last month" },
-  { key: "90d", label: "Last 90 days" },
+  { key: "qtd", label: "Quarter to date" },
+  { key: "ytd", label: "Year to date" },
+  { key: "last_6m", label: "Last 6 months" },
+  { key: "last_12m", label: "Last 12 months" },
   { key: "lifetime", label: "Lifetime" },
 ];
 
@@ -105,10 +141,48 @@ export function DateRangePicker({
     from: parseYmd(value.from),
     to: parseYmd(value.to),
   });
+  const [fromText, setFromText] = React.useState(value.from);
+  const [toText, setToText] = React.useState(value.to);
+  const [lastNDays, setLastNDays] = React.useState<string>("");
 
   React.useEffect(() => {
     setDraft({ from: parseYmd(value.from), to: parseYmd(value.to) });
+    setFromText(value.from);
+    setToText(value.to);
   }, [value.from, value.to]);
+
+  React.useEffect(() => {
+    if (draft?.from) setFromText(ymd(draft.from));
+    if (draft?.to) setToText(ymd(draft.to));
+  }, [draft?.from, draft?.to]);
+
+  function commitTextInput(which: "from" | "to", raw: string) {
+    // Accept YYYY-MM-DD or MM/DD/YYYY or DD-MM-YYYY
+    const candidates = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy", "dd-MM-yyyy", "dd/MM/yyyy"];
+    let parsed: Date | null = null;
+    for (const fmt of candidates) {
+      const p = parse(raw, fmt, new Date());
+      if (isValid(p)) { parsed = p; break; }
+    }
+    if (!parsed) return;
+    setDraft((prev) => ({
+      from: which === "from" ? parsed! : prev?.from,
+      to: which === "to" ? parsed! : prev?.to,
+    }));
+  }
+
+  function applyLastN() {
+    const n = parseInt(lastNDays, 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    onChange({
+      presetKey: "custom",
+      label: `Last ${n} days`,
+      from: ymd(addDays(today, -(n - 1))),
+      to: ymd(today),
+    });
+    setOpen(false);
+  }
 
   const sub =
     value.presetKey === "custom" || value.presetKey === "lifetime"
@@ -136,7 +210,7 @@ export function DateRangePicker({
       >
         <div className="flex flex-col sm:flex-row">
           {/* Presets */}
-          <div className="flex sm:flex-col gap-1 p-2 sm:border-r border-b sm:border-b-0 bg-muted/30 sm:w-44 overflow-x-auto">
+          <div className="flex sm:flex-col gap-1 p-2 sm:border-r border-b sm:border-b-0 bg-muted/30 sm:w-48 sm:max-h-[26rem] overflow-auto">
             {PRESETS.map((p) => {
               const active = value.presetKey === p.key;
               return (
@@ -160,13 +234,59 @@ export function DateRangePicker({
                 </button>
               );
             })}
+            <div className="mt-1 pt-2 border-t">
+              <Label className="px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                Custom last N days
+              </Label>
+              <div className="mt-1 flex gap-1">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 45"
+                  value={lastNDays}
+                  onChange={(e) => setLastNDays(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyLastN(); }}
+                  className="h-8 text-xs"
+                />
+                <Button size="sm" variant="secondary" className="h-8" onClick={applyLastN}>
+                  Go
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Calendar */}
           <div className="p-2">
+            <div className="grid grid-cols-2 gap-2 px-1 pb-2">
+              <div>
+                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">From</Label>
+                <Input
+                  value={fromText}
+                  placeholder="YYYY-MM-DD"
+                  onChange={(e) => setFromText(e.target.value)}
+                  onBlur={(e) => commitTextInput("from", e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") commitTextInput("from", (e.target as HTMLInputElement).value); }}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">To</Label>
+                <Input
+                  value={toText}
+                  placeholder="YYYY-MM-DD"
+                  onChange={(e) => setToText(e.target.value)}
+                  onBlur={(e) => commitTextInput("to", e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") commitTextInput("to", (e.target as HTMLInputElement).value); }}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
             <Calendar
               mode="range"
               numberOfMonths={2}
+              captionLayout="dropdown"
+              startMonth={new Date(2020, 0, 1)}
+              endMonth={new Date(new Date().getFullYear() + 1, 11, 31)}
               selected={draft}
               onSelect={(r) => setDraft(r)}
               defaultMonth={draft?.from ?? new Date()}
@@ -176,7 +296,9 @@ export function DateRangePicker({
               <div className="text-xs text-muted-foreground">
                 {draft?.from
                   ? draft?.to
-                    ? `${format(draft.from, "MMM d, yyyy")} – ${format(draft.to, "MMM d, yyyy")}`
+                    ? `${format(draft.from, "MMM d, yyyy")} – ${format(draft.to, "MMM d, yyyy")} · ${
+                        Math.round((draft.to.getTime() - draft.from.getTime()) / 86400000) + 1
+                      } days`
                     : `${format(draft.from, "MMM d, yyyy")} – …`
                   : "Select a start date"}
               </div>
