@@ -1,118 +1,57 @@
-## Staff Self-Service Portal (My Workspace)
+## Finance Module Restructure: 19 → 10 tabs
 
-Staff der jonno alada ekta portal — login korar por nijer attendance, performance, payslip, leave shob ekta jaygai. Mobile-first design (boro touch targets, bottom nav), but desktop eo polished.
+Goal: nav declutter, related jinish ekshathe, kintu **zero functionality loss**. Sob existing page survive korbe — kichu top-nav theke sore tab/section hishebe alada page er moddhe dhukbe. Old URLs **redirect** kore dibo, jate kothao link bhange na.
 
-### Route: `/me` (Staff Portal)
+### Final top nav (10 tabs)
 
-Bortoman ERP `/erp/*` admin/manager der jonno. Staff der jonno alada layout `/me/*` — same auth, but stripped-down mobile-first shell.
-
-```text
-src/routes/_authenticated/me.tsx              ← shell (bottom nav mobile, sidebar desktop)
-src/routes/_authenticated/me.index.tsx        ← Dashboard (today card, KPIs, quick punch)
-src/routes/_authenticated/me.attendance.tsx   ← Monthly calendar + log
-src/routes/_authenticated/me.leave.tsx        ← Balance, apply leave, history
-src/routes/_authenticated/me.payslips.tsx     ← Salary, payslip history, YTD
-src/routes/_authenticated/me.performance.tsx  ← KPIs, attendance %, punctuality, OT trend
-src/routes/_authenticated/me.profile.tsx      ← Profile, bank, emergency contact (view-mostly)
+```
+Overview · Chart of Accounts · Wallets · Journal · AR/AP · 
+Budgets · Taxes · Profitability · Reports · Settings
 ```
 
-Sidebar `/erp` te ekta "My Workspace" link, ar login er por staff (non-admin) hole `/me` te redirect.
+### Merge map (kichu bad jachhe na — sob accessible thakbe)
 
-### Dashboard (`/me`) — Mobile-First Hero
+| New page | Tabs/sections inside | Source pages |
+|---|---|---|
+| **Wallets** | Wallets · Reconciliation | wallets + reconciliation |
+| **Journal** | Entries · Recurring · Quick Entry | journal + recurring + simple |
+| **AR/AP** | Receivables · Payables · COD Remit | receivables + payables + cod-remittance |
+| **Profitability** | Product · Brand | product-profitability + brand-profitability |
+| **Settings** | General · FX Rates · Audit Log | settings + fx + audit |
 
-Boro **Punch Card** uporei:
-- Live clock + greeting ("Shubho shokal, Rahim")
-- Status pill: **Not checked in / Working / On break / Checked out**
-- **One giant action button** that morphs by state:
-  - Not in → "Check In" (green, gradient)
-  - Working → "Start Break" (amber) + secondary "Check Out"
-  - On break → "End Break" (blue)
-  - Done → "✓ Done for today — 8h 12m"
-- Sub-line: shift name, scheduled time, late/early warning
-- Geo + selfie capture optional (uses existing `lat/lng/selfie_url` on punchIn)
+### Implementation steps
 
-Niche 4-up KPI grid:
-- This week hours / target
-- Late count this month
-- Leave balance (sum)
-- This month earnings (gross prorated)
+1. **Nav update** — `erp.finance.tsx` e NAV array 19 → 10 kori.
+2. **Tabbed wrappers** — proti merged page er existing component logic untouched rakhi, shudhu parent route file e shadcn `<Tabs>` diye wrap kori. Internal table/form/data hook kichui bodlabo na.
+3. **Redirect old URLs** — purano route file (e.g. `erp.finance.recurring.tsx`) ke redirect e convert kori (`beforeLoad: () => redirect({ to: "/erp/finance/journal", search: { tab: "recurring" } })`). Eta external bookmark/link bhangbe na.
+4. **Deep-link support** — tab state URL search param e (`?tab=recurring`) jate direct link share kora jay.
+5. **Overview "Quick Links"** — purano label gulai redirect URL e point korbe (auto-correct tab e land korbe).
 
-Aro niche:
-- "Recent activity" timeline (last 5 punches)
-- "Upcoming" — holidays, approved leaves, payday
+### Ki bad jabe NA (guaranteed)
 
-### Performance (`/me/performance`)
+- Kono data, form, hook, business logic touch korchhi na
+- Sob 18 page er content accessible thakbe
+- External bookmark/old link sob redirect e handle hobe
+- Profitability merge e "SKU" tab add korar option khola thakbe (jodi shukno marketing module er sku-pnl finance e dorkar lage)
 
-- Attendance % (last 30/90 days) — ring chart
-- Punctuality score — `(present - late) / present`
-- Total work hours trend — sparkline (last 8 weeks)
-- OT hours trend
-- Leave usage vs balance — stacked bar
-- Streak: "12 days on-time in a row"
+### Files affected
 
-Shob existing `hr_attendance` theke aggregate — notun table lagbe na.
+- **Edit**: `src/routes/_authenticated/erp.finance.tsx` (nav)
+- **Edit (wrap with tabs)**: wallets, journal, receivables, product-profitability, settings
+- **Convert to redirect** (1-liner files): reconciliation, recurring, simple, payables, cod-remittance, brand-profitability, fx, audit
+- **No change**: index, accounts, budgets, taxes, reports
 
-### Attendance (`/me/attendance`)
+### Technical notes
 
-- Month calendar grid — protita din color-coded (present/late/absent/leave/holiday)
-- Tap kore din-er details: in/out time, work hrs, late min, break
-- Export own CSV
+- Shadcn `<Tabs>` + `useSearch`/`useNavigate` diye `?tab=` sync.
+- Redirect pattern:
+  ```ts
+  export const Route = createFileRoute("/_authenticated/erp/finance/recurring")({
+    beforeLoad: () => { throw redirect({ to: "/erp/finance/journal", search: { tab: "recurring" } }); },
+  });
+  ```
+- Existing page component gulo `_authenticated/erp/finance/_tabs/` folder e move kore default export rakhle parent wrapper clean thake. (Optional — chaile in-place rakhao jay.)
 
-### Leave (`/me/leave`)
+---
 
-- Balance cards per leave type
-- "Apply Leave" sheet (existing `hr_leave_requests` use)
-- History list with status badges
-
-### Payslips (`/me/payslips`)
-
-- Current month salary breakdown (basic + allowances - deductions)
-- Past payslips list — tap to view full printable (reuse `payslip-print.tsx`)
-- YTD totals: earnings, deductions, net
-
-### Profile (`/me/profile`)
-
-Read-mostly. Photo, contact, bank, emergency. Edit request flow ekhon scope nai — admin via HR korbe.
-
-### Server functions (notun)
-
-`src/lib/erp/hr/me.functions.ts`:
-- `getMyEmployee()` → current user er `hr_employees` row (user_id match)
-- `getMyToday()` → today's attendance + active shift + status
-- `getMyDashboardStats()` → week hrs, month late, leave balance sum, month earnings estimate
-- `getMyAttendanceMonth({ ym })` → calendar data
-- `getMyPerformance({ days })` → metrics
-- `getMyPayslips()` / `getMyPayslip({ id })`
-- `getMyLeaveBalances()` / `getMyLeaveRequests()`
-
-Existing `punchIn/punchOut/punchBreak` reuse — but `assertAccess` (has_hr_access) e self-punch allow korar jonno ekta tweak: jodi `employee_id` er `user_id === context.userId` hoy, tahole access lagbe na. Eta migration noy, function patch.
-
-### Mobile UX detail
-
-- `me.tsx` shell e bottom tab bar (md:hidden) — Home/Attendance/Leave/Payslip/Profile (5 icons)
-- Desktop e left rail (hidden md:flex)
-- Sticky top: brand + bell + avatar
-- Safe-area padding (`pb-[env(safe-area-inset-bottom)]`)
-- Buttons min 48px tap, font ~16px (no zoom)
-- Pull-to-refresh feel via prominent refresh on dashboard
-
-### Auth/role
-
-- Existing `_authenticated` gate already protects — additional check: must have an `hr_employees` row linked to `user_id`. Na thakle "Contact HR to link your account" empty state.
-- Admin/manager o `/me` use korte parbe nijer data dekhar jonno.
-
-### Verification
-
-- DB query confirmed: `hr_employees.user_id` exists, `hr_attendance` e break_start/break_end ace, punch functions ready.
-- No new tables/migrations needed. Pure new routes + 1 server-function file + small punch.functions.ts patch.
-
-### What I'll build now
-
-1. `me.functions.ts` (all read fns)
-2. Patch `punch.functions.ts` self-access
-3. `me.tsx` shell with mobile bottom nav + desktop rail
-4. `me.index.tsx` dashboard with hero punch card
-5. `me.attendance.tsx`, `me.leave.tsx`, `me.payslips.tsx`, `me.performance.tsx`, `me.profile.tsx`
-6. Sidebar link in `/erp` → "My Workspace"
-
-Performance / leave / payslip page gula data thakle full render, na thakle clean empty state (per your rule).
+Confirm korle implement kori. Kono specific merge na pochhondo hole bolo (e.g. "Recurring alada thakuk"), shei tab nav e add kore debo.
