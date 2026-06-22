@@ -12,7 +12,36 @@ async function getSelfEmployee(supabase: any, userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  if (data) return data;
+  // Self-heal: if no row linked by user_id, try matching by the auth user's email
+  // (case-insensitive). When found, link it and return.
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = authUser?.user?.email?.toLowerCase();
+    if (!email) return null;
+    const { data: match } = await supabaseAdmin
+      .from("hr_employees")
+      .select(
+        "id, employee_code, full_name, display_name, email, phone, photo_url, status, employment_type, joining_date, department_id, designation_id, manager_id, work_location, gross_salary, currency, user_id",
+      )
+      .is("user_id", null)
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+    if (!match) return null;
+    const { data: linked } = await supabaseAdmin
+      .from("hr_employees")
+      .update({ user_id: userId })
+      .eq("id", match.id)
+      .select(
+        "id, employee_code, full_name, display_name, email, phone, photo_url, status, employment_type, joining_date, department_id, designation_id, manager_id, work_location, gross_salary, currency, user_id",
+      )
+      .single();
+    return linked ?? match;
+  } catch {
+    return null;
+  }
 }
 
 async function getActiveShift(supabase: any, employeeId: string, dateStr: string) {
@@ -82,12 +111,12 @@ export const getMyLanding = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [empRes, adminRes, opsRes] = await Promise.all([
-      supabase.from("hr_employees").select("id").eq("user_id", userId).maybeSingle(),
+    const [emp, adminRes, opsRes] = await Promise.all([
+      getSelfEmployee(supabase, userId),
       supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
       supabase.rpc("has_role", { _user_id: userId, _role: "operations" }),
     ]);
-    const isStaff = !!empRes.data && !adminRes.data && !opsRes.data;
+    const isStaff = !!emp && !adminRes.data && !opsRes.data;
     return { to: isStaff ? "/me" : "/erp" } as const;
   });
 

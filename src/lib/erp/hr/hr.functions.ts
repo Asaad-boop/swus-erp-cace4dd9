@@ -225,6 +225,17 @@ export const createEmployee = createServerFn({ method: "POST" })
     const payload: any = { ...data, employee_code: code, created_by: context.userId };
     if (payload.email === "") payload.email = null;
     delete payload.id;
+    // Auto-link to auth user by email if user_id not provided.
+    if (!payload.user_id && payload.email) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+        const match = list?.users?.find(
+          (u: any) => u.email?.toLowerCase() === String(payload.email).toLowerCase(),
+        );
+        if (match) payload.user_id = match.id;
+      } catch { /* ignore */ }
+    }
     const { data: row, error } = await context.supabase
       .from("hr_employees")
       .insert(payload)
