@@ -11,9 +11,24 @@ type Props = {
 };
 
 export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }: Props) {
+  // De-dupe auto tags by key and manual tags by lowercased value to avoid
+  // duplicate chips when the same tag arrives from multiple sources.
+  const seenAuto = new Set<string>();
+  const dedupAuto = autoTags.filter((t) => {
+    if (seenAuto.has(t.key)) return false;
+    seenAuto.add(t.key);
+    return true;
+  });
+  const seenManual = new Set<string>();
+  const dedupManual = (manualTags ?? []).filter((t) => {
+    const k = (t ?? "").trim().toLowerCase();
+    if (!k || seenManual.has(k)) return false;
+    seenManual.add(k);
+    return true;
+  });
   const all = [
-    ...autoTags.map((t) => ({ kind: "auto" as const, tag: t })),
-    ...((manualTags ?? []).map((t) => ({ kind: "manual" as const, tag: t }))),
+    ...dedupAuto.map((t) => ({ kind: "auto" as const, tag: t })),
+    ...dedupManual.map((t) => ({ kind: "manual" as const, tag: t })),
   ];
   if (all.length === 0) {
     return <span className="text-xs text-muted-foreground/60">—</span>;
@@ -23,7 +38,7 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex flex-wrap gap-1">
+      <div className={cn("flex flex-wrap", compact ? "gap-0.5" : "gap-1")}>
         {visible.map((entry, idx) => {
           if (entry.kind === "auto") {
             const t = entry.tag;
@@ -32,11 +47,14 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
                 <TooltipTrigger asChild>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ring-1 ring-inset cursor-help leading-none",
+                      "inline-flex items-center rounded-md ring-1 ring-inset cursor-help leading-none font-bold",
+                      compact
+                        ? "h-5 w-5 justify-center p-0 text-[11px]"
+                        : "gap-1 text-[10px] px-1.5 py-0.5",
                       t.chip,
                     )}
                   >
-                    <span className="text-[11px] leading-none">{t.icon}</span>
+                    <span className="leading-none">{t.icon}</span>
                     {!compact && <span>{t.label}</span>}
                   </span>
                 </TooltipTrigger>
@@ -48,19 +66,45 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
             );
           }
           return (
-            <span
-              key={`m-${entry.tag}-${idx}`}
-              className={cn(
-                "inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md ring-1 ring-inset leading-none",
-                manualTagColor(entry.tag),
-              )}
-            >
-              #{entry.tag}
-            </span>
+            <Tooltip key={`m-${entry.tag}-${idx}`}>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-md ring-1 ring-inset leading-none font-medium cursor-help",
+                    compact
+                      ? "h-5 px-1 text-[10px] uppercase max-w-[60px] truncate"
+                      : "text-[10px] px-1.5 py-0.5",
+                    manualTagColor(entry.tag),
+                  )}
+                >
+                  {compact ? entry.tag.slice(0, 3) : `#${entry.tag}`}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                #{entry.tag}
+              </TooltipContent>
+            </Tooltip>
           );
         })}
         {extra > 0 && (
-          <span className="text-[10px] text-muted-foreground self-center font-medium">+{extra}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[10px] text-muted-foreground self-center font-medium cursor-help px-0.5">
+                +{extra}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-[220px]">
+              <div className="flex flex-col gap-0.5">
+                {all.slice(max).map((e, i) =>
+                  e.kind === "auto" ? (
+                    <div key={`o-a-${i}`}>{e.tag.icon} {e.tag.label}</div>
+                  ) : (
+                    <div key={`o-m-${i}`}>#{e.tag}</div>
+                  ),
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </TooltipProvider>
