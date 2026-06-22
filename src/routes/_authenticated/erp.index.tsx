@@ -21,6 +21,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
+import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
@@ -275,11 +276,11 @@ function KpiStrip({
     { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, trend: data?.ordersTrend, sub: "vs previous", tone: "indigo", to: "/erp/orders/web" },
     { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
     { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
-    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
-    { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
+    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), amount: data?.revenue ?? 0, trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
+    { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), amount: data?.codAmount ?? 0, sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
     { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
     { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
-    { icon: TrendingUp, label: "AOV", value: BDT(data?.aov ?? 0), sub: "avg order value", tone: "slate" },
+    { icon: TrendingUp, label: "AOV", value: BDT(data?.aov ?? 0), amount: data?.aov ?? 0, sub: "avg order value", tone: "slate" },
     { icon: UserPlus, label: "New Customers", value: data?.newCust ?? 0, sub: "first orders", tone: "violet" },
     { icon: Repeat, label: "Returning", value: data?.retCust ?? 0, sub: "repeat customers", tone: "violet" },
   ];
@@ -302,7 +303,10 @@ function KpiStrip({
             </span>
           </div>
           {isLoading ? <Skeleton className="h-9 w-28" /> : (
-            <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
+            <div className={cn(
+              "text-3xl font-bold tracking-tight tabular-nums leading-none",
+              typeof (c as any).amount === "number" && moneyTier((c as any).amount),
+            )}>{c.value}</div>
           )}
           <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
             {typeof (c as any).trend === "number" ? (
@@ -622,7 +626,7 @@ function CodOutstandingCard({ brandIds, enabled, range }: { brandIds: string[]; 
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
-            <div className="text-3xl font-bold tabular-nums">{BDT(data?.amount ?? 0)}</div>
+            <div className={cn("text-3xl font-bold tabular-nums", moneyTier(data?.amount ?? 0))}>{BDT(data?.amount ?? 0)}</div>
             <div className="text-xs text-muted-foreground mt-1">{data?.count ?? 0} orders pending</div>
             {(data?.overdue ?? 0) > 0 && (
               <div className="mt-2 text-xs flex items-center gap-1.5 text-rose-600">
@@ -770,7 +774,7 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
               <div key={b.label} className="rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><span className="text-base">{b.icon}</span>{b.label}</div>
                 {isLoading ? <Skeleton className="h-5 w-20 mt-1" /> :
-                  <div className="text-lg font-bold tabular-nums mt-1">{BDT(b.value)}</div>}
+                  <div className={cn("text-lg font-bold tabular-nums mt-1", moneyTier(b.value))}>{BDT(b.value)}</div>}
               </div>
             ))}
           </div>
@@ -1178,6 +1182,14 @@ const SOURCE_COLORS: Record<string, string> = {
   Direct: "#94A3B8",
   Other: "#F59E0B",
 };
+// Lighter gradient stop per source for premium donut look
+const SOURCE_COLORS_LIGHT: Record<string, string> = {
+  Facebook: "#60A5FA",
+  Instagram: "#F472B6",
+  Google: "#86EFAC",
+  Direct: "#CBD5E1",
+  Other: "#FCD34D",
+};
 const CONFIRMED_STATUSES = new Set([
   "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
 ]);
@@ -1299,26 +1311,62 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Donut */}
-              <div className="rounded-lg border bg-background p-3">
+              {/* Donut — premium */}
+              <div className="relative rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/30 p-4 overflow-hidden">
+                <div className="absolute -top-12 -right-12 size-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Order Sources</div>
                 <div className="relative h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      <defs>
+                        {sourceData.map((d) => {
+                          const c = SOURCE_COLORS[d.name] ?? "#94A3B8";
+                          const l = SOURCE_COLORS_LIGHT[d.name] ?? "#CBD5E1";
+                          return (
+                            <linearGradient key={d.name} id={`grad-${d.name}`} x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" stopColor={l} stopOpacity={0.95} />
+                              <stop offset="100%" stopColor={c} stopOpacity={1} />
+                            </linearGradient>
+                          );
+                        })}
+                        <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                          <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                          <feOffset dx="0" dy="2" result="offsetblur" />
+                          <feComponentTransfer><feFuncA type="linear" slope="0.18" /></feComponentTransfer>
+                          <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                        </filter>
+                      </defs>
+                      <Pie
+                        data={sourceData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={62}
+                        outerRadius={92}
+                        paddingAngle={3}
+                        cornerRadius={6}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={2}
+                        filter="url(#donut-shadow)"
+                      >
                         {sourceData.map((d) => (
-                          <Cell key={d.name} fill={SOURCE_COLORS[d.name] ?? "#94A3B8"} />
+                          <Cell key={d.name} fill={`url(#grad-${d.name})`} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number, name: string) => [
-                        `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
-                      ]} />
-                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Tooltip
+                        cursor={{ fill: "transparent" }}
+                        contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 12, boxShadow: "0 8px 24px -8px rgba(0,0,0,0.15)" }}
+                        formatter={(value: number, name: string) => [
+                          `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
+                        ]}
+                      />
+                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11, fontWeight: 500 }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</div>
-                    <div className="text-xl font-bold tabular-nums">{totalSource}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-semibold">Total</div>
+                    <div className="text-3xl font-extrabold tabular-nums bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">{totalSource}</div>
                   </div>
                 </div>
               </div>
