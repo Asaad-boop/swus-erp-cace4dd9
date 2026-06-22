@@ -580,6 +580,7 @@ function Column({
   onAction,
   actionEnabled,
   showCourier,
+  stageKey,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -590,6 +591,7 @@ function Column({
   onAction?: (o: OrderRow) => void;
   actionEnabled?: boolean;
   showCourier?: boolean;
+  stageKey: Stage;
 }) {
   const toneMap = {
     amber: "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20",
@@ -597,17 +599,32 @@ function Column({
     violet: "border-violet-300 bg-violet-50/50 dark:bg-violet-950/20",
     emerald: "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20",
   };
+  const codCount = rows.filter(isCod).length;
+
+  function stageTime(o: OrderRow) {
+    if (stageKey === "pending") return o.created_at;
+    if (stageKey === "packed") return o.packaged_at ?? o.updated_at;
+    return o.updated_at;
+  }
+
   return (
     <Card className={`p-3 border-t-4 ${toneMap[tone]}`}>
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 font-semibold">
+        <div className="flex items-center gap-2 font-semibold min-w-0">
           {icon} {title}
         </div>
-        <Badge variant="outline">
-          {rows.length} · {bdt(sum(rows))}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {codCount > 0 && (
+            <Badge variant="outline" className="text-[10px] gap-1 border-emerald-300 text-emerald-700 dark:text-emerald-300">
+              <Banknote className="h-3 w-3" /> {codCount}
+            </Badge>
+          )}
+          <Badge variant="outline">
+            {rows.length} · {bdt(sum(rows))}
+          </Badge>
+        </div>
       </div>
-      <ScrollArea className="h-[460px] pr-2">
+      <ScrollArea className="h-[480px] pr-2">
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -616,39 +633,71 @@ function Column({
           <p className="text-xs text-muted-foreground text-center py-8">— empty —</p>
         ) : (
           <div className="space-y-1.5">
-            {rows.map((o) => (
-              <div key={o.id} className="border rounded-md p-2 bg-background text-sm">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0">
-                    <div className="font-mono text-xs font-semibold">
-                      {o.invoice_no ?? o.id.slice(0, 8)}
-                    </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {o.shipping_name ?? o.guest_name ?? "—"}
-                    </div>
-                    {showCourier && o.courier_name && (
-                      <div className="text-[10px] font-mono mt-0.5 text-emerald-700 dark:text-emerald-300">
-                        {o.courier_name} · {o.tracking_number ?? "—"}
+            {rows.map((o) => {
+              const phone = customerPhone(o);
+              const area = customerArea(o);
+              const items = itemCount(o);
+              const cod = isCod(o);
+              return (
+                <div
+                  key={o.id}
+                  className="border rounded-md p-2 bg-background text-sm hover:border-foreground/30 transition-colors"
+                >
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-start">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-xs font-semibold">
+                          {o.invoice_no ?? o.id.slice(0, 8)}
+                        </span>
+                        {cod ? (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-emerald-400 text-emerald-700 dark:text-emerald-300">COD</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1">PAID</Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1 gap-0.5">
+                          <Package className="h-2.5 w-2.5" />{items}
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-semibold">{bdt(o.total ?? 0)}</div>
-                    {actionLabel && onAction && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-[10px] mt-1"
-                        disabled={!actionEnabled}
-                        onClick={() => onAction(o)}
-                      >
-                        {actionLabel}
-                      </Button>
-                    )}
+                      <div className="truncate text-xs font-medium mt-0.5">
+                        {customerName(o)}
+                      </div>
+                      {phone && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                          <Phone className="h-2.5 w-2.5 shrink-0" /> <span className="truncate">{phone}</span>
+                        </div>
+                      )}
+                      {area && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" /> <span className="truncate">{area}</span>
+                        </div>
+                      )}
+                      {showCourier && o.courier_name && (
+                        <div className="text-[10px] font-mono mt-0.5 text-emerald-700 dark:text-emerald-300 truncate">
+                          {o.courier_name} · {o.tracking_number ?? "—"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold">{bdt(o.total ?? 0)}</div>
+                      <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+                        <Clock className="h-2.5 w-2.5" />{timeAgo(stageTime(o))}
+                      </div>
+                      {actionLabel && onAction && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] mt-1 px-2"
+                          disabled={!actionEnabled}
+                          onClick={() => onAction(o)}
+                        >
+                          {actionLabel}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </ScrollArea>
