@@ -390,6 +390,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         } else if (matchType === "partial") {
           orderUpdate.status = "partial_delivered";
           orderUpdate.payment_status = "partial";
+          orderUpdate.partial_amount = partialAmount > 0 ? partialAmount : Number(r.collected ?? 0);
           orderUpdate.delivered_at = new Date(txnDate).toISOString();
         } else {
           orderUpdate.status = "delivered";

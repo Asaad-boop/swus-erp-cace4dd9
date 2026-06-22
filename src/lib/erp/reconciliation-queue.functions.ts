@@ -63,23 +63,22 @@ export const getOutstandingCod = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("orders")
       .select(
-        "id, shipping_name, shipping_phone, total, delivered_at, courier_name, tracking_number",
+        "id, shipping_name, shipping_phone, total, delivered_at, updated_at, courier_name, tracking_number",
       )
       .eq("brand_id", data.brandId)
       .in("status", ["delivered", "partial_delivered"])
       .eq("reconciliation_status", "pending")
-      .lt("delivered_at", cutoff)
-      .order("delivered_at", { ascending: true })
+      .or(`delivered_at.lt.${cutoff},and(delivered_at.is.null,updated_at.lt.${cutoff})`)
+      .order("delivered_at", { ascending: true, nullsFirst: false })
       .limit(500);
     if (error) throw new Error(error.message);
 
     const now = Date.now();
-    const orders = ((rows ?? []) as Array<Record<string, unknown>>).map((o) => ({
-      ...o,
-      days_overdue: o.delivered_at
-        ? Math.floor((now - new Date(o.delivered_at as string).getTime()) / 86400000) - data.thresholdDays
-        : 0,
-    }));
+    const orders = ((rows ?? []) as Array<Record<string, unknown>>).map((o) => {
+      const ref = (o.delivered_at ?? o.updated_at) as string | null;
+      const days = ref ? Math.floor((now - new Date(ref).getTime()) / 86400000) - data.thresholdDays : 0;
+      return { ...o, days_overdue: days };
+    });
     const totalAmount = orders.reduce((s, o) => s + Number((o as { total?: unknown }).total ?? 0), 0);
     return { orders, totalCount: orders.length, totalAmount };
   });
