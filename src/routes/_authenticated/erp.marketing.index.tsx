@@ -581,6 +581,9 @@ function StatusBadge({ row }: { row: PerfRow }) {
 
 function CampaignCell({ row }: { row: PerfRow }) {
   const d = DECISIONS[row.decision];
+  const products = row.products ?? [];
+  const primary = products[0];
+  const extra = products.length - 1;
   return (
     <div className="flex items-center gap-2 min-w-0">
       <Tooltip>
@@ -590,6 +593,50 @@ function CampaignCell({ row }: { row: PerfRow }) {
         <TooltipContent side="right">
           <div className="font-semibold">{d.label}</div>
           <div className="text-xs">{row.decision_reason}</div>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="relative shrink-0">
+            {primary?.image ? (
+              <img
+                src={primary.image}
+                alt={primary.title ?? ""}
+                className="h-9 w-9 rounded-md object-cover border border-border bg-muted"
+                loading="lazy"
+              />
+            ) : (
+              <div className="h-9 w-9 rounded-md border border-dashed border-border bg-muted/40 flex items-center justify-center">
+                <Package className="h-4 w-4 text-muted-foreground/60" />
+              </div>
+            )}
+            {extra > 0 && (
+              <span className="absolute -bottom-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-semibold flex items-center justify-center border border-background">
+                +{extra}
+              </span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[240px]">
+          {products.length === 0 ? (
+            <div className="text-xs">No products linked</div>
+          ) : (
+            <div className="space-y-1">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Linked products ({products.length})
+              </div>
+              {products.slice(0, 6).map((p) => (
+                <div key={p.id} className="text-xs truncate">
+                  • {p.title ?? p.sku ?? p.id}
+                </div>
+              ))}
+              {products.length > 6 && (
+                <div className="text-[10px] text-muted-foreground">
+                  +{products.length - 6} more…
+                </div>
+              )}
+            </div>
+          )}
         </TooltipContent>
       </Tooltip>
       <Link
