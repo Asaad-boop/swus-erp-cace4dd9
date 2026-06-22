@@ -1,59 +1,105 @@
-## Dispatch Module Plan
+# Dispatch Module — Plan
 
-New route `/erp/dispatch` for scan-driven order fulfillment pipeline (Pending → Packed → Ready → Shipped).
+Apnar idea ke aro polish kore ekta production-grade dispatch center bananor plan dilam. Approve korle implement korbo.
 
-### Files to create
+## Core Concept
 
-1. **`src/routes/_authenticated/erp.dispatch.tsx`** — main page
-   - Top bar with counts (45 pending / 12 packed / 8 ready / 3 shipped today)
-   - Scan input (always focused) with 3 mode pills: PACK / READY / SHIP
-   - Result feedback card (green success / red error, auto-dismiss 3s)
-   - 3-column pipeline (Pending | Packed | Ready) with order cards
-   - Buttons: Summary slide-over, Print Batch modal, Camera scan
-   - Supabase Realtime subscription on `orders` table → invalidate query
+Ekta **scan-driven pipeline**. Staff invoice/barcode scan korbe → order automatically next stage e chole jabe. 3 ta stage:
 
-2. **`src/components/erp/dispatch/scan-input.tsx`** — scan input box with HID listener (rapid keydown + Enter)
+```
+PENDING  →  PACKED  →  READY TO SHIP  →  SHIPPED
+(confirmed)  (scan #1)   (scan #2)        (scan #3 + auto courier book)
+```
 
-3. **`src/components/erp/dispatch/camera-scanner.tsx`** — getUserMedia + jsQR loop @ 100ms (dynamic import jsQR)
+Route: `/erp/dispatch` (sidebar e Operations er niche, Courier er por).
 
-4. **`src/components/erp/dispatch/dispatch-summary.tsx`** — slide-over panel (Sheet) with counts, courier breakdown, top products, CSV export
+## Page Layout
 
-5. **`src/components/erp/dispatch/batch-print-dialog.tsx`** — select orders + print type (Invoice / Picking List / Both)
+```
+┌──────────────────────────────────────────────────────────┐
+│ 🚚 Dispatch Center        Today: 142 pkg / ৳1,23,450    │
+│ [Mode: PACK | READY | SHIP]  [📷 Camera]  [Manual entry] │
+├──────────────────────────────────────────────────────────┤
+│ 🔊 Big Scan Box — barcode/invoice no ekhane              │
+│    Last scan: ✅ #INV-1042 → PACKED  (beep on success)   │
+├────────────┬────────────┬────────────┬───────────────────┤
+│ PENDING    │ PACKED     │ READY      │ SHIPPED (today)   │
+│ 23 / ৳45k  │ 12 / ৳28k  │ 8 / ৳19k   │ 99 / ৳1.2L        │
+│ [list]     │ [list]     │ [list]     │ [list + consign#] │
+└────────────┴────────────┴────────────┴───────────────────┘
+[Print Batch (Invoice + Picking List)]  [Daily Summary]
+```
 
-6. **`src/components/erp/dispatch/picking-list-print.tsx`** — new printable layout (checkbox + SKU + qty per order)
+## Scan Modes (Mode Switcher)
 
-7. **`src/lib/erp/audio-feedback.ts`** — Web Audio API beeps (success / error / ship)
+Staff age "mode" select korbe, tarpor jeta scan korbe sheta oi stage e jabe:
 
-### Files to modify
+- **PACK mode** → PENDING → PACKED
+- **READY mode** → PACKED → READY TO SHIP
+- **SHIP mode** → READY → SHIPPED + **auto Pathao booking** (consignment ID instantly)
 
-- **`src/components/erp/erp-sidebar.tsx`** — add `{ to: "/erp/dispatch", label: "Dispatch", icon: Truck }` to Operations (right after Courier). Use a different icon for Dispatch (PackageCheck) since Courier already uses Truck.
+Wrong mode e scan korle red beep + clear error: "Ei order already packed, READY mode select korun".
 
-### Technical decisions
+## Key Features (apnar idea + extra)
 
-- **Status mapping**:
-  - PENDING column: `status IN ('confirmed','processing','packaging','ready_to_pack')`
-  - PACKED column: `status = 'packed'`
-  - READY column: `status = 'ready_to_ship'`
-  - SHIPPED today: `status = 'shipped' AND updated_at >= today`
-- **Scan transitions** (use existing `transition_order_status` RPC):
-  - PACK mode: requires status in pending set → `'packed'`
-  - READY mode: requires `'packed'` → `'ready_to_ship'`
-  - SHIP mode: requires `'ready_to_ship'` → call `pathaoBookOrderAutoFn` → status becomes `'shipped'` via Pathao booking flow
-- **Brand scope**: `applyBrandScope(query, brandIds)` on every orders query.
-- **Realtime**: `supabase.channel('dispatch-orders').on('postgres_changes', { table: 'orders' }).subscribe()` inside `useEffect`, invalidate React Query.
-- **Order lookup**: scan input matches `invoice_no` OR last 8 chars of `id` (UUID prefix shown in spec like `#9F6FD2C9`).
-- **Dependencies**: `bun add jsqr` for camera QR decoding.
+1. **Dual scan input**: HID barcode gun (keyboard input auto-focus) + mobile camera scanner (jsQR, browser e cholbe, app lagbe na).
+2. **Auto courier booking on SHIP scan**: existing `pathaoBookOrderAutoFn` call hobe, consignment ID + tracking link toast e dekhabe.
+3. **Audio feedback**: success/error/ship distinct beep (Web Audio API, no asset).
+4. **Realtime pipeline**: Supabase Realtime e `orders` table subscribe — onno staff scan korle column auto update.
+5. **Brand-scoped**: current brand er order shudhu dekhabe.
+6. **Print Batch**: select korben kon kon order print korben, ekta dialog e —
+   - **Invoice batch** (existing PrintableInvoice reuse)
+   - **Picking List** (new): SKU + qty + warehouse location grouped — packer ke shahajjo korbe ki ki tulte hobe.
+7. **Daily Summary slide-over**: aaj koto pack/ship holo, courier-wise breakdown (Pathao/Steadfast/RedX), COD total, CSV export.
+8. **Click-to-advance fallback**: scan na thakle column theke direct button e click kore advance kora jabe (same RPC).
+9. **Error handling**: courier book fail → order shipped na, "Retry booking" button stay korbe. Stock not enough warning.
+10. **Keyboard shortcuts**: `1/2/3` mode switch, `Esc` clear scan, `P` print batch.
 
-### Reuse
+## Technical Design
 
-- `transition_order_status` RPC
-- `pathaoBookOrderAutoFn` server function
-- `PrintableInvoice` component (in `order-invoice.tsx`)
-- `useBrand` + `applyBrandScope`
-- shadcn `Sheet`, `Dialog`, `Button`, `Card`, `Badge`
+**Status mapping** (existing `orders.status` enum):
+- PENDING column = `status IN ('confirmed','processing')`
+- PACKED = `status = 'packed'`
+- READY = `status = 'ready_to_ship'`
+- SHIPPED (today) = `status = 'shipped' AND updated_at::date = today`
 
-### Out of scope
+**Reuses (already in codebase)**:
+- `transition_order_status` RPC for status change
+- `pathaoBookOrderAutoFn` for courier booking
+- `PrintableInvoice` component for invoice print
+- `useBrand` + `applyBrandScope` for brand filter
+- shadcn UI components
 
-- Editing `_authenticated/erp.orders.list.tsx` or other pages
-- Modifying `transition_order_status` RPC or any DB schema
-- Real-time courier webhook changes
+**New files**:
+- `src/routes/_authenticated/erp.dispatch.tsx` — main page
+- `src/components/erp/dispatch/scan-input.tsx` — barcode/manual input with focus mgmt
+- `src/components/erp/dispatch/camera-scanner.tsx` — jsQR based QR/barcode camera
+- `src/components/erp/dispatch/dispatch-summary.tsx` — slide-over with stats + CSV
+- `src/components/erp/dispatch/batch-print-dialog.tsx` — print picker
+- `src/components/erp/dispatch/picking-list-print.tsx` — new picking list template
+- `src/lib/erp/audio-feedback.ts` — Web Audio beeps
+
+**Modified**:
+- `src/components/erp/erp-sidebar.tsx` — add "Dispatch" link under Operations
+
+**New dependency**: `jsqr` (small, pure JS, camera barcode decode)
+
+**No DB migration needed** — existing schema + RPC already supports this.
+
+## Out of Scope (ei iteration e)
+
+- Onno page (orders, courier) er change na
+- New courier provider integration (existing Pathao reuse)
+- Realtime courier webhook change na
+- DB schema change na
+
+## Success Checks
+
+- 3 mode (Pack/Ready/Ship) scan kaaj korche
+- Camera scan kaaj korche
+- SHIP scan e Pathao auto-book hocche, consignment ID asche
+- Print Batch e Invoice + Picking List dui-i ber hocche
+- Audio beep success/error e alada
+- 3-column pipeline realtime update hocche
+
+Approve korle implement shuru kori?
