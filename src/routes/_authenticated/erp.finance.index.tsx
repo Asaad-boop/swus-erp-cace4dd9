@@ -67,42 +67,27 @@ function OverviewPage() {
   const d = q.data;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      {/* ── Hero header ─────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-emerald-500/5 p-5">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/15 blur-3xl" aria-hidden />
-        <div className="absolute -left-10 -bottom-20 h-40 w-40 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-3">
+    <div className="p-4 md:p-6 space-y-4">
+      {/* ── Compact header ─────────────────────────────── */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="rounded-lg p-2 bg-primary/10 text-primary"><Landmark className="h-4 w-4" /></span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <Landmark className="h-3.5 w-3.5" /> Finance Command Center
-            </div>
-            <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">Finance & Accounting</h1>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
-                <Building2 className="h-3 w-3" />
-                {isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}
-              </Badge>
-              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
-                <Calendar className="h-3 w-3" />
-                {from} → {to}
-              </Badge>
-              {d && (
-                <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur text-emerald-700 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live
-                </Badge>
-              )}
+            <h1 className="text-lg font-semibold tracking-tight leading-tight">Finance & Accounting</h1>
+            <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+              <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}</span>
+              <span className="opacity-50">·</span>
+              <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{from} → {to}</span>
             </div>
           </div>
-          <DateRangePicker value={range} onChange={setRange} />
         </div>
-      </div>
+        <DateRangePicker value={range} onChange={setRange} />
+      </header>
 
       {q.isLoading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl border bg-gradient-to-br from-muted/40 to-transparent animate-pulse" />
+            <div key={i} className="h-28 rounded-xl border bg-muted/30 animate-pulse" />
           ))}
         </div>
       )}
@@ -189,34 +174,32 @@ function HeroKpi({ icon, label, value, hint, tone, warn, onClick }: {
   tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean; onClick?: () => void;
 }) {
   const TONES = {
-    primary: { grad: "from-primary/10 via-primary/5 to-transparent", icon: "bg-primary/15 text-primary", bar: "bg-primary", glow: "bg-primary/20" },
-    emerald: { grad: "from-emerald-500/10 via-emerald-500/5 to-transparent", icon: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", glow: "bg-emerald-500/20" },
-    amber:   { grad: "from-amber-500/10 via-amber-500/5 to-transparent",   icon: "bg-amber-500/15 text-amber-600 dark:text-amber-400",     bar: "bg-amber-500",   glow: "bg-amber-500/20" },
-    sky:     { grad: "from-sky-500/10 via-sky-500/5 to-transparent",       icon: "bg-sky-500/15 text-sky-600 dark:text-sky-400",           bar: "bg-sky-500",     glow: "bg-sky-500/20" },
-    rose:    { grad: "from-rose-500/10 via-rose-500/5 to-transparent",     icon: "bg-rose-500/15 text-rose-600 dark:text-rose-400",         bar: "bg-rose-500",    glow: "bg-rose-500/20" },
+    primary: { icon: "bg-primary/10 text-primary",                                         bar: "bg-primary" },
+    emerald: { icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",           bar: "bg-emerald-500" },
+    amber:   { icon: "bg-amber-500/10 text-amber-600 dark:text-amber-400",                 bar: "bg-amber-500" },
+    sky:     { icon: "bg-sky-500/10 text-sky-600 dark:text-sky-400",                       bar: "bg-sky-500" },
+    rose:    { icon: "bg-rose-500/10 text-rose-600 dark:text-rose-400",                    bar: "bg-rose-500" },
   }[tone];
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/60 bg-gradient-to-br transition-all duration-200",
-        TONES.grad,
-        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-primary/30",
+        "relative overflow-hidden border-border/60 bg-card transition-all duration-200",
+        onClick && "cursor-pointer hover:border-foreground/20 hover:shadow-sm",
       )}
     >
-      <div className={cn("absolute left-0 top-0 h-full w-0.5", TONES.bar)} aria-hidden />
-      <div className={cn("absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-60", TONES.glow)} aria-hidden />
-      <CardContent className="relative p-4" onClick={onClick} role={onClick ? "button" : undefined}>
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-          <span className={cn("rounded-lg p-1.5 backdrop-blur", TONES.icon)}>{icon}</span>
+      <div className={cn("absolute left-0 top-0 h-full w-1", TONES.bar)} aria-hidden />
+      <CardContent className="relative p-5 pl-6" onClick={onClick} role={onClick ? "button" : undefined}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">{label}</span>
+          <span className={cn("rounded-md p-1.5 shrink-0", TONES.icon)}>{icon}</span>
         </div>
-        <div className="mt-2.5 text-[26px] leading-none font-bold tabular-nums tracking-tight text-foreground">
+        <div className="mt-3 text-[28px] leading-none font-bold tabular-nums tracking-tight text-foreground">
           {fmtBdt(value)}
         </div>
         {hint && (
           <div
             className={cn(
-              "mt-2 text-[11px] truncate",
+              "mt-3 text-[11px] truncate",
               warn ? "text-amber-600 dark:text-amber-400 flex items-center gap-1" : "text-muted-foreground",
             )}
             title={hint}
