@@ -50,6 +50,8 @@ function rangeFromMkt(v: MktRangeValue): { from: Date; to: Date; prevFrom: Date;
   const days = Math.max(1, Math.round(ms / 86400e3) + 1);
   return { from, to, prevFrom, prevTo, days };
 }
+// Kept for typing of helper consumers
+const getRange = rangeFromMkt;
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
