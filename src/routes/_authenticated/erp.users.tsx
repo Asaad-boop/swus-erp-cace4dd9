@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Search, Trash2, KeyRound, ShieldCheck, Mail, MoreHorizontal,
   Download, Copy, Ban, CheckCircle2, Link as LinkIcon, UserCog, Users as UsersIcon,
-  Activity, ArrowUpDown, RefreshCw,
+  Activity, ArrowUpDown, RefreshCw, Sparkles, Building2, ChevronLeft, ChevronRight,
+  Phone, User as UserIcon, AtSign, Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ import {
   createAppUser, updateUserRoles, setUserPassword, deleteAppUser,
   toggleUserBan, updateUserProfile, generateAuthLink, bulkDeleteUsers, bulkSetRole,
 } from "@/lib/erp/users.functions";
+import { listUserBrandAccess, setUserBrandAccess } from "@/lib/erp/settings/user-brand-access.functions";
+import { useBrand } from "@/contexts/brand-context";
 
 export const Route = createFileRoute("/_authenticated/erp/users")({
   head: () => ({ meta: [{ title: "Users — ERP" }] }),
@@ -67,6 +70,30 @@ const ROLE_DOT: Record<AppRole, string> = {
   customer: "bg-zinc-400",
 };
 
+const ROLE_DESC: Record<AppRole, string> = {
+  admin: "Full system access — everything",
+  operations: "Orders, dispatch, day-to-day operations",
+  accountant: "Finance, ERP books, reports",
+  warehouse_staff: "Inventory, stock, receiving",
+  packer: "Pack & ship orders only",
+  customer_service: "Customers, support, CRM",
+  marketing_manager: "Campaigns, ads, marketing analytics",
+  moderator: "Reviews, content moderation",
+  customer: "End customer (no admin)",
+};
+
+type RolePreset = { id: string; label: string; description: string; roles: AppRole[]; icon: string };
+const ROLE_PRESETS: RolePreset[] = [
+  { id: "admin", label: "Administrator", description: "Full system control", roles: ["admin"], icon: "👑" },
+  { id: "manager", label: "Operations Manager", description: "Orders + Finance overview", roles: ["operations", "accountant"], icon: "📊" },
+  { id: "warehouse", label: "Warehouse Team", description: "Stock + Packing", roles: ["warehouse_staff", "packer"], icon: "📦" },
+  { id: "packer", label: "Packer Only", description: "Pack & dispatch", roles: ["packer"], icon: "🏷️" },
+  { id: "accountant", label: "Accountant", description: "Finance only", roles: ["accountant"], icon: "💰" },
+  { id: "cs", label: "Customer Service", description: "Support & CRM", roles: ["customer_service"], icon: "🎧" },
+  { id: "marketing", label: "Marketing Manager", description: "Campaigns & ads", roles: ["marketing_manager"], icon: "📣" },
+  { id: "custom", label: "Custom", description: "Pick roles manually", roles: [], icon: "⚙️" },
+];
+
 const TEAM_ROLES: AppRole[] = ["admin","operations","accountant","warehouse_staff","packer","customer_service","marketing_manager","moderator"];
 
 type Tab = "all" | "team" | "customer" | "disabled" | "no_role";
@@ -94,6 +121,7 @@ function UsersPage() {
 
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<Tab>("all");
+  const [roleFilter, setRoleFilter] = useState<AppRole | "any">("any");
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [createOpen, setCreateOpen] = useState(false);
@@ -103,6 +131,16 @@ function UsersPage() {
   const [confirmDel, setConfirmDel] = useState<any | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulkDel, setConfirmBulkDel] = useState(false);
+
+  // Keyboard shortcut: N to add new
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
+      if (e.key === "n" || e.key === "N") { e.preventDefault(); setCreateOpen(true); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["app-users"] });
 
@@ -151,6 +189,7 @@ function UsersPage() {
       if (tab === "customer" && !(u.roles.includes("customer") || u.roles.length === 0)) return false;
       if (tab === "disabled" && !disabled) return false;
       if (tab === "no_role" && u.roles.length !== 0) return false;
+      if (roleFilter !== "any" && !u.roles.includes(roleFilter)) return false;
       if (q) {
         const n = q.toLowerCase();
         if (!((u.email ?? "").toLowerCase().includes(n) || (u.display_name ?? "").toLowerCase().includes(n))) return false;
@@ -169,7 +208,7 @@ function UsersPage() {
       return (at - bt) * dir;
     });
     return arr;
-  }, [users, q, tab, sortKey, sortDir]);
+  }, [users, q, tab, roleFilter, sortKey, sortDir]);
 
   const allSelected = filtered.length > 0 && filtered.every(u => selected.has(u.id));
 
@@ -215,7 +254,7 @@ function UsersPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><UserCog className="h-6 w-6" /> Users</h1>
-          <p className="text-sm text-muted-foreground">Team members ar permission centrally manage korun.</p>
+          <p className="text-sm text-muted-foreground">Team members ar permission centrally manage korun. <kbd className="ml-1 px-1.5 py-0.5 text-[10px] bg-muted rounded border border-border">N</kbd> = new user</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
@@ -224,7 +263,7 @@ function UsersPage() {
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="h-4 w-4 mr-1" /> Export
           </Button>
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} className="shadow-sm">
             <Plus className="h-4 w-4 mr-1" /> Add user
           </Button>
         </div>
@@ -253,6 +292,23 @@ function UsersPage() {
           <div className="relative flex-1 min-w-[220px]">
             <Search className="h-4 w-4 absolute left-2 top-2.5 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search email or name…" className="pl-8" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Any role" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any role</SelectItem>
+                {APP_ROLES.map(r => (
+                  <SelectItem key={r} value={r}>
+                    <span className="flex items-center gap-2">
+                      <span className={cn("h-2 w-2 rounded-full", ROLE_DOT[r])} />
+                      {ROLE_LABEL[r]}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="text-xs text-muted-foreground">{filtered.length} of {(users as any[]).length}</div>
         </div>
