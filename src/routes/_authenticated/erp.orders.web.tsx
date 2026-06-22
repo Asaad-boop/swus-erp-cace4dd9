@@ -480,17 +480,17 @@ function _WebOrdersPageBody() {
     },
   });
 
-  // Infinite paginated orders
-  const ordersQueryKey = ["web-orders-inf", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? ""] as const;
+  // Paginated orders (page 1-indexed in URL)
+  const page = search.page ?? 1;
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page] as const;
 
-  const ordersQuery = useInfiniteQuery({
+  const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
     enabled: brandIds.length > 0 && activeTab !== "incomplete"
       && (sourceFilter === "all" || sourceFilter === "direct" || !!sourceOrderIds),
-    initialPageParam: 0,
-    getNextPageParam: (last: { rows: WebOrderRow[]; total: number; nextPage: number | null }) => last.nextPage,
-    queryFn: async ({ pageParam }) => {
-      const page = pageParam as number;
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const pageIdx = page - 1;
       let q = applyBrandScope(
         supabase
           .from("orders")
@@ -520,11 +520,11 @@ function _WebOrdersPageBody() {
 
       if (["facebook", "instagram", "google", "other"].includes(sourceFilter)) {
         const ids = sourceOrderIds ?? [];
-        if (ids.length === 0) return { rows: [], total: 0, nextPage: null };
+        if (ids.length === 0) return { rows: [] as WebOrderRow[], total: 0 };
         q = q.in("id", ids);
       }
 
-      const from = page * PAGE_SIZE;
+      const from = pageIdx * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       q = q.range(from, to);
 
@@ -567,13 +567,13 @@ function _WebOrdersPageBody() {
       }
 
       const total = count ?? 0;
-      const fetched = (page + 1) * PAGE_SIZE;
-      return { rows, total, nextPage: fetched < total ? page + 1 : null };
+      return { rows, total };
     },
   });
 
-  const rows = useMemo(() => ordersQuery.data?.pages.flatMap((p) => p.rows) ?? [], [ordersQuery.data]);
-  const totalRows = ordersQuery.data?.pages[0]?.total ?? 0;
+  const rows = useMemo<WebOrderRow[]>(() => ordersQuery.data?.rows ?? [], [ordersQuery.data]);
+  const totalRows = ordersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const isLoading = ordersQuery.isLoading;
 
   // counts per status — parallel head count queries
