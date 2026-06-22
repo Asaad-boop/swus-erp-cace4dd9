@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Download, RotateCcw, Repeat, Search, ChevronRight, Plus,
-  Inbox, ExternalLink, X,
+  Inbox, ExternalLink, X, Package, ArrowRight, Filter, SlidersHorizontal,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ type Row = {
   customer: string;
   productTitle: string;
   productSku?: string | null;
+  productImage?: string | null;
   status: string;
   qc: string | null;
   amount: number;
@@ -68,6 +69,7 @@ function ReturnsListPage() {
       orderNumber: r.order_id ? String(r.order_id).slice(0, 8) : null,
       customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
+      productImage: r.product?.image ?? null,
       status: r.return_status, qc: r.qc_condition, amount: Number(r.refund_amount ?? 0),
       createdAt: r.created_at,
     }));
@@ -76,6 +78,7 @@ function ReturnsListPage() {
       orderNumber: r.original_order_id ? String(r.original_order_id).slice(0, 8) : null,
       customer: r.order?.shipping_name ?? "—",
       productTitle: r.product?.title ?? "—", productSku: r.product?.sku,
+      productImage: r.product?.image ?? null,
       status: r.exchange_status, qc: null,
       amount: Number(r.exchange_charge_collected ?? r.refund_amount ?? 0),
       createdAt: r.created_at,
