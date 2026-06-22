@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
@@ -16,17 +15,12 @@ import {
   type ProductProfitRow,
 } from "@/lib/erp/marketing/rollup.functions";
 import { TrendingUp, TrendingDown, Download } from "lucide-react";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/rollup")({
   head: () => ({ meta: [{ title: "Profit Rollup — Marketing" }] }),
   component: RollupPage,
 });
-
-function dateRange(days: number) {
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
-  return { from, to };
-}
 
 function fmtMoney(n: number | null | undefined) {
   if (n == null) return "—";
@@ -47,9 +41,8 @@ function fmtPct(n: number | null | undefined) {
 
 function RollupPage() {
   const { brandId: selectedBrandId, picker } = useBrandPicker();
-  const [days, setDays] = useState(30);
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
   const [search, setSearch] = useState("");
-  const range = useMemo(() => dateRange(days), [days]);
 
   const campaignsFn = useServerFn(getCampaignProfitRollup);
   const productsFn = useServerFn(getProductProfitRollup);
@@ -84,15 +77,7 @@ function RollupPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="180">Last 180 days</SelectItem>
-            </SelectContent>
-          </Select>
+          <DateRangePicker value={range} onChange={setRange} />
           <Input
             placeholder="Search…"
             value={search}
