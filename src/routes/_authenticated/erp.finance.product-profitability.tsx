@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "@/components/ui/calendar";
+import { DateRangePicker, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { fmtBdt } from "@/lib/erp/finance";
@@ -63,18 +63,6 @@ function todayIso() { return new Date().toISOString().slice(0, 10); }
 function daysAgoIso(d: number) { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10); }
 function isoToDate(s: string) { const [y,m,d] = s.split("-").map(Number); return new Date(y, (m||1)-1, d||1); }
 function dateToIso(d: Date) { return format(d, "yyyy-MM-dd"); }
-
-const DATE_PRESETS: Array<{ key: string; label: string; range: () => [string, string] }> = [
-  { key: "today",    label: "Today",         range: () => [todayIso(), todayIso()] },
-  { key: "yest",     label: "Yesterday",     range: () => [daysAgoIso(1), daysAgoIso(1)] },
-  { key: "7d",       label: "Last 7 days",   range: () => [daysAgoIso(6), todayIso()] },
-  { key: "30d",      label: "Last 30 days",  range: () => [daysAgoIso(29), todayIso()] },
-  { key: "mtd",      label: "Month to date", range: () => [dateToIso(startOfMonth(new Date())), todayIso()] },
-  { key: "lastm",    label: "Last month",    range: () => { const d = subMonths(new Date(), 1); return [dateToIso(startOfMonth(d)), dateToIso(endOfMonth(d))]; } },
-  { key: "90d",      label: "Last 90 days",  range: () => [daysAgoIso(89), todayIso()] },
-  { key: "ytd",      label: "Year to date",  range: () => [dateToIso(startOfYear(new Date())), todayIso()] },
-  { key: "all",      label: "All time",      range: () => ["2020-01-01", todayIso()] },
-];
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
