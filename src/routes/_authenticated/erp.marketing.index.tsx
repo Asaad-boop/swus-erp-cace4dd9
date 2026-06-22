@@ -275,46 +275,61 @@ function PerformanceDashboard() {
           </div>
         </div>
 
-        {/* Phase 3 — Today strip, ROAS comparison, charts, budget pacing */}
-        {brandId && <DashboardOverview brandId={brandId} />}
-
-        {/* KPI strip */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-          <KpiCard
-            icon={Activity}
-            label="Active Campaigns"
-            value={totals ? totals.active_campaigns.toString() : "—"}
-            sub={`${allRows.length} total`}
-            tone="indigo"
-          />
-          <KpiCard
+        {/* HEADLINE METRICS — what a senior marketer reads first */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <HeroKpi
             icon={Wallet}
-            label="Total Spend"
+            label="Spend"
             value={totals ? fmtBDT(totals.total_spend_bdt) : "—"}
-            sub={totals ? `${fmtUSD(totals.total_spend_usd)} USD` : ""}
+            sub={totals ? fmtUSD(totals.total_spend_usd) : ""}
             tone="sky"
           />
-          <KpiCard
-            icon={Eye}
-            label="Impressions"
-            value={totals ? fmtNum(totals.impressions) : "—"}
-            sub={totals ? `${fmtPct(totals.ctr)} CTR` : ""}
+          <HeroKpi
+            icon={Receipt}
+            label="Revenue"
+            value={totals ? fmtBDT(totals.delivered_revenue_bdt) : "—"}
+            sub="delivered"
             tone="violet"
           />
-          <KpiCard
-            icon={MousePointerClick}
-            label="Clicks"
-            value={totals ? fmtNum(totals.clicks) : "—"}
+          <HeroKpi
+            icon={totals && totals.profit_bdt >= 0 ? TrendingUp : TrendingDown}
+            label="Profit"
+            value={totals ? fmtBDT(totals.profit_bdt) : "—"}
             sub={
-              totals && totals.clicks > 0
-                ? `${fmtBDT(totals.total_spend_bdt / totals.clicks)} CPC`
+              totals
+                ? `${fmtPct(totals.margin_pct == null ? null : totals.margin_pct * 100, 1)} margin`
                 : ""
             }
-            tone="amber"
+            tone={
+              !totals
+                ? "indigo"
+                : totals.profit_bdt > 0
+                  ? "emerald"
+                  : totals.profit_bdt < 0
+                    ? "rose"
+                    : "indigo"
+            }
+            emphasize
           />
-          <KpiCard
+          <HeroKpi
+            icon={Target}
+            label="True ROAS"
+            value={totals ? fmtMult(totals.true_roas) : "—"}
+            sub={totals ? `Meta ${fmtMult(totals.meta_roas)}` : ""}
+            tone={
+              !totals || totals.true_roas == null
+                ? "indigo"
+                : totals.true_roas >= 2
+                  ? "emerald"
+                  : totals.true_roas >= 1
+                    ? "amber"
+                    : "rose"
+            }
+            emphasize
+          />
+          <HeroKpi
             icon={ShoppingBag}
-            label="Delivered Orders"
+            label="Orders"
             value={totals ? totals.delivered_orders.toString() : "—"}
             sub={
               totals && totals.delivered_orders > 0
@@ -323,67 +338,21 @@ function PerformanceDashboard() {
             }
             tone="emerald"
           />
+          <HeroKpi
+            icon={Activity}
+            label="Active Campaigns"
+            value={totals ? totals.active_campaigns.toString() : "—"}
+            sub={`${allRows.length} total · ${fmtPct(totals?.ctr ?? null)} CTR`}
+            tone="indigo"
+          />
         </div>
 
-        {/* Profit / ROAS strip (only Actual view) */}
-        {view === "actual" && totals && (
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <SmallStat label="Revenue" value={fmtBDT(totals.delivered_revenue_bdt)} />
-            <SmallStat
-              label="Profit"
-              value={fmtBDT(totals.profit_bdt)}
-              tone={totals.profit_bdt > 0 ? "good" : totals.profit_bdt < 0 ? "bad" : "neutral"}
-              icon={
-                totals.profit_bdt > 0 ? TrendingUp : totals.profit_bdt < 0 ? TrendingDown : Minus
-              }
-            />
-            <SmallStat
-              label="Margin"
-              value={fmtPct(totals.margin_pct == null ? null : totals.margin_pct * 100, 1)}
-              tone={
-                totals.margin_pct == null
-                  ? "neutral"
-                  : totals.margin_pct > 0
-                    ? "good"
-                    : "bad"
-              }
-            />
-            <SmallStat
-              label="True ROAS"
-              value={fmtMult(totals.true_roas)}
-              tone={
-                totals.true_roas == null
-                  ? "neutral"
-                  : totals.true_roas >= 2
-                    ? "good"
-                    : totals.true_roas >= 1
-                      ? "neutral"
-                      : "bad"
-              }
-              sub={`Meta ROAS ${fmtMult(totals.meta_roas)}`}
-            />
-          </div>
-        )}
-
-        {/* Decision buckets */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold">Campaign Decisions</h2>
-            <span className="text-xs text-muted-foreground">
-              {bucketFilter === "all"
-                ? "Click a bucket to filter table"
-                : `Filtering: ${DECISIONS[bucketFilter].label}`}
-              {bucketFilter !== "all" && (
-                <button
-                  onClick={() => setBucketFilter("all")}
-                  className="ml-2 text-primary hover:underline"
-                >
-                  clear
-                </button>
-              )}
+        {/* COMPACT DECISION STRIP — quick filter, much smaller than before */}
+        <div className="rounded-xl border bg-card/40 p-2">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+              Decisions
             </span>
-          </div>
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {buckets.map(({ key, rows }) => {
               const d = DECISIONS[key];
               const isActive = bucketFilter === key;
@@ -392,42 +361,32 @@ function PerformanceDashboard() {
                   key={key}
                   onClick={() => setBucketFilter(isActive ? "all" : key)}
                   className={cn(
-                    "text-left rounded-xl border p-4 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5",
-                    d.cls,
-                    isActive && "ring-2 ring-primary/60 border-primary/40 shadow-md",
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-all shrink-0 hover:shadow-sm",
+                    isActive
+                      ? "border-primary/50 bg-primary/5 ring-1 ring-primary/40"
+                      : "border-transparent bg-background hover:border-border",
                   )}
+                  title={d.label}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base" aria-hidden>{d.icon}</span>
-                      <span className={cn("text-sm font-semibold", d.accent)}>{d.label}</span>
-                    </div>
-                    <span className={cn("text-xl font-bold tabular-nums", d.accent)}>{rows.length}</span>
-                  </div>
-                  {rows.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No campaigns</p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {rows.slice(0, 3).map((row) => (
-                        <li key={row.campaign_id} className="text-xs">
-                          <div className="truncate font-medium">{row.name}</div>
-                          <div className="text-muted-foreground tabular-nums">
-                            {fmtBDT(row.total_spend_bdt)} · {fmtMult(row.true_roas)}
-                          </div>
-                        </li>
-                      ))}
-                      {rows.length > 3 && (
-                        <li className="text-xs text-muted-foreground">
-                          +{rows.length - 3} more
-                        </li>
-                      )}
-                    </ul>
-                  )}
+                  <span className={cn("h-2 w-2 rounded-full", d.dot)} aria-hidden />
+                  <span className={cn("font-medium", d.accent)}>{d.label}</span>
+                  <span className={cn("tabular-nums font-semibold", d.accent)}>{rows.length}</span>
                 </button>
               );
             })}
+            {bucketFilter !== "all" && (
+              <button
+                onClick={() => setBucketFilter("all")}
+                className="ml-auto text-[11px] text-primary hover:underline shrink-0 pr-2"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
         </div>
+
+        {/* DETAILS — Today strip, ROAS reality check, charts, budget pacing */}
+        {brandId && <DashboardOverview brandId={brandId} />}
 
         {/* Filter bar + view toggle */}
         <div className="flex flex-wrap items-center gap-2">
