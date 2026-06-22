@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, BookOpen, FileText, BarChart3, Settings, Wallet, Receipt, Banknote, Repeat, Target, GitMerge, Percent, Globe, ShieldCheck, PackageSearch, Layers3, Truck } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileText, BarChart3, Settings, Wallet, Receipt, Target, Percent, PackageSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/finance")({
@@ -12,19 +12,11 @@ const NAV = [
   { to: "/erp/finance/accounts", label: "Chart of Accounts", icon: BookOpen },
   { to: "/erp/finance/wallets", label: "Wallets", icon: Wallet },
   { to: "/erp/finance/journal", label: "Journal", icon: FileText },
-  { to: "/erp/finance/receivables", label: "Receivables", icon: Receipt },
-  { to: "/erp/finance/payables", label: "Payables", icon: Banknote },
-  { to: "/erp/finance/cod-remittance", label: "COD Remit", icon: Truck },
-  { to: "/erp/finance/recurring", label: "Recurring", icon: Repeat },
+  { to: "/erp/finance/receivables", label: "AR / AP", icon: Receipt },
   { to: "/erp/finance/budgets", label: "Budgets", icon: Target },
-  { to: "/erp/finance/reconciliation", label: "Bank Reconciliation", icon: GitMerge },
   { to: "/erp/finance/taxes", label: "Taxes", icon: Percent },
-  { to: "/erp/finance/fx", label: "FX Rates", icon: Globe },
-  { to: "/erp/finance/audit", label: "Audit", icon: ShieldCheck },
-  { to: "/erp/finance/simple", label: "Quick Entry", icon: Receipt },
+  { to: "/erp/finance/product-profitability", label: "Profitability", icon: PackageSearch },
   { to: "/erp/finance/reports", label: "Reports", icon: BarChart3 },
-  { to: "/erp/finance/product-profitability", label: "Product P&L", icon: PackageSearch },
-  { to: "/erp/finance/brand-profitability", label: "Brand P&L", icon: Layers3 },
   { to: "/erp/finance/settings", label: "Settings", icon: Settings },
 ];
 
