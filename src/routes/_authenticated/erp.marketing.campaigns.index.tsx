@@ -196,6 +196,9 @@ function CampaignsPage() {
 
 function CampaignCard({ row: r }: { row: CampaignRollupRow }) {
   const isProfit = r.roas_delivered != null && r.roas_delivered >= 1;
+  const products = r.products ?? [];
+  const primary = products[0];
+  const extra = Math.max(0, products.length - 3);
   return (
     <Link
       to="/erp/marketing/campaigns/$campaignId"
@@ -203,10 +206,60 @@ function CampaignCard({ row: r }: { row: CampaignRollupRow }) {
       className="group block"
     >
       <Card className="rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150 h-full">
-        <CardContent className="p-5 space-y-4">
-          {/* Top row: status + objective */}
-          <div className="flex items-start justify-between gap-2">
+        {/* Product visual header */}
+        <div className="relative h-32 w-full overflow-hidden rounded-t-xl bg-gradient-to-br from-slate-100 to-slate-50">
+          {primary?.image ? (
+            <img
+              src={primary.image}
+              alt={primary.title ?? r.name}
+              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+              <Package className="h-8 w-8 opacity-40" />
+            </div>
+          )}
+          {/* Status pill top-left */}
+          <div className="absolute top-2 left-2">
             <MktStatusBadge status={r.effective_status ?? r.status} />
+          </div>
+          {/* Product thumb strip bottom */}
+          {products.length > 0 && (
+            <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5">
+              <div className="flex -space-x-2">
+                {products.slice(0, 3).map((p) => (
+                  <div
+                    key={p.id}
+                    className="h-7 w-7 rounded-full border-2 border-white bg-white overflow-hidden shadow-sm"
+                    title={p.title ?? ""}
+                  >
+                    {p.image ? (
+                      <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-slate-100">
+                        <Package className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {extra > 0 && (
+                  <div className="h-7 px-1.5 min-w-7 rounded-full border-2 border-white bg-slate-900/80 text-white text-[10px] font-semibold flex items-center justify-center shadow-sm">
+                    +{extra}
+                  </div>
+                )}
+              </div>
+              {primary?.title && (
+                <span className="ml-1 text-[11px] font-medium text-white bg-black/55 backdrop-blur-sm rounded px-1.5 py-0.5 truncate max-w-[60%]">
+                  {primary.title}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <CardContent className="p-4 space-y-3">
+          {/* Top row: status + objective */}
+          <div className="flex items-start justify-end gap-2">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               {r.objective ?? "—"}
             </span>

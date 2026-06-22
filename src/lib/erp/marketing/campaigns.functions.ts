@@ -38,6 +38,7 @@ export type CampaignRollupRow = {
   roas_delivered: number | null;
   cpo_confirmed_bdt: number | null;
   cpo_delivered_bdt: number | null;
+  products: Array<{ id: string; title: string | null; image: string | null; sku: string | null }>;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
@@ -123,6 +124,19 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       attrMap.set(r.campaign_id, cur);
     }
 
+    // Linked products per campaign (for visual identification)
+    const { data: linkRows } = await supabase
+      .from("mkt_campaign_products")
+      .select("campaign_id, product_id, products(id, title, sku, image)")
+      .in("campaign_id", campIds);
+    const prodMap = new Map<string, Array<{ id: string; title: string | null; image: string | null; sku: string | null }>>();
+    for (const r of (linkRows ?? []) as any[]) {
+      if (!r.campaign_id || !r.products) continue;
+      const arr = prodMap.get(r.campaign_id) ?? [];
+      arr.push({ id: r.products.id, title: r.products.title ?? null, image: r.products.image ?? null, sku: r.products.sku ?? null });
+      prodMap.set(r.campaign_id, arr);
+    }
+
     return campaigns.map((c: any): CampaignRollupRow => {
       const ins = insMap.get(c.id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0 };
       const att = attrMap.get(c.id) ?? { confirmed_orders: 0, confirmed_revenue: 0, delivered_orders: 0, delivered_revenue: 0, return_orders: 0 };
@@ -163,6 +177,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         roas_delivered,
         cpo_confirmed_bdt,
         cpo_delivered_bdt,
+        products: prodMap.get(c.id) ?? [],
       };
     });
   });
