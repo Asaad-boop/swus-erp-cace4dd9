@@ -1311,26 +1311,62 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Donut */}
-              <div className="rounded-lg border bg-background p-3">
+              {/* Donut — premium */}
+              <div className="relative rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/30 p-4 overflow-hidden">
+                <div className="absolute -top-12 -right-12 size-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Order Sources</div>
                 <div className="relative h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      <defs>
+                        {sourceData.map((d) => {
+                          const c = SOURCE_COLORS[d.name] ?? "#94A3B8";
+                          const l = SOURCE_COLORS_LIGHT[d.name] ?? "#CBD5E1";
+                          return (
+                            <linearGradient key={d.name} id={`grad-${d.name}`} x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" stopColor={l} stopOpacity={0.95} />
+                              <stop offset="100%" stopColor={c} stopOpacity={1} />
+                            </linearGradient>
+                          );
+                        })}
+                        <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                          <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                          <feOffset dx="0" dy="2" result="offsetblur" />
+                          <feComponentTransfer><feFuncA type="linear" slope="0.18" /></feComponentTransfer>
+                          <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                        </filter>
+                      </defs>
+                      <Pie
+                        data={sourceData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={62}
+                        outerRadius={92}
+                        paddingAngle={3}
+                        cornerRadius={6}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={2}
+                        filter="url(#donut-shadow)"
+                      >
                         {sourceData.map((d) => (
-                          <Cell key={d.name} fill={SOURCE_COLORS[d.name] ?? "#94A3B8"} />
+                          <Cell key={d.name} fill={`url(#grad-${d.name})`} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number, name: string) => [
-                        `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
-                      ]} />
-                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Tooltip
+                        cursor={{ fill: "transparent" }}
+                        contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 12, boxShadow: "0 8px 24px -8px rgba(0,0,0,0.15)" }}
+                        formatter={(value: number, name: string) => [
+                          `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
+                        ]}
+                      />
+                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11, fontWeight: 500 }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</div>
-                    <div className="text-xl font-bold tabular-nums">{totalSource}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-semibold">Total</div>
+                    <div className="text-3xl font-extrabold tabular-nums bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">{totalSource}</div>
                   </div>
                 </div>
               </div>
