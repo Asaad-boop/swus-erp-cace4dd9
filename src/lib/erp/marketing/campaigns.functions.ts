@@ -38,6 +38,7 @@ export type CampaignRollupRow = {
   roas_delivered: number | null;
   cpo_confirmed_bdt: number | null;
   cpo_delivered_bdt: number | null;
+  products: Array<{ id: string; title: string | null; image: string | null; sku: string | null }>;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
