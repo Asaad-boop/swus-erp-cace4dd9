@@ -142,7 +142,7 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="px-4 md:px-6 py-6 max-w-[1600px] mx-auto space-y-6">
+      <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
         {isAllBrands && brands.length > 1 && (
@@ -269,10 +269,10 @@ function KpiStrip({
   });
 
   const cards = [
-    { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, sub: trendSub(data?.ordersTrend), tone: "indigo", to: "/erp/orders/web" },
+    { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, trend: data?.ordersTrend, sub: "vs previous", tone: "indigo", to: "/erp/orders/web" },
     { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
     { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
-    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), sub: trendSub(data?.revTrend), tone: "emerald", to: "/erp/finance" },
+    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
     { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
     { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
     { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
@@ -282,29 +282,48 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {cards.map((c, i) => (
         <button
           key={i}
           onClick={() => c.to && onNav(c.to)}
           className={cn(
-            "group text-left bg-card rounded-xl border p-4 hover:shadow-md transition-all",
-            c.to && "cursor-pointer hover:-translate-y-0.5"
+            "group text-left bg-card rounded-xl border p-5 hover:shadow-lg transition-all duration-200",
+            c.to && "cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20"
           )}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
-            <span className={cn("rounded-md p-1.5", toneBg(c.tone))}>
-              <c.icon className={cn("size-3.5", toneFg(c.tone))} />
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
+            <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
+              <c.icon className={cn("size-4", toneFg(c.tone))} />
             </span>
           </div>
-          {isLoading ? <Skeleton className="h-7 w-24" /> : (
-            <div className="text-xl md:text-2xl font-bold tracking-tight">{c.value}</div>
+          {isLoading ? <Skeleton className="h-9 w-28" /> : (
+            <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
           )}
-          <div className="text-xs text-muted-foreground mt-1 truncate">{c.sub}</div>
+          <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
+            {typeof (c as any).trend === "number" ? (
+              <TrendChip trend={(c as any).trend} />
+            ) : null}
+            <span className="text-xs text-muted-foreground truncate">{c.sub}</span>
+          </div>
         </button>
       ))}
     </div>
+  );
+}
+
+function TrendChip({ trend }: { trend: number }) {
+  const up = trend >= 0;
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+      up ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+         : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+    )}>
+      {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+      {Math.abs(trend).toFixed(1)}%
+    </span>
   );
 }
 
@@ -337,22 +356,22 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Brand Comparison</CardTitle>
+        <CardTitle className="text-lg font-semibold">Brand Comparison</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm border-separate border-spacing-0">
           <thead>
-            <tr className="text-left text-xs text-muted-foreground border-b">
-              <th className="py-2 pr-4 font-medium">Metric</th>
+            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="py-3 pr-4 font-semibold border-b">Metric</th>
               {brands.map(b => (
-                <th key={b.id} className="py-2 pr-4 font-medium">
+                <th key={b.id} className="py-3 pr-4 font-semibold border-b">
                   <div className="flex items-center gap-2">
                     {b.logo_url && <img src={b.logo_url} alt="" className="size-5 rounded object-cover" />}
                     {b.name}
                   </div>
                 </th>
               ))}
-              <th className="py-2 pr-4 font-medium">Combined</th>
+              <th className="py-3 pr-4 font-semibold border-b text-right">Combined</th>
             </tr>
           </thead>
           <BrandComparisonRows brands={brands} range={range} />
@@ -407,16 +426,16 @@ function BrandComparisonRows({ brands, range }: { brands: Brand[]; range: Return
   return (
     <tbody>
       {rows.map(row => (
-        <tr key={row.label} className="border-b last:border-0">
-          <td className="py-2.5 pr-4 text-muted-foreground">{row.label}</td>
+        <tr key={row.label} className="hover:bg-muted/30 transition-colors">
+          <td className="py-3 pr-4 text-muted-foreground border-b">{row.label}</td>
           {queries.map((q, i) => (
-            <td key={brands[i].id} className="py-2.5 pr-4 font-medium tabular-nums">
+            <td key={brands[i].id} className="py-3 pr-4 font-medium tabular-nums border-b">
               {q.isLoading ? <Skeleton className="h-4 w-16" /> :
                 (row.fmt ? row.fmt(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0)
                   : String(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0))}
             </td>
           ))}
-          <td className="py-2.5 pr-4 font-semibold tabular-nums">
+          <td className="py-3 pr-4 font-semibold tabular-nums border-b text-right">
             {row.key === "returnRate" ? "—" : (row.fmt ? row.fmt(sumKey(row.key as any)) : sumKey(row.key as any))}
           </td>
         </tr>
@@ -465,8 +484,8 @@ function TrendChart({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
-          <CardTitle className="text-base">Revenue & Orders Trend</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">{""}{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
+          <CardTitle className="text-lg font-semibold">Revenue & Orders Trend</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
         </div>
         <div className="flex gap-1 bg-muted rounded-md p-0.5">
           {(["revenue","orders","both"] as const).map(m => (
@@ -479,17 +498,21 @@ function TrendChart({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading || !data ? <Skeleton className="h-64 w-full" /> : (
-          <div className="h-64">
+        {isLoading || !data ? <Skeleton className="h-[320px] w-full" /> : (
+          <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <ComposedChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis yAxisId="rev" tickFormatter={(v) => compact(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={56} />
+                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={36} />
+                <Tooltip
+                  cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                  labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" />
                 {(mode === "revenue" || mode === "both") && (
                   isAllBrands && brands.length > 1 ? brands.map((b, i) => (
                     <Area key={b.id} yAxisId="rev" type="monotone" dataKey={"b_" + b.id} name={b.name}
@@ -537,7 +560,7 @@ function CourierCard({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Truck className="size-4 text-blue-600" /> Courier Status</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Truck className="size-5 text-blue-600" /> Courier Status</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {isLoading ? <Skeleton className="h-32" /> : Object.keys(data ?? {}).length === 0 ? (
           <p className="text-sm text-muted-foreground">No courier data yet.</p>
@@ -591,12 +614,12 @@ function CodOutstandingCard({ brandIds, enabled }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Banknote className="size-4 text-amber-600" /> COD Outstanding</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Banknote className="size-5 text-amber-600" /> COD Outstanding</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
-            <div className="text-2xl font-bold">{BDT(data?.amount ?? 0)}</div>
-            <div className="text-xs text-muted-foreground">{data?.count ?? 0} orders pending</div>
+            <div className="text-3xl font-bold tabular-nums">{BDT(data?.amount ?? 0)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{data?.count ?? 0} orders pending</div>
             {(data?.overdue ?? 0) > 0 && (
               <div className="mt-2 text-xs flex items-center gap-1.5 text-rose-600">
                 <span className="size-1.5 rounded-full bg-rose-500" />
@@ -629,7 +652,7 @@ function ReturnsCard({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Repeat className="size-4 text-amber-600" /> Returns & Exchanges</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Repeat className="size-5 text-amber-600" /> Returns & Exchanges</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
@@ -667,7 +690,7 @@ function ImportsCard({ brandIds, enabled }: { brandIds: string[]; enabled: boole
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Package className="size-4 text-violet-600" /> Import Status</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Package className="size-5 text-violet-600" /> Import Status</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
@@ -728,21 +751,21 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2">
-        <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Wallet className="size-4 text-emerald-600" /> Finance Snapshot</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Wallet className="size-5 text-emerald-600" /> Finance Snapshot</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {balances.map(b => (
-              <div key={b.label} className="rounded-lg border bg-card p-3">
-                <div className="text-xs text-muted-foreground flex items-center gap-1"><span>{b.icon}</span>{b.label}</div>
+              <div key={b.label} className="rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
+                <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><span className="text-base">{b.icon}</span>{b.label}</div>
                 {isLoading ? <Skeleton className="h-5 w-20 mt-1" /> :
-                  <div className="text-base font-semibold tabular-nums mt-0.5">{BDT(b.value)}</div>}
+                  <div className="text-lg font-bold tabular-nums mt-1">{BDT(b.value)}</div>}
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle className="text-sm">P&amp;L This Month</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg font-semibold">P&amp;L This Month</CardTitle></CardHeader>
         <CardContent className="space-y-1.5 text-sm">
           {isLoading ? <Skeleton className="h-32" /> : (<>
             <PLRow label="Revenue" v={data?.revenue ?? 0} />
@@ -783,7 +806,7 @@ function InventoryHealth({ brandIds, enabled }: { brandIds: string[]; enabled: b
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Boxes className="size-4 text-indigo-600" /> Inventory Health</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Boxes className="size-5 text-indigo-600" /> Inventory Health</CardTitle></CardHeader>
       <CardContent className="space-y-3 text-sm">
         {isLoading ? <Skeleton className="h-28" /> : (<>
           <div className="flex justify-between"><span className="text-muted-foreground">Stock Value</span><span className="font-semibold tabular-nums">{BDT(data?.value ?? 0)}</span></div>
@@ -809,7 +832,7 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm">Low Stock Products</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold">Low Stock Products</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No low stock alerts 🎉</p>
@@ -861,7 +884,7 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="size-4 text-pink-600" /> Marketing Snapshot</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Megaphone className="size-5 text-pink-600" /> Marketing Snapshot</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -912,7 +935,7 @@ function TopProducts({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="size-4 text-amber-500" /> Top Products</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Sparkles className="size-5 text-amber-500" /> Top Products</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No sales yet.</p>
@@ -958,7 +981,7 @@ function TopCustomers({ brandIds, enabled, range }: { brandIds: string[]; enable
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="size-4 text-violet-600" /> Top Customers</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Users className="size-5 text-violet-600" /> Top Customers</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No customers yet.</p>
@@ -1030,7 +1053,7 @@ function NeedsAttention({ brandIds, enabled }: { brandIds: string[]; enabled: bo
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="size-4 text-amber-600" /> Needs Attention</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><AlertTriangle className="size-5 text-amber-600" /> Needs Attention</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-24" /> : (
           (data ?? []).filter(a => !dismissed.has(a.text)).length === 0 ? (
