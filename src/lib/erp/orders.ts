@@ -50,7 +50,6 @@ export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderSta
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
   { key: "on_hold", label: "On Hold", statuses: ["on_hold"] },
   { key: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
-  { key: "incomplete", label: "Incomplete", statuses: [] },
   { key: "all", label: "All", statuses: [] },
 ];
 
