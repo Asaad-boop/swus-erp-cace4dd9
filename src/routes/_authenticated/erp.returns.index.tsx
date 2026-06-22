@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format, formatDistanceToNow } from "date-fns";
 import {
-  Download, RotateCcw, Repeat, Search, ChevronRight, Plus,
-  Inbox, X, Package, ArrowRight, SlidersHorizontal,
+  Download, RotateCcw, Repeat, Search, Plus,
+  Inbox, X, Package, ArrowUpRight, Filter, Circle, Clock,
+  CheckCircle2, AlertCircle, ArrowRight,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,23 @@ export const Route = createFileRoute("/_authenticated/erp/returns/")({
   head: () => ({ meta: [{ title: "Returns & Exchanges — ERP" }] }),
   component: ReturnsListPage,
 });
+
+/* ---------- Theme tokens (Returns = Amber, Exchanges = Violet) ---------- */
+const RETURN = {
+  base: "#D97706",        // amber-600
+  soft: "#FEF3C7",        // amber-100
+  softer: "#FFFBEB",      // amber-50
+  ink: "#78350F",         // amber-900
+  ring: "rgba(217,119,6,0.22)",
+};
+const EXCHANGE = {
+  base: "#7C3AED",        // violet-600
+  soft: "#EDE9FE",        // violet-100
+  softer: "#F5F3FF",      // violet-50
+  ink: "#4C1D95",         // violet-900
+  ring: "rgba(124,58,237,0.22)",
+};
+const theme = (t: "return" | "exchange") => (t === "return" ? RETURN : EXCHANGE);
 
 type Tab = "all" | "returns" | "exchanges" | "pending_qc" | "restocked" | "closed";
 
