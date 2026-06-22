@@ -73,6 +73,24 @@ export const getMyEmployee = createServerFn({ method: "POST" })
     };
   });
 
+/* ================= POST-LOGIN LANDING ================= */
+/** Decide where this user should land after login.
+ *  - Staff (has hr_employees row AND no admin/operations role) → /me
+ *  - Everyone else (admin/ops/no employee row) → /erp
+ */
+export const getMyLanding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const [empRes, adminRes, opsRes] = await Promise.all([
+      supabase.from("hr_employees").select("id").eq("user_id", userId).maybeSingle(),
+      supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+      supabase.rpc("has_role", { _user_id: userId, _role: "operations" }),
+    ]);
+    const isStaff = !!empRes.data && !adminRes.data && !opsRes.data;
+    return { to: isStaff ? "/me" : "/erp" } as const;
+  });
+
 /* ================= TODAY ================= */
 export const getMyToday = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

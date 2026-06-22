@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMyLanding } from "@/lib/erp/hr/me.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +24,14 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      navigate({ to: "/erp" });
+      try {
+        const { to } = await getMyLanding();
+        navigate({ to });
+      } catch {
+        navigate({ to: "/erp" });
+      }
     });
   }, [navigate]);
 
@@ -45,7 +51,12 @@ function AuthPage() {
       await router.invalidate();
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
-        navigate({ to: "/erp" });
+        try {
+          const { to } = await getMyLanding();
+          navigate({ to });
+        } catch {
+          navigate({ to: "/erp" });
+        }
       } else if (mode === "signup") {
         // Sign-up succeeded but email confirmation required — stay on page.
         toast.message("Please confirm your email, then sign in.");
