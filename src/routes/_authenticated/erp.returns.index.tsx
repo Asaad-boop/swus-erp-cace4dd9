@@ -252,51 +252,55 @@ function ReturnsListPage() {
 
 /* ---------- Sub-components ---------- */
 
-function HeroStat({ label, value, pulse, accent }: {
-  label: string; value: React.ReactNode; pulse?: boolean; accent?: boolean;
-}) {
-  return (
-    <div className="px-0 md:px-6 first:pl-0">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-[#FBF8F3]/55 flex items-center gap-1.5">
-        {label}
-        {pulse && Number(value) > 0 && (
-          <span className="h-1.5 w-1.5 rounded-full bg-[#D4A574] animate-pulse" />
-        )}
-      </div>
-      <div
-        className={cn(
-          "mt-1.5 text-[34px] leading-none tracking-tight tabular-nums",
-          accent ? "text-[#D4A574]" : "text-[#FBF8F3]",
-        )}
-        style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function UnderlineTab({ active, onClick, label, count, icon, alert }: {
-  active: boolean; onClick: () => void; label: string; count: number;
-  icon?: React.ReactNode; alert?: boolean;
+function PipelineCard({ label, value, sub, onClick, active, accent, pulse, mono }: {
+  label: string; value: React.ReactNode; sub?: string; onClick: () => void;
+  active?: boolean; accent: string; pulse?: boolean; mono?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "relative inline-flex items-center gap-1.5 px-3 pt-2.5 pb-3 text-[12px] font-medium transition-colors border-b-2 whitespace-nowrap",
+        "group relative text-left rounded-2xl bg-white dark:bg-card border px-4 py-3.5 transition-all overflow-hidden",
+        "hover:-translate-y-[1px] hover:shadow-[0_8px_20px_-12px_rgba(0,0,0,0.15)]",
+        active ? "border-stone-900 dark:border-foreground shadow-[0_4px_14px_-6px_rgba(0,0,0,0.12)]" : "border-stone-200 dark:border-border",
+      )}
+      style={{ borderLeft: `3px solid ${accent}` }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">{label}</div>
+        {pulse && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: accent }} />}
+      </div>
+      <div className={cn(
+        "mt-1.5 text-[26px] leading-none tracking-tight tabular-nums font-semibold",
+        mono ? "text-[#1C1917]" : "",
+      )} style={{ color: active ? accent : undefined }}>
+        {value}
+      </div>
+      {sub && <div className="mt-1.5 text-[10.5px] text-stone-500 truncate">{sub}</div>}
+    </button>
+  );
+}
+
+function SegBtn({ active, onClick, label, count, icon, color }: {
+  active: boolean; onClick: () => void; label: string; count: number;
+  icon?: React.ReactNode; color?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all whitespace-nowrap flex-1 md:flex-none justify-center",
         active
-          ? "text-[#0D4F4C] border-[#0D4F4C]"
-          : "text-stone-500 border-transparent hover:text-[#1C1917]",
+          ? "bg-[#1C1917] text-white shadow-sm"
+          : "text-stone-600 hover:text-[#1C1917]",
       )}
     >
-      {icon}
+      {icon && <span style={{ color: active ? (color ?? "currentColor") : (color ?? "currentColor") }}>{icon}</span>}
       {label}
       <span className={cn(
-        "tabular-nums text-[10px] px-1.5 py-0.5 rounded-full",
-        active ? "bg-[#0D4F4C]/10 text-[#0D4F4C]" : "bg-stone-100 text-stone-600",
+        "tabular-nums text-[10px] px-1.5 py-0.5 rounded-md",
+        active ? "bg-white/15 text-white" : "bg-stone-100 text-stone-600",
       )}>{count}</span>
-      {alert && <span className="h-1.5 w-1.5 rounded-full bg-[#E11D48] animate-pulse" />}
     </button>
   );
 }
@@ -309,45 +313,49 @@ function initials(name: string) {
 
 function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen: () => void; selected?: boolean }) {
   const isReturn = r.type === "return";
+  const accent = isReturn ? "#0D4F4C" : "#B8893F";
   return (
     <li
       onClick={onOpen}
       style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}
       className={cn(
-        "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 pl-5 pr-3 py-4 cursor-pointer animate-fade-in",
-        "hover:bg-[#FBF8F3] dark:hover:bg-muted/40 transition-colors",
-        selected && "bg-[#FBF8F3] dark:bg-muted/60",
+        "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 pl-3 pr-2.5 py-3 cursor-pointer animate-fade-in rounded-xl",
+        "bg-white dark:bg-card border border-stone-200/70 dark:border-border",
+        "hover:border-stone-300 hover:shadow-[0_4px_14px_-8px_rgba(0,0,0,0.1)] transition-all",
+        selected && "ring-2 ring-offset-1 ring-[#1C1917]/90 dark:ring-foreground",
       )}
     >
-      {selected && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#0D4F4C]" />}
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: accent }} />
 
-      {/* Avatar + type indicator */}
-      <div className="relative shrink-0">
-        <div className={cn(
-          "h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-semibold tracking-wide",
-          "bg-[#FBF8F3] text-[#0D4F4C] ring-1 ring-stone-200",
-        )}>
-          {initials(r.customer)}
-        </div>
+      {/* Product thumb */}
+      <div className="relative shrink-0 ml-1">
+        {r.productImage ? (
+          <img src={r.productImage} alt=""
+            className="h-12 w-12 rounded-lg object-cover ring-1 ring-stone-200 bg-stone-50" />
+        ) : (
+          <div className="h-12 w-12 rounded-lg flex items-center justify-center bg-stone-100 text-stone-400 ring-1 ring-stone-200">
+            <Package className="h-5 w-5" />
+          </div>
+        )}
         <span className={cn(
-          "absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white dark:ring-card flex items-center justify-center",
-          isReturn ? "bg-[#0D4F4C] text-white" : "bg-[#D4A574] text-[#1C1917]",
-        )}>
+          "absolute -bottom-1 -right-1 h-5 w-5 rounded-full ring-2 ring-white dark:ring-card flex items-center justify-center text-white",
+        )} style={{ background: accent }}>
           {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
         </span>
       </div>
 
-      {/* Main content */}
-      <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-3 md:gap-5">
+      {/* Main */}
+      <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] items-center gap-2 md:gap-5">
         <div className="min-w-0">
-          <div className="text-[13px] font-semibold truncate text-[#1C1917] dark:text-foreground leading-tight">
+          <div className="text-[13.5px] font-semibold truncate text-[#1C1917] dark:text-foreground leading-tight">
             {r.productTitle}
           </div>
-          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate mt-0.5 flex items-center gap-1.5">
-            <span className="font-mono">{r.caseNumber}</span>
+          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate mt-1 flex items-center gap-1.5">
+            <span className="font-mono text-stone-700">{r.caseNumber}</span>
             <span className="text-stone-300">·</span>
-            <span>{r.customer}</span>
-            {r.orderNumber && <><span className="text-stone-300">·</span><span className="font-mono">#{r.orderNumber}</span></>}
+            <span className="truncate">{initials(r.customer) !== "—" ? r.customer : "Unknown"}</span>
+            {r.orderNumber && <><span className="text-stone-300 hidden md:inline">·</span>
+              <span className="font-mono hidden md:inline">#{r.orderNumber}</span></>}
           </div>
         </div>
 
@@ -358,12 +366,9 @@ function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen
           </span>
         </div>
 
-        <div className="text-right tabular-nums">
+        <div className="text-right tabular-nums hidden md:block">
           {r.amount > 0 ? (
-            <div
-              className="text-[18px] leading-none text-[#0D4F4C] dark:text-foreground"
-              style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
-            >
+            <div className="text-[16px] leading-none font-semibold" style={{ color: accent }}>
               ৳{r.amount.toLocaleString("en-IN")}
             </div>
           ) : (
@@ -376,7 +381,7 @@ function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen
       <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
         <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
         <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
-          className="text-stone-300 hover:text-[#0D4F4C] p-1.5 rounded-md hover:bg-stone-100 transition-colors">
+          className="text-stone-300 hover:text-[#1C1917] p-1.5 rounded-md hover:bg-stone-100 transition-colors">
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
