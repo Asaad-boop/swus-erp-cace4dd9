@@ -274,54 +274,62 @@ function ReturnsListPage() {
 
 /* ---------- Sub-components ---------- */
 
-function PipelineCard({ label, value, sub, onClick, active, accent, pulse, mono }: {
+function PipelineCard({ label, value, sub, onClick, active, accent, pulse, mono, icon }: {
   label: string; value: React.ReactNode; sub?: string; onClick: () => void;
-  active?: boolean; accent: string; pulse?: boolean; mono?: boolean;
+  active?: boolean; accent: string; pulse?: boolean; mono?: boolean; icon?: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "group relative text-left rounded-2xl bg-white dark:bg-card border px-4 py-3.5 transition-all overflow-hidden",
-        "hover:-translate-y-[1px] hover:shadow-[0_8px_20px_-12px_rgba(0,0,0,0.15)]",
-        active ? "border-stone-900 dark:border-foreground shadow-[0_4px_14px_-6px_rgba(0,0,0,0.12)]" : "border-stone-200 dark:border-border",
+        "group relative text-left rounded-xl bg-white dark:bg-card border px-3.5 py-3 transition-all",
+        "hover:border-zinc-300 hover:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)]",
+        active ? "border-zinc-900 dark:border-foreground shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)]"
+               : "border-zinc-200 dark:border-border",
       )}
-      style={{ borderLeft: `3px solid ${accent}` }}
     >
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">{label}</div>
-        {pulse && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: accent }} />}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="grid place-items-center h-5 w-5 rounded-md shrink-0"
+            style={{ background: `${accent}14`, color: accent }}>
+            {icon}
+          </span>
+          <span className="text-[10.5px] uppercase tracking-[0.1em] text-zinc-500 font-semibold truncate">{label}</span>
+        </div>
+        {pulse && (
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: accent }} />
+            <span className="relative h-2 w-2 rounded-full" style={{ background: accent }} />
+          </span>
+        )}
       </div>
       <div className={cn(
-        "mt-1.5 text-[26px] leading-none tracking-tight tabular-nums font-semibold",
-        mono ? "text-[#1C1917]" : "",
-      )} style={{ color: active ? accent : undefined }}>
+        "mt-2 text-[24px] leading-none tracking-tight tabular-nums font-semibold text-zinc-900",
+        mono && "text-zinc-900",
+      )} style={active && !mono ? { color: accent } : undefined}>
         {value}
       </div>
-      {sub && <div className="mt-1.5 text-[10.5px] text-stone-500 truncate">{sub}</div>}
+      {sub && <div className="mt-1.5 text-[10.5px] text-zinc-500 truncate font-medium">{sub}</div>}
     </button>
   );
 }
 
-function SegBtn({ active, onClick, label, count, icon, color }: {
-  active: boolean; onClick: () => void; label: string; count: number;
-  icon?: React.ReactNode; color?: string;
+function SegBtn({ active, onClick, label, count, dot }: {
+  active: boolean; onClick: () => void; label: string; count: number; dot?: string;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all whitespace-nowrap flex-1 md:flex-none justify-center",
-        active
-          ? "bg-[#1C1917] text-white shadow-sm"
-          : "text-stone-600 hover:text-[#1C1917]",
+        "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-colors whitespace-nowrap",
+        active ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:text-zinc-900",
       )}
     >
-      {icon && <span style={{ color: active ? (color ?? "currentColor") : (color ?? "currentColor") }}>{icon}</span>}
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />}
       {label}
       <span className={cn(
-        "tabular-nums text-[10px] px-1.5 py-0.5 rounded-md",
-        active ? "bg-white/15 text-white" : "bg-stone-100 text-stone-600",
+        "tabular-nums text-[10px] px-1.5 py-0.5 rounded font-semibold",
+        active ? "bg-white text-zinc-700 ring-1 ring-zinc-200" : "bg-zinc-100 text-zinc-500",
       )}>{count}</span>
     </button>
   );
