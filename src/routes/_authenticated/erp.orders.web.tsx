@@ -1230,8 +1230,8 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Tags */}
-                    <TableCell className="py-2">
-                      <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={4} />
+                    <TableCell className="py-2 w-[90px]">
+                      <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={3} compact />
                     </TableCell>
 
                     {/* Site */}
