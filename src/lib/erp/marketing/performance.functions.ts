@@ -45,6 +45,8 @@ export type PerfRow = {
   // Decision
   decision: DecisionBucket;
   decision_reason: string;
+  // Linked products (for visual identification in tables)
+  products: Array<{ id: string; title: string | null; image: string | null; sku: string | null }>;
 };
 
 export type PerfTotals = {
@@ -251,6 +253,24 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       aggMap.set(r.campaign_id, cur);
     }
 
+    // Linked products per campaign — for visual ID in the Performance table
+    const { data: prodLinks } = await supabase
+      .from("mkt_campaign_products")
+      .select("campaign_id, products(id, title, sku, image)")
+      .in("campaign_id", campIds);
+    const prodMap = new Map<string, PerfRow["products"]>();
+    for (const r of (prodLinks ?? []) as any[]) {
+      if (!r.campaign_id || !r.products) continue;
+      const arr = prodMap.get(r.campaign_id) ?? [];
+      arr.push({
+        id: r.products.id,
+        title: r.products.title ?? null,
+        image: r.products.image ?? null,
+        sku: r.products.sku ?? null,
+      });
+      prodMap.set(r.campaign_id, arr);
+    }
+
     const rows: PerfRow[] = (campaigns as any[]).map((c) => {
       const acc = c.mkt_ad_accounts;
       const currency: string = (acc?.currency ?? "USD").toUpperCase();
@@ -327,6 +347,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
           agg.delivered_orders > 0 ? total_spend_bdt / agg.delivered_orders : null,
         decision: dec.decision,
         decision_reason: dec.reason,
+        products: prodMap.get(c.id) ?? [],
       };
     });
 
