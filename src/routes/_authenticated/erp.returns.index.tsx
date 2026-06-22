@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format, formatDistanceToNow } from "date-fns";
 import {
-  Download, RotateCcw, Repeat, Search, ChevronRight, Plus,
-  Inbox, X, Package, ArrowRight, SlidersHorizontal,
+  Download, RotateCcw, Repeat, Search, Plus,
+  Inbox, X, Package, ArrowUpRight, Filter, Circle, Clock,
+  CheckCircle2, AlertCircle, ArrowRight,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,23 @@ export const Route = createFileRoute("/_authenticated/erp/returns/")({
   head: () => ({ meta: [{ title: "Returns & Exchanges — ERP" }] }),
   component: ReturnsListPage,
 });
+
+/* ---------- Theme tokens (Returns = Amber, Exchanges = Violet) ---------- */
+const RETURN = {
+  base: "#D97706",        // amber-600
+  soft: "#FEF3C7",        // amber-100
+  softer: "#FFFBEB",      // amber-50
+  ink: "#78350F",         // amber-900
+  ring: "rgba(217,119,6,0.22)",
+};
+const EXCHANGE = {
+  base: "#7C3AED",        // violet-600
+  soft: "#EDE9FE",        // violet-100
+  softer: "#F5F3FF",      // violet-50
+  ink: "#4C1D95",         // violet-900
+  ring: "rgba(124,58,237,0.22)",
+};
+const theme = (t: "return" | "exchange") => (t === "return" ? RETURN : EXCHANGE);
 
 type Tab = "all" | "returns" | "exchanges" | "pending_qc" | "restocked" | "closed";
 
@@ -134,95 +152,99 @@ function ReturnsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F5F0] dark:bg-background">
-      {/* Refined light header */}
-      <header className="bg-white/70 dark:bg-card/40 backdrop-blur-sm border-b border-stone-200/70 dark:border-border sticky top-0 z-20">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-medium">ERP · Reverse Logistics</div>
-            <div className="flex items-baseline gap-3 mt-0.5">
-              <h1 className="text-[22px] md:text-[26px] font-semibold tracking-tight text-[#1C1917] dark:text-foreground truncate"
-                style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}>
-                Returns <span className="italic text-[#B8893F]">&amp;</span> Exchanges
-              </h1>
-              <span className="hidden md:inline text-[11px] text-stone-500 tabular-nums">
-                {counts.all} cases
-                {lastUpdated && <> · Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}</>}
-              </span>
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-background text-zinc-900 dark:text-foreground">
+      {/* === Header === */}
+      <header className="sticky top-0 z-30 bg-white/85 dark:bg-card/70 backdrop-blur-md border-b border-zinc-200/80 dark:border-border">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 h-14 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-md bg-gradient-to-br from-amber-500 to-violet-600 grid place-items-center text-white shadow-sm">
+                <RotateCcw className="h-3.5 w-3.5" />
+              </div>
+              <h1 className="text-[15px] font-semibold tracking-tight truncate">Returns & Exchanges</h1>
             </div>
+            <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-zinc-500 font-medium pl-3 ml-1 border-l border-zinc-200">
+              <Circle className="h-1.5 w-1.5 fill-emerald-500 text-emerald-500" />
+              {counts.all} active
+              {lastUpdated && <span className="text-zinc-400">· {formatDistanceToNow(lastUpdated, { addSuffix: true })}</span>}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <Button size="sm" onClick={() => setNewReturnOpen(true)}
-              className="bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white shadow-sm h-8 px-3">
-              <Plus className="h-3.5 w-3.5 mr-1" />Return
-            </Button>
-            <Button size="sm" onClick={() => setNewExchangeOpen(true)}
-              className="bg-[#B8893F] hover:bg-[#A0762E] text-white shadow-sm h-8 px-3">
-              <Plus className="h-3.5 w-3.5 mr-1" />Exchange
-            </Button>
             <Button variant="ghost" size="sm" onClick={exportCsv}
-              className="text-stone-600 hover:bg-stone-100 h-8 w-8 p-0" aria-label="Export">
+              className="text-zinc-600 hover:bg-zinc-100 h-8 w-8 p-0" aria-label="Export">
               <Download className="h-4 w-4" />
+            </Button>
+            <div className="h-5 w-px bg-zinc-200 mx-1" />
+            <Button size="sm" onClick={() => setNewExchangeOpen(true)}
+              className="bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 shadow-none h-8 px-3 text-xs font-medium">
+              <Repeat className="h-3.5 w-3.5 mr-1.5" />Exchange
+            </Button>
+            <Button size="sm" onClick={() => setNewReturnOpen(true)}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white h-8 px-3 text-xs font-medium shadow-sm">
+              <Plus className="h-3.5 w-3.5 mr-1" />New Return
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-6 space-y-5">
-        {/* Status pipeline KPI strip — premium */}
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-          <PipelineCard label="All Cases" value={counts.all} active={tab === "all"}
-            onClick={() => setTab("all")} accent="#1C1917" sub={`${counts.returns} returns · ${counts.exchanges} exchanges`} />
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-5 space-y-4">
+        {/* === Status pipeline (Linear-style) === */}
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <PipelineCard label="All" value={counts.all} active={tab === "all"}
+            onClick={() => setTab("all")} accent="#18181B" icon={<Inbox className="h-3.5 w-3.5" />}
+            sub={`${counts.returns}R · ${counts.exchanges}E`} />
           <PipelineCard label="Pending QC" value={counts.pending_qc} active={tab === "pending_qc"}
             onClick={() => setTab("pending_qc")} accent="#D97706" pulse={counts.pending_qc > 0}
-            sub="Action required" />
+            icon={<AlertCircle className="h-3.5 w-3.5" />} sub="Needs action" />
           <PipelineCard label="Restocked" value={counts.restocked} active={tab === "restocked"}
-            onClick={() => setTab("restocked")} accent="#059669" sub="Back in stock" />
+            onClick={() => setTab("restocked")} accent="#059669"
+            icon={<CheckCircle2 className="h-3.5 w-3.5" />} sub="Back in stock" />
           <PipelineCard label="Closed" value={counts.closed} active={tab === "closed"}
-            onClick={() => setTab("closed")} accent="#64748B" sub="Resolved" />
-          <PipelineCard label="Refunds Total" value={`৳${totalRefunds.toLocaleString("en-IN")}`}
-            onClick={() => {}} accent="#E11D48" sub="This view" mono />
+            onClick={() => setTab("closed")} accent="#52525B"
+            icon={<Clock className="h-3.5 w-3.5" />} sub="Resolved" />
+          <PipelineCard label="Refunds (view)" value={`৳${totalRefunds.toLocaleString("en-IN")}`}
+            onClick={() => {}} accent="#E11D48" mono sub="Total impact" />
         </section>
 
-        {/* Type segment + filters row */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="inline-flex items-center rounded-xl bg-white dark:bg-card p-1 border border-stone-200 shadow-[0_1px_2px_rgba(0,0,0,0.03)] w-full md:w-auto">
+        {/* === Filter bar === */}
+        <div className="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex items-center gap-0.5 rounded-lg bg-white border border-zinc-200 p-0.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
             <SegBtn active={tab === "all"} onClick={() => setTab("all")} label="All" count={counts.all} />
             <SegBtn active={tab === "returns"} onClick={() => setTab("returns")} label="Returns" count={counts.returns}
-              icon={<RotateCcw className="h-3 w-3" />} color="#0D4F4C" />
+              dot={RETURN.base} />
             <SegBtn active={tab === "exchanges"} onClick={() => setTab("exchanges")} label="Exchanges" count={counts.exchanges}
-              icon={<Repeat className="h-3 w-3" />} color="#B8893F" />
+              dot={EXCHANGE.base} />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 md:flex-none">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-              <Input className="pl-8 h-9 w-full md:w-[260px] text-xs bg-white dark:bg-card border-stone-200 rounded-lg"
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+              <Input className="pl-8 h-8 w-full md:w-[280px] text-xs bg-white border-zinc-200 rounded-md focus-visible:ring-1 focus-visible:ring-zinc-400"
                 placeholder="Search case, order, customer, product…" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <Input type="date" className="h-9 w-[140px] text-xs rounded-lg" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
-            <Input type="date" className="h-9 w-[140px] text-xs rounded-lg" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
+            <Input type="date" className="h-8 w-[130px] text-xs rounded-md border-zinc-200" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
+            <Input type="date" className="h-8 w-[130px] text-xs rounded-md border-zinc-200" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
           </div>
         </div>
 
-        {/* Split: list + preview */}
+        {/* === Ticket list + Preview === */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className={cn("space-y-2", selectedId ? "lg:col-span-3" : "lg:col-span-5")}>
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
-                {rows.length} {rows.length === 1 ? "case" : "cases"}
+          <div className={cn(selectedId ? "lg:col-span-3" : "lg:col-span-5")}>
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-[10.5px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">
+                {rows.length} {rows.length === 1 ? "ticket" : "tickets"}
               </span>
-              <span className="text-[10px] text-stone-400 hidden md:flex items-center gap-1">
-                <SlidersHorizontal className="h-3 w-3" /> Sorted newest first
+              <span className="text-[10.5px] text-zinc-400 hidden md:flex items-center gap-1 font-medium">
+                <Filter className="h-3 w-3" /> Newest first
               </span>
             </div>
             {(retQ.isLoading || excQ.isLoading) ? (
-              <div className="py-20 text-center text-sm text-stone-500 bg-white rounded-2xl border border-stone-200">Loading…</div>
+              <div className="py-24 text-center text-sm text-zinc-500 bg-white rounded-xl border border-zinc-200">Loading tickets…</div>
             ) : rows.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-stone-200">
+              <div className="bg-white rounded-xl border border-zinc-200">
                 <EmptyState onNew={() => setNewReturnOpen(true)} />
               </div>
             ) : (
-              <ul className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1 -mr-1">
+              <ul className="space-y-1.5 max-h-[calc(100vh-340px)] overflow-y-auto pr-1 -mr-1">
                 {rows.map((r, i) => (
                   <CaseRow key={r.id} r={r} index={i} selected={selectedId === r.id}
                     onOpen={() => setSelectedId(r.id)} />
@@ -252,54 +274,62 @@ function ReturnsListPage() {
 
 /* ---------- Sub-components ---------- */
 
-function PipelineCard({ label, value, sub, onClick, active, accent, pulse, mono }: {
+function PipelineCard({ label, value, sub, onClick, active, accent, pulse, mono, icon }: {
   label: string; value: React.ReactNode; sub?: string; onClick: () => void;
-  active?: boolean; accent: string; pulse?: boolean; mono?: boolean;
+  active?: boolean; accent: string; pulse?: boolean; mono?: boolean; icon?: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "group relative text-left rounded-2xl bg-white dark:bg-card border px-4 py-3.5 transition-all overflow-hidden",
-        "hover:-translate-y-[1px] hover:shadow-[0_8px_20px_-12px_rgba(0,0,0,0.15)]",
-        active ? "border-stone-900 dark:border-foreground shadow-[0_4px_14px_-6px_rgba(0,0,0,0.12)]" : "border-stone-200 dark:border-border",
+        "group relative text-left rounded-xl bg-white dark:bg-card border px-3.5 py-3 transition-all",
+        "hover:border-zinc-300 hover:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)]",
+        active ? "border-zinc-900 dark:border-foreground shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)]"
+               : "border-zinc-200 dark:border-border",
       )}
-      style={{ borderLeft: `3px solid ${accent}` }}
     >
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">{label}</div>
-        {pulse && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: accent }} />}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="grid place-items-center h-5 w-5 rounded-md shrink-0"
+            style={{ background: `${accent}14`, color: accent }}>
+            {icon}
+          </span>
+          <span className="text-[10.5px] uppercase tracking-[0.1em] text-zinc-500 font-semibold truncate">{label}</span>
+        </div>
+        {pulse && (
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: accent }} />
+            <span className="relative h-2 w-2 rounded-full" style={{ background: accent }} />
+          </span>
+        )}
       </div>
       <div className={cn(
-        "mt-1.5 text-[26px] leading-none tracking-tight tabular-nums font-semibold",
-        mono ? "text-[#1C1917]" : "",
-      )} style={{ color: active ? accent : undefined }}>
+        "mt-2 text-[24px] leading-none tracking-tight tabular-nums font-semibold text-zinc-900",
+        mono && "text-zinc-900",
+      )} style={active && !mono ? { color: accent } : undefined}>
         {value}
       </div>
-      {sub && <div className="mt-1.5 text-[10.5px] text-stone-500 truncate">{sub}</div>}
+      {sub && <div className="mt-1.5 text-[10.5px] text-zinc-500 truncate font-medium">{sub}</div>}
     </button>
   );
 }
 
-function SegBtn({ active, onClick, label, count, icon, color }: {
-  active: boolean; onClick: () => void; label: string; count: number;
-  icon?: React.ReactNode; color?: string;
+function SegBtn({ active, onClick, label, count, dot }: {
+  active: boolean; onClick: () => void; label: string; count: number; dot?: string;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all whitespace-nowrap flex-1 md:flex-none justify-center",
-        active
-          ? "bg-[#1C1917] text-white shadow-sm"
-          : "text-stone-600 hover:text-[#1C1917]",
+        "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-colors whitespace-nowrap",
+        active ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:text-zinc-900",
       )}
     >
-      {icon && <span style={{ color: active ? (color ?? "currentColor") : (color ?? "currentColor") }}>{icon}</span>}
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />}
       {label}
       <span className={cn(
-        "tabular-nums text-[10px] px-1.5 py-0.5 rounded-md",
-        active ? "bg-white/15 text-white" : "bg-stone-100 text-stone-600",
+        "tabular-nums text-[10px] px-1.5 py-0.5 rounded font-semibold",
+        active ? "bg-white text-zinc-700 ring-1 ring-zinc-200" : "bg-zinc-100 text-zinc-500",
       )}>{count}</span>
     </button>
   );
@@ -313,77 +343,91 @@ function initials(name: string) {
 
 function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen: () => void; selected?: boolean }) {
   const isReturn = r.type === "return";
-  const accent = isReturn ? "#0D4F4C" : "#B8893F";
+  const t = theme(r.type);
   return (
     <li
       onClick={onOpen}
-      style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}
+      style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
       className={cn(
-        "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 pl-3 pr-2.5 py-3 cursor-pointer animate-fade-in rounded-xl",
-        "bg-white dark:bg-card border border-stone-200/70 dark:border-border",
-        "hover:border-stone-300 hover:shadow-[0_4px_14px_-8px_rgba(0,0,0,0.1)] transition-all",
-        selected && "ring-2 ring-offset-1 ring-[#1C1917]/90 dark:ring-foreground",
+        "group relative flex items-stretch gap-0 cursor-pointer animate-fade-in rounded-lg overflow-hidden",
+        "bg-white dark:bg-card border transition-all",
+        selected
+          ? "border-zinc-900 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.12)]"
+          : "border-zinc-200/80 hover:border-zinc-300 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
       )}
     >
-      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: accent }} />
+      {/* Type rail */}
+      <span className="w-1 shrink-0" style={{ background: t.base }} aria-hidden />
 
-      {/* Product thumb */}
-      <div className="relative shrink-0 ml-1">
-        {r.productImage ? (
-          <img src={r.productImage} alt=""
-            className="h-12 w-12 rounded-lg object-cover ring-1 ring-stone-200 bg-stone-50" />
-        ) : (
-          <div className="h-12 w-12 rounded-lg flex items-center justify-center bg-stone-100 text-stone-400 ring-1 ring-stone-200">
-            <Package className="h-5 w-5" />
-          </div>
-        )}
-        <span className={cn(
-          "absolute -bottom-1 -right-1 h-5 w-5 rounded-full ring-2 ring-white dark:ring-card flex items-center justify-center text-white",
-        )} style={{ background: accent }}>
-          {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
-        </span>
-      </div>
-
-      {/* Main */}
-      <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] items-center gap-2 md:gap-5">
-        <div className="min-w-0">
-          <div className="text-[13.5px] font-semibold truncate text-[#1C1917] dark:text-foreground leading-tight">
-            {r.productTitle}
-          </div>
-          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-            <span className="font-mono text-stone-700">{r.caseNumber}</span>
-            <span className="text-stone-300">·</span>
-            <span className="truncate">{initials(r.customer) !== "—" ? r.customer : "Unknown"}</span>
-            {r.orderNumber && <><span className="text-stone-300 hidden md:inline">·</span>
-              <span className="font-mono hidden md:inline">#{r.orderNumber}</span></>}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 min-w-0">
-          <ReturnStatusBadge status={r.status} />
-          <span className="text-[11px] text-stone-400 hidden lg:inline truncate">
-            {format(new Date(r.createdAt), "dd MMM")}
-          </span>
-        </div>
-
-        <div className="text-right tabular-nums hidden md:block">
-          {r.amount > 0 ? (
-            <div className="text-[16px] leading-none font-semibold" style={{ color: accent }}>
-              ৳{r.amount.toLocaleString("en-IN")}
-            </div>
+      <div className="flex-1 min-w-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 px-3 py-2.5">
+        {/* Thumb */}
+        <div className="relative shrink-0">
+          {r.productImage ? (
+            <img src={r.productImage} alt=""
+              className="h-11 w-11 rounded-md object-cover ring-1 ring-zinc-200 bg-zinc-50" />
           ) : (
-            <span className="text-stone-300 text-sm">—</span>
+            <div className="h-11 w-11 rounded-md grid place-items-center bg-zinc-50 text-zinc-400 ring-1 ring-zinc-200">
+              <Package className="h-4 w-4" />
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-        <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
-        <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
-          className="text-stone-300 hover:text-[#1C1917] p-1.5 rounded-md hover:bg-stone-100 transition-colors">
-          <ChevronRight className="h-4 w-4" />
-        </Link>
+        {/* Main */}
+        <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-4">
+          <div className="min-w-0">
+            {/* Ticket ID strip */}
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-px rounded text-[9.5px] font-mono font-semibold uppercase tracking-wider"
+                style={{ background: t.softer, color: t.ink, border: `1px solid ${t.soft}` }}
+              >
+                {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
+                {r.caseNumber}
+              </span>
+              {r.orderNumber && (
+                <span className="text-[10px] font-mono text-zinc-400 hidden md:inline">#{r.orderNumber}</span>
+              )}
+            </div>
+            <div className="text-[13px] font-medium truncate text-zinc-900 dark:text-foreground leading-snug">
+              {r.productTitle}
+            </div>
+            <div className="text-[11px] text-zinc-500 truncate mt-0.5 flex items-center gap-1.5">
+              <span className="inline-grid h-3.5 w-3.5 place-items-center rounded-full bg-zinc-100 text-[8px] font-semibold text-zinc-600 shrink-0">
+                {initials(r.customer)}
+              </span>
+              <span className="truncate">{r.customer || "Unknown"}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 min-w-0">
+            <ReturnStatusBadge status={r.status} />
+            <span className="text-[10.5px] text-zinc-400 hidden lg:inline truncate font-medium">
+              {format(new Date(r.createdAt), "dd MMM")}
+            </span>
+          </div>
+
+          <div className="text-right tabular-nums hidden md:block">
+            {r.amount > 0 ? (
+              <div className="text-[14px] leading-none font-semibold text-zinc-900">
+                ৳{r.amount.toLocaleString("en-IN")}
+              </div>
+            ) : (
+              <span className="text-zinc-300 text-xs">—</span>
+            )}
+          </div>
+        </div>
+
+        {/* Action — most prominent */}
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="hidden sm:block">
+            <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
+          </div>
+          <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
+            className="text-zinc-400 hover:text-zinc-900 p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
+            aria-label="Open">
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </li>
   );
@@ -391,16 +435,16 @@ function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen
 
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
-    <div className="py-16 px-6 text-center">
-      <div className="mx-auto h-14 w-14 rounded-full bg-[#0D4F4C]/10 dark:bg-muted flex items-center justify-center text-[#0D4F4C]">
-        <Inbox className="h-7 w-7" />
+    <div className="py-20 px-6 text-center">
+      <div className="mx-auto h-12 w-12 rounded-xl bg-zinc-100 grid place-items-center text-zinc-500">
+        <Inbox className="h-5 w-5" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-[#1C1917] dark:text-foreground">No return cases yet</h3>
-      <p className="mt-1 text-xs text-stone-500 dark:text-muted-foreground max-w-sm mx-auto">
-        Returns and exchanges from orders will appear here. Create one to start tracking.
+      <h3 className="mt-4 text-sm font-semibold text-zinc-900">No tickets yet</h3>
+      <p className="mt-1 text-xs text-zinc-500 max-w-sm mx-auto">
+        Returns and exchanges from orders will appear here as tickets.
       </p>
-      <Button size="sm" onClick={onNew} className="mt-4 bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white">
-        <Plus className="h-4 w-4 mr-1" />New Return
+      <Button size="sm" onClick={onNew} className="mt-4 bg-zinc-900 hover:bg-zinc-800 text-white text-xs h-8">
+        <Plus className="h-3.5 w-3.5 mr-1" />New Return
       </Button>
     </div>
   );
@@ -411,66 +455,69 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 }) {
   if (!row) return null;
   const isReturn = row.type === "return";
-  const accent = isReturn ? "#0D4F4C" : "#B8893F";
-  const accentSoft = isReturn ? "#0D4F4C0F" : "#B8893F14";
+  const t = theme(row.type);
   return (
-    <aside className="sticky top-[80px] rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 dark:border-border shadow-[0_4px_12px_-4px_rgba(0,0,0,0.06),0_20px_40px_-20px_rgba(0,0,0,0.12)] animate-fade-in">
-      {/* Type ribbon */}
-      <div className="h-1.5" style={{ background: accent }} />
-      <header className="px-5 pt-5 pb-4" style={{ background: accentSoft }}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white" style={{ background: accent }}>
-              {isReturn ? <RotateCcw className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
-              {isReturn ? "Return" : "Exchange"}
-            </span>
-            <span className="font-mono text-[12px] text-stone-700">{row.caseNumber}</span>
-          </div>
-          <button onClick={onClose} className="p-1 -m-1 text-stone-400 hover:text-stone-700" aria-label="Close preview">
+    <aside className="sticky top-[72px] rounded-xl overflow-hidden bg-white dark:bg-card border border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)] animate-fade-in">
+      {/* Header band */}
+      <header className="relative px-5 pt-4 pb-5" style={{ background: t.softer }}>
+        <span className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: t.base }} />
+        <div className="flex items-center justify-between">
+          <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold font-mono"
+            style={{ background: "white", color: t.ink, border: `1px solid ${t.soft}` }}
+          >
+            {isReturn ? <RotateCcw className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
+            {isReturn ? "Return" : "Exchange"} · {row.caseNumber}
+          </span>
+          <button onClick={onClose} className="p-1 -m-1 text-zinc-400 hover:text-zinc-700" aria-label="Close preview">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-600 font-semibold">
               {isReturn ? "Refund amount" : "Exchange charge"}
             </div>
-            <div className="mt-1 text-[36px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: accent }}>
-              {row.amount > 0 ? <>৳{row.amount.toLocaleString("en-IN")}</> : <span className="text-stone-300">—</span>}
+            <div className="mt-1 text-[34px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: t.ink }}>
+              {row.amount > 0 ? <>৳{row.amount.toLocaleString("en-IN")}</> : <span className="text-zinc-300">—</span>}
             </div>
           </div>
           <ReturnStatusBadge status={row.status} />
         </div>
       </header>
 
-      <div className="p-5 space-y-3.5 text-xs">
+      <div className="p-5 space-y-4 text-xs">
         <div className="flex items-start gap-3">
           {row.productImage ? (
-            <img src={row.productImage} alt="" className="h-14 w-14 rounded-lg object-cover ring-1 ring-stone-200" />
+            <img src={row.productImage} alt="" className="h-14 w-14 rounded-md object-cover ring-1 ring-zinc-200" />
           ) : (
-            <div className="h-14 w-14 rounded-lg bg-stone-100 ring-1 ring-stone-200 flex items-center justify-center">
-              <Package className="h-5 w-5 text-stone-400" />
+            <div className="h-14 w-14 rounded-md bg-zinc-50 ring-1 ring-zinc-200 grid place-items-center">
+              <Package className="h-5 w-5 text-zinc-400" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium text-[#1C1917] leading-snug">{row.productTitle}</div>
-            {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
+            <div className="text-[13px] font-medium text-zinc-900 leading-snug">{row.productTitle}</div>
+            {row.productSku && <div className="text-[10px] font-mono text-zinc-500 mt-0.5">{row.productSku}</div>}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 pt-3 border-t border-stone-100">
-          <PreviewRow label="Customer" value={row.customer} />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-zinc-100">
+          <PreviewRow label="Customer" value={row.customer || "—"} />
           <PreviewRow label="Order" value={row.orderNumber ? <span className="font-mono">#{row.orderNumber}</span> : "—"} />
           <PreviewRow label="Created" value={format(new Date(row.createdAt), "dd MMM yyyy")} />
           <PreviewRow label="Time" value={format(new Date(row.createdAt), "hh:mm a")} />
         </div>
 
-        <div className="flex items-center gap-2 pt-4 border-t border-stone-100">
-          <CaseActionButton caseId={caseId} type={row.type} status={row.status} />
-          <Button onClick={onOpenFull} size="sm" variant="outline"
-            className="ml-auto border-stone-300 hover:bg-stone-50">
-            Open <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
+        {/* Prominent action area */}
+        <div className="pt-4 border-t border-zinc-100 space-y-2">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Next action</div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1"><CaseActionButton caseId={caseId} type={row.type} status={row.status} /></div>
+            <Button onClick={onOpenFull} size="sm" variant="outline"
+              className="border-zinc-200 hover:bg-zinc-50 text-xs h-8">
+              Open <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
     </aside>
@@ -480,8 +527,8 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 function PreviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-[0.14em] text-stone-500">{label}</div>
-      <div className="text-[12px] text-[#1C1917] dark:text-foreground mt-0.5 truncate">{value}</div>
+      <div className="text-[9.5px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">{label}</div>
+      <div className="text-[12px] text-zinc-900 dark:text-foreground mt-1 truncate font-medium">{value}</div>
     </div>
   );
 }

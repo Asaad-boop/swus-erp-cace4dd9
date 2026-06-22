@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { ReturnStatusBadge } from "@/components/erp/returns/return-status-badge";
 import {
   getCaseDetail, completeQC, updateReturnStatus, createExchangeOrder,
@@ -53,62 +54,87 @@ function CaseDetailPage() {
       .catch((e) => toast.error(e.message));
   };
 
+  const accent = isExchange ? "#7C3AED" : "#D97706";
+  const accentInk = isExchange ? "#4C1D95" : "#78350F";
+  const accentSoft = isExchange ? "#F5F3FF" : "#FFFBEB";
+  const accentBorder = isExchange ? "#EDE9FE" : "#FEF3C7";
+
   return (
-    <div className="bg-[#F7F5F0] dark:bg-background min-h-screen pb-24 md:pb-6">
-      {/* Sticky breadcrumb bar */}
-      <div className="bg-white/80 dark:bg-card/40 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-20">
-        <div className="max-w-[1300px] mx-auto px-4 md:px-6 py-2.5 flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/erp/returns" })} className="h-8 px-2 text-stone-600 hover:bg-stone-100">
-            <ArrowLeft className="h-4 w-4 mr-1" />All cases
+    <div className="bg-[#FAFAF9] dark:bg-background min-h-screen pb-24 md:pb-6 text-zinc-900 dark:text-foreground">
+      {/* === Sticky breadcrumb / action bar === */}
+      <div className="bg-white/85 dark:bg-card/70 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-30">
+        <div className="max-w-[1300px] mx-auto px-4 md:px-6 h-12 flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/erp/returns" })}
+            className="h-7 px-2 text-zinc-600 hover:bg-zinc-100 text-xs">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" />Tickets
           </Button>
-          <span className="text-stone-300">/</span>
-          <span className="font-mono text-xs text-stone-700">{c.case_number ?? caseId.slice(0, 8)}</span>
+          <span className="text-zinc-300">/</span>
+          <span className="font-mono text-[11px] text-zinc-700 font-semibold">{c.case_number ?? caseId.slice(0, 8)}</span>
+          <span
+            className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] uppercase tracking-wider font-mono font-bold"
+            style={{ background: accentSoft, color: accentInk, border: `1px solid ${accentBorder}` }}
+          >
+            {isExchange ? <Repeat className="h-2.5 w-2.5" /> : <RotateCcw className="h-2.5 w-2.5" />}
+            {isExchange ? "Exchange" : "Return"}
+          </span>
           <div className="ml-auto hidden md:flex items-center gap-2">
-            <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
             {status !== "closed" && status !== "completed" && (
-              <Button variant="outline" size="sm" onClick={closeCase}>Close Case</Button>
+              <Button variant="outline" size="sm" onClick={closeCase}
+                className="text-xs h-8 border-zinc-200 text-zinc-600 hover:bg-zinc-50">Close case</Button>
             )}
+            <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
           </div>
         </div>
       </div>
 
       <div className="p-4 md:p-6 max-w-[1300px] mx-auto space-y-4">
-        {/* Hero summary card */}
-        <section className="rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 shadow-[0_4px_14px_-8px_rgba(0,0,0,0.08)]">
-          <div className="h-1.5" style={{ background: isExchange ? "#B8893F" : "#0D4F4C" }} />
-          <div className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start"
-               style={{ background: isExchange ? "#B8893F0A" : "#0D4F4C0A" }}>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white"
-                  style={{ background: isExchange ? "#B8893F" : "#0D4F4C" }}>
-                  {isExchange ? <Repeat className="h-3 w-3" /> : <RotateCcw className="h-3 w-3" />}
-                  {isExchange ? "Exchange" : "Return"}
-                </span>
-                <ReturnStatusBadge status={status} />
-                <span className="text-[11px] text-stone-500">
-                  Created {format(new Date(c.created_at), "dd MMM yyyy, hh:mm a")}
-                </span>
+        {/* === Hero ticket card === */}
+        <section className="rounded-xl overflow-hidden bg-white dark:bg-card border border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+          <div className="flex">
+            <span className="w-1.5 shrink-0" style={{ background: accent }} />
+            <div className="flex-1 p-5 md:p-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-start">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                  <ReturnStatusBadge status={status} />
+                  <span className="text-zinc-400">·</span>
+                  <span className="text-zinc-500 font-medium">
+                    Created {format(new Date(c.created_at), "dd MMM yyyy, hh:mm a")}
+                  </span>
+                  <span className="text-zinc-300">·</span>
+                  <span className="text-zinc-500">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                </div>
+                <h1 className="mt-3 text-[22px] md:text-[26px] leading-tight tracking-tight font-semibold text-zinc-900">
+                  {c.product?.title ?? "—"}
+                </h1>
+                <div className="mt-1.5 flex items-center gap-2 text-[12.5px] text-zinc-600">
+                  <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-zinc-100 text-[9px] font-bold text-zinc-600">
+                    {(c.order?.shipping_name ?? "—").slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="font-medium">{c.order?.shipping_name ?? "Unknown customer"}</span>
+                  {c.order && (
+                    <>
+                      <span className="text-zinc-300">·</span>
+                      <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }}
+                        className="font-mono text-[11px] text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-0.5">
+                        #{String(c.order.id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </>
+                  )}
+                </div>
               </div>
-              <h1 className="mt-2 text-[28px] md:text-[34px] leading-tight tracking-tight font-semibold text-[#1C1917]"
-                  style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}>
-                Case <span className="font-mono text-[24px] md:text-[28px] text-stone-700">{c.case_number ?? caseId.slice(0, 8)}</span>
-              </h1>
-              <div className="mt-2 text-sm text-stone-600 truncate">
-                {c.product?.title ?? "—"}
-                {c.order?.shipping_name && <> · {c.order.shipping_name}</>}
-              </div>
-            </div>
-            <div className="md:text-right">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500 font-medium">
-                {isExchange ? "Exchange Charge" : "Refund Amount"}
-              </div>
-              <div className="mt-1 text-[40px] md:text-[48px] leading-none tracking-tight font-semibold tabular-nums"
-                   style={{ color: isExchange ? "#B8893F" : "#0D4F4C" }}>
-                ৳{bdt(Number(isExchange ? c.exchange_charge_collected ?? 0 : c.refund_amount ?? 0))}
+              <div className="md:text-right md:border-l md:pl-6 md:border-zinc-100">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">
+                  {isExchange ? "Exchange charge" : "Refund amount"}
+                </div>
+                <div className="mt-1 text-[36px] md:text-[42px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: accentInk }}>
+                  ৳{bdt(Number(isExchange ? c.exchange_charge_collected ?? 0 : c.refund_amount ?? 0))}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Status progress strip */}
+          <StatusProgress status={status} isExchange={isExchange} accent={accent} />
         </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -119,10 +145,10 @@ function CaseDetailPage() {
             {data.timeline.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">No history yet</p>
             ) : (
-              <ol className="relative pl-5 space-y-3 before:absolute before:left-1.5 before:top-1 before:bottom-1 before:w-px before:bg-border">
+              <ol className="relative pl-5 space-y-3 before:absolute before:left-1.5 before:top-1 before:bottom-1 before:w-px before:bg-zinc-200">
                 {data.timeline.map((e: any) => (
                   <li key={e.id} className="relative">
-                    <span className="absolute -left-[14px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-card bg-[#0D4F4C]" />
+                    <span className="absolute -left-[14px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white" style={{ background: accent }} />
                     <div className="flex items-center gap-2 text-xs">
                       <ReturnStatusBadge status={e.status} />
                       <span className="text-[10px] text-muted-foreground ml-auto">
@@ -159,7 +185,8 @@ function CaseDetailPage() {
                 </div>
               </div>
               {c.order && (
-                <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }} className="text-xs text-[#0D4F4C] hover:underline inline-flex items-center gap-1">
+                <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }}
+                  className="text-xs hover:underline inline-flex items-center gap-1" style={{ color: accentInk }}>
                   Order #{String(c.order.id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                 </Link>
               )}
@@ -216,14 +243,14 @@ function CaseDetailPage() {
             <Section title="Exchange Action">
               {c.new_order_id ? (
                 <div className="text-xs space-y-1">
-                  <p className="text-[#0D4F4C] inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Exchange order created</p>
+                  <p className="inline-flex items-center gap-1" style={{ color: accentInk }}><CheckCircle2 className="h-3.5 w-3.5" />Exchange order created</p>
                   <Link to="/erp/orders/$orderId" params={{ orderId: c.new_order_id }}
-                    className="inline-flex items-center gap-1 text-[#0D4F4C] hover:underline">
+                    className="inline-flex items-center gap-1 hover:underline" style={{ color: accentInk }}>
                     View Order #{String(c.new_order_id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                   </Link>
                 </div>
               ) : c.exchange_type_detail !== "refund_only" && c.replacement_product_id ? (
-                <Button size="sm" className="w-full bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white" onClick={() => {
+                <Button size="sm" className="w-full text-white" style={{ background: accent }} onClick={() => {
                   createOrderFn({ data: { caseId } })
                     .then((r: any) => { toast.success(`Order ${r.orderNumber} created`); qc.invalidateQueries({ queryKey: ["case-detail", caseId] }); })
                     .catch((e) => toast.error(e.message));
@@ -240,7 +267,7 @@ function CaseDetailPage() {
       </div>
 
       {/* Mobile sticky action bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-stone-200 p-3 flex items-center gap-2 shadow-[0_-4px_14px_-4px_rgba(0,0,0,0.08)]">
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-zinc-200 p-3 flex items-center gap-2 shadow-[0_-4px_14px_-4px_rgba(0,0,0,0.08)]">
         <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
         {status !== "closed" && status !== "completed" && (
           <Button variant="outline" size="sm" onClick={closeCase} className="ml-auto">Close</Button>
@@ -252,13 +279,57 @@ function CaseDetailPage() {
 
 function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border bg-card overflow-hidden">
-      <header className="px-4 py-2.5 border-b flex items-center gap-2">
-        {icon}
-        <h3 className="text-[13px] font-semibold">{title}</h3>
+    <section className="rounded-xl border border-zinc-200 bg-white dark:bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <header className="px-4 py-2.5 border-b border-zinc-100 flex items-center gap-2 bg-zinc-50/40">
+        <span className="text-zinc-400">{icon}</span>
+        <h3 className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-zinc-600">{title}</h3>
       </header>
       <div className="p-4 space-y-2 text-xs">{children}</div>
     </section>
+  );
+}
+
+/* === Status progress (visual pipeline) === */
+function StatusProgress({ status, isExchange, accent }: { status: string; isExchange: boolean; accent: string }) {
+  const steps = isExchange
+    ? ["requested", "approved", "received", "completed"]
+    : ["requested", "approved", "received", "restocked", "closed"];
+  const idx = Math.max(0, steps.findIndex((s) => s === status));
+  const labels: Record<string, string> = {
+    requested: "Requested", approved: "Approved", received: "Received",
+    restocked: "Restocked", closed: "Closed", completed: "Completed",
+  };
+  return (
+    <div className="border-t border-zinc-100 bg-zinc-50/50 px-5 md:px-6 py-3">
+      <div className="flex items-center gap-1.5 overflow-x-auto">
+        {steps.map((s, i) => {
+          const done = i <= idx;
+          const current = i === idx;
+          return (
+            <div key={s} className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold transition-colors",
+                    done ? "text-white" : "text-zinc-400 bg-white ring-1 ring-zinc-200",
+                  )}
+                  style={done ? { background: accent } : undefined}
+                >
+                  {done ? "✓" : i + 1}
+                </span>
+                <span className={cn(
+                  "text-[10.5px] font-semibold uppercase tracking-wider",
+                  current ? "text-zinc-900" : done ? "text-zinc-700" : "text-zinc-400",
+                )}>{labels[s] ?? s}</span>
+              </div>
+              {i < steps.length - 1 && (
+                <span className="w-6 h-px" style={{ background: done && i < idx ? accent : "#E4E4E7" }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
