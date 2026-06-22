@@ -285,7 +285,10 @@ function NewOrderPage() {
   const [advanceTxnId, setAdvanceTxnId] = useState("");
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.unit_price * i.quantity, 0), [items]);
-  const grandTotal = Math.max(0, subtotal + Number(shippingFee || 0) - Number(discount || 0) - Number(advance || 0));
+  // Grand total = items + shipping − discount (advance is NOT subtracted; DB trigger enforces this)
+  const grandTotal = Math.max(0, subtotal + Number(shippingFee || 0) - Number(discount || 0));
+  // Payable = what customer still owes (e.g. via COD) after advance
+  const payable = Math.max(0, grandTotal - Number(advance || 0));
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
 
   // ── submit ────────────────────────────────────────────────────────────
@@ -692,6 +695,18 @@ function NewOrderPage() {
                     </div>
                   </MoneyField>
                 </div>
+                {Number(advance) > 0 && (
+                  <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-dashed border-amber-300/70 bg-amber-50/50 px-4 py-2 text-sm dark:bg-amber-950/10">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Advance Paid</span>
+                      <span className="font-bold tabular-nums text-emerald-600">৳ {Number(advance).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Due ({paymentMethod})</span>
+                      <span className="font-black tabular-nums text-indigo-600">৳ {payable.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -888,7 +903,7 @@ function NewOrderPage() {
           <div className="ml-auto flex items-center gap-4">
             <div className="hidden text-right md:block">
               <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payable</div>
-              <div className="text-lg font-black tabular-nums text-indigo-600">৳ {grandTotal.toLocaleString()}</div>
+              <div className="text-lg font-black tabular-nums text-indigo-600">৳ {payable.toLocaleString()}</div>
             </div>
             <Button
               size="lg"
