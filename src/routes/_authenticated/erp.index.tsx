@@ -143,7 +143,7 @@ function DashboardPage() {
       </div>
 
       <div className="px-4 md:px-6 py-6 max-w-[1600px] mx-auto space-y-6">
-        <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to })} />
+        <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
@@ -1046,7 +1046,7 @@ function NeedsAttention({ brandIds, enabled }: { brandIds: string[]; enabled: bo
                     {a.count && <Badge variant="secondary" className="ml-1 tabular-nums">{a.count}</Badge>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Link to={a.to} className="text-xs text-indigo-600 hover:underline">View →</Link>
+                    <Link to={a.to as any} className="text-xs text-indigo-600 hover:underline">View →</Link>
                     <button onClick={() => dismiss(a.text)} className="text-xs text-muted-foreground hover:text-foreground px-1">✕</button>
                   </div>
                 </li>
