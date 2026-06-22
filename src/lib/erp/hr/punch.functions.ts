@@ -70,7 +70,7 @@ export const punchIn = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     const shift = await getActiveShift(context.supabase, data.employee_id, today);
@@ -131,7 +131,7 @@ export const punchBreak = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const today = new Date().toISOString().slice(0, 10);
     const { data: row } = await context.supabase
       .from("hr_attendance")
@@ -168,7 +168,7 @@ export const punchOut = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const today = new Date().toISOString().slice(0, 10);
     const { data: row } = await context.supabase
       .from("hr_attendance")
