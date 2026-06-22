@@ -485,36 +485,78 @@ function PerformanceDashboard() {
 
 // ─────────────────────────── sub-components ───────────────────────────
 
-function KpiCard({
+function HeroKpi({
   icon: Icon,
   label,
   value,
   sub,
   tone = "indigo",
+  emphasize = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   sub?: string;
-  tone?: "indigo" | "sky" | "violet" | "amber" | "emerald";
+  tone?: "indigo" | "sky" | "violet" | "amber" | "emerald" | "rose";
+  emphasize?: boolean;
 }) {
-  const toneCls: Record<string, string> = {
-    indigo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
-    sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
-    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+  const toneCls: Record<string, { chip: string; value: string; bar: string }> = {
+    indigo: {
+      chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
+      value: "text-foreground",
+      bar: "from-indigo-500/60 to-indigo-500/0",
+    },
+    sky: {
+      chip: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
+      value: "text-foreground",
+      bar: "from-sky-500/60 to-sky-500/0",
+    },
+    violet: {
+      chip: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20",
+      value: "text-foreground",
+      bar: "from-violet-500/60 to-violet-500/0",
+    },
+    amber: {
+      chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
+      value: "text-amber-600 dark:text-amber-400",
+      bar: "from-amber-500/60 to-amber-500/0",
+    },
+    emerald: {
+      chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+      value: "text-emerald-600 dark:text-emerald-400",
+      bar: "from-emerald-500/60 to-emerald-500/0",
+    },
+    rose: {
+      chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20",
+      value: "text-rose-600 dark:text-rose-400",
+      bar: "from-rose-500/60 to-rose-500/0",
+    },
   };
+  const t = toneCls[tone];
   return (
-    <Card className="p-4 transition-shadow hover:shadow-md">
+    <Card className="relative overflow-hidden p-4 transition-all hover:shadow-md hover:-translate-y-px">
+      <span
+        aria-hidden
+        className={cn("absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r", t.bar)}
+      />
       <div className="flex items-center gap-2 mb-2">
-        <div className={cn("grid h-7 w-7 place-items-center rounded-lg ring-1", toneCls[tone])}>
+        <div className={cn("grid h-7 w-7 place-items-center rounded-lg ring-1", t.chip)}>
           <Icon className="h-3.5 w-3.5" />
         </div>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
       </div>
-      <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
+      <div
+        className={cn(
+          "font-bold tracking-tight tabular-nums leading-none",
+          emphasize ? "text-[28px]" : "text-2xl",
+          emphasize ? t.value : "text-foreground",
+        )}
+      >
+        {value}
+      </div>
+      {sub && <div className="text-xs text-muted-foreground mt-1.5 truncate">{sub}</div>}
     </Card>
   );
 }
