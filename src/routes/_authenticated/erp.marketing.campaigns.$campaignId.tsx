@@ -618,7 +618,7 @@ function LinkedProductsCard({ campaignId, brandId }: { campaignId: string; brand
                   <TableCell className="text-xs font-mono text-muted-foreground">{r.products?.sku ?? "—"}</TableCell>
                   <TableCell className="text-right">{r.products?.price ? `BDT ${Number(r.products.price).toLocaleString()}` : "—"}</TableCell>
                   <TableCell className="text-right font-medium">
-                    {Number(r.allocated_meta_spend ?? 0) > 0 ? fmtMoney(Number(r.allocated_meta_spend)) : "—"}
+                    {Number(r.allocated_meta_spend ?? 0) > 0 ? fmtBDT(Number(r.allocated_meta_spend)) : "—"}
                   </TableCell>
                   <TableCell>
                     <Input
