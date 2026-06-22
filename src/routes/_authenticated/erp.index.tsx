@@ -210,11 +210,11 @@ function KpiStrip({
         inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["confirmed", "packaging", "packed", "ready_to_ship", "shipped", "delivered"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .in("status", ["shipped", "in_transit", "out_for_delivery"]),
+          .in("status", ["shipped", "in_transit"]),
         applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds)
           .eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled").neq("status", "returned"),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .in("status", ["new", "processing"]).lt("created_at", new Date(Date.now() - 3*86400e3).toISOString()),
+          .in("status", ["new" as any, "processing" as any]).lt("created_at", new Date(Date.now() - 3*86400e3).toISOString()),
         inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .eq("status", "cancelled"),
         inRange(applyBrandScope(supabase.from("orders").select("user_id"), brandIds))
@@ -466,7 +466,7 @@ function TrendChart({
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
           <CardTitle className="text-base">Revenue & Orders Trend</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">{RANGE_LABELS[/* not exposed */ "today" as any] ? "" : ""}{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{""}{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
         </div>
         <div className="flex gap-1 bg-muted rounded-md p-0.5">
           {(["revenue","orders","both"] as const).map(m => (
@@ -993,7 +993,7 @@ function NeedsAttention({ brandIds, enabled }: { brandIds: string[]; enabled: bo
       const twoDaysAgo = new Date(Date.now() - 2*86400e3).toISOString();
       const [stuck, overdueCod, oldQc, lowStock, importLate] = await Promise.all([
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .in("status", ["new", "processing"]).lt("created_at", threeDaysAgo),
+          .in("status", ["new" as any, "processing" as any]).lt("created_at", threeDaysAgo),
         applyBrandScope(supabase.from("orders").select("total, partial_amount"), brandIds)
           .eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled")
           .lt("created_at", fourteenDaysAgo),
