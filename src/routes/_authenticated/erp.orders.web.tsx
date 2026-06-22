@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -50,6 +50,7 @@ const searchSchema = z.object({
   preset: fallback(z.enum(["all", "today", "yesterday", "7d", "30d", "custom"]), "all").default("all"),
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
+  page: fallback(z.number().int().min(1), 1).default(1),
 });
 type WebOrdersSearch = z.infer<typeof searchSchema>;
 
@@ -479,17 +480,17 @@ function _WebOrdersPageBody() {
     },
   });
 
-  // Infinite paginated orders
-  const ordersQueryKey = ["web-orders-inf", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? ""] as const;
+  // Paginated orders (page 1-indexed in URL)
+  const page = search.page ?? 1;
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page] as const;
 
-  const ordersQuery = useInfiniteQuery({
+  const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
     enabled: brandIds.length > 0 && activeTab !== "incomplete"
       && (sourceFilter === "all" || sourceFilter === "direct" || !!sourceOrderIds),
-    initialPageParam: 0,
-    getNextPageParam: (last: { rows: WebOrderRow[]; total: number; nextPage: number | null }) => last.nextPage,
-    queryFn: async ({ pageParam }) => {
-      const page = pageParam as number;
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const pageIdx = page - 1;
       let q = applyBrandScope(
         supabase
           .from("orders")
@@ -519,11 +520,11 @@ function _WebOrdersPageBody() {
 
       if (["facebook", "instagram", "google", "other"].includes(sourceFilter)) {
         const ids = sourceOrderIds ?? [];
-        if (ids.length === 0) return { rows: [], total: 0, nextPage: null };
+        if (ids.length === 0) return { rows: [] as WebOrderRow[], total: 0 };
         q = q.in("id", ids);
       }
 
-      const from = page * PAGE_SIZE;
+      const from = pageIdx * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       q = q.range(from, to);
 
@@ -566,13 +567,13 @@ function _WebOrdersPageBody() {
       }
 
       const total = count ?? 0;
-      const fetched = (page + 1) * PAGE_SIZE;
-      return { rows, total, nextPage: fetched < total ? page + 1 : null };
+      return { rows, total };
     },
   });
 
-  const rows = useMemo(() => ordersQuery.data?.pages.flatMap((p) => p.rows) ?? [], [ordersQuery.data]);
-  const totalRows = ordersQuery.data?.pages[0]?.total ?? 0;
+  const rows = useMemo<WebOrderRow[]>(() => ordersQuery.data?.rows ?? [], [ordersQuery.data]);
+  const totalRows = ordersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const isLoading = ordersQuery.isLoading;
 
   // counts per status — parallel head count queries
@@ -778,24 +779,22 @@ function _WebOrdersPageBody() {
     });
   };
 
-  // Infinite scroll sentinel
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const onLoadMore = useCallback(() => {
-    if (ordersQuery.hasNextPage && !ordersQuery.isFetchingNextPage) {
-      ordersQuery.fetchNextPage();
-    }
-  }, [ordersQuery]);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) onLoadMore();
-    }, { rootMargin: "300px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [onLoadMore]);
+  // Pagination
+  const goToPage = useCallback((p: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, p));
+    navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: clamped }), replace: true });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [navigate, totalPages]);
 
-  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key }), replace: true });
+  // Reset page to 1 whenever filters change
+  useEffect(() => {
+    if ((search.page ?? 1) !== 1) {
+      navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: 1 }), replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to]);
+
+  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key, page: 1 }), replace: true });
 
   const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
     navigate({
@@ -1257,15 +1256,27 @@ function _WebOrdersPageBody() {
             )}
           </TableBody>
         </Table>
-        {activeTab !== "incomplete" && (
-          <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-muted-foreground">
-            {ordersQuery.isFetchingNextPage ? (
-              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading more…</span>
-            ) : ordersQuery.hasNextPage ? (
-              <button onClick={onLoadMore} className="hover:text-foreground">Load more</button>
-            ) : rows.length > 0 ? (
-              <span>End of list · {rows.length} of {totalRows}</span>
-            ) : null}
+        {activeTab !== "incomplete" && totalRows > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-4 py-3 text-sm">
+            <div className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{(page - 1) * PAGE_SIZE + 1}</span>
+              –<span className="font-medium text-foreground">{Math.min(page * PAGE_SIZE, totalRows)}</span>
+              {" of "}<span className="font-medium text-foreground">{totalRows}</span>
+              {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(1)}>First</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}>
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </Button>
+              <span className="px-3 text-xs text-muted-foreground">
+                Page <span className="font-medium text-foreground">{page}</span> of {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(page + 1)}>
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(totalPages)}>Last</Button>
+            </div>
           </div>
         )}
       </div>
