@@ -6,7 +6,7 @@ import {
   PackageCheck, RotateCcw, Repeat2, Truck, Megaphone, FileText,
 } from "lucide-react";
 import { CalendarIcon, Wallet, Receipt, BarChart3, Filter, Box } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
+import { format } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "@/components/ui/calendar";
+import { DateRangePicker, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { fmtBdt } from "@/lib/erp/finance";
@@ -63,18 +63,6 @@ function todayIso() { return new Date().toISOString().slice(0, 10); }
 function daysAgoIso(d: number) { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10); }
 function isoToDate(s: string) { const [y,m,d] = s.split("-").map(Number); return new Date(y, (m||1)-1, d||1); }
 function dateToIso(d: Date) { return format(d, "yyyy-MM-dd"); }
-
-const DATE_PRESETS: Array<{ key: string; label: string; range: () => [string, string] }> = [
-  { key: "today",    label: "Today",         range: () => [todayIso(), todayIso()] },
-  { key: "yest",     label: "Yesterday",     range: () => [daysAgoIso(1), daysAgoIso(1)] },
-  { key: "7d",       label: "Last 7 days",   range: () => [daysAgoIso(6), todayIso()] },
-  { key: "30d",      label: "Last 30 days",  range: () => [daysAgoIso(29), todayIso()] },
-  { key: "mtd",      label: "Month to date", range: () => [dateToIso(startOfMonth(new Date())), todayIso()] },
-  { key: "lastm",    label: "Last month",    range: () => { const d = subMonths(new Date(), 1); return [dateToIso(startOfMonth(d)), dateToIso(endOfMonth(d))]; } },
-  { key: "90d",      label: "Last 90 days",  range: () => [daysAgoIso(89), todayIso()] },
-  { key: "ytd",      label: "Year to date",  range: () => [dateToIso(startOfYear(new Date())), todayIso()] },
-  { key: "all",      label: "All time",      range: () => ["2020-01-01", todayIso()] },
-];
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
@@ -306,46 +294,11 @@ function ProductProfitabilityPage() {
               <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
                 <CalendarIcon className="h-3 w-3" /> DATE RANGE
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal h-10">
-                    <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="truncate">
-                      {format(isoToDate(dateFrom), "dd MMM yyyy")} — {format(isoToDate(dateTo), "dd MMM yyyy")}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="flex">
-                    <div className="border-r p-2 w-[160px] flex flex-col gap-0.5 bg-muted/20">
-                      {DATE_PRESETS.map((p) => (
-                        <Button
-                          key={p.key}
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start h-8 text-xs font-normal"
-                          onClick={() => { const [a,b] = p.range(); setDateFrom(a); setDateTo(b); }}
-                        >
-                          {p.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="p-2">
-                      <Calendar
-                        mode="range"
-                        numberOfMonths={2}
-                        defaultMonth={isoToDate(dateFrom)}
-                        selected={{ from: isoToDate(dateFrom), to: isoToDate(dateTo) }}
-                        onSelect={(range) => {
-                          if (range?.from) setDateFrom(dateToIso(range.from));
-                          if (range?.to) setDateTo(dateToIso(range.to));
-                        }}
-                        className={cn("p-0 pointer-events-auto")}
-                      />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <DateRangePicker
+                className="w-full h-10 justify-start"
+                value={{ presetKey: "custom", label: "Custom", from: dateFrom, to: dateTo } as MktRangeValue}
+                onChange={(v) => { setDateFrom(v.from); setDateTo(v.to); }}
+              />
             </div>
             <div className="md:col-span-3">
               <Label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
