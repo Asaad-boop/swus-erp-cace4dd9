@@ -40,13 +40,18 @@ export type DashboardSummary = {
     campaign_id: string;
     name: string;
     daily_budget_bdt: number;
+    daily_budget_usd: number;
     spent_today_bdt: number;
+    spent_today_usd: number;
     pct: number;
     status: "ok" | "warn" | "over";
     lifetime_budget_bdt: number | null;
+    lifetime_budget_usd: number | null;
     spent_this_month_bdt: number;
+    spent_this_month_usd: number;
     pct_lifetime: number | null;
     projected_monthly_bdt: number;
+    projected_monthly_usd: number;
   }>;
 };
 
