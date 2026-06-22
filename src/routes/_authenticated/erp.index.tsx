@@ -1182,6 +1182,14 @@ const SOURCE_COLORS: Record<string, string> = {
   Direct: "#94A3B8",
   Other: "#F59E0B",
 };
+// Lighter gradient stop per source for premium donut look
+const SOURCE_COLORS_LIGHT: Record<string, string> = {
+  Facebook: "#60A5FA",
+  Instagram: "#F472B6",
+  Google: "#86EFAC",
+  Direct: "#CBD5E1",
+  Other: "#FCD34D",
+};
 const CONFIRMED_STATUSES = new Set([
   "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
 ]);
