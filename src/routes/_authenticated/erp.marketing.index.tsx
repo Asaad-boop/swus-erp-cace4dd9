@@ -71,6 +71,7 @@ import {
   Package,
   ExternalLink,
   RotateCcw,
+  BarChart3,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -103,42 +104,47 @@ function fmtMult(n: number | null) {
 
 const DECISIONS: Record<
   DecisionBucket,
-  { label: string; cls: string; dot: string; chip: string; icon: string }
+  { label: string; cls: string; dot: string; chip: string; icon: string; accent: string }
 > = {
   scale: {
     label: "Scale Up",
-    cls: "border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50",
+    cls: "border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/[0.02] hover:from-emerald-500/15",
     dot: "bg-emerald-500",
     chip: "bg-emerald-50 text-emerald-700 border-emerald-200",
     icon: "🚀",
+    accent: "text-emerald-600 dark:text-emerald-400",
   },
   monitor: {
     label: "Monitor",
-    cls: "border-amber-200 bg-amber-50/60 hover:bg-amber-50",
+    cls: "border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-amber-500/[0.02] hover:from-amber-500/15",
     dot: "bg-amber-500",
     chip: "bg-amber-50 text-amber-700 border-amber-200",
     icon: "👀",
+    accent: "text-amber-600 dark:text-amber-400",
   },
   optimize: {
     label: "Optimize",
-    cls: "border-purple-200 bg-purple-50/60 hover:bg-purple-50",
+    cls: "border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-500/[0.02] hover:from-purple-500/15",
     dot: "bg-purple-500",
     chip: "bg-purple-50 text-purple-700 border-purple-200",
     icon: "⚙️",
+    accent: "text-purple-600 dark:text-purple-400",
   },
   kill: {
     label: "Kill",
-    cls: "border-red-200 bg-red-50/60 hover:bg-red-50",
+    cls: "border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-rose-500/[0.02] hover:from-rose-500/15",
     dot: "bg-red-500",
     chip: "bg-red-50 text-red-600 border-red-200",
     icon: "💀",
+    accent: "text-rose-600 dark:text-rose-400",
   },
   insufficient: {
     label: "Not enough data",
-    cls: "border-gray-200 bg-gray-50/60",
+    cls: "border-border bg-muted/40",
     dot: "bg-muted-foreground",
     chip: "bg-gray-50 text-gray-600 border-gray-200",
     icon: "•",
+    accent: "text-muted-foreground",
   },
 };
 
@@ -215,16 +221,23 @@ function PerformanceDashboard() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Ad Performance</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {effectiveBrand?.name ?? "—"} · Meta ad-er real performance — Meta data vs delivered orders, BDT te true profit & decision.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-5">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" aria-hidden />
+          <div className="relative flex flex-wrap items-end justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold tracking-tight">Ad Performance</h1>
+                <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                  {effectiveBrand?.name ?? "—"} · Meta data vs delivered orders, BDT te true profit & decision.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
             {picker}
             <DateRangePicker value={dateRange} onChange={setDateRange} />
             <Button
@@ -256,6 +269,7 @@ function PerformanceDashboard() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -269,18 +283,21 @@ function PerformanceDashboard() {
             label="Active Campaigns"
             value={totals ? totals.active_campaigns.toString() : "—"}
             sub={`${allRows.length} total`}
+            tone="indigo"
           />
           <KpiCard
             icon={Wallet}
             label="Total Spend"
             value={totals ? fmtBDT(totals.total_spend_bdt) : "—"}
             sub={totals ? `${fmtUSD(totals.total_spend_usd)} USD` : ""}
+            tone="sky"
           />
           <KpiCard
             icon={Eye}
             label="Impressions"
             value={totals ? fmtNum(totals.impressions) : "—"}
             sub={totals ? `${fmtPct(totals.ctr)} CTR` : ""}
+            tone="violet"
           />
           <KpiCard
             icon={MousePointerClick}
@@ -291,6 +308,7 @@ function PerformanceDashboard() {
                 ? `${fmtBDT(totals.total_spend_bdt / totals.clicks)} CPC`
                 : ""
             }
+            tone="amber"
           />
           <KpiCard
             icon={ShoppingBag}
@@ -301,6 +319,7 @@ function PerformanceDashboard() {
                 ? `${fmtBDT(totals.total_spend_bdt / totals.delivered_orders)}/order`
                 : `Meta: ${totals?.meta_purchases ?? 0}`
             }
+            tone="emerald"
           />
         </div>
 
@@ -371,17 +390,17 @@ function PerformanceDashboard() {
                   key={key}
                   onClick={() => setBucketFilter(isActive ? "all" : key)}
                   className={cn(
-                    "text-left rounded-xl border bg-white p-4 transition-all duration-150 shadow-sm hover:shadow-md hover:-translate-y-px",
+                    "text-left rounded-xl border p-4 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5",
                     d.cls,
-                    isActive && "ring-2 ring-[#1877F2] border-[#1877F2]/40",
+                    isActive && "ring-2 ring-primary/60 border-primary/40 shadow-md",
                   )}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-base" aria-hidden>{d.icon}</span>
-                      <span className="text-sm font-semibold">{d.label}</span>
+                      <span className={cn("text-sm font-semibold", d.accent)}>{d.label}</span>
                     </div>
-                    <span className="text-lg font-bold tabular-nums">{rows.length}</span>
+                    <span className={cn("text-xl font-bold tabular-nums", d.accent)}>{rows.length}</span>
                   </div>
                   {rows.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No campaigns</p>
@@ -510,17 +529,28 @@ function KpiCard({
   label,
   value,
   sub,
+  tone = "indigo",
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   sub?: string;
+  tone?: "indigo" | "sky" | "violet" | "amber" | "emerald";
 }) {
+  const toneCls: Record<string, string> = {
+    indigo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
+    sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
+    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+  };
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{label}</span>
+    <Card className="p-4 transition-shadow hover:shadow-md">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={cn("grid h-7 w-7 place-items-center rounded-lg ring-1", toneCls[tone])}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
       <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
