@@ -163,7 +163,6 @@ const ACTIVE_GROUP_KEY = "sidebar_active_group";
 
 export function ErpSidebar() {
   const location = useLocation();
-  const { openTxn } = useErpQuickActions();
   const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -222,14 +221,14 @@ export function ErpSidebar() {
       <Link
         to={to as never}
         className={cn(
-          "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200",
+          "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200 tracking-tight",
           collapsed
             ? "justify-center px-2 py-2.5 mx-auto w-10"
             : indented
-            ? "pl-8 pr-3 py-1.5 text-sm"
-            : "px-3 py-2 text-sm font-medium",
+            ? "pl-8 pr-3 py-1.5 text-[13px] font-medium"
+            : "px-3 py-2 text-sm font-semibold",
           active
-            ? "bg-primary/10 text-primary font-medium"
+            ? "bg-primary/10 text-primary font-semibold shadow-sm"
             : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
         )}
       >
@@ -272,7 +271,7 @@ export function ErpSidebar() {
           type="button"
           onClick={() => toggleGroup(sectionKey)}
           className={cn(
-            "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/60",
+            "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent/60",
             hasActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
           aria-expanded={isOpen}
