@@ -360,35 +360,6 @@ function toneFg(t: string) {
 
 // ---------- BRAND COMPARISON ----------
 function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType<typeof getRange> }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Brand Comparison</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="w-full text-sm border-separate border-spacing-0">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="py-3 pr-4 font-semibold border-b">Metric</th>
-              {brands.map(b => (
-                <th key={b.id} className="py-3 pr-4 font-semibold border-b">
-                  <div className="flex items-center gap-2">
-                    {b.logo_url && <img src={b.logo_url} alt="" className="size-5 rounded object-cover" />}
-                    {b.name}
-                  </div>
-                </th>
-              ))}
-              <th className="py-3 pr-4 font-semibold border-b text-right">Combined</th>
-            </tr>
-          </thead>
-          <BrandComparisonRows brands={brands} range={range} />
-        </table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BrandComparisonRows({ brands, range }: { brands: Brand[]; range: ReturnType<typeof getRange> }) {
   const queries = brands.map(b => useQuery({
     queryKey: ["dash-brand-cmp", b.id, range.from.toISOString(), range.to.toISOString()],
     staleTime: 60_000,
@@ -418,36 +389,142 @@ function BrandComparisonRows({ brands, range }: { brands: Brand[]; range: Return
     },
   }));
 
-  const sumKey = (k: keyof NonNullable<typeof queries[0]["data"]>) =>
-    queries.reduce((s, q) => s + Number(q.data?.[k] ?? 0), 0);
-
-  const rows: Array<{ label: string; key: string; fmt?: (v: any) => string }> = [
-    { label: "Orders (range)", key: "today" },
-    { label: "Revenue (range)", key: "revenue", fmt: (v) => BDT(v) },
-    { label: "Pending", key: "pending" },
-    { label: "Delivered (range)", key: "delivered" },
-    { label: "Low Stock", key: "lowStock" },
-    { label: "Return Rate", key: "returnRate", fmt: (v) => v.toFixed(1) + "%" },
+  type Metric = { key: "today" | "revenue" | "delivered" | "pending" | "lowStock" | "returnRate"; label: string; fmt: (v: number) => string; tone: string; lowerIsBetter?: boolean };
+  const metrics: Metric[] = [
+    { key: "revenue", label: "Revenue", fmt: (v) => BDT(v), tone: "emerald" },
+    { key: "today", label: "Orders", fmt: (v) => String(v), tone: "indigo" },
+    { key: "delivered", label: "Delivered", fmt: (v) => String(v), tone: "blue" },
+    { key: "pending", label: "Pending", fmt: (v) => String(v), tone: "amber" },
+    { key: "lowStock", label: "Low Stock", fmt: (v) => String(v), tone: "rose", lowerIsBetter: true },
+    { key: "returnRate", label: "Return Rate", fmt: (v) => v.toFixed(1) + "%", tone: "rose", lowerIsBetter: true },
   ];
 
+  const totals = metrics.reduce<Record<string, number>>((acc, m) => {
+    acc[m.key] = queries.reduce((s, q) => s + Number(q.data?.[m.key] ?? 0), 0);
+    return acc;
+  }, {});
+  const combinedReturn = (() => {
+    const d = queries.reduce((s, q) => s + Number(q.data?.delivered ?? 0), 0);
+    const denomApprox = queries.reduce((s, q) => {
+      const dv = Number(q.data?.delivered ?? 0);
+      const rr = Number(q.data?.returnRate ?? 0);
+      // ret ≈ rr * (d+ret) / 100  →  ret = (rr*d)/(100-rr) approximated by share
+      const ret = rr > 0 && rr < 100 ? (rr * dv) / (100 - rr) : 0;
+      return s + dv + ret;
+    }, 0);
+    const ret = denomApprox - d;
+    return denomApprox > 0 ? (ret / denomApprox) * 100 : 0;
+  })();
+
+  const leaders: Record<string, number> = {};
+  metrics.forEach((m) => {
+    const values = queries.map((q) => Number(q.data?.[m.key] ?? 0));
+    if (values.every((v) => v === 0)) { leaders[m.key] = -1; return; }
+    leaders[m.key] = m.lowerIsBetter ? values.indexOf(Math.min(...values)) : values.indexOf(Math.max(...values));
+  });
+
+  const totalRevenue = totals.revenue ?? 0;
+
   return (
-    <tbody>
-      {rows.map(row => (
-        <tr key={row.label} className="hover:bg-muted/30 transition-colors">
-          <td className="py-3 pr-4 text-muted-foreground border-b">{row.label}</td>
-          {queries.map((q, i) => (
-            <td key={brands[i].id} className="py-3 pr-4 font-medium tabular-nums border-b">
-              {q.isLoading ? <Skeleton className="h-4 w-16" /> :
-                (row.fmt ? row.fmt(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0)
-                  : String(q.data?.[row.key as keyof NonNullable<typeof q.data>] ?? 0))}
-            </td>
-          ))}
-          <td className="py-3 pr-4 font-semibold tabular-nums border-b text-right">
-            {row.key === "returnRate" ? "—" : (row.fmt ? row.fmt(sumKey(row.key as any)) : sumKey(row.key as any))}
-          </td>
-        </tr>
-      ))}
-    </tbody>
+    <Card className="border-border/60 overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Sparkles className="size-4 text-amber-500" /> Brand Comparison
+        </CardTitle>
+        <div className="text-xs text-muted-foreground">
+          Combined Revenue <span className={cn("font-bold tabular-nums ml-1", moneyTier(totalRevenue))}>{BDT(totalRevenue)}</span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {queries.map((q, i) => {
+            const b = brands[i];
+            const rev = Number(q.data?.revenue ?? 0);
+            const sharePct = totalRevenue > 0 ? (rev / totalRevenue) * 100 : 0;
+            return (
+              <div
+                key={b.id}
+                className="group relative rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/40 p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden"
+              >
+                <div className="absolute -top-10 -right-10 size-32 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+                {/* Brand header */}
+                <div className="flex items-center gap-3 mb-3">
+                  {b.logo_url ? (
+                    <img src={b.logo_url} alt="" className="size-10 rounded-lg object-cover ring-1 ring-border" />
+                  ) : (
+                    <div className="size-10 rounded-lg bg-gradient-to-br from-primary/80 to-primary/40 grid place-items-center text-primary-foreground font-bold">
+                      {b.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{b.name}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {sharePct.toFixed(1)}% of total
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revenue spotlight */}
+                <div className="rounded-lg border bg-card/60 px-3 py-2 mb-3">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Revenue</div>
+                  {q.isLoading ? <Skeleton className="h-7 w-24 mt-1" /> : (
+                    <div className={cn("text-2xl font-extrabold tabular-nums leading-tight", moneyTier(rev))}>
+                      {BDT(rev)}
+                    </div>
+                  )}
+                  <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full transition-all"
+                      style={{ width: `${Math.min(100, sharePct)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Metric grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {metrics.filter(m => m.key !== "revenue").map((m) => {
+                    const v = Number(q.data?.[m.key] ?? 0);
+                    const isLeader = leaders[m.key] === i;
+                    return (
+                      <div
+                        key={m.key}
+                        className={cn(
+                          "rounded-md border px-2.5 py-1.5 transition-colors",
+                          isLeader ? "border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20" : "bg-card/40",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold truncate">{m.label}</span>
+                          {isLeader && <Sparkles className="size-3 text-amber-500 shrink-0" />}
+                        </div>
+                        {q.isLoading
+                          ? <Skeleton className="h-4 w-12 mt-1" />
+                          : <div className="text-sm font-bold tabular-nums">{m.fmt(v)}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Combined footer strip */}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
+          {metrics.map((m) => {
+            const v = m.key === "returnRate" ? combinedReturn : (totals[m.key] ?? 0);
+            return (
+              <div key={m.key} className="text-center">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{m.label}</div>
+                <div className={cn("text-sm font-bold tabular-nums mt-0.5", m.key === "revenue" && moneyTier(v))}>
+                  {m.fmt(v)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
