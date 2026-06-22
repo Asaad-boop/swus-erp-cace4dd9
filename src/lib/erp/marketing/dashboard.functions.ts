@@ -111,6 +111,29 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       (campaigns ?? []).map((c: any) => [c.id, c]),
     );
 
+    // Adset-level budgets (ABO). When a campaign uses adset-level budgeting,
+    // campaign.daily_budget/lifetime_budget are null — sum the active adsets'
+    // budgets so pacing still shows a number.
+    const campIdList = (campaigns ?? []).map((c: any) => c.id);
+    const adsetBudgetMap = new Map<
+      string,
+      { daily: number; lifetime: number }
+    >();
+    if (campIdList.length) {
+      const { data: adsets } = await supabase
+        .from("mkt_adsets")
+        .select("campaign_id, daily_budget, lifetime_budget, effective_status, status")
+        .in("campaign_id", campIdList);
+      for (const a of (adsets ?? []) as any[]) {
+        const st = (a.effective_status ?? a.status ?? "").toUpperCase();
+        if (st !== "ACTIVE") continue;
+        const cur = adsetBudgetMap.get(a.campaign_id) ?? { daily: 0, lifetime: 0 };
+        cur.daily += Number(a.daily_budget) || 0;
+        cur.lifetime += Number(a.lifetime_budget) || 0;
+        adsetBudgetMap.set(a.campaign_id, cur);
+      }
+    }
+
     // 4. Today's attributed orders — join mkt_order_attributions + orders
     const { startUtc, endUtc } = bdDayUtcRange(todayBD);
     const { data: attrToday } = await supabase
@@ -286,7 +309,10 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     for (const c of (campaigns ?? []) as any[]) {
       const status = (c.effective_status ?? c.status ?? "").toUpperCase();
       if (status !== "ACTIVE") continue;
-      const rawBudget = c.daily_budget != null ? Number(c.daily_budget) : 0;
+      const adsetBud = adsetBudgetMap.get(c.id) ?? { daily: 0, lifetime: 0 };
+      const campDaily = c.daily_budget != null ? Number(c.daily_budget) : 0;
+      // Fall back to summed adset budget (ABO) when campaign-level budget is unset
+      const rawBudget = campDaily > 0 ? campDaily : adsetBud.daily;
       if (!(rawBudget > 0)) continue;
       // Meta returns daily_budget in minor units (cents) for USD; in BDT for BDT accounts.
       const acc = c.mkt_ad_accounts ?? {};
@@ -298,7 +324,8 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const pct = budgetBdt > 0 ? (spent / budgetBdt) * 100 : 0;
       const status_ = pct >= 90 ? "over" : pct >= 70 ? "warn" : "ok";
       // Lifetime budget (optional)
-      const rawLifetime = c.lifetime_budget != null ? Number(c.lifetime_budget) : 0;
+      const campLifetime = c.lifetime_budget != null ? Number(c.lifetime_budget) : 0;
+      const rawLifetime = campLifetime > 0 ? campLifetime : adsetBud.lifetime;
       const lifetimeBdt = rawLifetime > 0 ? (rawLifetime / 100) * fx : null;
       const spentMonth = spendMonthByCampaign.get(c.id) ?? 0;
       const pctLifetime = lifetimeBdt && lifetimeBdt > 0 ? (spentMonth / lifetimeBdt) * 100 : null;
