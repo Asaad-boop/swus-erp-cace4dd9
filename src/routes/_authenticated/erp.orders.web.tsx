@@ -35,7 +35,6 @@ import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } f
 import { WebBulkActionBar, type WebStatusKey } from "@/components/erp/orders/web-bulk-action-bar";
 import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
-import { WebOrdersAnalytics } from "@/components/erp/orders/web-orders-analytics";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
 const DEFAULT_PAGE_SIZE = 25;
