@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Wallet, Package, TrendingUp, TrendingDown, Banknote, Smartphone, Truck, Users,
   Receipt, AlertTriangle, FileText, ArrowRight, RotateCcw, Calendar, Building2,
-  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Sparkles, Landmark,
+  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Landmark,
 } from "lucide-react";
 import {
   AreaChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -67,42 +67,27 @@ function OverviewPage() {
   const d = q.data;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      {/* ── Hero header ─────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-emerald-500/5 p-5">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/15 blur-3xl" aria-hidden />
-        <div className="absolute -left-10 -bottom-20 h-40 w-40 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-3">
+    <div className="p-4 md:p-6 space-y-4">
+      {/* ── Compact header ─────────────────────────────── */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="rounded-lg p-2 bg-primary/10 text-primary"><Landmark className="h-4 w-4" /></span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <Landmark className="h-3.5 w-3.5" /> Finance Command Center
-            </div>
-            <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">Finance & Accounting</h1>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
-                <Building2 className="h-3 w-3" />
-                {isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}
-              </Badge>
-              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
-                <Calendar className="h-3 w-3" />
-                {from} → {to}
-              </Badge>
-              {d && (
-                <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur text-emerald-700 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live
-                </Badge>
-              )}
+            <h1 className="text-lg font-semibold tracking-tight leading-tight">Finance & Accounting</h1>
+            <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+              <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}</span>
+              <span className="opacity-50">·</span>
+              <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{from} → {to}</span>
             </div>
           </div>
-          <DateRangePicker value={range} onChange={setRange} />
         </div>
-      </div>
+        <DateRangePicker value={range} onChange={setRange} />
+      </header>
 
       {q.isLoading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl border bg-gradient-to-br from-muted/40 to-transparent animate-pulse" />
+            <div key={i} className="h-28 rounded-xl border bg-muted/30 animate-pulse" />
           ))}
         </div>
       )}
@@ -189,34 +174,32 @@ function HeroKpi({ icon, label, value, hint, tone, warn, onClick }: {
   tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean; onClick?: () => void;
 }) {
   const TONES = {
-    primary: { grad: "from-primary/10 via-primary/5 to-transparent", icon: "bg-primary/15 text-primary", bar: "bg-primary", glow: "bg-primary/20" },
-    emerald: { grad: "from-emerald-500/10 via-emerald-500/5 to-transparent", icon: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", glow: "bg-emerald-500/20" },
-    amber:   { grad: "from-amber-500/10 via-amber-500/5 to-transparent",   icon: "bg-amber-500/15 text-amber-600 dark:text-amber-400",     bar: "bg-amber-500",   glow: "bg-amber-500/20" },
-    sky:     { grad: "from-sky-500/10 via-sky-500/5 to-transparent",       icon: "bg-sky-500/15 text-sky-600 dark:text-sky-400",           bar: "bg-sky-500",     glow: "bg-sky-500/20" },
-    rose:    { grad: "from-rose-500/10 via-rose-500/5 to-transparent",     icon: "bg-rose-500/15 text-rose-600 dark:text-rose-400",         bar: "bg-rose-500",    glow: "bg-rose-500/20" },
+    primary: { icon: "bg-primary/10 text-primary",                                         bar: "bg-primary" },
+    emerald: { icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",           bar: "bg-emerald-500" },
+    amber:   { icon: "bg-amber-500/10 text-amber-600 dark:text-amber-400",                 bar: "bg-amber-500" },
+    sky:     { icon: "bg-sky-500/10 text-sky-600 dark:text-sky-400",                       bar: "bg-sky-500" },
+    rose:    { icon: "bg-rose-500/10 text-rose-600 dark:text-rose-400",                    bar: "bg-rose-500" },
   }[tone];
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/60 bg-gradient-to-br transition-all duration-200",
-        TONES.grad,
-        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-primary/30",
+        "relative overflow-hidden border-border/60 bg-card transition-all duration-200",
+        onClick && "cursor-pointer hover:border-foreground/20 hover:shadow-sm",
       )}
     >
-      <div className={cn("absolute left-0 top-0 h-full w-0.5", TONES.bar)} aria-hidden />
-      <div className={cn("absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-60", TONES.glow)} aria-hidden />
-      <CardContent className="relative p-4" onClick={onClick} role={onClick ? "button" : undefined}>
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-          <span className={cn("rounded-lg p-1.5 backdrop-blur", TONES.icon)}>{icon}</span>
+      <div className={cn("absolute left-0 top-0 h-full w-1", TONES.bar)} aria-hidden />
+      <CardContent className="relative p-5 pl-6" onClick={onClick} role={onClick ? "button" : undefined}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">{label}</span>
+          <span className={cn("rounded-md p-1.5 shrink-0", TONES.icon)}>{icon}</span>
         </div>
-        <div className="mt-2.5 text-[26px] leading-none font-bold tabular-nums tracking-tight text-foreground">
+        <div className="mt-3 text-[28px] leading-none font-bold tabular-nums tracking-tight text-foreground">
           {fmtBdt(value)}
         </div>
         {hint && (
           <div
             className={cn(
-              "mt-2 text-[11px] truncate",
+              "mt-3 text-[11px] truncate",
               warn ? "text-amber-600 dark:text-amber-400 flex items-center gap-1" : "text-muted-foreground",
             )}
             title={hint}
@@ -254,29 +237,27 @@ function PnlStrip({ data, onDrill }: {
           <div
             className={cn(
               "relative md:col-span-4 p-5 border-r border-border/60 cursor-pointer transition overflow-hidden",
-              positive
-                ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/15"
-                : "bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:from-rose-500/15",
+              positive ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "bg-rose-500/5 hover:bg-rose-500/10",
             )}
             onClick={() => onDrill({ title: "Net profit — all transactions", type: "all" })}
             role="button"
           >
-            <div className={cn("absolute -right-10 -top-10 h-28 w-28 rounded-full blur-3xl", positive ? "bg-emerald-500/20" : "bg-rose-500/20")} aria-hidden />
+            <div className={cn("absolute left-0 top-0 h-full w-1", positive ? "bg-emerald-500" : "bg-rose-500")} aria-hidden />
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-                <Sparkles className="size-3.5" /> Net Profit
+                <Activity className="size-3.5" /> Net Profit
               </div>
               <Badge
                 variant="outline"
                 className={cn(
                   "text-[10px] font-semibold border-0",
-                  positive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                  positive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400",
                 )}
               >
                 {pnl.margin.toFixed(1)}% margin
               </Badge>
             </div>
-            <div className={cn("relative mt-2 text-[32px] leading-none font-bold tabular-nums tracking-tight", positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+            <div className={cn("relative mt-3 text-[32px] leading-none font-bold tabular-nums tracking-tight", positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
               {positive ? "+" : ""}{fmtBdt(pnl.net)}
             </div>
             <div className="relative text-[11px] text-muted-foreground mt-1.5 flex items-center gap-2">
@@ -302,12 +283,12 @@ function PnlStrip({ data, onDrill }: {
             {items.map((it) => (
               <div
                 key={it.label}
-                className={cn("relative p-4 group", it.drill && "cursor-pointer hover:bg-muted/50 transition")}
+                className={cn("relative p-5 group", it.drill && "cursor-pointer hover:bg-muted/40 transition")}
                 onClick={it.drill ? () => onDrill(it.drill!) : undefined}
                 role={it.drill ? "button" : undefined}
               >
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{it.icon}{it.label}</div>
-                <div className={cn("mt-1.5 text-lg font-bold tabular-nums tracking-tight", it.color)}>{fmtBdt(it.value)}</div>
+                <div className={cn("mt-2.5 text-xl font-bold tabular-nums tracking-tight", it.color)}>{fmtBdt(it.value)}</div>
                 {it.drill && (
                   <ArrowRight className="absolute right-3 top-3 size-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition" />
                 )}
@@ -349,10 +330,10 @@ function WhereMoneyIs({ data }: { data: FinanceOverview }) {
 
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500" aria-hidden />
+      <div className="h-1 bg-sky-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <span className="rounded-md p-1 bg-sky-500/15 text-sky-600 dark:text-sky-400"><Wallet className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-sky-500/10 text-sky-600 dark:text-sky-400"><Wallet className="size-3.5" /></span>
           Where my money is
         </CardTitle>
       </CardHeader>
@@ -394,10 +375,10 @@ function MoneyComingIn({ data }: { data: FinanceOverview }) {
   const { receivables, capital, pnl } = data;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" aria-hidden />
+      <div className="h-1 bg-emerald-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <span className="rounded-md p-1 bg-emerald-500/15"><ArrowDownRight className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-emerald-500/10"><ArrowDownRight className="size-3.5" /></span>
           Money coming in
         </CardTitle>
       </CardHeader>
@@ -438,10 +419,10 @@ function MoneyGoingOut({ data }: { data: FinanceOverview }) {
   const { payables, capital } = data;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500" aria-hidden />
+      <div className="h-1 bg-rose-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2 text-rose-700 dark:text-rose-400">
-          <span className="rounded-md p-1 bg-rose-500/15"><ArrowUpRight className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-rose-500/10"><ArrowUpRight className="size-3.5" /></span>
           Money going out
         </CardTitle>
       </CardHeader>
@@ -517,43 +498,33 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2 border-border/60 overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-primary via-indigo-500 to-emerald-500" aria-hidden />
+        <div className="h-1 bg-primary" aria-hidden />
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <span className="rounded-md p-1 bg-primary/15 text-primary"><TrendingUp className="size-3.5" /></span>
+            <span className="rounded-md p-1 bg-primary/10 text-primary"><TrendingUp className="size-3.5" /></span>
             12 months · Revenue vs Expense vs Net
           </CardTitle>
         </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={monthly} margin={{ left: -10 }}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95}/>
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.55}/>
-                </linearGradient>
-                <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9}/>
-                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.5}/>
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickFormatter={(v) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
               <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={CHART_TOOLTIP} />
               <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-              <Bar dataKey="Revenue" fill="url(#revGrad)" radius={[6,6,0,0]} maxBarSize={28} />
-              <Bar dataKey="Expense" fill="url(#expGrad)" radius={[6,6,0,0]} maxBarSize={28} />
+              <Bar dataKey="Revenue" fill="#6366f1" radius={[6,6,0,0]} maxBarSize={28} />
+              <Bar dataKey="Expense" fill="#f43f5e" radius={[6,6,0,0]} maxBarSize={28} />
               <Line type="monotone" dataKey="Net" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
       <Card className="border-border/60 overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500" aria-hidden />
+        <div className="h-1 bg-violet-500" aria-hidden />
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <span className="rounded-md p-1 bg-violet-500/15 text-violet-600 dark:text-violet-400"><Receipt className="size-3.5" /></span>
+            <span className="rounded-md p-1 bg-violet-500/10 text-violet-600 dark:text-violet-400"><Receipt className="size-3.5" /></span>
             Expense breakdown
           </CardTitle>
         </CardHeader>
@@ -578,15 +549,15 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
 /* ---------------- Quick Links ---------------- */
 function QuickLinks() {
   const links: { to: string; label: string; icon: React.ReactNode; tone: string }[] = [
-    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
-    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
-    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
-    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
-    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
-    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
+    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-muted text-foreground/70" },
   ];
   return (
     <section className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
@@ -609,10 +580,10 @@ function RecentTxns({ data }: { data: FinanceOverview }) {
   if (data.recentTxns.length === 0) return null;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600" aria-hidden />
+      <div className="h-1 bg-slate-500" aria-hidden />
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <span className="rounded-md p-1 bg-slate-500/15 text-slate-600 dark:text-slate-300"><Activity className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-slate-500/10 text-slate-600 dark:text-slate-300"><Activity className="size-3.5" /></span>
           Recent transactions
         </CardTitle>
         <Link to="/erp/finance/journal" className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:gap-2 transition-all">View journal <ArrowRight className="size-3" /></Link>
@@ -632,8 +603,8 @@ function RecentTxns({ data }: { data: FinanceOverview }) {
                 variant="outline"
                 className={cn(
                   "text-[10px] capitalize border-0 font-semibold",
-                  t.type === "income" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-                  t.type === "expense" && "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                  t.type === "income" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                  t.type === "expense" && "bg-rose-500/10 text-rose-700 dark:text-rose-400",
                   t.type !== "income" && t.type !== "expense" && "bg-muted text-muted-foreground",
                 )}
               >
