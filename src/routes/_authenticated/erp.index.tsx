@@ -146,7 +146,7 @@ function DashboardPage() {
       <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
-        <TodayAnalytics brandIds={brandIds} enabled={enabled} />
+        <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={RANGE_LABELS[rangeKey]} />
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
@@ -1191,29 +1191,23 @@ function classifySource(raw: string | null | undefined): string {
   return "Other";
 }
 
-function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+type RangeT = { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number };
+function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: string[]; enabled: boolean; range: RangeT; rangeLabel: string }) {
   const [open, setOpen] = useState(true);
-  const today = useMemo(() => {
-    // BD timezone (UTC+6) — compute today's window in BD then convert to UTC for DB
-    const BD = 6 * 60 * 60 * 1000;
-    const bdNow = new Date(Date.now() + BD);
-    const bdStart = new Date(bdNow); bdStart.setUTCHours(0, 0, 0, 0);
-    const bdEnd = new Date(bdNow); bdEnd.setUTCHours(23, 59, 59, 999);
-    return {
-      from: new Date(bdStart.getTime() - BD).toISOString(),
-      to: new Date(bdEnd.getTime() - BD).toISOString(),
-    };
-  }, []);
+  const BD_MS = 6 * 60 * 60 * 1000;
+  const mode: "hourly" | "daily" = range.days <= 1 ? "hourly" : "daily";
+  const fromISO = range.from.toISOString();
+  const toISO = range.to.toISOString();
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["dash-today-analytics", brandIds.join(","), today.from],
+    queryKey: ["dash-today-analytics", brandIds.join(","), fromISO, toISO],
     enabled: enabled && open,
     refetchInterval: 60000,
     queryFn: async () => {
       const { data, error } = await applyBrandScope(
         supabase.from("orders").select("created_at, status, utm_source, source_website"),
         brandIds,
-      ).gte("created_at", today.from).lte("created_at", today.to);
+      ).gte("created_at", fromISO).lte("created_at", toISO);
       if (error) throw error;
       return (data ?? []) as Array<{ created_at: string; status: string | null; utm_source: string | null; source_website: string | null }>;
     },
@@ -1229,30 +1223,68 @@ function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: bo
   }, [rows]);
   const totalSource = sourceData.reduce((s, d) => s + d.value, 0);
 
-  const BD_MS = 6 * 60 * 60 * 1000;
   const currentHour = new Date(Date.now() + BD_MS).getUTCHours();
-  const hourly = useMemo(() => {
-    const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, created: 0, confirmed: 0 }));
+  const todayBdKey = (() => {
+    const d = new Date(Date.now() + BD_MS);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  })();
+  const series = useMemo(() => {
+    if (mode === "hourly") {
+      const buckets = Array.from({ length: 24 }, (_, h) => ({ key: String(h), created: 0, confirmed: 0 }));
+      for (const r of rows) {
+        const h = new Date(new Date(r.created_at).getTime() + BD_MS).getUTCHours();
+        if (h < 0 || h > 23) continue;
+        buckets[h].created += 1;
+        if (CONFIRMED_STATUSES.has((r.status ?? "").toLowerCase())) buckets[h].confirmed += 1;
+      }
+      const peak = buckets.reduce((m, b) => (b.created > m ? b.created : m), 0);
+      return buckets.map((b, h) => ({
+        ...b,
+        label: h === 0 ? "12A" : h < 12 ? `${h}A` : h === 12 ? "12P" : `${h - 12}P`,
+        isPeak: peak > 0 && b.created === peak,
+        isCurrent: h === currentHour && range.days === 1 && new Date(range.from).toDateString() === new Date().toDateString(),
+      }));
+    }
+    // daily mode — bucket per BD day across range
+    const startBd = new Date(range.from.getTime() + BD_MS);
+    startBd.setUTCHours(0, 0, 0, 0);
+    const endBd = new Date(range.to.getTime() + BD_MS);
+    endBd.setUTCHours(0, 0, 0, 0);
+    const dayMs = 86400e3;
+    const nDays = Math.max(1, Math.round((endBd.getTime() - startBd.getTime()) / dayMs) + 1);
+    const buckets = Array.from({ length: nDays }, (_, i) => {
+      const d = new Date(startBd.getTime() + i * dayMs);
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+      return { key, _date: d, created: 0, confirmed: 0 };
+    });
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
     for (const r of rows) {
-      const h = new Date(new Date(r.created_at).getTime() + BD_MS).getUTCHours();
-      if (h < 0 || h > 23) continue;
-      buckets[h].created += 1;
-      if (CONFIRMED_STATUSES.has((r.status ?? "").toLowerCase())) buckets[h].confirmed += 1;
+      const d = new Date(new Date(r.created_at).getTime() + BD_MS);
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+      const i = idx.get(key);
+      if (i == null) continue;
+      buckets[i].created += 1;
+      if (CONFIRMED_STATUSES.has((r.status ?? "").toLowerCase())) buckets[i].confirmed += 1;
     }
     const peak = buckets.reduce((m, b) => (b.created > m ? b.created : m), 0);
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     return buckets.map((b) => ({
-      ...b,
-      label: b.hour === 0 ? "12A" : b.hour < 12 ? `${b.hour}A` : b.hour === 12 ? "12P" : `${b.hour - 12}P`,
+      key: b.key,
+      created: b.created,
+      confirmed: b.confirmed,
+      label: `${MONTHS[b._date.getUTCMonth()]} ${b._date.getUTCDate()}`,
       isPeak: peak > 0 && b.created === peak,
-      isCurrent: b.hour === currentHour,
+      isCurrent: b.key === todayBdKey,
     }));
-  }, [rows, currentHour]);
+  }, [rows, mode, range.from, range.to, currentHour, todayBdKey]);
+  const xInterval = mode === "hourly" ? 2 : Math.max(0, Math.floor(series.length / 10));
 
   return (
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <span>📊</span> Today's Order Analytics
+          <span>📊</span> Order Analytics
+          <span className="text-xs font-normal text-muted-foreground ml-1">· {rangeLabel}</span>
           {!isLoading && <Badge variant="secondary" className="ml-2 font-normal">{rows.length} orders</Badge>}
         </CardTitle>
         <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)}>
@@ -1293,17 +1325,17 @@ function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: bo
 
               {/* Hourly bar */}
               <div className="rounded-lg border bg-background p-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Orders by Hour</div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{mode === "hourly" ? "Orders by Hour" : "Orders by Day"}</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
                       <Tooltip />
                       <Bar dataKey="created" radius={[4, 4, 0, 0]}>
-                        {hourly.map((b) => (
-                          <Cell key={b.hour} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
+                        {series.map((b) => (
+                          <Cell key={b.key} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -1316,9 +1348,9 @@ function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: bo
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Created vs Confirmed</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
                       <Tooltip content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
