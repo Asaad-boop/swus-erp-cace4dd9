@@ -41,7 +41,7 @@ type OrderRow = {
   pathao_zone_id: number | null;
   created_at: string;
   updated_at: string | null;
-  items: { name: string; quantity: number; sku?: string | null }[];
+  items: { name: string; quantity: number }[];
 };
 
 function startOfTodayIso() {
@@ -85,9 +85,9 @@ function DispatchPage() {
     enabled: brandIds.length > 0,
     queryFn: async () => {
       const todayIso = startOfTodayIso();
-      const select = "id, invoice_no, status, brand_id, total, shipping_name, shipping_phone, shipping_address, shipping_thana, shipping_city, pathao_city_id, pathao_zone_id, created_at, updated_at, items:order_items(name, quantity, sku)";
+      const select = "id, invoice_no, status, brand_id, total, shipping_name, shipping_phone, shipping_address, shipping_thana, shipping_city, pathao_city_id, pathao_zone_id, created_at, updated_at, items:order_items(name, quantity)";
 
-      const allStatuses = [...PENDING_STATUSES, "packed", "ready_to_ship"];
+      const allStatuses = [...PENDING_STATUSES, "packed", "ready_to_ship"] as any;
       const pendingQ = applyBrandScope(
         supabase.from("orders").select(select).in("status", allStatuses).order("created_at", { ascending: false }).limit(500),
         brandIds,
@@ -118,8 +118,8 @@ function DispatchPage() {
       } catch { /* ignore */ }
 
       return {
-        pending: (pending.data ?? []) as OrderRow[],
-        shipped: (shipped.data ?? []) as OrderRow[],
+        pending: (pending.data ?? []) as unknown as OrderRow[],
+        shipped: (shipped.data ?? []) as unknown as OrderRow[],
         courier,
       };
     },
@@ -167,14 +167,14 @@ function DispatchPage() {
     );
     if (local) return local;
     // Fallback: DB lookup
-    const select = "id, invoice_no, status, brand_id, total, shipping_name, shipping_phone, shipping_address, shipping_thana, shipping_city, pathao_city_id, pathao_zone_id, created_at, updated_at, items:order_items(name, quantity, sku)";
+    const select = "id, invoice_no, status, brand_id, total, shipping_name, shipping_phone, shipping_address, shipping_thana, shipping_city, pathao_city_id, pathao_zone_id, created_at, updated_at, items:order_items(name, quantity)";
     const stripped = v.replace(/^#/, "").toLowerCase();
     const q = applyBrandScope(
       supabase.from("orders").select(select).or(`invoice_no.eq.${v},id::text.ilike.${stripped}%`).limit(1),
       brandIds,
     );
     const { data: rows } = await q;
-    return ((rows as OrderRow[]) ?? [])[0] ?? null;
+    return ((rows as unknown as OrderRow[]) ?? [])[0] ?? null;
   };
 
   const handleScan = async (raw: string) => {
@@ -192,7 +192,7 @@ function DispatchPage() {
           showFeedback("err", `Wrong status: ${order.status}`, "Expected: confirmed/processing");
           return;
         }
-        const { error } = await supabase.rpc("transition_order_status", { _order_id: order.id, _new_status: "packed" });
+        const { error } = await supabase.rpc("transition_order_status", { _order_id: order.id, _new_status: "packed" as any });
         if (error) throw error;
         playBeep("success");
         showFeedback("ok", `#${shortId(order.id)} — ${order.shipping_name ?? "Customer"}`, `${order.status} → PACKED ✓`);
@@ -202,7 +202,7 @@ function DispatchPage() {
           showFeedback("err", `Wrong status: ${order.status}`, "Expected: packed");
           return;
         }
-        const { error } = await supabase.rpc("transition_order_status", { _order_id: order.id, _new_status: "ready_to_ship" });
+        const { error } = await supabase.rpc("transition_order_status", { _order_id: order.id, _new_status: "ready_to_ship" as any });
         if (error) throw error;
         playBeep("success");
         showFeedback("ok", `#${shortId(order.id)} — ${order.shipping_name ?? "Customer"}`, "packed → READY ✓");
