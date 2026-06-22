@@ -74,7 +74,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
-export const Route = createFileRoute("/_authenticated/erp/marketing/")({
+export const Route = createFileRoute("/_authenticated/erp/marketing/performance")({
   component: PerformanceDashboard,
 });
 
