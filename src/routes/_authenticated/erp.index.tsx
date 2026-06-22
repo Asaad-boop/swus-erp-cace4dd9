@@ -1283,7 +1283,8 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <span>📊</span> Today's Order Analytics
+          <span>📊</span> Order Analytics
+          <span className="text-xs font-normal text-muted-foreground ml-1">· {rangeLabel}</span>
           {!isLoading && <Badge variant="secondary" className="ml-2 font-normal">{rows.length} orders</Badge>}
         </CardTitle>
         <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)}>
@@ -1324,17 +1325,17 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
 
               {/* Hourly bar */}
               <div className="rounded-lg border bg-background p-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Orders by Hour</div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{mode === "hourly" ? "Orders by Hour" : "Orders by Day"}</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
                       <Tooltip />
                       <Bar dataKey="created" radius={[4, 4, 0, 0]}>
-                        {hourly.map((b) => (
-                          <Cell key={b.hour} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
+                        {series.map((b) => (
+                          <Cell key={b.key} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -1347,9 +1348,9 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Created vs Confirmed</div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
                       <Tooltip content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
