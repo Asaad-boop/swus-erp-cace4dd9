@@ -375,10 +375,10 @@ function MoneyComingIn({ data }: { data: FinanceOverview }) {
   const { receivables, capital, pnl } = data;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" aria-hidden />
+      <div className="h-1 bg-emerald-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <span className="rounded-md p-1 bg-emerald-500/15"><ArrowDownRight className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-emerald-500/10"><ArrowDownRight className="size-3.5" /></span>
           Money coming in
         </CardTitle>
       </CardHeader>
@@ -419,10 +419,10 @@ function MoneyGoingOut({ data }: { data: FinanceOverview }) {
   const { payables, capital } = data;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500" aria-hidden />
+      <div className="h-1 bg-rose-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2 text-rose-700 dark:text-rose-400">
-          <span className="rounded-md p-1 bg-rose-500/15"><ArrowUpRight className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-rose-500/10"><ArrowUpRight className="size-3.5" /></span>
           Money going out
         </CardTitle>
       </CardHeader>
@@ -498,43 +498,33 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2 border-border/60 overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-primary via-indigo-500 to-emerald-500" aria-hidden />
+        <div className="h-1 bg-primary" aria-hidden />
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <span className="rounded-md p-1 bg-primary/15 text-primary"><TrendingUp className="size-3.5" /></span>
+            <span className="rounded-md p-1 bg-primary/10 text-primary"><TrendingUp className="size-3.5" /></span>
             12 months · Revenue vs Expense vs Net
           </CardTitle>
         </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={monthly} margin={{ left: -10 }}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95}/>
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.55}/>
-                </linearGradient>
-                <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9}/>
-                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.5}/>
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickFormatter={(v) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
               <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={CHART_TOOLTIP} />
               <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-              <Bar dataKey="Revenue" fill="url(#revGrad)" radius={[6,6,0,0]} maxBarSize={28} />
-              <Bar dataKey="Expense" fill="url(#expGrad)" radius={[6,6,0,0]} maxBarSize={28} />
+              <Bar dataKey="Revenue" fill="#6366f1" radius={[6,6,0,0]} maxBarSize={28} />
+              <Bar dataKey="Expense" fill="#f43f5e" radius={[6,6,0,0]} maxBarSize={28} />
               <Line type="monotone" dataKey="Net" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
       <Card className="border-border/60 overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500" aria-hidden />
+        <div className="h-1 bg-violet-500" aria-hidden />
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <span className="rounded-md p-1 bg-violet-500/15 text-violet-600 dark:text-violet-400"><Receipt className="size-3.5" /></span>
+            <span className="rounded-md p-1 bg-violet-500/10 text-violet-600 dark:text-violet-400"><Receipt className="size-3.5" /></span>
             Expense breakdown
           </CardTitle>
         </CardHeader>
