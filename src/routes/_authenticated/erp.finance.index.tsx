@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Wallet, Package, TrendingUp, TrendingDown, Banknote, Smartphone, Truck, Users,
   Receipt, AlertTriangle, FileText, ArrowRight, RotateCcw, Calendar, Building2,
-  PiggyBank, Activity, ArrowDownRight, ArrowUpRight,
+  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Sparkles, Landmark,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -20,6 +20,7 @@ import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-over
 import { FinanceDrilldownSheet } from "@/components/erp/finance/finance-drilldown-sheet";
 import { BdWalletsWidget } from "@/components/erp/finance/bd-wallets-widget";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
   head: () => ({ meta: [{ title: "Finance Dashboard — ERP" }] }),
@@ -32,6 +33,13 @@ const PROVIDER_LABEL: Record<string, string> = {
 };
 
 const DONUT_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#8b5cf6", "#ef4444", "#84cc16"];
+const CHART_TOOLTIP = {
+  background: "var(--card)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  fontSize: 12,
+  boxShadow: "0 8px 24px -12px rgb(0 0 0 / 0.18)",
+} as const;
 
 function OverviewPage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
@@ -60,20 +68,50 @@ function OverviewPage() {
   const d = q.data;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Finance & Accounting</h1>
-          <p className="text-sm text-muted-foreground">
-            {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · {from} → {to}
-          </p>
+    <div className="p-4 md:p-6 space-y-5">
+      {/* ── Hero header ─────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-emerald-500/5 p-5">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/15 blur-3xl" aria-hidden />
+        <div className="absolute -left-10 -bottom-20 h-40 w-40 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              <Landmark className="h-3.5 w-3.5" /> Finance Command Center
+            </div>
+            <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">Finance & Accounting</h1>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
+                <Building2 className="h-3 w-3" />
+                {isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur">
+                <Calendar className="h-3 w-3" />
+                {from} → {to}
+              </Badge>
+              {d && (
+                <Badge variant="outline" className="gap-1.5 bg-background/60 backdrop-blur text-emerald-700 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </Badge>
+              )}
+            </div>
+          </div>
+          <DateRangePicker value={range} onChange={setRange} />
         </div>
-        <DateRangePicker value={range} onChange={setRange} />
-      </header>
+      </div>
 
-      {q.isLoading && <div className="text-sm text-muted-foreground">Loading dashboard…</div>}
-      {q.error && <div className="text-sm text-destructive">{(q.error as Error).message}</div>}
+      {q.isLoading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-xl border bg-gradient-to-br from-muted/40 to-transparent animate-pulse" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
 
       {d && (
         <>
@@ -151,24 +189,41 @@ function HeroKpi({ icon, label, value, hint, tone, warn, onClick }: {
   icon: React.ReactNode; label: string; value: number; hint?: string;
   tone: "primary" | "emerald" | "amber" | "sky" | "rose"; warn?: boolean; onClick?: () => void;
 }) {
-  const toneClass = {
-    primary: "from-primary/15 to-primary/5 text-primary",
-    emerald: "from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400",
-    amber: "from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400",
-    sky: "from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400",
-    rose: "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400",
+  const TONES = {
+    primary: { grad: "from-primary/10 via-primary/5 to-transparent", icon: "bg-primary/15 text-primary", bar: "bg-primary", glow: "bg-primary/20" },
+    emerald: { grad: "from-emerald-500/10 via-emerald-500/5 to-transparent", icon: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", glow: "bg-emerald-500/20" },
+    amber:   { grad: "from-amber-500/10 via-amber-500/5 to-transparent",   icon: "bg-amber-500/15 text-amber-600 dark:text-amber-400",     bar: "bg-amber-500",   glow: "bg-amber-500/20" },
+    sky:     { grad: "from-sky-500/10 via-sky-500/5 to-transparent",       icon: "bg-sky-500/15 text-sky-600 dark:text-sky-400",           bar: "bg-sky-500",     glow: "bg-sky-500/20" },
+    rose:    { grad: "from-rose-500/10 via-rose-500/5 to-transparent",     icon: "bg-rose-500/15 text-rose-600 dark:text-rose-400",         bar: "bg-rose-500",    glow: "bg-rose-500/20" },
   }[tone];
   return (
-    <Card className={`bg-gradient-to-br ${toneClass} border-border/60 ${onClick ? "cursor-pointer hover:ring-1 hover:ring-primary/40 transition" : ""}`}>
-      <CardContent className="p-4" onClick={onClick} role={onClick ? "button" : undefined}>
+    <Card
+      className={cn(
+        "relative overflow-hidden border-border/60 bg-gradient-to-br transition-all duration-200",
+        TONES.grad,
+        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-primary/30",
+      )}
+    >
+      <div className={cn("absolute left-0 top-0 h-full w-0.5", TONES.bar)} aria-hidden />
+      <div className={cn("absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-60", TONES.glow)} aria-hidden />
+      <CardContent className="relative p-4" onClick={onClick} role={onClick ? "button" : undefined}>
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-muted-foreground">{label}</span>
-          <span className={`rounded-md p-1.5 bg-background/60`}>{icon}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+          <span className={cn("rounded-lg p-1.5 backdrop-blur", TONES.icon)}>{icon}</span>
         </div>
-        <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground">{fmtBdt(value)}</div>
+        <div className="mt-2.5 text-[26px] leading-none font-bold tabular-nums tracking-tight text-foreground">
+          {fmtBdt(value)}
+        </div>
         {hint && (
-          <div className={`mt-1 text-[11px] ${warn ? "text-amber-600 dark:text-amber-400 flex items-center gap-1" : "text-muted-foreground"} truncate`} title={hint}>
-            {warn && <AlertTriangle className="size-3" />}{hint}
+          <div
+            className={cn(
+              "mt-2 text-[11px] truncate",
+              warn ? "text-amber-600 dark:text-amber-400 flex items-center gap-1" : "text-muted-foreground",
+            )}
+            title={hint}
+          >
+            {warn && <AlertTriangle className="size-3 shrink-0" />}
+            {hint}
           </div>
         )}
       </CardContent>
@@ -192,35 +247,54 @@ function PnlStrip({ data, onDrill }: {
     { label: "Operating Exp.", value: pnl.expense, color: "text-rose-600 dark:text-rose-400", icon: <Receipt className="size-4" />, drill: { title: "Operating expenses", type: "expense" } },
     { label: "Refund Loss", value: pnl.refundLoss, color: "text-amber-600 dark:text-amber-400", icon: <RotateCcw className="size-4" /> },
   ];
+  const positive = pnl.net >= 0;
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-border/60">
       <CardContent className="p-0">
         <div className="grid grid-cols-1 md:grid-cols-12">
           <div
-            className="md:col-span-4 p-5 bg-gradient-to-br from-primary/10 to-transparent border-r border-border/60 cursor-pointer hover:bg-primary/5 transition"
+            className={cn(
+              "relative md:col-span-4 p-5 border-r border-border/60 cursor-pointer transition overflow-hidden",
+              positive
+                ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/15"
+                : "bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:from-rose-500/15",
+            )}
             onClick={() => onDrill({ title: "Net profit — all transactions", type: "all" })}
             role="button"
           >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Activity className="size-4" /> Net Profit ({data.range.from} → {data.range.to})
+            <div className={cn("absolute -right-10 -top-10 h-28 w-28 rounded-full blur-3xl", positive ? "bg-emerald-500/20" : "bg-rose-500/20")} aria-hidden />
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                <Sparkles className="size-3.5" /> Net Profit
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold border-0",
+                  positive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                )}
+              >
+                {pnl.margin.toFixed(1)}% margin
+              </Badge>
             </div>
-            <div className={`mt-1 text-3xl font-bold tabular-nums ${pnl.net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-              {pnl.net >= 0 ? "+" : ""}{fmtBdt(pnl.net)}
+            <div className={cn("relative mt-2 text-[32px] leading-none font-bold tabular-nums tracking-tight", positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+              {positive ? "+" : ""}{fmtBdt(pnl.net)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Margin {pnl.margin.toFixed(1)}% · Other income {fmtBdt(pnl.otherIncome)}
+            <div className="relative text-[11px] text-muted-foreground mt-1.5 flex items-center gap-2">
+              <span>{data.range.from} → {data.range.to}</span>
+              {pnl.otherIncome > 0 && <span>· Other income {fmtBdt(pnl.otherIncome)}</span>}
             </div>
-            <div className="mt-3 h-16">
+            <div className="relative mt-3 h-16">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={pnl.dailySeries.map(d => ({ ...d, net: d.net }))}>
                   <defs>
                     <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5}/>
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      <stop offset="0%" stopColor={positive ? "#10b981" : "#f43f5e"} stopOpacity={0.55}/>
+                      <stop offset="100%" stopColor={positive ? "#10b981" : "#f43f5e"} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <Area type="monotone" dataKey="net" stroke="hsl(var(--primary))" fill="url(#netGrad)" strokeWidth={1.5} />
-                  <Tooltip formatter={(v: number) => fmtBdt(v)} labelFormatter={(l) => `Day ${l}`} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 11 }} />
+                  <Area type="monotone" dataKey="net" stroke={positive ? "#10b981" : "#f43f5e"} fill="url(#netGrad)" strokeWidth={1.75} />
+                  <Tooltip formatter={(v: number) => fmtBdt(v)} labelFormatter={(l) => `Day ${l}`} contentStyle={CHART_TOOLTIP} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -229,12 +303,15 @@ function PnlStrip({ data, onDrill }: {
             {items.map((it) => (
               <div
                 key={it.label}
-                className={`p-4 ${it.drill ? "cursor-pointer hover:bg-muted/40 transition" : ""}`}
+                className={cn("relative p-4 group", it.drill && "cursor-pointer hover:bg-muted/50 transition")}
                 onClick={it.drill ? () => onDrill(it.drill!) : undefined}
                 role={it.drill ? "button" : undefined}
               >
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{it.icon}{it.label}</div>
-                <div className={`mt-1 text-lg font-semibold tabular-nums ${it.color}`}>{fmtBdt(it.value)}</div>
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{it.icon}{it.label}</div>
+                <div className={cn("mt-1.5 text-lg font-bold tabular-nums tracking-tight", it.color)}>{fmtBdt(it.value)}</div>
+                {it.drill && (
+                  <ArrowRight className="absolute right-3 top-3 size-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition" />
+                )}
               </div>
             ))}
           </div>
@@ -272,18 +349,24 @@ function WhereMoneyIs({ data }: { data: FinanceOverview }) {
   }, [data.accounts]);
 
   return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Wallet className="size-4" /> Where my money is</CardTitle></CardHeader>
+    <Card className="border-border/60 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500" aria-hidden />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <span className="rounded-md p-1 bg-sky-500/15 text-sky-600 dark:text-sky-400"><Wallet className="size-3.5" /></span>
+          Where my money is
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         {Object.entries(grouped).filter(([,g]) => g.items.length > 0).map(([k, g]) => (
           <div key={k}>
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 font-medium">{g.icon}{g.name}</span>
-              <span className="tabular-nums font-semibold">{fmtBdt(g.balance)}</span>
+              <span className="tabular-nums font-bold">{fmtBdt(g.balance)}</span>
             </div>
             <div className="mt-1 space-y-0.5 pl-5">
               {g.items.slice(0, 5).map(a => (
-                <div key={a.id} className="flex justify-between text-xs text-muted-foreground">
+                <div key={a.id} className="flex justify-between text-[11px] text-muted-foreground">
                   <span className="truncate">{a.name}</span>
                   <span className="tabular-nums">{fmtBdt(a.balance)}</span>
                 </div>
@@ -295,14 +378,14 @@ function WhereMoneyIs({ data }: { data: FinanceOverview }) {
           <div className="pt-2 border-t border-border/60">
             <div className="text-sm font-medium flex items-center gap-1.5 mb-1"><Package className="size-4" /> Inventory by brand</div>
             {data.inventoryByBrand.slice(0, 6).map(b => (
-              <div key={b.brand_id} className="flex justify-between text-xs">
+              <div key={b.brand_id} className="flex justify-between text-[11px]">
                 <span className="truncate text-muted-foreground">{b.brand} · {b.units} units</span>
                 <span className="tabular-nums">{fmtBdt(b.value)}</span>
               </div>
             ))}
           </div>
         )}
-        <Link to="/erp/finance/accounts" className="text-xs text-primary inline-flex items-center gap-1 pt-1">View all accounts <ArrowRight className="size-3" /></Link>
+        <Link to="/erp/finance/accounts" className="text-[11px] font-medium text-primary inline-flex items-center gap-1 pt-1 hover:gap-2 transition-all">View all accounts <ArrowRight className="size-3" /></Link>
       </CardContent>
     </Card>
   );
@@ -311,8 +394,14 @@ function WhereMoneyIs({ data }: { data: FinanceOverview }) {
 function MoneyComingIn({ data }: { data: FinanceOverview }) {
   const { receivables, capital, pnl } = data;
   return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><ArrowDownRight className="size-4" /> Money coming in</CardTitle></CardHeader>
+    <Card className="border-border/60 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" aria-hidden />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+          <span className="rounded-md p-1 bg-emerald-500/15"><ArrowDownRight className="size-3.5" /></span>
+          Money coming in
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <Section title="COD from courier" total={capital.breakdown.codReceivable} icon={<Truck className="size-4" />}>
           {receivables.codByCourier.length === 0
@@ -349,8 +438,14 @@ function MoneyComingIn({ data }: { data: FinanceOverview }) {
 function MoneyGoingOut({ data }: { data: FinanceOverview }) {
   const { payables, capital } = data;
   return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2 text-rose-600 dark:text-rose-400"><ArrowUpRight className="size-4" /> Money going out</CardTitle></CardHeader>
+    <Card className="border-border/60 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500" aria-hidden />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-rose-700 dark:text-rose-400">
+          <span className="rounded-md p-1 bg-rose-500/15"><ArrowUpRight className="size-3.5" /></span>
+          Money going out
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <Section title="Supplier payable" total={capital.breakdown.supplierPayable} icon={<Receipt className="size-4" />}
           rightBadge={payables.overdueBills > 0 ? <Badge variant="destructive" className="text-[10px]">{fmtBdt(payables.overdueBills)} overdue</Badge> : undefined}>
@@ -386,15 +481,15 @@ function Section({ title, total, icon, children, rightBadge }: {
   title: string; total?: number; icon?: React.ReactNode; children: React.ReactNode; rightBadge?: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="rounded-lg bg-muted/30 p-2.5">
       <div className="flex items-center justify-between text-sm font-medium">
         <span className="flex items-center gap-1.5">{icon}{title}</span>
         <span className="flex items-center gap-2">
           {rightBadge}
-          {total != null && <span className="tabular-nums">{fmtBdt(total)}</span>}
+          {total != null && <span className="tabular-nums font-bold">{fmtBdt(total)}</span>}
         </span>
       </div>
-      <div className="mt-1 space-y-0.5 pl-5">{children}</div>
+      <div className="mt-1.5 space-y-0.5 pl-5">{children}</div>
     </div>
   );
 }
@@ -422,33 +517,55 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
 
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <Card className="lg:col-span-2">
-        <CardHeader className="pb-2"><CardTitle className="text-base">12 months · Revenue vs Expense vs Net</CardTitle></CardHeader>
+      <Card className="lg:col-span-2 border-border/60 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-primary via-indigo-500 to-emerald-500" aria-hidden />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <span className="rounded-md p-1 bg-primary/15 text-primary"><TrendingUp className="size-3.5" /></span>
+            12 months · Revenue vs Expense vs Net
+          </CardTitle>
+        </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={monthly} margin={{ left: -10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
-              <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Revenue" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
-              <Bar dataKey="Expense" fill="hsl(var(--destructive))" radius={[4,4,0,0]} />
-              <Line type="monotone" dataKey="Net" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={false} />
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.95}/>
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.55}/>
+                </linearGradient>
+                <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9}/>
+                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.5}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+              <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickFormatter={(v) => v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`} />
+              <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={CHART_TOOLTIP} />
+              <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+              <Bar dataKey="Revenue" fill="url(#revGrad)" radius={[6,6,0,0]} maxBarSize={28} />
+              <Bar dataKey="Expense" fill="url(#expGrad)" radius={[6,6,0,0]} maxBarSize={28} />
+              <Line type="monotone" dataKey="Net" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Expense breakdown</CardTitle></CardHeader>
+      <Card className="border-border/60 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500" aria-hidden />
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <span className="rounded-md p-1 bg-violet-500/15 text-violet-600 dark:text-violet-400"><Receipt className="size-3.5" /></span>
+            Expense breakdown
+          </CardTitle>
+        </CardHeader>
         <CardContent className="h-72">
           {donut.length === 0 ? <div className="text-sm text-muted-foreground text-center pt-12">No expenses in range</div> : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={40} outerRadius={80} paddingAngle={2}>
+                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={48} outerRadius={84} paddingAngle={3} stroke="var(--card)" strokeWidth={2}>
                   {donut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
+                <Tooltip formatter={(v: number) => fmtBdt(v)} contentStyle={CHART_TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -461,22 +578,27 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
 
 /* ---------------- Quick Links ---------------- */
 function QuickLinks() {
-  const links: { to: string; label: string; icon: React.ReactNode }[] = [
-    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" /> },
-    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" /> },
-    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" /> },
-    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" /> },
-    { to: "/erp/finance/reconciliation", label: "Bank Reconciliation", icon: <FileText className="size-4" /> },
-    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" /> },
-    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" /> },
-    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" /> },
-    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" /> },
+  const links: { to: string; label: string; icon: React.ReactNode; tone: string }[] = [
+    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
+    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
+    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
+    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
   ];
   return (
     <section className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
       {links.map(l => (
-        <Link key={l.to} to={l.to} className="rounded-md border border-border/60 bg-card hover:bg-muted/50 transition px-3 py-2 text-xs flex items-center gap-1.5">
-          {l.icon}{l.label}
+        <Link
+          key={l.to}
+          to={l.to}
+          className="group rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-sm transition-all px-3 py-2.5 text-xs flex items-center gap-2"
+        >
+          <span className={cn("rounded-md p-1.5 transition group-hover:scale-110", l.tone)}>{l.icon}</span>
+          <span className="font-medium truncate">{l.label}</span>
         </Link>
       ))}
     </section>
@@ -487,23 +609,48 @@ function QuickLinks() {
 function RecentTxns({ data }: { data: FinanceOverview }) {
   if (data.recentTxns.length === 0) return null;
   return (
-    <Card>
+    <Card className="border-border/60 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600" aria-hidden />
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Recent transactions</CardTitle>
-        <Link to="/erp/finance/journal" className="text-xs text-primary inline-flex items-center gap-1">View journal <ArrowRight className="size-3" /></Link>
+        <CardTitle className="text-sm flex items-center gap-2">
+          <span className="rounded-md p-1 bg-slate-500/15 text-slate-600 dark:text-slate-300"><Activity className="size-3.5" /></span>
+          Recent transactions
+        </CardTitle>
+        <Link to="/erp/finance/journal" className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:gap-2 transition-all">View journal <ArrowRight className="size-3" /></Link>
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-border/60">
           {data.recentTxns.map(t => (
-            <div key={t.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-              <Badge variant={t.type === "income" ? "default" : t.type === "expense" ? "destructive" : "secondary"} className="text-[10px] capitalize">{t.type}</Badge>
+            <div key={t.id} className="group relative flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/40 transition">
+              <span
+                className={cn(
+                  "absolute left-0 top-0 h-full w-0.5",
+                  t.type === "income" ? "bg-emerald-500" : t.type === "expense" ? "bg-rose-500" : "bg-slate-400",
+                )}
+                aria-hidden
+              />
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] capitalize border-0 font-semibold",
+                  t.type === "income" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+                  t.type === "expense" && "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                  t.type !== "income" && t.type !== "expense" && "bg-muted text-muted-foreground",
+                )}
+              >
+                {t.type}
+              </Badge>
               <div className="flex-1 min-w-0">
-                <div className="truncate">{t.description || <span className="text-muted-foreground">—</span>}</div>
+                <div className="truncate font-medium">{t.description || <span className="text-muted-foreground font-normal">—</span>}</div>
                 <div className="text-[11px] text-muted-foreground">
                   {t.date}{t.account && ` · ${t.account}`}{t.category && ` · ${t.category}`}
                 </div>
               </div>
-              <div className={`tabular-nums font-medium ${t.type === "income" ? "text-emerald-600 dark:text-emerald-400" : t.type === "expense" ? "text-rose-600 dark:text-rose-400" : ""}`}>
+              <div className={cn(
+                "tabular-nums font-bold",
+                t.type === "income" && "text-emerald-600 dark:text-emerald-400",
+                t.type === "expense" && "text-rose-600 dark:text-rose-400",
+              )}>
                 {t.type === "expense" ? "-" : t.type === "income" ? "+" : ""}{fmtBdt(t.amount)}
               </div>
             </div>
