@@ -17,7 +17,7 @@ const NAV = [
   { to: "/erp/finance/cod-remittance", label: "COD Remit", icon: Truck },
   { to: "/erp/finance/recurring", label: "Recurring", icon: Repeat },
   { to: "/erp/finance/budgets", label: "Budgets", icon: Target },
-  { to: "/erp/finance/reconciliation", label: "Reconcile", icon: GitMerge },
+  { to: "/erp/finance/reconciliation", label: "Bank Reconciliation", icon: GitMerge },
   { to: "/erp/finance/taxes", label: "Taxes", icon: Percent },
   { to: "/erp/finance/fx", label: "FX Rates", icon: Globe },
   { to: "/erp/finance/audit", label: "Audit", icon: ShieldCheck },

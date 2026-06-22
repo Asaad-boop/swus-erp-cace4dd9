@@ -1013,7 +1013,7 @@ function CustomerHistoryStrip({
         loading={loading}
         recent={recent}
         onOpenOrder={(id) => navigate({ to: "/erp/orders/$orderId", params: { orderId: id } })}
-        onViewAll={() => phone && navigate({ to: "/erp/orders/list", search: { search: phone } as never })}
+        onViewAll={() => phone && navigate({ to: "/erp/orders/web", search: { search: phone } as never })}
       />
 
       {/* 2) Overall courier card */}
