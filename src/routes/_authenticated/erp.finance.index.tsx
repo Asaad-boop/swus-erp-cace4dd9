@@ -549,15 +549,15 @@ function TrendsRow({ data }: { data: FinanceOverview }) {
 /* ---------------- Quick Links ---------------- */
 function QuickLinks() {
   const links: { to: string; label: string; icon: React.ReactNode; tone: string }[] = [
-    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
-    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
-    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
-    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
-    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
-    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
+    { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-muted text-foreground/70" },
   ];
   return (
     <section className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
@@ -580,10 +580,10 @@ function RecentTxns({ data }: { data: FinanceOverview }) {
   if (data.recentTxns.length === 0) return null;
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600" aria-hidden />
+      <div className="h-1 bg-slate-500" aria-hidden />
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm flex items-center gap-2">
-          <span className="rounded-md p-1 bg-slate-500/15 text-slate-600 dark:text-slate-300"><Activity className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-slate-500/10 text-slate-600 dark:text-slate-300"><Activity className="size-3.5" /></span>
           Recent transactions
         </CardTitle>
         <Link to="/erp/finance/journal" className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:gap-2 transition-all">View journal <ArrowRight className="size-3" /></Link>
@@ -603,8 +603,8 @@ function RecentTxns({ data }: { data: FinanceOverview }) {
                 variant="outline"
                 className={cn(
                   "text-[10px] capitalize border-0 font-semibold",
-                  t.type === "income" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-                  t.type === "expense" && "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                  t.type === "income" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                  t.type === "expense" && "bg-rose-500/10 text-rose-700 dark:text-rose-400",
                   t.type !== "income" && t.type !== "expense" && "bg-muted text-muted-foreground",
                 )}
               >
