@@ -16,6 +16,7 @@ import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedMeIndexRouteImport } from './routes/_authenticated/me.index'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedMeAttendanceRouteImport } from './routes/_authenticated/me.attendance'
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
@@ -151,6 +152,12 @@ const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedMeAttendanceRoute =
+  AuthenticatedMeAttendanceRouteImport.update({
+    id: '/attendance',
+    path: '/attendance',
+    getParentRoute: () => AuthenticatedMeRoute,
+  } as any)
 const AuthenticatedErpUsersRoute = AuthenticatedErpUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -761,6 +768,7 @@ export interface FileRoutesByFullPath {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
+  '/me/attendance': typeof AuthenticatedMeAttendanceRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/me/': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -859,6 +867,7 @@ export interface FileRoutesByTo {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
+  '/me/attendance': typeof AuthenticatedMeAttendanceRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/me': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -966,6 +975,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
+  '/_authenticated/me/attendance': typeof AuthenticatedMeAttendanceRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/me/': typeof AuthenticatedMeIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -1076,6 +1086,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
+    | '/me/attendance'
     | '/erp/'
     | '/me/'
     | '/erp/analytics/live'
@@ -1174,6 +1185,7 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
+    | '/me/attendance'
     | '/erp'
     | '/me'
     | '/erp/analytics/live'
@@ -1280,6 +1292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
+    | '/_authenticated/me/attendance'
     | '/_authenticated/erp/'
     | '/_authenticated/me/'
     | '/_authenticated/erp/analytics/live'
@@ -1429,6 +1442,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/'
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/me/attendance': {
+      id: '/_authenticated/me/attendance'
+      path: '/attendance'
+      fullPath: '/me/attendance'
+      preLoaderRoute: typeof AuthenticatedMeAttendanceRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
     }
     '/_authenticated/erp/users': {
       id: '/_authenticated/erp/users'
@@ -2497,10 +2517,12 @@ const AuthenticatedErpRouteWithChildren =
   AuthenticatedErpRoute._addFileChildren(AuthenticatedErpRouteChildren)
 
 interface AuthenticatedMeRouteChildren {
+  AuthenticatedMeAttendanceRoute: typeof AuthenticatedMeAttendanceRoute
   AuthenticatedMeIndexRoute: typeof AuthenticatedMeIndexRoute
 }
 
 const AuthenticatedMeRouteChildren: AuthenticatedMeRouteChildren = {
+  AuthenticatedMeAttendanceRoute: AuthenticatedMeAttendanceRoute,
   AuthenticatedMeIndexRoute: AuthenticatedMeIndexRoute,
 }
 
