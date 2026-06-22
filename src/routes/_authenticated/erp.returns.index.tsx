@@ -343,77 +343,91 @@ function initials(name: string) {
 
 function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen: () => void; selected?: boolean }) {
   const isReturn = r.type === "return";
-  const accent = isReturn ? "#0D4F4C" : "#B8893F";
+  const t = theme(r.type);
   return (
     <li
       onClick={onOpen}
-      style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}
+      style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
       className={cn(
-        "group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 pl-3 pr-2.5 py-3 cursor-pointer animate-fade-in rounded-xl",
-        "bg-white dark:bg-card border border-stone-200/70 dark:border-border",
-        "hover:border-stone-300 hover:shadow-[0_4px_14px_-8px_rgba(0,0,0,0.1)] transition-all",
-        selected && "ring-2 ring-offset-1 ring-[#1C1917]/90 dark:ring-foreground",
+        "group relative flex items-stretch gap-0 cursor-pointer animate-fade-in rounded-lg overflow-hidden",
+        "bg-white dark:bg-card border transition-all",
+        selected
+          ? "border-zinc-900 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.12)]"
+          : "border-zinc-200/80 hover:border-zinc-300 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
       )}
     >
-      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: accent }} />
+      {/* Type rail */}
+      <span className="w-1 shrink-0" style={{ background: t.base }} aria-hidden />
 
-      {/* Product thumb */}
-      <div className="relative shrink-0 ml-1">
-        {r.productImage ? (
-          <img src={r.productImage} alt=""
-            className="h-12 w-12 rounded-lg object-cover ring-1 ring-stone-200 bg-stone-50" />
-        ) : (
-          <div className="h-12 w-12 rounded-lg flex items-center justify-center bg-stone-100 text-stone-400 ring-1 ring-stone-200">
-            <Package className="h-5 w-5" />
-          </div>
-        )}
-        <span className={cn(
-          "absolute -bottom-1 -right-1 h-5 w-5 rounded-full ring-2 ring-white dark:ring-card flex items-center justify-center text-white",
-        )} style={{ background: accent }}>
-          {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
-        </span>
-      </div>
-
-      {/* Main */}
-      <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] items-center gap-2 md:gap-5">
-        <div className="min-w-0">
-          <div className="text-[13.5px] font-semibold truncate text-[#1C1917] dark:text-foreground leading-tight">
-            {r.productTitle}
-          </div>
-          <div className="text-[11px] text-stone-500 dark:text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-            <span className="font-mono text-stone-700">{r.caseNumber}</span>
-            <span className="text-stone-300">·</span>
-            <span className="truncate">{initials(r.customer) !== "—" ? r.customer : "Unknown"}</span>
-            {r.orderNumber && <><span className="text-stone-300 hidden md:inline">·</span>
-              <span className="font-mono hidden md:inline">#{r.orderNumber}</span></>}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 min-w-0">
-          <ReturnStatusBadge status={r.status} />
-          <span className="text-[11px] text-stone-400 hidden lg:inline truncate">
-            {format(new Date(r.createdAt), "dd MMM")}
-          </span>
-        </div>
-
-        <div className="text-right tabular-nums hidden md:block">
-          {r.amount > 0 ? (
-            <div className="text-[16px] leading-none font-semibold" style={{ color: accent }}>
-              ৳{r.amount.toLocaleString("en-IN")}
-            </div>
+      <div className="flex-1 min-w-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 px-3 py-2.5">
+        {/* Thumb */}
+        <div className="relative shrink-0">
+          {r.productImage ? (
+            <img src={r.productImage} alt=""
+              className="h-11 w-11 rounded-md object-cover ring-1 ring-zinc-200 bg-zinc-50" />
           ) : (
-            <span className="text-stone-300 text-sm">—</span>
+            <div className="h-11 w-11 rounded-md grid place-items-center bg-zinc-50 text-zinc-400 ring-1 ring-zinc-200">
+              <Package className="h-4 w-4" />
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-        <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
-        <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
-          className="text-stone-300 hover:text-[#1C1917] p-1.5 rounded-md hover:bg-stone-100 transition-colors">
-          <ChevronRight className="h-4 w-4" />
-        </Link>
+        {/* Main */}
+        <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-1.5 md:gap-4">
+          <div className="min-w-0">
+            {/* Ticket ID strip */}
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-px rounded text-[9.5px] font-mono font-semibold uppercase tracking-wider"
+                style={{ background: t.softer, color: t.ink, border: `1px solid ${t.soft}` }}
+              >
+                {isReturn ? <RotateCcw className="h-2.5 w-2.5" /> : <Repeat className="h-2.5 w-2.5" />}
+                {r.caseNumber}
+              </span>
+              {r.orderNumber && (
+                <span className="text-[10px] font-mono text-zinc-400 hidden md:inline">#{r.orderNumber}</span>
+              )}
+            </div>
+            <div className="text-[13px] font-medium truncate text-zinc-900 dark:text-foreground leading-snug">
+              {r.productTitle}
+            </div>
+            <div className="text-[11px] text-zinc-500 truncate mt-0.5 flex items-center gap-1.5">
+              <span className="inline-grid h-3.5 w-3.5 place-items-center rounded-full bg-zinc-100 text-[8px] font-semibold text-zinc-600 shrink-0">
+                {initials(r.customer)}
+              </span>
+              <span className="truncate">{r.customer || "Unknown"}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 min-w-0">
+            <ReturnStatusBadge status={r.status} />
+            <span className="text-[10.5px] text-zinc-400 hidden lg:inline truncate font-medium">
+              {format(new Date(r.createdAt), "dd MMM")}
+            </span>
+          </div>
+
+          <div className="text-right tabular-nums hidden md:block">
+            {r.amount > 0 ? (
+              <div className="text-[14px] leading-none font-semibold text-zinc-900">
+                ৳{r.amount.toLocaleString("en-IN")}
+              </div>
+            ) : (
+              <span className="text-zinc-300 text-xs">—</span>
+            )}
+          </div>
+        </div>
+
+        {/* Action — most prominent */}
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="hidden sm:block">
+            <CaseActionButton caseId={r.id} type={r.type} status={r.status} compact />
+          </div>
+          <Link to="/erp/returns/$caseId" params={{ caseId: r.id }}
+            className="text-zinc-400 hover:text-zinc-900 p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
+            aria-label="Open">
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </li>
   );
@@ -421,16 +435,16 @@ function CaseRow({ r, index, onOpen, selected }: { r: Row; index: number; onOpen
 
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
-    <div className="py-16 px-6 text-center">
-      <div className="mx-auto h-14 w-14 rounded-full bg-[#0D4F4C]/10 dark:bg-muted flex items-center justify-center text-[#0D4F4C]">
-        <Inbox className="h-7 w-7" />
+    <div className="py-20 px-6 text-center">
+      <div className="mx-auto h-12 w-12 rounded-xl bg-zinc-100 grid place-items-center text-zinc-500">
+        <Inbox className="h-5 w-5" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-[#1C1917] dark:text-foreground">No return cases yet</h3>
-      <p className="mt-1 text-xs text-stone-500 dark:text-muted-foreground max-w-sm mx-auto">
-        Returns and exchanges from orders will appear here. Create one to start tracking.
+      <h3 className="mt-4 text-sm font-semibold text-zinc-900">No tickets yet</h3>
+      <p className="mt-1 text-xs text-zinc-500 max-w-sm mx-auto">
+        Returns and exchanges from orders will appear here as tickets.
       </p>
-      <Button size="sm" onClick={onNew} className="mt-4 bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white">
-        <Plus className="h-4 w-4 mr-1" />New Return
+      <Button size="sm" onClick={onNew} className="mt-4 bg-zinc-900 hover:bg-zinc-800 text-white text-xs h-8">
+        <Plus className="h-3.5 w-3.5 mr-1" />New Return
       </Button>
     </div>
   );
@@ -441,66 +455,69 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 }) {
   if (!row) return null;
   const isReturn = row.type === "return";
-  const accent = isReturn ? "#0D4F4C" : "#B8893F";
-  const accentSoft = isReturn ? "#0D4F4C0F" : "#B8893F14";
+  const t = theme(row.type);
   return (
-    <aside className="sticky top-[80px] rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 dark:border-border shadow-[0_4px_12px_-4px_rgba(0,0,0,0.06),0_20px_40px_-20px_rgba(0,0,0,0.12)] animate-fade-in">
-      {/* Type ribbon */}
-      <div className="h-1.5" style={{ background: accent }} />
-      <header className="px-5 pt-5 pb-4" style={{ background: accentSoft }}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white" style={{ background: accent }}>
-              {isReturn ? <RotateCcw className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
-              {isReturn ? "Return" : "Exchange"}
-            </span>
-            <span className="font-mono text-[12px] text-stone-700">{row.caseNumber}</span>
-          </div>
-          <button onClick={onClose} className="p-1 -m-1 text-stone-400 hover:text-stone-700" aria-label="Close preview">
+    <aside className="sticky top-[72px] rounded-xl overflow-hidden bg-white dark:bg-card border border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)] animate-fade-in">
+      {/* Header band */}
+      <header className="relative px-5 pt-4 pb-5" style={{ background: t.softer }}>
+        <span className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: t.base }} />
+        <div className="flex items-center justify-between">
+          <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold font-mono"
+            style={{ background: "white", color: t.ink, border: `1px solid ${t.soft}` }}
+          >
+            {isReturn ? <RotateCcw className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
+            {isReturn ? "Return" : "Exchange"} · {row.caseNumber}
+          </span>
+          <button onClick={onClose} className="p-1 -m-1 text-zinc-400 hover:text-zinc-700" aria-label="Close preview">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-600 font-semibold">
               {isReturn ? "Refund amount" : "Exchange charge"}
             </div>
-            <div className="mt-1 text-[36px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: accent }}>
-              {row.amount > 0 ? <>৳{row.amount.toLocaleString("en-IN")}</> : <span className="text-stone-300">—</span>}
+            <div className="mt-1 text-[34px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: t.ink }}>
+              {row.amount > 0 ? <>৳{row.amount.toLocaleString("en-IN")}</> : <span className="text-zinc-300">—</span>}
             </div>
           </div>
           <ReturnStatusBadge status={row.status} />
         </div>
       </header>
 
-      <div className="p-5 space-y-3.5 text-xs">
+      <div className="p-5 space-y-4 text-xs">
         <div className="flex items-start gap-3">
           {row.productImage ? (
-            <img src={row.productImage} alt="" className="h-14 w-14 rounded-lg object-cover ring-1 ring-stone-200" />
+            <img src={row.productImage} alt="" className="h-14 w-14 rounded-md object-cover ring-1 ring-zinc-200" />
           ) : (
-            <div className="h-14 w-14 rounded-lg bg-stone-100 ring-1 ring-stone-200 flex items-center justify-center">
-              <Package className="h-5 w-5 text-stone-400" />
+            <div className="h-14 w-14 rounded-md bg-zinc-50 ring-1 ring-zinc-200 grid place-items-center">
+              <Package className="h-5 w-5 text-zinc-400" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium text-[#1C1917] leading-snug">{row.productTitle}</div>
-            {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
+            <div className="text-[13px] font-medium text-zinc-900 leading-snug">{row.productTitle}</div>
+            {row.productSku && <div className="text-[10px] font-mono text-zinc-500 mt-0.5">{row.productSku}</div>}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 pt-3 border-t border-stone-100">
-          <PreviewRow label="Customer" value={row.customer} />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-zinc-100">
+          <PreviewRow label="Customer" value={row.customer || "—"} />
           <PreviewRow label="Order" value={row.orderNumber ? <span className="font-mono">#{row.orderNumber}</span> : "—"} />
           <PreviewRow label="Created" value={format(new Date(row.createdAt), "dd MMM yyyy")} />
           <PreviewRow label="Time" value={format(new Date(row.createdAt), "hh:mm a")} />
         </div>
 
-        <div className="flex items-center gap-2 pt-4 border-t border-stone-100">
-          <CaseActionButton caseId={caseId} type={row.type} status={row.status} />
-          <Button onClick={onOpenFull} size="sm" variant="outline"
-            className="ml-auto border-stone-300 hover:bg-stone-50">
-            Open <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
+        {/* Prominent action area */}
+        <div className="pt-4 border-t border-zinc-100 space-y-2">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Next action</div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1"><CaseActionButton caseId={caseId} type={row.type} status={row.status} /></div>
+            <Button onClick={onOpenFull} size="sm" variant="outline"
+              className="border-zinc-200 hover:bg-zinc-50 text-xs h-8">
+              Open <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
     </aside>
@@ -510,8 +527,8 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 function PreviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-[0.14em] text-stone-500">{label}</div>
-      <div className="text-[12px] text-[#1C1917] dark:text-foreground mt-0.5 truncate">{value}</div>
+      <div className="text-[9.5px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">{label}</div>
+      <div className="text-[12px] text-zinc-900 dark:text-foreground mt-1 truncate font-medium">{value}</div>
     </div>
   );
 }
