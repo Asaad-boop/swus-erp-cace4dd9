@@ -276,11 +276,11 @@ function KpiStrip({
     { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, trend: data?.ordersTrend, sub: "vs previous", tone: "indigo", to: "/erp/orders/web" },
     { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
     { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
-    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
-    { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
+    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), amount: data?.revenue ?? 0, trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
+    { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), amount: data?.codAmount ?? 0, sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
     { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
     { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
-    { icon: TrendingUp, label: "AOV", value: BDT(data?.aov ?? 0), sub: "avg order value", tone: "slate" },
+    { icon: TrendingUp, label: "AOV", value: BDT(data?.aov ?? 0), amount: data?.aov ?? 0, sub: "avg order value", tone: "slate" },
     { icon: UserPlus, label: "New Customers", value: data?.newCust ?? 0, sub: "first orders", tone: "violet" },
     { icon: Repeat, label: "Returning", value: data?.retCust ?? 0, sub: "repeat customers", tone: "violet" },
   ];
@@ -303,7 +303,10 @@ function KpiStrip({
             </span>
           </div>
           {isLoading ? <Skeleton className="h-9 w-28" /> : (
-            <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
+            <div className={cn(
+              "text-3xl font-bold tracking-tight tabular-nums leading-none",
+              typeof (c as any).amount === "number" && moneyTier((c as any).amount),
+            )}>{c.value}</div>
           )}
           <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
             {typeof (c as any).trend === "number" ? (
