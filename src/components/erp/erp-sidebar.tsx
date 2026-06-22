@@ -300,7 +300,7 @@ export function ErpSidebar() {
       <aside
         data-collapsed={collapsed}
         className={cn(
-          "hidden md:flex flex-col border-r border-border bg-card/60 backdrop-blur-sm transition-[width] duration-300 ease-out",
+          "hidden md:flex flex-col border-r border-border bg-card/60 backdrop-blur-sm transition-[width] duration-300 ease-out h-screen sticky top-0 shrink-0",
           collapsed ? "w-[60px]" : "w-60",
         )}
       >
