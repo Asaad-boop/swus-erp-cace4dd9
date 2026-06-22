@@ -1,27 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, Boxes, Wallet, Truck, Settings, Users, UserCog,
-  TrendingDown, TrendingUp, ArrowLeftRight, PackagePlus, Receipt, Zap, Megaphone, Container, FileSpreadsheet, Heart, BriefcaseBusiness,
-  ChevronsLeft, Sparkles, ClipboardList, ClipboardCheck, PackageSearch, Activity, BarChart3, RotateCcw,
+  TrendingDown, TrendingUp, PackagePlus, Megaphone, Container, Heart, BriefcaseBusiness,
+  ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
+  Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
+  Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
+  FileBarChart, Target, Banknote, Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBrand } from "@/contexts/brand-context";
-import { useAccounts, useCategories } from "@/hooks/erp/use-finance-query";
-import { TransactionForm } from "@/components/erp/finance/transaction-form";
-import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
-import type { TxnType } from "@/lib/erp/finance";
+import { useErpQuickActions } from "@/contexts/erp-quick-actions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
-type NavGroup = { label: string; items: NavItem[] };
+type FlatGroup = { kind: "flat"; label: string; items: NavItem[] };
+type AccordionGroup = { kind: "accordion"; label: string; sections: { key: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }[]; defaultClosed?: boolean };
+type Group = FlatGroup | AccordionGroup;
 
-const groups: NavGroup[] = [
+const groups: Group[] = [
   {
+    kind: "flat",
     label: "Overview",
     items: [{ to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true }],
   },
   {
+    kind: "flat",
     label: "Sales",
     items: [
       { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
@@ -30,6 +33,7 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    kind: "flat",
     label: "Operations",
     items: [
       { to: "/erp/inventory", label: "Inventory", icon: Boxes },
@@ -38,50 +42,137 @@ const groups: NavGroup[] = [
       { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
       { to: "/erp/courier", label: "Courier", icon: Truck },
       { to: "/erp/returns", label: "Returns & Exchanges", icon: RotateCcw },
-      { to: "/erp/reconciliation", label: "COD Reconciliation (Pathao)", icon: FileSpreadsheet },
+      { to: "/erp/reconciliation", label: "COD Reconciliation", icon: FileSpreadsheet },
       { to: "/erp/suppliers", label: "Suppliers", icon: Users },
       { to: "/erp/imports", label: "Imports", icon: Container },
     ],
   },
   {
+    kind: "accordion",
     label: "Money",
-    items: [{ to: "/erp/finance", label: "Finance", icon: Wallet }],
-  },
-  {
-    label: "Growth",
-    items: [
-      { to: "/erp/analytics", label: "Analytics", icon: BarChart3, exact: true },
-      { to: "/erp/analytics/live", label: "Live Analytics", icon: Activity },
-      { to: "/erp/marketing", label: "Marketing", icon: Megaphone },
-      { to: "/erp/crm", label: "CRM", icon: Heart },
+    sections: [
+      {
+        key: "finance",
+        label: "Finance",
+        icon: Wallet,
+        items: [
+          { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
+          { to: "/erp/finance/simple", label: "Transactions", icon: Receipt },
+          { to: "/erp/finance/journal", label: "Journal", icon: BookOpen },
+          { to: "/erp/finance/accounts", label: "Accounts", icon: Landmark },
+          { to: "/erp/finance/wallets", label: "Wallets", icon: Coins },
+          { to: "/erp/finance/receivables", label: "Receivables", icon: ArrowDownCircle },
+          { to: "/erp/finance/payables", label: "Payables", icon: ArrowUpCircle },
+          { to: "/erp/finance/cod-remittance", label: "COD Remittance", icon: HandCoins },
+          { to: "/erp/finance/reconciliation", label: "Bank Reconciliation", icon: Scale },
+          { to: "/erp/finance/reports", label: "Reports", icon: FileBarChart },
+          { to: "/erp/finance/product-profitability", label: "Product P&L", icon: TrendingUp },
+          { to: "/erp/finance/settings", label: "Settings", icon: Settings },
+        ],
+      },
     ],
   },
   {
+    kind: "accordion",
+    label: "Growth",
+    sections: [
+      {
+        key: "marketing",
+        label: "Marketing",
+        icon: Megaphone,
+        items: [
+          { to: "/erp/marketing", label: "Overview", icon: LayoutDashboard, exact: true },
+          { to: "/erp/marketing/campaigns", label: "Campaigns", icon: Target },
+          { to: "/erp/marketing/sku-pnl", label: "SKU P&L", icon: TrendingUp },
+          { to: "/erp/marketing/expenses", label: "Expenses", icon: Banknote },
+          { to: "/erp/marketing/attribution", label: "Attribution", icon: Activity },
+        ],
+      },
+      {
+        key: "crm",
+        label: "CRM",
+        icon: Heart,
+        items: [{ to: "/erp/crm", label: "Customers", icon: Users }],
+      },
+      {
+        key: "analytics",
+        label: "Analytics",
+        icon: BarChart3,
+        items: [
+          { to: "/erp/analytics", label: "Analytics", icon: BarChart3, exact: true },
+          { to: "/erp/analytics/live", label: "Live Analytics", icon: Activity },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "accordion",
     label: "Workspace",
-    items: [
-      { to: "/erp/hr", label: "HR", icon: BriefcaseBusiness },
-      { to: "/erp/users", label: "Users", icon: UserCog },
-      { to: "/erp/settings", label: "Settings", icon: Settings },
+    defaultClosed: true,
+    sections: [
+      {
+        key: "workspace",
+        label: "Workspace",
+        icon: Building2,
+        items: [
+          { to: "/erp/hr", label: "HR", icon: BriefcaseBusiness },
+          { to: "/erp/users", label: "Users", icon: UserCog },
+          { to: "/erp/settings", label: "Settings", icon: Settings },
+          { to: "/erp/diagnostics", label: "Diagnostics", icon: Stethoscope },
+        ],
+      },
     ],
   },
 ];
 
+const ACTIVE_GROUP_KEY = "sidebar_active_group";
+
 export function ErpSidebar() {
   const location = useLocation();
-  const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
-  const brandId = activeBrand?.id ?? null;
-  const { data: accounts = [] } = useAccounts(brandIds);
-  const { data: categories = [] } = useCategories(brandIds);
-
-  const [txnOpen, setTxnOpen] = useState(false);
-  const [txnType, setTxnType] = useState<TxnType>("expense");
-  const [transferOpen, setTransferOpen] = useState(false);
+  const { openTxn } = useErpQuickActions();
   const [collapsed, setCollapsed] = useState<boolean>(false);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+
+  const isActive = (to: string, exact?: boolean) =>
+    exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
+
+  // Compute which accordion section should be auto-opened based on current route
+  const autoSection = useMemo(() => {
+    for (const g of groups) {
+      if (g.kind !== "accordion") continue;
+      for (const s of g.sections) {
+        if (s.items.some((i) => isActive(i.to, i.exact))) return s.key;
+      }
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   useEffect(() => {
     const v = typeof window !== "undefined" ? localStorage.getItem("erp.sidebar.collapsed") : null;
     if (v === "1") setCollapsed(true);
+    const saved = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_GROUP_KEY) : null;
+    setActiveGroup(saved ?? null);
   }, []);
+
+  useEffect(() => {
+    if (autoSection) {
+      setActiveGroup(autoSection);
+      try { localStorage.setItem(ACTIVE_GROUP_KEY, autoSection); } catch { /* ignore */ }
+    }
+  }, [autoSection]);
+
+  const toggleGroup = (key: string) => {
+    setActiveGroup((prev) => {
+      const next = prev === key ? null : key;
+      try {
+        if (next) localStorage.setItem(ACTIVE_GROUP_KEY, next);
+        else localStorage.removeItem(ACTIVE_GROUP_KEY);
+      } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       const next = !c;
@@ -90,33 +181,20 @@ export function ErpSidebar() {
     });
   };
 
-  const openTxn = (t: TxnType) => { setTxnType(t); setTxnOpen(true); };
-
-  const quickActions = [
-    { label: "Add Expense", icon: TrendingDown, tone: "text-red-600", onClick: () => openTxn("expense") },
-    { label: "Add Income", icon: TrendingUp, tone: "text-emerald-600", onClick: () => openTxn("income") },
-    { label: "Transfer Money", icon: ArrowLeftRight, tone: "text-blue-600", onClick: () => setTransferOpen(true) },
-  ];
-
-  const quickLinks = [
-    { to: "/erp/orders/new", label: "New Order", icon: PackagePlus },
-    { to: "/erp/finance/simple", label: "Quick Entry", icon: Receipt },
-    { to: "/erp/finance/product-profitability", label: "Product P&L", icon: TrendingUp },
-  ];
-
-  const isActive = (to: string, exact?: boolean) =>
-    exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
-
-  const NavLinkItem = ({ to, label, icon: Icon, exact }: NavItem) => {
+  const NavLinkItem = ({ to, label, icon: Icon, exact, indented }: NavItem & { indented?: boolean }) => {
     const active = isActive(to, exact);
     const content = (
       <Link
         to={to as never}
         className={cn(
-          "group/link relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200",
-          collapsed ? "justify-center px-2 py-2.5 mx-auto w-10" : "px-3 py-2",
+          "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200",
+          collapsed
+            ? "justify-center px-2 py-2.5 mx-auto w-10"
+            : indented
+            ? "pl-8 pr-3 py-1.5 text-sm"
+            : "px-3 py-2 text-sm font-medium",
           active
-            ? "bg-primary/10 text-primary"
+            ? "bg-primary/10 text-primary font-medium"
             : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
         )}
       >
@@ -140,28 +218,49 @@ export function ErpSidebar() {
     );
   };
 
-  const ActionItem = ({ label, icon: Icon, tone, onClick }: { label: string; icon: typeof LayoutDashboard; tone?: string; onClick: () => void }) => {
-    const btn = (
-      <button
-        onClick={onClick}
-        disabled={brandIds.length === 0}
-        className={cn(
-          "group/link w-full flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed",
-          collapsed ? "justify-center px-2 py-2.5 mx-auto w-10" : "px-3 py-2",
-        )}
-      >
-        <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200 group-hover/link:scale-110", tone)} />
-        {!collapsed && <span className="truncate">{label}</span>}
-      </button>
-    );
-    if (!collapsed) return btn;
+  const AccordionSection = ({
+    sectionKey, label, icon: Icon, items,
+  }: { sectionKey: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }) => {
+    const isOpen = activeGroup === sectionKey;
+    const hasActive = items.some((i) => isActive(i.to, i.exact));
+    if (collapsed) {
+      // In collapsed mode, render items as flat icons (no accordion header)
+      return (
+        <div className="space-y-0.5">
+          {items.map((it) => <NavLinkItem key={it.to} {...it} />)}
+        </div>
+      );
+    }
     return (
-      <Tooltip delayDuration={100}>
-        <TooltipTrigger asChild>{btn}</TooltipTrigger>
-        <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
-      </Tooltip>
+      <div>
+        <button
+          type="button"
+          onClick={() => toggleGroup(sectionKey)}
+          className={cn(
+            "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/60",
+            hasActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+          aria-expanded={isOpen}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+          <span className="truncate flex-1 text-left">{label}</span>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isOpen && "rotate-180")} />
+        </button>
+        <div
+          className="overflow-hidden transition-[max-height] duration-200 ease-out"
+          style={{ maxHeight: isOpen ? items.length * 36 + 8 : 0 }}
+        >
+          <div className="pt-1 space-y-0.5">
+            {items.map((it) => <NavLinkItem key={it.to} {...it} indented />)}
+          </div>
+        </div>
+      </div>
     );
   };
+
+  const quickLinks: NavItem[] = [
+    { to: "/erp/orders/new", label: "New Order", icon: PackagePlus },
+  ];
 
   return (
     <TooltipProvider>
@@ -169,7 +268,7 @@ export function ErpSidebar() {
         data-collapsed={collapsed}
         className={cn(
           "hidden md:flex flex-col border-r border-border bg-card/60 backdrop-blur-sm transition-[width] duration-300 ease-out",
-          collapsed ? "w-[68px]" : "w-64",
+          collapsed ? "w-[60px]" : "w-60",
         )}
       >
         {/* Brand header */}
@@ -200,14 +299,13 @@ export function ErpSidebar() {
           )}
         </div>
 
-        {/* Collapse toggle when collapsed */}
         {collapsed && (
           <button
             onClick={toggleCollapsed}
             className="mx-auto mt-2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="Expand sidebar"
           >
-            <ChevronsLeft className="h-4 w-4 rotate-180" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         )}
 
@@ -219,9 +317,23 @@ export function ErpSidebar() {
                   {group.label}
                 </div>
               )}
-              <div className="space-y-0.5">
-                {group.items.map((item) => <NavLinkItem key={item.to} {...item} />)}
-              </div>
+              {group.kind === "flat" ? (
+                <div className="space-y-0.5">
+                  {group.items.map((item) => <NavLinkItem key={item.to} {...item} />)}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {group.sections.map((s) => (
+                    <AccordionSection
+                      key={s.key}
+                      sectionKey={s.key}
+                      label={s.label}
+                      icon={s.icon}
+                      items={s.items}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
@@ -233,8 +345,9 @@ export function ErpSidebar() {
               </div>
             )}
             <div className="space-y-0.5">
-              {quickActions.map((a) => <ActionItem key={a.label} {...a} />)}
               {quickLinks.map((l) => <NavLinkItem key={l.to} {...l} />)}
+              <QuickActionButton label="Add Expense" icon={TrendingDown} tone="text-red-600" onClick={() => openTxn("expense")} collapsed={collapsed} />
+              <QuickActionButton label="Add Income" icon={TrendingUp} tone="text-emerald-600" onClick={() => openTxn("income")} collapsed={collapsed} />
             </div>
           </div>
         </nav>
@@ -242,28 +355,31 @@ export function ErpSidebar() {
         <div className={cn("border-t border-border text-[11px] text-muted-foreground", collapsed ? "py-2 text-center" : "px-4 py-2.5")}>
           {collapsed ? "v0.1" : "v0.1 · Phase 0"}
         </div>
-
-      {brandIds.length > 0 && (
-        <>
-          <TransactionForm
-            open={txnOpen}
-            onClose={() => setTxnOpen(false)}
-            brandId={isAllBrands ? null : brandId}
-            brands={brands}
-            accounts={accounts}
-            categories={categories}
-            defaultType={txnType}
-          />
-          <TransferDialog
-            open={transferOpen}
-            onClose={() => setTransferOpen(false)}
-            brandId={isAllBrands ? null : brandId}
-            brands={brands}
-            accounts={accounts}
-          />
-        </>
-      )}
       </aside>
     </TooltipProvider>
+  );
+}
+
+function QuickActionButton({
+  label, icon: Icon, tone, onClick, collapsed,
+}: { label: string; icon: typeof LayoutDashboard; tone?: string; onClick: () => void; collapsed: boolean }) {
+  const btn = (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group/link w-full flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-all duration-200",
+        collapsed ? "justify-center px-2 py-2.5 mx-auto w-10" : "px-3 py-2",
+      )}
+    >
+      <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200 group-hover/link:scale-110", tone)} />
+      {!collapsed && <span className="truncate">{label}</span>}
+    </button>
+  );
+  if (!collapsed) return btn;
+  return (
+    <Tooltip delayDuration={100}>
+      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+      <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
+    </Tooltip>
   );
 }

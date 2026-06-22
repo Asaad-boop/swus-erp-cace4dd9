@@ -4,6 +4,7 @@ import { LogOut, Menu as MenuIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandProvider } from "@/contexts/brand-context";
 import { ErpSidebar } from "@/components/erp/erp-sidebar";
+import { ErpQuickActionsProvider } from "@/contexts/erp-quick-actions";
 import { BrandSwitcher } from "@/components/erp/brand-switcher";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -28,6 +29,7 @@ function ErpLayout() {
 
   return (
     <BrandProvider>
+      <ErpQuickActionsProvider>
       <div className="flex min-h-screen bg-background">
         <ErpSidebar />
         <div className="flex-1 flex flex-col min-w-0">
@@ -56,6 +58,7 @@ function ErpLayout() {
         </div>
         <Toaster richColors position="top-right" />
       </div>
+      </ErpQuickActionsProvider>
     </BrandProvider>
   );
 }
