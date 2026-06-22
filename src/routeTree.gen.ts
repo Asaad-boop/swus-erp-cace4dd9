@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
 import { Route as AuthenticatedErpReturnsRouteImport } from './routes/_authenticated/erp.returns'
@@ -136,6 +137,11 @@ const AuthenticatedErpRoute = AuthenticatedErpRouteImport.update({
 const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedErpRoute,
+} as any)
+const AuthenticatedErpUsersRoute = AuthenticatedErpUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
 const AuthenticatedErpSuppliersRoute =
@@ -741,6 +747,7 @@ export interface FileRoutesByFullPath {
   '/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
+  '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
@@ -837,6 +844,7 @@ export interface FileRoutesByTo {
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
+  '/erp/users': typeof AuthenticatedErpUsersRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
@@ -941,6 +949,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
+  '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
@@ -1048,6 +1057,7 @@ export interface FileRouteTypes {
     | '/erp/returns'
     | '/erp/settings'
     | '/erp/suppliers'
+    | '/erp/users'
     | '/erp/'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
@@ -1144,6 +1154,7 @@ export interface FileRouteTypes {
     | '/erp/reorder-queue'
     | '/erp/settings'
     | '/erp/suppliers'
+    | '/erp/users'
     | '/erp'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
@@ -1247,6 +1258,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/returns'
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
+    | '/_authenticated/erp/users'
     | '/_authenticated/erp/'
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
@@ -1380,6 +1392,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/erp/'
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/users': {
+      id: '/_authenticated/erp/users'
+      path: '/users'
+      fullPath: '/erp/users'
+      preLoaderRoute: typeof AuthenticatedErpUsersRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/suppliers': {
@@ -2392,6 +2411,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpReturnsRoute: typeof AuthenticatedErpReturnsRouteWithChildren
   AuthenticatedErpSettingsRoute: typeof AuthenticatedErpSettingsRoute
   AuthenticatedErpSuppliersRoute: typeof AuthenticatedErpSuppliersRoute
+  AuthenticatedErpUsersRoute: typeof AuthenticatedErpUsersRoute
   AuthenticatedErpIndexRoute: typeof AuthenticatedErpIndexRoute
   AuthenticatedErpAnalyticsLiveRoute: typeof AuthenticatedErpAnalyticsLiveRoute
   AuthenticatedErpPurchaseOrdersPoIdRoute: typeof AuthenticatedErpPurchaseOrdersPoIdRoute
@@ -2421,6 +2441,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpReturnsRoute: AuthenticatedErpReturnsRouteWithChildren,
   AuthenticatedErpSettingsRoute: AuthenticatedErpSettingsRoute,
   AuthenticatedErpSuppliersRoute: AuthenticatedErpSuppliersRoute,
+  AuthenticatedErpUsersRoute: AuthenticatedErpUsersRoute,
   AuthenticatedErpIndexRoute: AuthenticatedErpIndexRoute,
   AuthenticatedErpAnalyticsLiveRoute: AuthenticatedErpAnalyticsLiveRoute,
   AuthenticatedErpPurchaseOrdersPoIdRoute:
