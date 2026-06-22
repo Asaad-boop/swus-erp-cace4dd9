@@ -484,8 +484,8 @@ function TrendChart({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
-          <CardTitle className="text-base">Revenue & Orders Trend</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">{""}{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
+          <CardTitle className="text-lg font-semibold">Revenue & Orders Trend</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">{range.from.toLocaleDateString()} → {range.to.toLocaleDateString()}</p>
         </div>
         <div className="flex gap-1 bg-muted rounded-md p-0.5">
           {(["revenue","orders","both"] as const).map(m => (
@@ -498,17 +498,21 @@ function TrendChart({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading || !data ? <Skeleton className="h-64 w-full" /> : (
-          <div className="h-64">
+        {isLoading || !data ? <Skeleton className="h-[320px] w-full" /> : (
+          <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <ComposedChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis yAxisId="rev" tickFormatter={(v) => compact(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={56} />
+                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={36} />
+                <Tooltip
+                  cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                  labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" />
                 {(mode === "revenue" || mode === "both") && (
                   isAllBrands && brands.length > 1 ? brands.map((b, i) => (
                     <Area key={b.id} yAxisId="rev" type="monotone" dataKey={"b_" + b.id} name={b.name}
