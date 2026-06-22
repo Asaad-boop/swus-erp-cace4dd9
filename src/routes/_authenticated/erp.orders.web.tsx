@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +37,8 @@ import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { WebOrdersAnalytics } from "@/components/erp/orders/web-orders-analytics";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
+const DEFAULT_PAGE_SIZE = 25;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
 
 const searchSchema = z.object({
@@ -51,6 +53,7 @@ const searchSchema = z.object({
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
   page: fallback(z.number().int().min(1), 1).default(1),
+  pageSize: fallback(z.number().int().min(0).max(500), DEFAULT_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
 type WebOrdersSearch = z.infer<typeof searchSchema>;
 
@@ -482,7 +485,8 @@ function _WebOrdersPageBody() {
 
   // Paginated orders (page 1-indexed in URL)
   const page = search.page ?? 1;
-  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page] as const;
+  const pageSize = search.pageSize ?? DEFAULT_PAGE_SIZE; // 0 = All
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
 
   const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
@@ -524,9 +528,14 @@ function _WebOrdersPageBody() {
         q = q.in("id", ids);
       }
 
-      const from = pageIdx * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      q = q.range(from, to);
+      if (pageSize > 0) {
+        const from = pageIdx * pageSize;
+        const to = from + pageSize - 1;
+        q = q.range(from, to);
+      } else {
+        // "All" — cap at supabase max
+        q = q.range(0, 9999);
+      }
 
       const { data, error, count } = await q;
       if (error) throw error;
@@ -573,7 +582,7 @@ function _WebOrdersPageBody() {
 
   const rows = useMemo<WebOrderRow[]>(() => ordersQuery.data?.rows ?? [], [ordersQuery.data]);
   const totalRows = ordersQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalRows / pageSize)) : 1;
   const isLoading = ordersQuery.isLoading;
 
   // counts per status — parallel head count queries
@@ -1258,11 +1267,36 @@ function _WebOrdersPageBody() {
         </Table>
         {activeTab !== "incomplete" && totalRows > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-            <div className="text-xs text-muted-foreground">
-              Showing <span className="font-medium text-foreground">{(page - 1) * PAGE_SIZE + 1}</span>
-              –<span className="font-medium text-foreground">{Math.min(page * PAGE_SIZE, totalRows)}</span>
-              {" of "}<span className="font-medium text-foreground">{totalRows}</span>
-              {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-muted-foreground">
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {pageSize > 0 ? (page - 1) * pageSize + 1 : 1}
+                </span>
+                –
+                <span className="font-medium text-foreground">
+                  {pageSize > 0 ? Math.min(page * pageSize, totalRows) : rows.length}
+                </span>
+                {" of "}<span className="font-medium text-foreground">{totalRows}</span>
+                {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Rows</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => navigate({
+                    search: (prev: WebOrdersSearch) => ({ ...prev, pageSize: Number(v), page: 1 }),
+                    replace: true,
+                  })}
+                >
+                  <SelectTrigger className="h-8 w-[84px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n === 0 ? "All" : n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(1)}>First</Button>
