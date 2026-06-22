@@ -314,19 +314,18 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       // Fall back to summed adset budget (ABO) when campaign-level budget is unset
       const rawBudget = campDaily > 0 ? campDaily : adsetBud.daily;
       if (!(rawBudget > 0)) continue;
-      // Meta returns daily_budget in minor units (cents) for USD; in BDT for BDT accounts.
       const acc = c.mkt_ad_accounts ?? {};
       const cur = (acc.currency ?? "USD").toUpperCase();
       const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || 110;
-      const budgetMajor = rawBudget / 100; // cents → major
-      const budgetBdt = budgetMajor * fx;
+      // Budgets in DB are already in major units (USD or BDT) — sync divides /100 at ingest.
+      const budgetBdt = rawBudget * fx;
       const spent = spendTodayByCampaign.get(c.id) ?? 0;
       const pct = budgetBdt > 0 ? (spent / budgetBdt) * 100 : 0;
       const status_ = pct >= 90 ? "over" : pct >= 70 ? "warn" : "ok";
       // Lifetime budget (optional)
       const campLifetime = c.lifetime_budget != null ? Number(c.lifetime_budget) : 0;
       const rawLifetime = campLifetime > 0 ? campLifetime : adsetBud.lifetime;
-      const lifetimeBdt = rawLifetime > 0 ? (rawLifetime / 100) * fx : null;
+      const lifetimeBdt = rawLifetime > 0 ? rawLifetime * fx : null;
       const spentMonth = spendMonthByCampaign.get(c.id) ?? 0;
       const pctLifetime = lifetimeBdt && lifetimeBdt > 0 ? (spentMonth / lifetimeBdt) * 100 : null;
       // Projected month = month-to-date pace × days_in_month
