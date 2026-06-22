@@ -1,18 +1,5 @@
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RTooltip,
-  Legend,
-  CartesianGrid,
-  BarChart,
-  Bar,
-} from "recharts";
 import {
   Card,
   CardContent,
@@ -64,7 +51,6 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
   if (!d) return null;
 
   const showToday = d.today.spend_bdt > 0 || d.today.attributed_orders > 0;
-  const showTrend = d.trend7d.some((r) => r.spend_bdt > 0 || r.confirmed_revenue_bdt > 0);
   const showTop = d.topCampaigns.length > 0;
   const showPacing = d.budgetPacing.length > 0;
 
@@ -158,108 +144,47 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* 7-DAY TREND */}
-        {showTrend && (
-          <Card className="rounded-xl border-gray-100 shadow-sm">
-            <CardHeader className="pb-3 border-b border-gray-100">
-              <CardTitle className="text-base">Spend vs Revenue — Last 7 days</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72 pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={d.trend7d} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(v) => v.slice(5)}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) =>
-                      v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()
-                    }
-                  />
-                  <RTooltip
-                    formatter={(v: any) => fmtBDT(Number(v))}
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="spend_bdt"
-                    name="Spend"
-                    stroke="hsl(var(--destructive))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="confirmed_revenue_bdt"
-                    name="Confirmed Rev"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="delivered_revenue_bdt"
-                    name="Delivered Rev"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* TOP 5 */}
-        {showTop && (
-          <Card className="rounded-xl border-gray-100 shadow-sm">
-            <CardHeader className="pb-3 border-b border-gray-100">
-              <CardTitle className="text-base">Top 5 Campaigns — Real ROAS (7d)</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72 pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={d.topCampaigns.map((c) => ({
-                    name: c.name.length > 20 ? c.name.slice(0, 20) + "…" : c.name,
-                    roas: Number((c.true_roas ?? 0).toFixed(2)),
-                  }))}
-                  layout="vertical"
-                  margin={{ top: 5, right: 20, left: 80, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    tick={{ fontSize: 11 }}
-                    width={150}
-                  />
-                  <RTooltip
-                    formatter={(v: any) => `${Number(v).toFixed(2)}×`}
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="roas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* TOP 5 CAMPAIGNS */}
+      {showTop && (
+        <Card className="rounded-xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-3 border-b border-gray-100">
+            <CardTitle className="text-base">Top 5 Campaigns — Real ROAS (last 7 days)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 divide-y divide-gray-100">
+            {d.topCampaigns.map((c, idx) => {
+              const roas = c.true_roas;
+              const tone =
+                roas == null
+                  ? "text-muted-foreground"
+                  : roas >= 2
+                    ? "text-emerald-600"
+                    : roas >= 1
+                      ? "text-amber-600"
+                      : "text-rose-600";
+              return (
+                <div key={c.campaign_id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#1877F2]/8 text-xs font-semibold text-[#1877F2]">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{c.name}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                      <span>Spend {fmtBDT(c.spend_bdt)}</span>
+                      <span>·</span>
+                      <span>Revenue {fmtBDT(c.delivered_revenue_bdt)}</span>
+                      <span>·</span>
+                      <span>Confirmed {fmtBDT(c.confirmed_revenue_bdt)}</span>
+                    </div>
+                  </div>
+                  <div className={cn("text-right text-lg font-bold tabular-nums shrink-0", tone)}>
+                    {fmtMult(roas)}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* BUDGET PACING */}
       {showPacing && (
