@@ -146,7 +146,7 @@ function DashboardPage() {
       <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
-        <TodayAnalytics brandIds={brandIds} enabled={enabled} />
+        <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={RANGE_LABELS[rangeKey]} />
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
