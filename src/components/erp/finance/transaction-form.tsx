@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, Banknote, Building2, Landmark, Settings2, Smartphone, Wallet as WalletIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Account, Category, TxnType } from "@/lib/erp/finance";
+import { cn } from "@/lib/utils";
+import { fmtBdt, type Account, type Category, type TxnType } from "@/lib/erp/finance";
 import type { Brand } from "@/contexts/brand-context";
 
 type Props = {
@@ -22,6 +24,25 @@ type Props = {
   brands?: Brand[];
 };
 
+const TYPE_META: Record<TxnType, { label: string; bnLabel: string; icon: typeof ArrowDownCircle; tone: string; ring: string; bg: string; fg: string; verb: string }> = {
+  expense:    { label: "Expense",    bnLabel: "Khoroch",   icon: ArrowUpCircle,   tone: "rose",    ring: "ring-rose-500/40 border-rose-500/50",        bg: "bg-rose-500/10",    fg: "text-rose-600 dark:text-rose-400",       verb: "Save expense" },
+  income:     { label: "Income",     bnLabel: "Aay",       icon: ArrowDownCircle, tone: "emerald", ring: "ring-emerald-500/40 border-emerald-500/50",  bg: "bg-emerald-500/10", fg: "text-emerald-600 dark:text-emerald-400", verb: "Save income" },
+  transfer:   { label: "Transfer",   bnLabel: "Transfer",  icon: ArrowRightLeft,  tone: "sky",     ring: "ring-sky-500/40 border-sky-500/50",          bg: "bg-sky-500/10",     fg: "text-sky-600 dark:text-sky-400",         verb: "Save transfer" },
+  adjustment: { label: "Adjustment", bnLabel: "Adjust",    icon: Settings2,       tone: "amber",   ring: "ring-amber-500/40 border-amber-500/50",      bg: "bg-amber-500/10",   fg: "text-amber-600 dark:text-amber-400",     verb: "Save adjustment" },
+};
+
+function accountIcon(t: string) {
+  const s = t.toLowerCase();
+  if (s === "bank") return Landmark;
+  if (s === "cash") return Banknote;
+  if (s === "bkash" || s === "nagad" || s === "rocket") return Smartphone;
+  if (s === "courier") return Building2;
+  return WalletIcon;
+}
+
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+function yesterdayIso() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
+
 export function TransactionForm({ open, onClose, brandId, accounts, categories, defaultType = "income", brands = [] }: Props) {
   const qc = useQueryClient();
   const [type, setType] = useState<TxnType>(defaultType);
@@ -29,7 +50,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayIso());
   const [description, setDescription] = useState("");
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
@@ -57,9 +78,12 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
     setAccountId(""); setToAccountId(""); setCategoryId("");
   }, [effectiveBrandId]);
 
+  // When dialog opens, reset type to caller's default
+  useEffect(() => { if (open) setType(defaultType); }, [open, defaultType]);
+
   const reset = () => {
     setAmount(""); setAccountId(""); setToAccountId(""); setCategoryId("");
-    setDescription(""); setDate(new Date().toISOString().slice(0, 10));
+    setDescription(""); setDate(todayIso());
   };
 
   const filteredCats = scopedCategories.filter((c) =>
@@ -99,14 +123,55 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const meta = TYPE_META[type];
+  const Icon = meta.icon;
+  const selectedFrom = scopedAccounts.find((a) => a.id === accountId);
+  const selectedTo = scopedAccounts.find((a) => a.id === toAccountId);
+  const FromIcon = selectedFrom ? accountIcon(selectedFrom.account_type) : WalletIcon;
+  const ToIcon = selectedTo ? accountIcon(selectedTo.account_type) : WalletIcon;
+
+  const amountPlaceholder = type === "expense" ? "Koto khoroch holo?" : type === "income" ? "Koto ashlo?" : type === "transfer" ? "Koto transfer?" : "Adjustment amount";
+  const descPlaceholder = type === "expense" ? "e.g. Office er jonno notun desk" : type === "income" ? "e.g. Customer payment / wallet refund" : type === "transfer" ? "e.g. bKash theke Bank e shift" : "e.g. Cash count mismatch reconcile";
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>New Transaction</DialogTitle></DialogHeader>
-        <div className="space-y-3 text-sm">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <span className={cn("inline-flex h-7 w-7 items-center justify-center rounded-md", meta.bg, meta.fg)}>
+              <Icon className="h-4 w-4" />
+            </span>
+            New {meta.label}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 py-4 space-y-5 text-sm max-h-[70vh] overflow-y-auto">
+          {/* Type segmented control */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {(["expense", "income", "transfer", "adjustment"] as TxnType[]).map((t) => {
+              const m = TYPE_META[t];
+              const TIcon = m.icon;
+              const active = type === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 rounded-lg border bg-card px-2 py-2.5 text-xs font-medium transition-all",
+                    active ? cn("ring-2", m.ring, m.bg, m.fg) : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <TIcon className="h-4 w-4" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
           {showBrandPicker && (
             <div className="space-y-1.5">
-              <Label>Brand *</Label>
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Brand</Label>
               <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
                 <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
                 <SelectContent>
@@ -115,65 +180,146 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
               </Select>
             </div>
           )}
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select value={type} onValueChange={(v: TxnType) => setType(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
-                <SelectItem value="adjustment">Adjustment</SelectItem>
-              </SelectContent>
-            </Select>
+
+          {/* Hero amount + date */}
+          <div className={cn("rounded-xl border p-4", meta.bg)}>
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</Label>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className={cn("text-2xl font-semibold", meta.fg)}>৳</span>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0"
+                className={cn(
+                  "h-auto border-0 bg-transparent p-0 text-3xl font-semibold tracking-tight shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40",
+                  meta.fg,
+                )}
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{amountPlaceholder}</p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <button type="button" onClick={() => setDate(todayIso())}
+                className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", date === todayIso() ? "border-foreground bg-foreground text-background" : "bg-background hover:bg-muted")}>
+                Today
+              </button>
+              <button type="button" onClick={() => setDate(yesterdayIso())}
+                className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", date === yesterdayIso() ? "border-foreground bg-foreground text-background" : "bg-background hover:bg-muted")}>
+                Yesterday
+              </button>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-7 w-auto bg-background text-xs" />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1.5"><Label>Amount</Label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{type === "transfer" ? "From account" : "Account"}</Label>
-            <Select value={accountId} onValueChange={setAccountId} disabled={!effectiveBrandId}>
-              <SelectTrigger><SelectValue placeholder="Choose account" /></SelectTrigger>
-              <SelectContent>
-                {scopedAccounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name} ({a.account_type})</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {effectiveBrandId && scopedAccounts.length === 0 && (
-              <p className="text-xs text-muted-foreground">No accounts in this brand yet.</p>
-            )}
-          </div>
-          {type === "transfer" && (
-            <div className="space-y-1.5">
-              <Label>To account</Label>
-              <Select value={toAccountId} onValueChange={setToAccountId} disabled={!effectiveBrandId}>
-                <SelectTrigger><SelectValue placeholder="Choose account" /></SelectTrigger>
-                <SelectContent>
-                  {scopedAccounts.filter((a) => a.id !== accountId).map((a) => <SelectItem key={a.id} value={a.id}>{a.name} ({a.account_type})</SelectItem>)}
-                </SelectContent>
-              </Select>
+
+          {/* Account picker(s) */}
+          {type === "transfer" ? (
+            <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+              <AccountCombo label="From wallet" value={accountId} onChange={setAccountId} accounts={scopedAccounts} disabled={!effectiveBrandId} />
+              <div className="pb-2 text-muted-foreground"><ArrowRightLeft className="h-4 w-4" /></div>
+              <AccountCombo label="To wallet" value={toAccountId} onChange={setToAccountId} accounts={scopedAccounts.filter((a) => a.id !== accountId)} disabled={!effectiveBrandId} />
+            </div>
+          ) : (
+            <AccountCombo label={type === "expense" ? "Pay from" : type === "income" ? "Receive in" : "Account"} value={accountId} onChange={setAccountId} accounts={scopedAccounts} disabled={!effectiveBrandId} />
+          )}
+          {effectiveBrandId && scopedAccounts.length === 0 && (
+            <p className="text-xs text-muted-foreground -mt-2">No wallets in this brand yet. Add one in Wallets first.</p>
+          )}
+
+          {/* Transfer preview */}
+          {type === "transfer" && selectedFrom && selectedTo && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+              <div className="flex items-center gap-2"><FromIcon className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium">{selectedFrom.name}</span></div>
+              <ArrowRightLeft className="h-3.5 w-3.5 text-sky-500" />
+              <div className="flex items-center gap-2"><span className="font-medium">{selectedTo.name}</span><ToIcon className="h-3.5 w-3.5 text-muted-foreground" /></div>
             </div>
           )}
+
+          {/* Category (income/expense only) */}
           {(type === "income" || type === "expense") && (
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Category <span className="text-muted-foreground/60 normal-case">(optional)</span></Label>
               <Select value={categoryId} onValueChange={setCategoryId} disabled={!effectiveBrandId}>
-                <SelectTrigger><SelectValue placeholder="(optional)" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={filteredCats.length === 0 ? "No categories yet" : "Choose category"} /></SelectTrigger>
                 <SelectContent>
                   {filteredCats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {effectiveBrandId && filteredCats.length === 0 && <p className="text-xs text-muted-foreground">No {type} categories yet. Add one in the Categories tab.</p>}
+              {filteredCats.length > 0 && filteredCats.length <= 6 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {filteredCats.map((c) => (
+                    <button key={c.id} type="button" onClick={() => setCategoryId(c.id === categoryId ? "" : c.id)}
+                      className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", categoryId === c.id ? cn("border-transparent", meta.bg, meta.fg) : "bg-card hover:bg-muted")}>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-          {type === "adjustment" && <p className="text-xs text-amber-600">Adjustment will be added directly to the account balance (use a negative amount to decrease).</p>}
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Note <span className="text-muted-foreground/60 normal-case">(optional)</span></Label>
+            <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={descPlaceholder} />
+          </div>
+
+          {type === "adjustment" && (
+            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              Adjustment direct account balance e jog hobe. Komate chaile <span className="font-semibold">negative</span> amount din.
+            </p>
+          )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending}>{mut.isPending ? "Saving…" : "Save"}</Button>
+
+        <DialogFooter className="border-t bg-muted/30 px-5 py-3">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount} className="min-w-[140px]">
+            {mut.isPending ? "Saving…" : meta.verb}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AccountCombo({ label, value, onChange, accounts, disabled }: { label: string; value: string; onChange: (v: string) => void; accounts: Account[]; disabled?: boolean }) {
+  const selected = accounts.find((a) => a.id === value);
+  const Icon = selected ? accountIcon(selected.account_type) : WalletIcon;
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger className="h-11">
+          {selected ? (
+            <div className="flex items-center gap-2.5 text-left">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-medium">{selected.name}</span>
+                <span className="text-[11px] text-muted-foreground">{fmtBdt(selected.current_balance)} available</span>
+              </div>
+            </div>
+          ) : (
+            <SelectValue placeholder="Choose wallet" />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {accounts.map((a) => {
+            const AIcon = accountIcon(a.account_type);
+            return (
+              <SelectItem key={a.id} value={a.id}>
+                <div className="flex items-center gap-2">
+                  <AIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{a.name}</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground">{fmtBdt(a.current_balance)}</span>
+                </div>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
