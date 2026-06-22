@@ -7,6 +7,7 @@ import { ErpSidebar } from "@/components/erp/erp-sidebar";
 import { ErpQuickActionsProvider } from "@/contexts/erp-quick-actions";
 import { GlobalSearchProvider } from "@/components/erp/global-search";
 import { BrandSwitcher } from "@/components/erp/brand-switcher";
+import { HeaderQuickActions } from "@/components/erp/header-quick-actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
@@ -47,6 +48,7 @@ function ErpLayout() {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
+              <HeaderQuickActions />
               <BrandSwitcher />
               <div className="hidden sm:block text-sm text-muted-foreground truncate max-w-[180px]">{email}</div>
               <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
