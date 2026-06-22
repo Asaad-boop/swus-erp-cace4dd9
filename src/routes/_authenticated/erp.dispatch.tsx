@@ -5,7 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Truck, PackageCheck, PackageOpen, PackagePlus, Send, Camera, Printer,
-  BarChart3, Loader2, CheckCircle2, AlertCircle,
+  BarChart3, Loader2, CheckCircle2, AlertCircle, Sparkles, Undo2,
+  Phone, MapPin, Banknote, Package, Clock,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,9 @@ export const Route = createFileRoute("/_authenticated/erp/dispatch")({
   component: DispatchPage,
 });
 
-type Mode = "pack" | "ready" | "ship";
+type Mode = "auto" | "pack" | "ready" | "ship";
+type Stage = "pending" | "packed" | "ready" | "shipped";
+
 type OrderRow = {
   id: string;
   invoice_no: string | null;
@@ -37,9 +40,26 @@ type OrderRow = {
   courier_name: string | null;
   shipping_name: string | null;
   guest_name: string | null;
+  shipping_phone: string | null;
+  guest_phone: string | null;
+  shipping_thana: string | null;
+  shipping_city: string | null;
   tracking_number: string | null;
   updated_at: string | null;
+  created_at: string | null;
+  packaged_at: string | null;
   items?: Array<{ name: string; variant_label: string | null; quantity: number; sku: string | null; price: number; image: string | null }>;
+};
+
+type ScanLogEntry = {
+  ok: boolean;
+  msg: string;
+  invoice?: string;
+  orderId?: string;
+  fromStatus?: string;
+  toStatus?: string;
+  undoable?: boolean;
+  at: number;
 };
 
 const PENDING_STATUSES = ["confirmed", "processing", "packaging", "ready_to_pack"] as const;
@@ -50,17 +70,49 @@ function bdt(n: number) {
 function sum(rows: OrderRow[]) {
   return rows.reduce((s, r) => s + (r.total ?? 0), 0);
 }
+function isCod(o: OrderRow) {
+  return (o.payment_method ?? "").toLowerCase().includes("cod");
+}
+function itemCount(o: OrderRow) {
+  return (o.items ?? []).reduce((s, it) => s + (it.quantity ?? 0), 0);
+}
+function timeAgo(iso: string | null | undefined) {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+function customerName(o: OrderRow) {
+  return o.shipping_name ?? o.guest_name ?? "—";
+}
+function customerPhone(o: OrderRow) {
+  return o.shipping_phone ?? o.guest_phone ?? "";
+}
+function customerArea(o: OrderRow) {
+  return [o.shipping_thana, o.shipping_city].filter(Boolean).join(", ");
+}
+function stageFor(status: string): Stage | null {
+  if ((PENDING_STATUSES as readonly string[]).includes(status)) return "pending";
+  if (status === "packed") return "packed";
+  if (status === "ready_to_ship") return "ready";
+  if (status === "shipped") return "shipped";
+  return null;
+}
 
 function DispatchPage() {
   const { brandIds } = useBrand();
   const qc = useQueryClient();
   const bookPathao = useServerFn(pathaoBookOrderAutoFn);
 
-  const [mode, setMode] = useState<Mode>("pack");
+  const [mode, setMode] = useState<Mode>("auto");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [lastScan, setLastScan] = useState<{ ok: boolean; msg: string; invoice?: string } | null>(null);
+  const [scanLog, setScanLog] = useState<ScanLogEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const scanRef = useRef<ScanInputHandle>(null);
 
@@ -69,13 +121,14 @@ function DispatchPage() {
   const { data, isLoading } = useQuery({
     queryKey,
     enabled: brandIds.length > 0,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayIso = today.toISOString();
 
       const select =
-        "id, invoice_no, status, total, payment_method, courier_name, shipping_name, guest_name, tracking_number, updated_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
+        "id, invoice_no, status, total, payment_method, courier_name, shipping_name, guest_name, shipping_phone, guest_phone, shipping_thana, shipping_city, tracking_number, updated_at, created_at, packaged_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
 
       const pending = await applyBrandScope(
         supabase.from("orders").select(select).in("status", PENDING_STATUSES as unknown as never[]),
@@ -130,7 +183,8 @@ function DispatchPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA";
       if (inField) return;
-      if (e.key === "1") setMode("pack");
+      if (e.key === "0") setMode("auto");
+      else if (e.key === "1") setMode("pack");
       else if (e.key === "2") setMode("ready");
       else if (e.key === "3") setMode("ship");
       else if (e.key.toLowerCase() === "p") setPrintOpen(true);
@@ -151,12 +205,15 @@ function DispatchPage() {
     [],
   );
 
+  const pushLog = useCallback((e: Omit<ScanLogEntry, "at">) => {
+    setScanLog((cur) => [{ ...e, at: Date.now() }, ...cur].slice(0, 5));
+  }, []);
+
   const handleScan = useCallback(
     async (raw: string) => {
       if (busy) return;
       setBusy(true);
       try {
-        // Normalize — accept invoice number, with or without prefix
         const v = raw.trim().replace(/^#/, "");
 
         const { data: found, error: fErr } = await applyBrandScope(
@@ -171,53 +228,63 @@ function DispatchPage() {
         const order = (found ?? [])[0];
         if (!order) {
           beepError();
-          setLastScan({ ok: false, msg: `No order found for "${v}"` });
+          pushLog({ ok: false, msg: `No order found for "${v}"` });
           return;
         }
 
         const inv = order.invoice_no ?? order.id.slice(0, 8);
+        const stage = stageFor(order.status);
 
-        if (mode === "pack") {
-          if (!(PENDING_STATUSES as readonly string[]).includes(order.status)) {
+        // Resolve effective action
+        let action: "pack" | "ready" | "ship" | null = null;
+        if (mode === "auto") {
+          if (stage === "pending") action = "pack";
+          else if (stage === "packed") action = "ready";
+          else if (stage === "ready") action = "ship";
+        } else action = mode;
+
+        if (!action) {
+          beepError();
+          pushLog({ ok: false, msg: `#${inv} status "${order.status}" — no next stage`, invoice: inv });
+          return;
+        }
+
+        if (action === "pack") {
+          if (stage !== "pending") {
             beepError();
-            setLastScan({ ok: false, msg: `#${inv} is "${order.status}", not pending`, invoice: inv });
+            pushLog({ ok: false, msg: `#${inv} already "${order.status}"`, invoice: inv });
             return;
           }
           await transition(order.id, "packed");
           beepSuccess();
-          setLastScan({ ok: true, msg: `#${inv} → PACKED`, invoice: inv });
-        } else if (mode === "ready") {
-          if (order.status !== "packed") {
+          pushLog({ ok: true, msg: `#${inv} → PACKED`, invoice: inv, orderId: order.id, fromStatus: order.status, toStatus: "packed", undoable: true });
+        } else if (action === "ready") {
+          if (stage !== "packed") {
             beepError();
-            setLastScan({ ok: false, msg: `#${inv} is "${order.status}", must be PACKED first`, invoice: inv });
+            pushLog({ ok: false, msg: `#${inv} is "${order.status}", must be PACKED first`, invoice: inv });
             return;
           }
           await transition(order.id, "ready_to_ship");
           beepSuccess();
-          setLastScan({ ok: true, msg: `#${inv} → READY TO SHIP`, invoice: inv });
-        } else if (mode === "ship") {
-          if (order.status !== "ready_to_ship") {
+          pushLog({ ok: true, msg: `#${inv} → READY TO SHIP`, invoice: inv, orderId: order.id, fromStatus: "packed", toStatus: "ready_to_ship", undoable: true });
+        } else if (action === "ship") {
+          if (stage !== "ready") {
             beepError();
-            setLastScan({ ok: false, msg: `#${inv} is "${order.status}", must be READY first`, invoice: inv });
+            pushLog({ ok: false, msg: `#${inv} is "${order.status}", must be READY first`, invoice: inv });
             return;
           }
-          // Auto-book courier
           try {
             const res: any = await bookPathao({ data: { orderId: order.id } });
             await transition(order.id, "shipped");
             beepShip();
             const consign = res?.consignment ?? res?.tracking ?? "";
-            setLastScan({
-              ok: true,
-              msg: `#${inv} → SHIPPED · Pathao ${consign}`,
-              invoice: inv,
-            });
+            pushLog({ ok: true, msg: `#${inv} → SHIPPED · Pathao ${consign}`, invoice: inv, orderId: order.id, fromStatus: "ready_to_ship", toStatus: "shipped" });
             toast.success(`#${inv} shipped`, {
               description: consign ? `Consignment: ${consign}` : "Booked with Pathao",
             });
           } catch (e: any) {
             beepError();
-            setLastScan({ ok: false, msg: `#${inv} booking failed: ${e?.message ?? e}`, invoice: inv });
+            pushLog({ ok: false, msg: `#${inv} booking failed: ${e?.message ?? e}`, invoice: inv });
             return;
           }
         }
@@ -226,37 +293,88 @@ function DispatchPage() {
       } catch (e: any) {
         beepError();
         toast.error(e?.message ?? "Scan failed");
-        setLastScan({ ok: false, msg: e?.message ?? "Scan failed" });
+        pushLog({ ok: false, msg: e?.message ?? "Scan failed" });
       } finally {
         setBusy(false);
         scanRef.current?.focus();
       }
     },
-    [brandIds, busy, mode, bookPathao, qc, queryKey, transition],
+    [brandIds, busy, mode, bookPathao, qc, queryKey, transition, pushLog],
   );
+
+  const handleUndo = useCallback(async () => {
+    const last = scanLog.find((e) => e.undoable && e.orderId && e.fromStatus);
+    if (!last) return;
+    try {
+      const { error } = await supabase.rpc("transition_order_status", {
+        _order_id: last.orderId!,
+        _new_status: last.fromStatus as never,
+        _note: "Dispatch undo",
+      });
+      if (error) throw error;
+      beepSuccess();
+      toast.success(`Undid #${last.invoice ?? ""} (${last.toStatus} → ${last.fromStatus})`);
+      setScanLog((cur) => cur.filter((e) => e !== last));
+      qc.invalidateQueries({ queryKey });
+    } catch (e: any) {
+      beepError();
+      toast.error(e?.message ?? "Undo failed");
+    }
+  }, [scanLog, qc, queryKey]);
 
   const pending = data?.pending ?? [];
   const packed = data?.packed ?? [];
   const ready = data?.ready ?? [];
   const shipped = data?.shipped ?? [];
 
+  const codShippedValue = shipped.filter(isCod).reduce((s, o) => s + (o.total ?? 0), 0);
+  const codShippedCount = shipped.filter(isCod).length;
+  const canUndo = scanLog.some((e) => e.undoable);
+
+  const modeHero: Record<Mode, { grad: string; label: string; placeholder: string; icon: React.ReactNode }> = {
+    auto: {
+      grad: "from-primary/15 via-primary/5 to-transparent",
+      label: "AUTO — detects next stage",
+      placeholder: "Scan invoice — auto advance to next stage…",
+      icon: <Sparkles className="h-5 w-5" />,
+    },
+    pack: {
+      grad: "from-amber-500/20 via-amber-500/5 to-transparent",
+      label: "PACK — pending → packed",
+      placeholder: "Scan to PACK pending order…",
+      icon: <PackageOpen className="h-5 w-5" />,
+    },
+    ready: {
+      grad: "from-blue-500/20 via-blue-500/5 to-transparent",
+      label: "READY — packed → ready to ship",
+      placeholder: "Scan to mark READY TO SHIP…",
+      icon: <PackagePlus className="h-5 w-5" />,
+    },
+    ship: {
+      grad: "from-emerald-500/20 via-emerald-500/5 to-transparent",
+      label: "SHIP — book courier + ship",
+      placeholder: "Scan to SHIP (auto Pathao booking)…",
+      icon: <Send className="h-5 w-5" />,
+    },
+  };
+  const hero = modeHero[mode];
+
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       {/* Top bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Truck className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Dispatch Center</h1>
-            <p className="text-sm text-muted-foreground">
-              Scan to advance · Shortcuts: 1=Pack 2=Ready 3=Ship P=Print
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
+            <Truck className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl sm:text-2xl font-bold">Dispatch Center</h1>
+            <p className="text-xs text-muted-foreground">
+              0=Auto · 1=Pack · 2=Ready · 3=Ship · P=Print · Esc=Clear
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm">
-            Today shipped: {shipped.length} · {bdt(sum(shipped))}
-          </Badge>
           <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
             <BarChart3 className="h-4 w-4 mr-2" /> Summary
           </Button>
@@ -266,48 +384,91 @@ function DispatchPage() {
         </div>
       </div>
 
-      {/* Mode + scan */}
-      <Card className="p-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <ToggleGroup
-            type="single"
-            value={mode}
-            onValueChange={(v) => v && setMode(v as Mode)}
-            variant="outline"
-          >
-            <ToggleGroupItem value="pack" className="gap-2"><PackageOpen className="h-4 w-4" /> Pack</ToggleGroupItem>
-            <ToggleGroupItem value="ready" className="gap-2"><PackagePlus className="h-4 w-4" /> Ready</ToggleGroupItem>
-            <ToggleGroupItem value="ship" className="gap-2"><Send className="h-4 w-4" /> Ship</ToggleGroupItem>
-          </ToggleGroup>
-          <Button variant="outline" onClick={() => setCameraOpen(true)}>
-            <Camera className="h-4 w-4 mr-2" /> Camera
-          </Button>
-          {busy && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          tone="amber"
+          icon={<PackageOpen className="h-4 w-4" />}
+          label="Pending"
+          value={pending.length}
+          sub={bdt(sum(pending))}
+        />
+        <KpiCard
+          tone="blue"
+          icon={<PackageCheck className="h-4 w-4" />}
+          label="Packed today"
+          value={packed.length}
+          sub={bdt(sum(packed))}
+        />
+        <KpiCard
+          tone="violet"
+          icon={<PackagePlus className="h-4 w-4" />}
+          label="Ready to ship"
+          value={ready.length}
+          sub={bdt(sum(ready))}
+        />
+        <KpiCard
+          tone="emerald"
+          icon={<Send className="h-4 w-4" />}
+          label="Shipped today"
+          value={shipped.length}
+          sub={`${bdt(sum(shipped))} · COD ${codShippedCount}/${bdt(codShippedValue)}`}
+        />
+      </div>
+
+      {/* Scan hero */}
+      <Card className={`p-4 sm:p-5 border-2 bg-gradient-to-br ${hero.grad}`}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between mb-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {hero.icon}
+            <span className="font-semibold text-sm truncate">{hero.label}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(v) => v && setMode(v as Mode)}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="auto" className="gap-1"><Sparkles className="h-3.5 w-3.5" /> Auto</ToggleGroupItem>
+              <ToggleGroupItem value="pack" className="gap-1"><PackageOpen className="h-3.5 w-3.5" /> Pack</ToggleGroupItem>
+              <ToggleGroupItem value="ready" className="gap-1"><PackagePlus className="h-3.5 w-3.5" /> Ready</ToggleGroupItem>
+              <ToggleGroupItem value="ship" className="gap-1"><Send className="h-3.5 w-3.5" /> Ship</ToggleGroupItem>
+            </ToggleGroup>
+            <Button variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
+              <Camera className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" disabled={!canUndo} onClick={handleUndo}>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            {busy && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          </div>
         </div>
 
         <ScanInput
           ref={scanRef}
           onScan={handleScan}
           disabled={busy || brandIds.length === 0}
-          placeholder={
-            mode === "pack"
-              ? "Scan to PACK pending order…"
-              : mode === "ready"
-                ? "Scan to mark READY TO SHIP…"
-                : "Scan to SHIP (auto Pathao booking)…"
-          }
+          placeholder={hero.placeholder}
         />
 
-        {lastScan && (
-          <div
-            className={`flex items-center gap-2 text-sm px-3 py-2 rounded-md ${
-              lastScan.ok
-                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-                : "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200"
-            }`}
-          >
-            {lastScan.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-            <span>{lastScan.msg}</span>
+        {scanLog.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {scanLog.map((entry, i) => (
+              <div
+                key={`${entry.at}-${i}`}
+                className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-md ${
+                  entry.ok
+                    ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    : "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200"
+                } ${i === 0 ? "font-semibold" : "opacity-70"}`}
+              >
+                {entry.ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
+                <span className="truncate">{entry.msg}</span>
+                <span className="ml-auto shrink-0 text-[10px] opacity-70">{timeAgo(new Date(entry.at).toISOString())}</span>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -321,8 +482,9 @@ function DispatchPage() {
           rows={pending}
           loading={isLoading}
           actionLabel="Pack"
+          stageKey="pending"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "pack"}
+          actionEnabled={mode === "pack" || mode === "auto"}
         />
         <Column
           title="Packed"
@@ -331,8 +493,9 @@ function DispatchPage() {
           rows={packed}
           loading={isLoading}
           actionLabel="Mark Ready"
+          stageKey="packed"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "ready"}
+          actionEnabled={mode === "ready" || mode === "auto"}
         />
         <Column
           title="Ready to Ship"
@@ -341,8 +504,9 @@ function DispatchPage() {
           rows={ready}
           loading={isLoading}
           actionLabel="Ship + Book"
+          stageKey="ready"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "ship"}
+          actionEnabled={mode === "ship" || mode === "auto"}
         />
         <Column
           title="Shipped Today"
@@ -350,6 +514,7 @@ function DispatchPage() {
           tone="emerald"
           rows={shipped}
           loading={isLoading}
+          stageKey="shipped"
           showCourier
         />
       </div>
@@ -376,6 +541,32 @@ function DispatchPage() {
         packedToday={packed}
       />
     </div>
+  );
+}
+
+function KpiCard({
+  tone, icon, label, value, sub,
+}: {
+  tone: "amber" | "blue" | "violet" | "emerald";
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  sub?: string;
+}) {
+  const toneMap = {
+    amber: "from-amber-500/15 to-transparent border-amber-500/30 text-amber-700 dark:text-amber-300",
+    blue: "from-blue-500/15 to-transparent border-blue-500/30 text-blue-700 dark:text-blue-300",
+    violet: "from-violet-500/15 to-transparent border-violet-500/30 text-violet-700 dark:text-violet-300",
+    emerald: "from-emerald-500/15 to-transparent border-emerald-500/30 text-emerald-700 dark:text-emerald-300",
+  };
+  return (
+    <Card className={`p-3 bg-gradient-to-br ${toneMap[tone]} border`}>
+      <div className="flex items-center gap-2 text-xs font-medium">
+        {icon} <span className="truncate">{label}</span>
+      </div>
+      <div className="text-2xl font-bold mt-1 text-foreground">{value}</div>
+      {sub && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{sub}</div>}
+    </Card>
   );
 }
 
