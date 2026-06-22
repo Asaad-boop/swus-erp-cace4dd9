@@ -22,7 +22,10 @@ const groups: Group[] = [
   {
     kind: "flat",
     label: "Overview",
-    items: [{ to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true }],
+    items: [
+      { to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/me", label: "My Workspace", icon: UserCog },
+    ],
   },
   {
     kind: "flat",
