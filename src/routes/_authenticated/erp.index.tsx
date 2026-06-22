@@ -5,10 +5,11 @@ import {
   ShoppingCart, CheckCircle2, Truck, Wallet, Banknote, AlertTriangle, XCircle,
   TrendingUp, UserPlus, Repeat, RefreshCw, ArrowUpRight, ArrowDownRight,
   Package, Boxes, Megaphone, Activity, Users, Sparkles, Calendar,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-  Line, ComposedChart,
+  Line, ComposedChart, PieChart, Pie, Cell, BarChart, Bar, LineChart,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand, type Brand } from "@/contexts/brand-context";
@@ -144,6 +145,8 @@ function DashboardPage() {
 
       <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+
+        <TodayAnalytics brandIds={brandIds} enabled={enabled} />
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
