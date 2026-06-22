@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Download, RotateCcw, Repeat, Search, ChevronRight, Plus,
-  Package, ClipboardCheck, Wallet, Inbox, ExternalLink, X,
+  Inbox, ExternalLink, X,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
