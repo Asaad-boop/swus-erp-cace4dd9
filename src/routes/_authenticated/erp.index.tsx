@@ -156,9 +156,9 @@ function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <CourierCard brandIds={brandIds} enabled={enabled} range={range} />
-          <CodOutstandingCard brandIds={brandIds} enabled={enabled} />
+          <CodOutstandingCard brandIds={brandIds} enabled={enabled} range={range} />
           <ReturnsCard brandIds={brandIds} enabled={enabled} range={range} />
-          <ImportsCard brandIds={brandIds} enabled={enabled} />
+          <ImportsCard brandIds={brandIds} enabled={enabled} range={range} />
         </div>
 
         <FinanceSection brandIds={brandIds} enabled={enabled} range={range} />
@@ -540,13 +540,13 @@ function TrendChart({
 // ---------- COURIER ----------
 function CourierCard({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-courier", brandIds.join(","), range.from.toISOString()],
+    queryKey: ["dash-courier", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
-        supabase.from("courier_shipments").select("provider, status"), brandIds
-      );
+        supabase.from("courier_shipments").select("provider, status, created_at"), brandIds
+      ).gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
       const agg: Record<string, { transit: number; delivered: number; returned: number; failed: number; total: number }> = {};
       for (const r of (rows ?? []) as any[]) {
         const p = (r.provider as string) || "other";
@@ -595,14 +595,15 @@ function Stat({ label, v, c }: { label: string; v: number; c?: string }) {
 }
 
 // ---------- COD OUTSTANDING ----------
-function CodOutstandingCard({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+function CodOutstandingCard({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-cod", brandIds.join(",")],
+    queryKey: ["dash-cod", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled, staleTime: 60_000,
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("orders").select("total, partial_amount, delivered_at, created_at, payment_status, status"), brandIds
-      ).eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled").neq("status", "returned");
+      ).eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled").neq("status", "returned")
+        .gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
       const cutoff = Date.now() - 14 * 86400e3;
       let amount = 0, count = 0, overdue = 0;
       for (const r of (rows ?? []) as any[]) {
@@ -640,13 +641,14 @@ function CodOutstandingCard({ brandIds, enabled }: { brandIds: string[]; enabled
 // ---------- RETURNS ----------
 function ReturnsCard({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-returns", brandIds.join(","), range.from.toISOString()],
+    queryKey: ["dash-returns", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled, staleTime: 60_000,
     queryFn: async () => {
       const [pendingQc, inTransit, monthly, refunds] = await Promise.all([
         applyBrandScope(supabase.from("erp_return_cases").select("id", { count: "exact", head: true }), brandIds).eq("return_status", "pending_qc"),
         applyBrandScope(supabase.from("erp_return_cases").select("id", { count: "exact", head: true }), brandIds).eq("return_status", "in_transit"),
-        applyBrandScope(supabase.from("erp_return_cases").select("id", { count: "exact", head: true }), brandIds).gte("created_at", range.from.toISOString()),
+        applyBrandScope(supabase.from("erp_return_cases").select("id", { count: "exact", head: true }), brandIds)
+          .gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()),
         applyBrandScope(supabase.from("erp_return_cases").select("refund_amount"), brandIds).neq("refund_status", "completed"),
       ]);
       const refundDue = (refunds.data ?? []).reduce((s: number, r: any) => s + Number(r.refund_amount ?? 0), 0);
@@ -674,14 +676,15 @@ function ReturnsCard({ brandIds, enabled, range }: { brandIds: string[]; enabled
 }
 
 // ---------- IMPORTS ----------
-function ImportsCard({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+function ImportsCard({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-imports", brandIds.join(",")],
+    queryKey: ["dash-imports", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled, staleTime: 60_000,
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("imp_purchase_orders").select("status, due_bdt, shipped_at"), brandIds
-      ).not("status", "in", "(received,cancelled)");
+      ).not("status", "in", "(received,cancelled)")
+        .gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
       let active = 0, inTransit = 0, due = 0;
       for (const r of (rows ?? []) as any[]) {
         active++;
@@ -713,16 +716,22 @@ function ImportsCard({ brandIds, enabled }: { brandIds: string[]; enabled: boole
 // ---------- FINANCE ----------
 function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-finance", brandIds.join(","), range.from.toISOString()],
+    queryKey: ["dash-finance", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled, staleTime: 60_000,
     queryFn: async () => {
-      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+      const fromISO = range.from.toISOString();
+      const toISO = range.to.toISOString();
+      const fromDate = fromISO.slice(0, 10);
+      const toDate = toISO.slice(0, 10);
       const [accounts, rev, items, txns] = await Promise.all([
         applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds).eq("is_active", true),
-        applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered").gte("created_at", monthStart.toISOString()),
+        applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered")
+          .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(supabase.from("order_items").select("cost_price, quantity, orders!inner(brand_id, status, created_at)"), brandIds, "orders.brand_id" as any)
-          .eq("orders.status", "delivered").gte("orders.created_at", monthStart.toISOString()),
-        applyBrandScope(supabase.from("erp_transactions").select("amount, type, account_id"), brandIds).gte("transaction_date", monthStart.toISOString().slice(0,10)),
+          .eq("orders.status", "delivered")
+          .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
+        applyBrandScope(supabase.from("erp_transactions").select("amount, type, account_id"), brandIds)
+          .gte("transaction_date", fromDate).lte("transaction_date", toDate),
       ]);
       const accs = (accounts.data ?? []) as any[];
       const byType = (sub: string) => accs.filter(a => (a.account_subtype || a.account_type) === sub)
@@ -768,7 +777,7 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle className="text-lg font-semibold">P&amp;L This Month</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg font-semibold">P&amp;L (Range)</CardTitle></CardHeader>
         <CardContent className="space-y-1.5 text-sm">
           {isLoading ? <Skeleton className="h-32" /> : (<>
             <PLRow label="Revenue" v={data?.revenue ?? 0} />
@@ -862,27 +871,31 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
 // ---------- MARKETING ----------
 function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabled: boolean; range: ReturnType<typeof getRange> }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-mkt", brandIds.join(","), range.from.toISOString()],
+    queryKey: ["dash-mkt", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
     enabled, staleTime: 60_000,
     queryFn: async () => {
-      const last7Start = new Date(Date.now() - 6*86400e3).toISOString().slice(0,10);
+      const fromDate = range.from.toISOString().slice(0, 10);
+      const toDate = range.to.toISOString().slice(0, 10);
       const { data: rows } = await applyBrandScope(
         supabase.from("mkt_insights_daily").select("date, spend, meta_purchases, meta_purchase_value"), brandIds
-      ).gte("date", last7Start);
-      const todayKey = new Date().toISOString().slice(0,10);
-      let spendToday = 0, purchToday = 0, valToday = 0;
+      ).gte("date", fromDate).lte("date", toDate);
+      let spendTotal = 0, purchTotal = 0, valTotal = 0;
       const series = new Map<string, { date: string; spend: number; revenue: number }>();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(Date.now() - (6-i)*86400e3).toISOString().slice(0,10);
+      const days = Math.min(range.days, 60);
+      for (let i = 0; i < days; i++) {
+        const dt = new Date(range.from); dt.setDate(dt.getDate() + i);
+        const d = dt.toISOString().slice(0, 10);
         series.set(d, { date: d, spend: 0, revenue: 0 });
       }
       for (const r of (rows ?? []) as any[]) {
-        if (r.date === todayKey) { spendToday += Number(r.spend ?? 0); purchToday += Number(r.meta_purchases ?? 0); valToday += Number(r.meta_purchase_value ?? 0); }
+        spendTotal += Number(r.spend ?? 0);
+        purchTotal += Number(r.meta_purchases ?? 0);
+        valTotal += Number(r.meta_purchase_value ?? 0);
         const s = series.get(r.date); if (s) { s.spend += Number(r.spend ?? 0); s.revenue += Number(r.meta_purchase_value ?? 0); }
       }
-      const roas = spendToday > 0 ? valToday / (spendToday * 110) : 0; // assume $1 ~ 110 BDT
-      const cpo = purchToday > 0 ? (spendToday * 110) / purchToday : 0;
-      return { spendToday, spendTodayBdt: spendToday * 110, roas, purchToday, cpo, series: Array.from(series.values()) };
+      const roas = spendTotal > 0 ? valTotal / (spendTotal * 110) : 0; // assume $1 ~ 110 BDT
+      const cpo = purchTotal > 0 ? (spendTotal * 110) / purchTotal : 0;
+      return { spendToday: spendTotal, spendTodayBdt: spendTotal * 110, roas, purchToday: purchTotal, cpo, series: Array.from(series.values()) };
     },
   });
   return (
@@ -891,7 +904,7 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <KV label="Today Spend" v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${BDT(data?.spendTodayBdt ?? 0)}`} />
+            <KV label="Spend (Range)" v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${BDT(data?.spendTodayBdt ?? 0)}`} />
             <KV label="ROAS" v={`${(data?.roas ?? 0).toFixed(2)}x`} tone="emerald" />
             <KV label="Meta Orders" v={String(data?.purchToday ?? 0)} />
             <KV label="CPO" v={BDT(data?.cpo ?? 0)} />
