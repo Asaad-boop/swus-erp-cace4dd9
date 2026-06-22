@@ -118,7 +118,8 @@ const groups: Group[] = [
         icon: Building2,
         items: [
           { to: "/erp/hr", label: "HR", icon: BriefcaseBusiness },
-          { to: "/erp/users", label: "Users", icon: UserCog },
+          { to: "/erp/hr/staff", label: "Staff Accounts", icon: UserCog },
+          { to: "/erp/users", label: "Customer Accounts", icon: Users },
           { to: "/erp/settings", label: "Settings", icon: Settings },
           { to: "/erp/diagnostics", label: "Diagnostics", icon: Stethoscope },
         ],
