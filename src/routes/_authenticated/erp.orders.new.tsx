@@ -926,6 +926,20 @@ function NewOrderPage() {
           </div>
         </div>
       </div>
+      <OrderSuccessDialog
+        open={!!successInfo}
+        invoiceNo={successInfo?.invoice_no ?? null}
+        orderId={successInfo?.id ?? null}
+        onView={() => {
+          const id = successInfo?.id;
+          setSuccessInfo(null);
+          if (id) navigate({ to: "/erp/orders", search: { open: id } as never });
+        }}
+        onNew={() => {
+          setSuccessInfo(null);
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
