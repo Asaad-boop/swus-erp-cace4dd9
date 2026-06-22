@@ -626,7 +626,7 @@ function CodOutstandingCard({ brandIds, enabled, range }: { brandIds: string[]; 
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
-            <div className="text-3xl font-bold tabular-nums">{BDT(data?.amount ?? 0)}</div>
+            <div className={cn("text-3xl font-bold tabular-nums", moneyTier(data?.amount ?? 0))}>{BDT(data?.amount ?? 0)}</div>
             <div className="text-xs text-muted-foreground mt-1">{data?.count ?? 0} orders pending</div>
             {(data?.overdue ?? 0) > 0 && (
               <div className="mt-2 text-xs flex items-center gap-1.5 text-rose-600">
@@ -774,7 +774,7 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
               <div key={b.label} className="rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><span className="text-base">{b.icon}</span>{b.label}</div>
                 {isLoading ? <Skeleton className="h-5 w-20 mt-1" /> :
-                  <div className="text-lg font-bold tabular-nums mt-1">{BDT(b.value)}</div>}
+                  <div className={cn("text-lg font-bold tabular-nums mt-1", moneyTier(b.value))}>{BDT(b.value)}</div>}
               </div>
             ))}
           </div>
