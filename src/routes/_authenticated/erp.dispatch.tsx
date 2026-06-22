@@ -78,7 +78,7 @@ function DispatchPage() {
         "id, invoice_no, status, total, payment_method, courier_name, shipping_name, guest_name, tracking_number, updated_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
 
       const pending = await applyBrandScope(
-        supabase.from("orders").select(select).in("status", PENDING_STATUSES as unknown as string[]),
+        supabase.from("orders").select(select).in("status", PENDING_STATUSES as unknown as never[]),
         brandIds,
       ).order("created_at", { ascending: true }).limit(200);
 
