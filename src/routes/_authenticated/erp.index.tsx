@@ -1156,3 +1156,175 @@ function SystemFooter({ lastSync }: { lastSync: Date }) {
     </div>
   );
 }
+
+// ---------- TODAY ANALYTICS (3 charts) ----------
+const SOURCE_COLORS: Record<string, string> = {
+  Facebook: "#1877F2",
+  Instagram: "#E1306C",
+  Google: "#34A853",
+  Direct: "#94A3B8",
+  Other: "#F59E0B",
+};
+const CONFIRMED_STATUSES = new Set([
+  "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
+]);
+function classifySource(raw: string | null | undefined): string {
+  const s = (raw ?? "").toLowerCase().trim();
+  if (!s) return "Direct";
+  if (s.includes("facebook") || s === "fb" || s.includes("meta")) return "Facebook";
+  if (s.includes("instagram") || s === "ig") return "Instagram";
+  if (s.includes("google")) return "Google";
+  if (s.includes("direct") || s === "(direct)") return "Direct";
+  return "Other";
+}
+
+function TodayAnalytics({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+  const [open, setOpen] = useState(true);
+  const today = useMemo(() => {
+    const s = new Date(); s.setHours(0,0,0,0);
+    const e = new Date(); e.setHours(23,59,59,999);
+    return { from: s.toISOString(), to: e.toISOString() };
+  }, []);
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["dash-today-analytics", brandIds.join(","), today.from],
+    enabled: enabled && open,
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const { data, error } = await applyBrandScope(
+        supabase.from("orders").select("created_at, status, utm_source, source_website"),
+        brandIds,
+      ).gte("created_at", today.from).lte("created_at", today.to);
+      if (error) throw error;
+      return (data ?? []) as Array<{ created_at: string; status: string | null; utm_source: string | null; source_website: string | null }>;
+    },
+  });
+
+  const sourceData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      const k = classifySource(r.utm_source ?? r.source_website);
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+  const totalSource = sourceData.reduce((s, d) => s + d.value, 0);
+
+  const currentHour = new Date().getHours();
+  const hourly = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, created: 0, confirmed: 0 }));
+    for (const r of rows) {
+      const h = new Date(r.created_at).getHours();
+      if (h < 0 || h > 23) continue;
+      buckets[h].created += 1;
+      if (CONFIRMED_STATUSES.has((r.status ?? "").toLowerCase())) buckets[h].confirmed += 1;
+    }
+    const peak = buckets.reduce((m, b) => (b.created > m ? b.created : m), 0);
+    return buckets.map((b) => ({
+      ...b,
+      label: b.hour === 0 ? "12A" : b.hour < 12 ? `${b.hour}A` : b.hour === 12 ? "12P" : `${b.hour - 12}P`,
+      isPeak: peak > 0 && b.created === peak,
+      isCurrent: b.hour === currentHour,
+    }));
+  }, [rows, currentHour]);
+
+  return (
+    <Card className="border-border/60">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <span>📊</span> Today's Order Analytics
+          {!isLoading && <Badge variant="secondary" className="ml-2 font-normal">{rows.length} orders</Badge>}
+        </CardTitle>
+        <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)}>
+          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </Button>
+      </CardHeader>
+      {open && (
+        <CardContent>
+          {isLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {[0,1,2].map(i => <Skeleton key={i} className="h-64 w-full" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Donut */}
+              <div className="rounded-lg border bg-background p-3">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Order Sources</div>
+                <div className="relative h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                        {sourceData.map((d) => (
+                          <Cell key={d.name} fill={SOURCE_COLORS[d.name] ?? "#94A3B8"} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number, name: string) => [
+                        `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
+                      ]} />
+                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</div>
+                    <div className="text-xl font-bold tabular-nums">{totalSource}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hourly bar */}
+              <div className="rounded-lg border bg-background p-3">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Orders by Hour</div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
+                      <Tooltip />
+                      <Bar dataKey="created" radius={[4, 4, 0, 0]}>
+                        {hourly.map((b) => (
+                          <Cell key={b.hour} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Created vs Confirmed line */}
+              <div className="rounded-lg border bg-background p-3">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Created vs Confirmed</div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={hourly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
+                      <Tooltip content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        const created = Number(payload.find((p: any) => p.dataKey === "created")?.value ?? 0);
+                        const confirmed = Number(payload.find((p: any) => p.dataKey === "confirmed")?.value ?? 0);
+                        const rate = created > 0 ? Math.round((confirmed / created) * 100) : 0;
+                        return (
+                          <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
+                            <div className="font-semibold mb-1">{label}</div>
+                            <div className="text-indigo-600">Created: {created}</div>
+                            <div className="text-emerald-600">Confirmed: {confirmed}</div>
+                            <div className="text-muted-foreground mt-0.5">Rate: {rate}%</div>
+                          </div>
+                        );
+                      }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Line type="monotone" dataKey="created" stroke="#6366F1" strokeWidth={2} dot={false} name="Created" />
+                      <Line type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} dot={false} name="Confirmed" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
