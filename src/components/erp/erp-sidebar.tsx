@@ -28,28 +28,56 @@ const groups: Group[] = [
     ],
   },
   {
-    kind: "flat",
+    kind: "accordion",
     label: "Sales",
-    items: [
-      { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
-      { to: "/erp/orders/list", label: "Order List", icon: ClipboardList },
-      { to: "/erp/orders/new", label: "Create Order", icon: PlusCircle },
+    sections: [
+      {
+        key: "orders",
+        label: "Orders",
+        icon: ClipboardList,
+        items: [
+          { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
+          { to: "/erp/orders/list", label: "Order List", icon: ClipboardList },
+          { to: "/erp/orders/new", label: "Create Order", icon: PlusCircle },
+        ],
+      },
     ],
   },
   {
-    kind: "flat",
+    kind: "accordion",
     label: "Operations",
-    items: [
-      { to: "/erp/inventory", label: "Inventory", icon: Boxes },
-      { to: "/erp/reorder-queue", label: "Reorder Queue", icon: PackageSearch },
-      { to: "/erp/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
-      { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
-      { to: "/erp/courier", label: "Courier", icon: Truck },
-      { to: "/erp/dispatch", label: "Dispatch", icon: PackageCheck },
-      { to: "/erp/returns", label: "Returns & Exchanges", icon: RotateCcw },
-      { to: "/erp/reconciliation", label: "COD Reconciliation", icon: FileSpreadsheet },
-      { to: "/erp/suppliers", label: "Suppliers", icon: Users },
-      { to: "/erp/imports", label: "Imports", icon: Container },
+    sections: [
+      {
+        key: "inventory",
+        label: "Inventory",
+        icon: Boxes,
+        items: [
+          { to: "/erp/inventory", label: "Stock", icon: Boxes },
+          { to: "/erp/reorder-queue", label: "Reorder Queue", icon: PackageSearch },
+          { to: "/erp/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
+          { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
+        ],
+      },
+      {
+        key: "fulfillment",
+        label: "Fulfillment",
+        icon: Truck,
+        items: [
+          { to: "/erp/courier", label: "Courier", icon: Truck },
+          { to: "/erp/dispatch", label: "Dispatch", icon: PackageCheck },
+          { to: "/erp/returns", label: "Returns", icon: RotateCcw },
+          { to: "/erp/reconciliation", label: "COD Reconciliation", icon: FileSpreadsheet },
+        ],
+      },
+      {
+        key: "supply",
+        label: "Supply Chain",
+        icon: Container,
+        items: [
+          { to: "/erp/suppliers", label: "Suppliers", icon: Users },
+          { to: "/erp/imports", label: "Imports", icon: Container },
+        ],
+      },
     ],
   },
   {
