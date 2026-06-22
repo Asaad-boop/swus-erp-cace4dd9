@@ -24,7 +24,7 @@ const nav = [
 function MeShell() {
   const location = useLocation();
   const getEmp = useServerFn(getMyEmployee);
-  const { data } = useQuery({ queryKey: ["me", "emp"], queryFn: () => getEmp({ data: {} }) });
+  const { data } = useQuery({ queryKey: ["me", "emp"], queryFn: () => getEmp() });
   const emp: any = data?.employee;
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");

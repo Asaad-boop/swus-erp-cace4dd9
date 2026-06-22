@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
@@ -128,6 +129,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedErpRoute = AuthenticatedErpRouteImport.update({
   id: '/erp',
@@ -731,6 +737,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
+  '/me': typeof AuthenticatedMeRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
   '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
@@ -836,6 +843,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/me': typeof AuthenticatedMeRoute
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
   '/erp/dispatch': typeof AuthenticatedErpDispatchRoute
@@ -933,6 +941,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
+  '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
   '/_authenticated/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
@@ -1041,6 +1050,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp'
+    | '/me'
     | '/erp/courier'
     | '/erp/crm'
     | '/erp/diagnostics'
@@ -1146,6 +1156,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/me'
     | '/erp/courier'
     | '/erp/diagnostics'
     | '/erp/dispatch'
@@ -1242,6 +1253,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/erp'
+    | '/_authenticated/me'
     | '/_authenticated/erp/courier'
     | '/_authenticated/erp/crm'
     | '/_authenticated/erp/diagnostics'
@@ -1379,6 +1391,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/me': {
+      id: '/_authenticated/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AuthenticatedMeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/erp': {
       id: '/_authenticated/erp'
@@ -2462,10 +2481,12 @@ const AuthenticatedErpRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedErpRoute: typeof AuthenticatedErpRouteWithChildren
+  AuthenticatedMeRoute: typeof AuthenticatedMeRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErpRoute: AuthenticatedErpRouteWithChildren,
+  AuthenticatedMeRoute: AuthenticatedMeRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
