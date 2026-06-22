@@ -1,105 +1,118 @@
-# Dispatch Module — Plan
+## Staff Self-Service Portal (My Workspace)
 
-Apnar idea ke aro polish kore ekta production-grade dispatch center bananor plan dilam. Approve korle implement korbo.
+Staff der jonno alada ekta portal — login korar por nijer attendance, performance, payslip, leave shob ekta jaygai. Mobile-first design (boro touch targets, bottom nav), but desktop eo polished.
 
-## Core Concept
+### Route: `/me` (Staff Portal)
 
-Ekta **scan-driven pipeline**. Staff invoice/barcode scan korbe → order automatically next stage e chole jabe. 3 ta stage:
+Bortoman ERP `/erp/*` admin/manager der jonno. Staff der jonno alada layout `/me/*` — same auth, but stripped-down mobile-first shell.
 
-```
-PENDING  →  PACKED  →  READY TO SHIP  →  SHIPPED
-(confirmed)  (scan #1)   (scan #2)        (scan #3 + auto courier book)
-```
-
-Route: `/erp/dispatch` (sidebar e Operations er niche, Courier er por).
-
-## Page Layout
-
-```
-┌──────────────────────────────────────────────────────────┐
-│ 🚚 Dispatch Center        Today: 142 pkg / ৳1,23,450    │
-│ [Mode: PACK | READY | SHIP]  [📷 Camera]  [Manual entry] │
-├──────────────────────────────────────────────────────────┤
-│ 🔊 Big Scan Box — barcode/invoice no ekhane              │
-│    Last scan: ✅ #INV-1042 → PACKED  (beep on success)   │
-├────────────┬────────────┬────────────┬───────────────────┤
-│ PENDING    │ PACKED     │ READY      │ SHIPPED (today)   │
-│ 23 / ৳45k  │ 12 / ৳28k  │ 8 / ৳19k   │ 99 / ৳1.2L        │
-│ [list]     │ [list]     │ [list]     │ [list + consign#] │
-└────────────┴────────────┴────────────┴───────────────────┘
-[Print Batch (Invoice + Picking List)]  [Daily Summary]
+```text
+src/routes/_authenticated/me.tsx              ← shell (bottom nav mobile, sidebar desktop)
+src/routes/_authenticated/me.index.tsx        ← Dashboard (today card, KPIs, quick punch)
+src/routes/_authenticated/me.attendance.tsx   ← Monthly calendar + log
+src/routes/_authenticated/me.leave.tsx        ← Balance, apply leave, history
+src/routes/_authenticated/me.payslips.tsx     ← Salary, payslip history, YTD
+src/routes/_authenticated/me.performance.tsx  ← KPIs, attendance %, punctuality, OT trend
+src/routes/_authenticated/me.profile.tsx      ← Profile, bank, emergency contact (view-mostly)
 ```
 
-## Scan Modes (Mode Switcher)
+Sidebar `/erp` te ekta "My Workspace" link, ar login er por staff (non-admin) hole `/me` te redirect.
 
-Staff age "mode" select korbe, tarpor jeta scan korbe sheta oi stage e jabe:
+### Dashboard (`/me`) — Mobile-First Hero
 
-- **PACK mode** → PENDING → PACKED
-- **READY mode** → PACKED → READY TO SHIP
-- **SHIP mode** → READY → SHIPPED + **auto Pathao booking** (consignment ID instantly)
+Boro **Punch Card** uporei:
+- Live clock + greeting ("Shubho shokal, Rahim")
+- Status pill: **Not checked in / Working / On break / Checked out**
+- **One giant action button** that morphs by state:
+  - Not in → "Check In" (green, gradient)
+  - Working → "Start Break" (amber) + secondary "Check Out"
+  - On break → "End Break" (blue)
+  - Done → "✓ Done for today — 8h 12m"
+- Sub-line: shift name, scheduled time, late/early warning
+- Geo + selfie capture optional (uses existing `lat/lng/selfie_url` on punchIn)
 
-Wrong mode e scan korle red beep + clear error: "Ei order already packed, READY mode select korun".
+Niche 4-up KPI grid:
+- This week hours / target
+- Late count this month
+- Leave balance (sum)
+- This month earnings (gross prorated)
 
-## Key Features (apnar idea + extra)
+Aro niche:
+- "Recent activity" timeline (last 5 punches)
+- "Upcoming" — holidays, approved leaves, payday
 
-1. **Dual scan input**: HID barcode gun (keyboard input auto-focus) + mobile camera scanner (jsQR, browser e cholbe, app lagbe na).
-2. **Auto courier booking on SHIP scan**: existing `pathaoBookOrderAutoFn` call hobe, consignment ID + tracking link toast e dekhabe.
-3. **Audio feedback**: success/error/ship distinct beep (Web Audio API, no asset).
-4. **Realtime pipeline**: Supabase Realtime e `orders` table subscribe — onno staff scan korle column auto update.
-5. **Brand-scoped**: current brand er order shudhu dekhabe.
-6. **Print Batch**: select korben kon kon order print korben, ekta dialog e —
-   - **Invoice batch** (existing PrintableInvoice reuse)
-   - **Picking List** (new): SKU + qty + warehouse location grouped — packer ke shahajjo korbe ki ki tulte hobe.
-7. **Daily Summary slide-over**: aaj koto pack/ship holo, courier-wise breakdown (Pathao/Steadfast/RedX), COD total, CSV export.
-8. **Click-to-advance fallback**: scan na thakle column theke direct button e click kore advance kora jabe (same RPC).
-9. **Error handling**: courier book fail → order shipped na, "Retry booking" button stay korbe. Stock not enough warning.
-10. **Keyboard shortcuts**: `1/2/3` mode switch, `Esc` clear scan, `P` print batch.
+### Performance (`/me/performance`)
 
-## Technical Design
+- Attendance % (last 30/90 days) — ring chart
+- Punctuality score — `(present - late) / present`
+- Total work hours trend — sparkline (last 8 weeks)
+- OT hours trend
+- Leave usage vs balance — stacked bar
+- Streak: "12 days on-time in a row"
 
-**Status mapping** (existing `orders.status` enum):
-- PENDING column = `status IN ('confirmed','processing')`
-- PACKED = `status = 'packed'`
-- READY = `status = 'ready_to_ship'`
-- SHIPPED (today) = `status = 'shipped' AND updated_at::date = today`
+Shob existing `hr_attendance` theke aggregate — notun table lagbe na.
 
-**Reuses (already in codebase)**:
-- `transition_order_status` RPC for status change
-- `pathaoBookOrderAutoFn` for courier booking
-- `PrintableInvoice` component for invoice print
-- `useBrand` + `applyBrandScope` for brand filter
-- shadcn UI components
+### Attendance (`/me/attendance`)
 
-**New files**:
-- `src/routes/_authenticated/erp.dispatch.tsx` — main page
-- `src/components/erp/dispatch/scan-input.tsx` — barcode/manual input with focus mgmt
-- `src/components/erp/dispatch/camera-scanner.tsx` — jsQR based QR/barcode camera
-- `src/components/erp/dispatch/dispatch-summary.tsx` — slide-over with stats + CSV
-- `src/components/erp/dispatch/batch-print-dialog.tsx` — print picker
-- `src/components/erp/dispatch/picking-list-print.tsx` — new picking list template
-- `src/lib/erp/audio-feedback.ts` — Web Audio beeps
+- Month calendar grid — protita din color-coded (present/late/absent/leave/holiday)
+- Tap kore din-er details: in/out time, work hrs, late min, break
+- Export own CSV
 
-**Modified**:
-- `src/components/erp/erp-sidebar.tsx` — add "Dispatch" link under Operations
+### Leave (`/me/leave`)
 
-**New dependency**: `jsqr` (small, pure JS, camera barcode decode)
+- Balance cards per leave type
+- "Apply Leave" sheet (existing `hr_leave_requests` use)
+- History list with status badges
 
-**No DB migration needed** — existing schema + RPC already supports this.
+### Payslips (`/me/payslips`)
 
-## Out of Scope (ei iteration e)
+- Current month salary breakdown (basic + allowances - deductions)
+- Past payslips list — tap to view full printable (reuse `payslip-print.tsx`)
+- YTD totals: earnings, deductions, net
 
-- Onno page (orders, courier) er change na
-- New courier provider integration (existing Pathao reuse)
-- Realtime courier webhook change na
-- DB schema change na
+### Profile (`/me/profile`)
 
-## Success Checks
+Read-mostly. Photo, contact, bank, emergency. Edit request flow ekhon scope nai — admin via HR korbe.
 
-- 3 mode (Pack/Ready/Ship) scan kaaj korche
-- Camera scan kaaj korche
-- SHIP scan e Pathao auto-book hocche, consignment ID asche
-- Print Batch e Invoice + Picking List dui-i ber hocche
-- Audio beep success/error e alada
-- 3-column pipeline realtime update hocche
+### Server functions (notun)
 
-Approve korle implement shuru kori?
+`src/lib/erp/hr/me.functions.ts`:
+- `getMyEmployee()` → current user er `hr_employees` row (user_id match)
+- `getMyToday()` → today's attendance + active shift + status
+- `getMyDashboardStats()` → week hrs, month late, leave balance sum, month earnings estimate
+- `getMyAttendanceMonth({ ym })` → calendar data
+- `getMyPerformance({ days })` → metrics
+- `getMyPayslips()` / `getMyPayslip({ id })`
+- `getMyLeaveBalances()` / `getMyLeaveRequests()`
+
+Existing `punchIn/punchOut/punchBreak` reuse — but `assertAccess` (has_hr_access) e self-punch allow korar jonno ekta tweak: jodi `employee_id` er `user_id === context.userId` hoy, tahole access lagbe na. Eta migration noy, function patch.
+
+### Mobile UX detail
+
+- `me.tsx` shell e bottom tab bar (md:hidden) — Home/Attendance/Leave/Payslip/Profile (5 icons)
+- Desktop e left rail (hidden md:flex)
+- Sticky top: brand + bell + avatar
+- Safe-area padding (`pb-[env(safe-area-inset-bottom)]`)
+- Buttons min 48px tap, font ~16px (no zoom)
+- Pull-to-refresh feel via prominent refresh on dashboard
+
+### Auth/role
+
+- Existing `_authenticated` gate already protects — additional check: must have an `hr_employees` row linked to `user_id`. Na thakle "Contact HR to link your account" empty state.
+- Admin/manager o `/me` use korte parbe nijer data dekhar jonno.
+
+### Verification
+
+- DB query confirmed: `hr_employees.user_id` exists, `hr_attendance` e break_start/break_end ace, punch functions ready.
+- No new tables/migrations needed. Pure new routes + 1 server-function file + small punch.functions.ts patch.
+
+### What I'll build now
+
+1. `me.functions.ts` (all read fns)
+2. Patch `punch.functions.ts` self-access
+3. `me.tsx` shell with mobile bottom nav + desktop rail
+4. `me.index.tsx` dashboard with hero punch card
+5. `me.attendance.tsx`, `me.leave.tsx`, `me.payslips.tsx`, `me.performance.tsx`, `me.profile.tsx`
+6. Sidebar link in `/erp` → "My Workspace"
+
+Performance / leave / payslip page gula data thakle full render, na thakle clean empty state (per your rule).

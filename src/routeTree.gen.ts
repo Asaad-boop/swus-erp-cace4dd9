@@ -12,8 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
+import { Route as AuthenticatedMeIndexRouteImport } from './routes/_authenticated/me.index'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedMeProfileRouteImport } from './routes/_authenticated/me.profile'
+import { Route as AuthenticatedMePerformanceRouteImport } from './routes/_authenticated/me.performance'
+import { Route as AuthenticatedMePayslipsRouteImport } from './routes/_authenticated/me.payslips'
+import { Route as AuthenticatedMeLeaveRouteImport } from './routes/_authenticated/me.leave'
+import { Route as AuthenticatedMeAttendanceRouteImport } from './routes/_authenticated/me.attendance'
 import { Route as AuthenticatedErpUsersRouteImport } from './routes/_authenticated/erp.users'
 import { Route as AuthenticatedErpSuppliersRouteImport } from './routes/_authenticated/erp.suppliers'
 import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenticated/erp.settings'
@@ -129,16 +136,53 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedErpRoute = AuthenticatedErpRouteImport.update({
   id: '/erp',
   path: '/erp',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMeIndexRoute = AuthenticatedMeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedMeRoute,
 } as any)
 const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
 } as any)
+const AuthenticatedMeProfileRoute = AuthenticatedMeProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedMeRoute,
+} as any)
+const AuthenticatedMePerformanceRoute =
+  AuthenticatedMePerformanceRouteImport.update({
+    id: '/performance',
+    path: '/performance',
+    getParentRoute: () => AuthenticatedMeRoute,
+  } as any)
+const AuthenticatedMePayslipsRoute = AuthenticatedMePayslipsRouteImport.update({
+  id: '/payslips',
+  path: '/payslips',
+  getParentRoute: () => AuthenticatedMeRoute,
+} as any)
+const AuthenticatedMeLeaveRoute = AuthenticatedMeLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => AuthenticatedMeRoute,
+} as any)
+const AuthenticatedMeAttendanceRoute =
+  AuthenticatedMeAttendanceRouteImport.update({
+    id: '/attendance',
+    path: '/attendance',
+    getParentRoute: () => AuthenticatedMeRoute,
+  } as any)
 const AuthenticatedErpUsersRoute = AuthenticatedErpUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -731,6 +775,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/erp': typeof AuthenticatedErpRouteWithChildren
+  '/me': typeof AuthenticatedMeRouteWithChildren
   '/erp/courier': typeof AuthenticatedErpCourierRoute
   '/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
   '/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
@@ -748,7 +793,13 @@ export interface FileRoutesByFullPath {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
+  '/me/attendance': typeof AuthenticatedMeAttendanceRoute
+  '/me/leave': typeof AuthenticatedMeLeaveRoute
+  '/me/payslips': typeof AuthenticatedMePayslipsRoute
+  '/me/performance': typeof AuthenticatedMePerformanceRoute
+  '/me/profile': typeof AuthenticatedMeProfileRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
+  '/me/': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -845,7 +896,13 @@ export interface FileRoutesByTo {
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/erp/users': typeof AuthenticatedErpUsersRoute
+  '/me/attendance': typeof AuthenticatedMeAttendanceRoute
+  '/me/leave': typeof AuthenticatedMeLeaveRoute
+  '/me/payslips': typeof AuthenticatedMePayslipsRoute
+  '/me/performance': typeof AuthenticatedMePerformanceRoute
+  '/me/profile': typeof AuthenticatedMeProfileRoute
   '/erp': typeof AuthenticatedErpIndexRoute
+  '/me': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -933,6 +990,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/erp': typeof AuthenticatedErpRouteWithChildren
+  '/_authenticated/me': typeof AuthenticatedMeRouteWithChildren
   '/_authenticated/erp/courier': typeof AuthenticatedErpCourierRoute
   '/_authenticated/erp/crm': typeof AuthenticatedErpCrmRouteWithChildren
   '/_authenticated/erp/diagnostics': typeof AuthenticatedErpDiagnosticsRoute
@@ -950,7 +1008,13 @@ export interface FileRoutesById {
   '/_authenticated/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/_authenticated/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
   '/_authenticated/erp/users': typeof AuthenticatedErpUsersRoute
+  '/_authenticated/me/attendance': typeof AuthenticatedMeAttendanceRoute
+  '/_authenticated/me/leave': typeof AuthenticatedMeLeaveRoute
+  '/_authenticated/me/payslips': typeof AuthenticatedMePayslipsRoute
+  '/_authenticated/me/performance': typeof AuthenticatedMePerformanceRoute
+  '/_authenticated/me/profile': typeof AuthenticatedMeProfileRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
+  '/_authenticated/me/': typeof AuthenticatedMeIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
@@ -1041,6 +1105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/erp'
+    | '/me'
     | '/erp/courier'
     | '/erp/crm'
     | '/erp/diagnostics'
@@ -1058,7 +1123,13 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
+    | '/me/attendance'
+    | '/me/leave'
+    | '/me/payslips'
+    | '/me/performance'
+    | '/me/profile'
     | '/erp/'
+    | '/me/'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
@@ -1155,7 +1226,13 @@ export interface FileRouteTypes {
     | '/erp/settings'
     | '/erp/suppliers'
     | '/erp/users'
+    | '/me/attendance'
+    | '/me/leave'
+    | '/me/payslips'
+    | '/me/performance'
+    | '/me/profile'
     | '/erp'
+    | '/me'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
@@ -1242,6 +1319,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/erp'
+    | '/_authenticated/me'
     | '/_authenticated/erp/courier'
     | '/_authenticated/erp/crm'
     | '/_authenticated/erp/diagnostics'
@@ -1259,7 +1337,13 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/settings'
     | '/_authenticated/erp/suppliers'
     | '/_authenticated/erp/users'
+    | '/_authenticated/me/attendance'
+    | '/_authenticated/me/leave'
+    | '/_authenticated/me/payslips'
+    | '/_authenticated/me/performance'
+    | '/_authenticated/me/profile'
     | '/_authenticated/erp/'
+    | '/_authenticated/me/'
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
@@ -1380,6 +1464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/me': {
+      id: '/_authenticated/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AuthenticatedMeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/erp': {
       id: '/_authenticated/erp'
       path: '/erp'
@@ -1387,12 +1478,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/me/': {
+      id: '/_authenticated/me/'
+      path: '/'
+      fullPath: '/me/'
+      preLoaderRoute: typeof AuthenticatedMeIndexRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
+    }
     '/_authenticated/erp/': {
       id: '/_authenticated/erp/'
       path: '/'
       fullPath: '/erp/'
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/me/profile': {
+      id: '/_authenticated/me/profile'
+      path: '/profile'
+      fullPath: '/me/profile'
+      preLoaderRoute: typeof AuthenticatedMeProfileRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
+    }
+    '/_authenticated/me/performance': {
+      id: '/_authenticated/me/performance'
+      path: '/performance'
+      fullPath: '/me/performance'
+      preLoaderRoute: typeof AuthenticatedMePerformanceRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
+    }
+    '/_authenticated/me/payslips': {
+      id: '/_authenticated/me/payslips'
+      path: '/payslips'
+      fullPath: '/me/payslips'
+      preLoaderRoute: typeof AuthenticatedMePayslipsRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
+    }
+    '/_authenticated/me/leave': {
+      id: '/_authenticated/me/leave'
+      path: '/leave'
+      fullPath: '/me/leave'
+      preLoaderRoute: typeof AuthenticatedMeLeaveRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
+    }
+    '/_authenticated/me/attendance': {
+      id: '/_authenticated/me/attendance'
+      path: '/attendance'
+      fullPath: '/me/attendance'
+      preLoaderRoute: typeof AuthenticatedMeAttendanceRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
     }
     '/_authenticated/erp/users': {
       id: '/_authenticated/erp/users'
@@ -2460,12 +2593,36 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
 const AuthenticatedErpRouteWithChildren =
   AuthenticatedErpRoute._addFileChildren(AuthenticatedErpRouteChildren)
 
+interface AuthenticatedMeRouteChildren {
+  AuthenticatedMeAttendanceRoute: typeof AuthenticatedMeAttendanceRoute
+  AuthenticatedMeLeaveRoute: typeof AuthenticatedMeLeaveRoute
+  AuthenticatedMePayslipsRoute: typeof AuthenticatedMePayslipsRoute
+  AuthenticatedMePerformanceRoute: typeof AuthenticatedMePerformanceRoute
+  AuthenticatedMeProfileRoute: typeof AuthenticatedMeProfileRoute
+  AuthenticatedMeIndexRoute: typeof AuthenticatedMeIndexRoute
+}
+
+const AuthenticatedMeRouteChildren: AuthenticatedMeRouteChildren = {
+  AuthenticatedMeAttendanceRoute: AuthenticatedMeAttendanceRoute,
+  AuthenticatedMeLeaveRoute: AuthenticatedMeLeaveRoute,
+  AuthenticatedMePayslipsRoute: AuthenticatedMePayslipsRoute,
+  AuthenticatedMePerformanceRoute: AuthenticatedMePerformanceRoute,
+  AuthenticatedMeProfileRoute: AuthenticatedMeProfileRoute,
+  AuthenticatedMeIndexRoute: AuthenticatedMeIndexRoute,
+}
+
+const AuthenticatedMeRouteWithChildren = AuthenticatedMeRoute._addFileChildren(
+  AuthenticatedMeRouteChildren,
+)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedErpRoute: typeof AuthenticatedErpRouteWithChildren
+  AuthenticatedMeRoute: typeof AuthenticatedMeRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErpRoute: AuthenticatedErpRouteWithChildren,
+  AuthenticatedMeRoute: AuthenticatedMeRouteWithChildren,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -2485,13 +2642,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -8,6 +8,17 @@ async function assertAccess(supabase: any, userId: string) {
   if (!data) throw new Error("HR access required");
 }
 
+/** Allow if caller is the employee themselves (self-service), else require HR access. */
+async function assertSelfOrAccess(supabase: any, userId: string, employeeId: string) {
+  const { data: emp } = await supabase
+    .from("hr_employees")
+    .select("user_id")
+    .eq("id", employeeId)
+    .maybeSingle();
+  if (emp?.user_id && emp.user_id === userId) return;
+  await assertAccess(supabase, userId);
+}
+
 /** Resolve today's active shift for an employee. */
 async function getActiveShift(supabase: any, employeeId: string, dateStr: string) {
   const { data } = await supabase
@@ -59,7 +70,7 @@ export const punchIn = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     const shift = await getActiveShift(context.supabase, data.employee_id, today);
@@ -120,7 +131,7 @@ export const punchBreak = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const today = new Date().toISOString().slice(0, 10);
     const { data: row } = await context.supabase
       .from("hr_attendance")
@@ -157,7 +168,7 @@ export const punchOut = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAccess(context.supabase, context.userId);
+    await assertSelfOrAccess(context.supabase, context.userId, data.employee_id);
     const today = new Date().toISOString().slice(0, 10);
     const { data: row } = await context.supabase
       .from("hr_attendance")
