@@ -269,3 +269,89 @@ export const bulkSetRole = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+/* ============= CUSTOMER ACCOUNTS (website signups) ============= */
+
+export const listCustomerAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { search?: string; includeStaff?: boolean; page?: number; pageSize?: number }) =>
+    z.object({
+      search: z.string().trim().max(200).optional(),
+      includeStaff: z.boolean().optional(),
+      page: z.number().int().min(1).max(500).optional(),
+      pageSize: z.number().int().min(10).max(200).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const page = data.page ?? 1;
+    const perPage = data.pageSize ?? 100;
+
+    const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const authUsers = list.users ?? [];
+    const ids = authUsers.map((u: any) => u.id);
+    const safeIds = ids.length ? ids : ["00000000-0000-0000-0000-000000000000"];
+
+    const [rolesRes, profilesRes, ordersRes] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", safeIds),
+      supabaseAdmin.from("profiles").select("id, display_name, phone, avatar_url").in("id", safeIds),
+      supabaseAdmin.from("orders").select("user_id, total, created_at").in("user_id", safeIds),
+    ]);
+    if (rolesRes.error) throw rolesRes.error;
+    if (profilesRes.error) throw profilesRes.error;
+
+    const rolesByUser: Record<string, string[]> = {};
+    (rolesRes.data ?? []).forEach((r: any) => {
+      (rolesByUser[r.user_id] = rolesByUser[r.user_id] || []).push(r.role);
+    });
+    const profileByUser: Record<string, any> = {};
+    (profilesRes.data ?? []).forEach((p: any) => { profileByUser[p.id] = p; });
+
+    const orderStats: Record<string, { count: number; total: number; lastAt: string | null }> = {};
+    (ordersRes.data ?? []).forEach((o: any) => {
+      if (!o.user_id) return;
+      const s = orderStats[o.user_id] || (orderStats[o.user_id] = { count: 0, total: 0, lastAt: null });
+      s.count += 1;
+      s.total += Number(o.total ?? 0);
+      if (!s.lastAt || (o.created_at && o.created_at > s.lastAt)) s.lastAt = o.created_at;
+    });
+
+    let rows = authUsers.map((u: any) => {
+      const p = profileByUser[u.id] || {};
+      const stats = orderStats[u.id] || { count: 0, total: 0, lastAt: null };
+      const roles = rolesByUser[u.id] ?? [];
+      return {
+        id: u.id,
+        email: u.email ?? null,
+        phone: p.phone ?? u.phone ?? null,
+        display_name: p.display_name ?? null,
+        avatar_url: p.avatar_url ?? null,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at,
+        email_confirmed_at: u.email_confirmed_at,
+        banned_until: u.banned_until ?? null,
+        roles,
+        is_staff: roles.some((r: string) => r !== "customer"),
+        order_count: stats.count,
+        total_spent: stats.total,
+        last_order_at: stats.lastAt,
+      };
+    });
+
+    if (!data.includeStaff) rows = rows.filter((r) => !r.is_staff);
+
+    if (data.search) {
+      const q = data.search.toLowerCase();
+      rows = rows.filter((r) =>
+        (r.email ?? "").toLowerCase().includes(q) ||
+        (r.display_name ?? "").toLowerCase().includes(q) ||
+        (r.phone ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    rows.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+
+    return { rows, page, perPage, hasMore: authUsers.length === perPage };
+  });
