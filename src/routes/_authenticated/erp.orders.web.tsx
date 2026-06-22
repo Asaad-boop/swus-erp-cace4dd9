@@ -39,7 +39,14 @@ import { WebOrdersAnalytics } from "@/components/erp/orders/web-orders-analytics
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
 const DEFAULT_PAGE_SIZE = 25;
+const COURIER_HISTORY_BATCH_SIZE = 100;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
 
 const searchSchema = z.object({
   tab: fallback(
@@ -681,12 +688,17 @@ function _WebOrdersPageBody() {
     enabled: courierPhones.length > 0,
     staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("courier_history_cache")
-        .select("phone, data")
-        .in("phone", courierPhones);
+      const cacheRows = await Promise.all(
+        chunkArray(courierPhones, COURIER_HISTORY_BATCH_SIZE).map(async (phoneChunk) => {
+          const { data } = await supabase
+            .from("courier_history_cache")
+            .select("phone, data")
+            .in("phone", phoneChunk);
+          return data ?? [];
+        }),
+      );
       const map = new Map<string, CourierBreakdown>();
-      (data ?? []).forEach((row) => {
+      cacheRows.flat().forEach((row) => {
         const hist = row.data as { providers?: Array<{ name: string; total: number; success: number; cancelled: number; ok: boolean }> } | null;
         if (!hist) return;
         const result: CourierBreakdown = {
@@ -712,7 +724,14 @@ function _WebOrdersPageBody() {
     enabled: missingPhones.length > 0,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { results } = await fetchCourierHistory({ data: { phones: missingPhones, brandId: activeBrand?.id } });
+      const historyResponses = [];
+      for (const phoneChunk of chunkArray(missingPhones, COURIER_HISTORY_BATCH_SIZE)) {
+        historyResponses.push(await fetchCourierHistory({ data: { phones: phoneChunk, brandId: activeBrand?.id } }));
+      }
+      const results = historyResponses.reduce<Record<string, Awaited<ReturnType<typeof fetchCourierHistory>>["results"][string]>>(
+        (acc, response) => ({ ...acc, ...response.results }),
+        {},
+      );
       const map = new Map<string, CourierBreakdown>();
       Object.entries(results).forEach(([phone, d]) => {
         const result: CourierBreakdown = {
