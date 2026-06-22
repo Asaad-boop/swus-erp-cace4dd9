@@ -45,6 +45,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import {
   getCampaignDetail,
   listCampaignProducts,
@@ -57,8 +58,6 @@ import {
 export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/$campaignId")({
   component: CampaignDetailPage,
 });
-
-const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 function fmtCurrency(n: number, ccy = "USD") {
   const symbol = ccy === "BDT" ? "৳" : ccy === "USD" ? "$" : `${ccy} `;
@@ -82,12 +81,8 @@ function fmtMult(n: number | null) {
 
 function CampaignDetailPage() {
   const { campaignId } = Route.useParams();
-  const [rangeKey, setRangeKey] = useState("30d");
-  const { from, to } = useMemo(() => {
-    const days = RANGES[rangeKey] ?? 30;
-    const today = new Date();
-    return { from: format(subDays(today, days - 1), "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
-  }, [rangeKey]);
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
+  const { from, to } = range;
 
   const fn = useServerFn(getCampaignDetail);
   const q = useQuery({
@@ -167,14 +162,7 @@ function CampaignDetailPage() {
                 <span className="font-mono text-[11px] text-muted-foreground">ID {c.external_id}</span>
               </div>
             </div>
-            <Select value={rangeKey} onValueChange={setRangeKey}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <DateRangePicker value={range} onChange={setRange} />
           </div>
         </div>
       </div>
