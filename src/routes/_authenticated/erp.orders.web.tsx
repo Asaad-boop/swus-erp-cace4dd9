@@ -982,10 +982,6 @@ function _WebOrdersPageBody() {
 
       <div className="mt-2 space-y-4">
 
-      {activeTab !== "incomplete" && (
-        <WebOrdersAnalytics rows={rows} />
-      )}
-
       {activeTab === "incomplete" ? (
         <div className="rounded-xl border bg-card overflow-hidden">
           <IncompleteOrdersTable
