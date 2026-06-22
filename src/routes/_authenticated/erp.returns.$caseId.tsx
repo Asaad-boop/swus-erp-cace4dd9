@@ -54,15 +54,15 @@ function CaseDetailPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-[1300px] mx-auto space-y-4">
+    <div className="p-4 md:p-6 max-w-[1300px] mx-auto space-y-4 bg-[#FBF8F3] dark:bg-background min-h-screen">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/erp/returns" })}>
           <ArrowLeft className="h-4 w-4 mr-1" />Back
         </Button>
         <div className="flex items-center gap-2">
           {isExchange
-            ? <Badge variant="outline" className="bg-indigo-50 text-indigo-700"><Repeat className="h-3 w-3 mr-1" />Exchange</Badge>
-            : <Badge variant="outline" className="bg-emerald-50 text-emerald-700"><RotateCcw className="h-3 w-3 mr-1" />Return</Badge>}
+            ? <Badge variant="outline" className="bg-[#D4A574]/15 text-[#8B6F3D] border-[#D4A574]/40"><Repeat className="h-3 w-3 mr-1" />Exchange</Badge>
+            : <Badge variant="outline" className="bg-[#0D4F4C]/10 text-[#0D4F4C] border-[#0D4F4C]/30"><RotateCcw className="h-3 w-3 mr-1" />Return</Badge>}
           <span className="font-mono text-sm font-semibold">{c.case_number ?? caseId.slice(0, 8)}</span>
           <ReturnStatusBadge status={status} />
         </div>
@@ -85,7 +85,7 @@ function CaseDetailPage() {
               <ol className="relative pl-5 space-y-3 before:absolute before:left-1.5 before:top-1 before:bottom-1 before:w-px before:bg-border">
                 {data.timeline.map((e: any) => (
                   <li key={e.id} className="relative">
-                    <span className="absolute -left-[14px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-card bg-sky-500" />
+                    <span className="absolute -left-[14px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-card bg-[#0D4F4C]" />
                     <div className="flex items-center gap-2 text-xs">
                       <ReturnStatusBadge status={e.status} />
                       <span className="text-[10px] text-muted-foreground ml-auto">
@@ -122,7 +122,7 @@ function CaseDetailPage() {
                 </div>
               </div>
               {c.order && (
-                <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }} className="text-xs text-sky-600 hover:underline inline-flex items-center gap-1">
+                <Link to="/erp/orders/$orderId" params={{ orderId: c.order.id }} className="text-xs text-[#0D4F4C] hover:underline inline-flex items-center gap-1">
                   Order #{String(c.order.id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                 </Link>
               )}
@@ -155,7 +155,7 @@ function CaseDetailPage() {
             <KV label="Product Cost Loss">৳{bdt(Number(c.product_cost_loss ?? 0))}</KV>
             <div className="pt-2 mt-2 border-t flex items-center justify-between text-sm">
               <span className="font-semibold">Total Impact</span>
-              <span className="font-bold text-rose-600">
+              <span className="font-bold text-[#E11D48]">
                 ৳{bdt(Number(c.refund_amount ?? 0) + Number(c.return_delivery_cost ?? 0) + Number(c.outbound_delivery_cost ?? 0) + Number(c.product_cost_loss ?? 0))}
               </span>
             </div>
@@ -179,14 +179,14 @@ function CaseDetailPage() {
             <Section title="Exchange Action">
               {c.new_order_id ? (
                 <div className="text-xs space-y-1">
-                  <p className="text-emerald-600 inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Exchange order created</p>
+                  <p className="text-[#0D4F4C] inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Exchange order created</p>
                   <Link to="/erp/orders/$orderId" params={{ orderId: c.new_order_id }}
-                    className="inline-flex items-center gap-1 text-sky-600 hover:underline">
+                    className="inline-flex items-center gap-1 text-[#0D4F4C] hover:underline">
                     View Order #{String(c.new_order_id).slice(0, 8)} <ExternalLink className="h-3 w-3" />
                   </Link>
                 </div>
               ) : c.exchange_type_detail !== "refund_only" && c.replacement_product_id ? (
-                <Button size="sm" className="w-full" onClick={() => {
+                <Button size="sm" className="w-full bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white" onClick={() => {
                   createOrderFn({ data: { caseId } })
                     .then((r: any) => { toast.success(`Order ${r.orderNumber} created`); qc.invalidateQueries({ queryKey: ["case-detail", caseId] }); })
                     .catch((e) => toast.error(e.message));
