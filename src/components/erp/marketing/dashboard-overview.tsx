@@ -425,12 +425,18 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
 function BudgetSummaryStrip({ rows }: { rows: DashboardSummary["budgetPacing"] }) {
   const totalDaily = rows.reduce((s, r) => s + r.daily_budget_bdt, 0);
   const totalSpent = rows.reduce((s, r) => s + r.spent_today_bdt, 0);
+  const totalDailyUsd = rows.reduce((s, r) => s + r.daily_budget_usd, 0);
+  const totalSpentUsd = rows.reduce((s, r) => s + r.spent_today_usd, 0);
   const overCount = rows.filter((r) => r.status === "over").length;
   const overallPct = totalDaily > 0 ? (totalSpent / totalDaily) * 100 : 0;
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border bg-muted/30 p-3">
-      <SummaryStat label="Total Daily Budget" value={fmtBDT(totalDaily)} />
-      <SummaryStat label="Spent Today" value={fmtBDT(totalSpent)} sub={`${overallPct.toFixed(0)}% used`} />
+      <SummaryStat label="Total Daily Budget" value={fmtBDT(totalDaily)} sub={fmtUSD(totalDailyUsd)} />
+      <SummaryStat
+        label="Spent Today"
+        value={fmtBDT(totalSpent)}
+        sub={`${fmtUSD(totalSpentUsd)} · ${overallPct.toFixed(0)}% used`}
+      />
       <SummaryStat label="Active Campaigns" value={String(rows.length)} />
       <SummaryStat
         label="Over Limit"
