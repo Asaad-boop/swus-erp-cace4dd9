@@ -779,24 +779,22 @@ function _WebOrdersPageBody() {
     });
   };
 
-  // Infinite scroll sentinel
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const onLoadMore = useCallback(() => {
-    if (ordersQuery.hasNextPage && !ordersQuery.isFetchingNextPage) {
-      ordersQuery.fetchNextPage();
-    }
-  }, [ordersQuery]);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) onLoadMore();
-    }, { rootMargin: "300px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [onLoadMore]);
+  // Pagination
+  const goToPage = useCallback((p: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, p));
+    navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: clamped }), replace: true });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [navigate, totalPages]);
 
-  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key }), replace: true });
+  // Reset page to 1 whenever filters change
+  useEffect(() => {
+    if ((search.page ?? 1) !== 1) {
+      navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: 1 }), replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to]);
+
+  const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key, page: 1 }), replace: true });
 
   const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
     navigate({
