@@ -6,10 +6,11 @@ import {
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2,
+  FileBarChart, Target, Banknote, Building2, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useErpQuickActions } from "@/contexts/erp-quick-actions";
+import { useGlobalSearch } from "@/components/erp/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
@@ -130,6 +131,7 @@ const ACTIVE_GROUP_KEY = "sidebar_active_group";
 export function ErpSidebar() {
   const location = useLocation();
   const { openTxn } = useErpQuickActions();
+  const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
@@ -308,6 +310,35 @@ export function ErpSidebar() {
             <ChevronRight className="h-4 w-4" />
           </button>
         )}
+
+        {/* Global search trigger */}
+        <div className={cn("border-b border-border/60", collapsed ? "px-2 py-2 flex justify-center" : "px-3 py-2.5")}>
+          {collapsed ? (
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={openSearch}
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  aria-label="Search"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">Search (⌘K)</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={openSearch}
+              className="w-full flex items-center gap-2 rounded-md border border-border/70 bg-background/60 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="flex-1 text-left">Search anything...</span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border/70 bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                ⌘K
+              </kbd>
+            </button>
+          )}
+        </div>
 
         <nav className={cn("flex-1 py-3 overflow-y-auto overflow-x-hidden", collapsed ? "px-2" : "px-3")}>
           {groups.map((group, gi) => (
