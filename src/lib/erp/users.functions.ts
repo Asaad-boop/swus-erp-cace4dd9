@@ -298,7 +298,7 @@ export const listCustomerAccounts = createServerFn({ method: "POST" })
 
     const [rolesRes, profilesRes, ordersRes] = await Promise.all([
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", safeIds),
-      supabaseAdmin.from("profiles").select("id, display_name, phone, avatar_url").in("id", safeIds),
+      supabaseAdmin.from("profiles").select("id, display_name").in("id", safeIds),
       supabaseAdmin.from("orders").select("user_id, total, created_at").in("user_id", safeIds),
     ]);
     if (rolesRes.error) throw rolesRes.error;
@@ -327,9 +327,9 @@ export const listCustomerAccounts = createServerFn({ method: "POST" })
       return {
         id: u.id,
         email: u.email ?? null,
-        phone: p.phone ?? u.phone ?? null,
+        phone: u.phone ?? null,
         display_name: p.display_name ?? null,
-        avatar_url: p.avatar_url ?? null,
+        avatar_url: null,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
         email_confirmed_at: u.email_confirmed_at,
