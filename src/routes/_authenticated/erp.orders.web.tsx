@@ -1256,15 +1256,27 @@ function _WebOrdersPageBody() {
             )}
           </TableBody>
         </Table>
-        {activeTab !== "incomplete" && (
-          <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-muted-foreground">
-            {ordersQuery.isFetchingNextPage ? (
-              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading more…</span>
-            ) : ordersQuery.hasNextPage ? (
-              <button onClick={onLoadMore} className="hover:text-foreground">Load more</button>
-            ) : rows.length > 0 ? (
-              <span>End of list · {rows.length} of {totalRows}</span>
-            ) : null}
+        {activeTab !== "incomplete" && totalRows > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-4 py-3 text-sm">
+            <div className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{(page - 1) * PAGE_SIZE + 1}</span>
+              –<span className="font-medium text-foreground">{Math.min(page * PAGE_SIZE, totalRows)}</span>
+              {" of "}<span className="font-medium text-foreground">{totalRows}</span>
+              {ordersQuery.isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(1)}>First</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}>
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </Button>
+              <span className="px-3 text-xs text-muted-foreground">
+                Page <span className="font-medium text-foreground">{page}</span> of {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(page + 1)}>
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(totalPages)}>Last</Button>
+            </div>
           </div>
         )}
       </div>
