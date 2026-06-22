@@ -48,7 +48,7 @@ export const listAppUsers = createServerFn({ method: "POST" })
     const profileByUser: Record<string, string> = {};
     (profilesRes.data ?? []).forEach((p: any) => { profileByUser[p.id] = p.display_name; });
 
-    return users.map((u: any) => ({
+    const mapped = users.map((u: any) => ({
       id: u.id,
       email: u.email,
       created_at: u.created_at,
@@ -59,6 +59,8 @@ export const listAppUsers = createServerFn({ method: "POST" })
       display_name: profileByUser[u.id] ?? null,
       roles: rolesByUser[u.id] ?? [],
     }));
+    // Staff = users with at least one non-customer role. Pure customers are excluded.
+    return mapped.filter((u: any) => (u.roles as string[]).some((r) => r !== "customer"));
   });
 
 /* ============= CREATE ============= */
