@@ -9,7 +9,6 @@ import {
   FileBarChart, Target, Banknote, Building2, Search, PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useErpQuickActions } from "@/contexts/erp-quick-actions";
 import { useGlobalSearch } from "@/components/erp/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -163,7 +162,6 @@ const ACTIVE_GROUP_KEY = "sidebar_active_group";
 
 export function ErpSidebar() {
   const location = useLocation();
-  const { openTxn } = useErpQuickActions();
   const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -222,14 +220,14 @@ export function ErpSidebar() {
       <Link
         to={to as never}
         className={cn(
-          "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200",
+          "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200 tracking-tight",
           collapsed
             ? "justify-center px-2 py-2.5 mx-auto w-10"
             : indented
-            ? "pl-8 pr-3 py-1.5 text-sm"
-            : "px-3 py-2 text-sm font-medium",
+            ? "pl-8 pr-3 py-1.5 text-[13px] font-medium"
+            : "px-3 py-2 text-sm font-semibold",
           active
-            ? "bg-primary/10 text-primary font-medium"
+            ? "bg-primary/10 text-primary font-semibold shadow-sm"
             : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
         )}
       >
@@ -272,7 +270,7 @@ export function ErpSidebar() {
           type="button"
           onClick={() => toggleGroup(sectionKey)}
           className={cn(
-            "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/60",
+            "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-colors hover:bg-accent/60",
             hasActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
           aria-expanded={isOpen}
@@ -401,19 +399,6 @@ export function ErpSidebar() {
             </div>
           ))}
 
-          {/* Quick actions */}
-          <div className={cn(collapsed ? "mt-3 pt-3 border-t border-border/60" : "mt-4")}>
-            {!collapsed && (
-              <div className="px-3 mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground/70 font-semibold">
-                <Zap className="h-3 w-3" /> Quick Actions
-              </div>
-            )}
-            <div className="space-y-0.5">
-              {quickLinks.map((l) => <NavLinkItem key={l.to} {...l} />)}
-              <QuickActionButton label="Add Expense" icon={TrendingDown} tone="text-red-600" onClick={() => openTxn("expense")} collapsed={collapsed} />
-              <QuickActionButton label="Add Income" icon={TrendingUp} tone="text-emerald-600" onClick={() => openTxn("income")} collapsed={collapsed} />
-            </div>
-          </div>
         </nav>
 
         <div className={cn("border-t border-border text-[11px] text-muted-foreground", collapsed ? "py-2 text-center" : "px-4 py-2.5")}>
