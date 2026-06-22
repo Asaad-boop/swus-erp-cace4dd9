@@ -132,82 +132,99 @@ function ReturnsListPage() {
 
   return (
     <div className="min-h-screen bg-[#FBF8F3] dark:bg-background">
-      <div className="p-4 md:p-6 space-y-5 max-w-[1500px] mx-auto">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-[26px] font-bold tracking-tight text-[#0D4F4C] dark:text-foreground" style={{ fontFamily: 'ui-serif, Georgia, serif' }}>
-              Returns &amp; Exchanges
-            </h1>
-            <p className="text-xs text-stone-500 dark:text-muted-foreground mt-1">
-              {counts.all} total cases
-              {lastUpdated && <> · Last updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}</>}
-            </p>
+      {/* Editorial dark hero band */}
+      <section className="relative bg-[#0D4F4C] text-[#FBF8F3] overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, #FBF8F3 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="relative max-w-[1500px] mx-auto px-4 md:px-8 pt-8 pb-10">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#D4A574]/90 mb-2">
+                ERP · Reverse Logistics
+              </div>
+              <h1
+                className="text-[40px] md:text-[52px] leading-[1.02] tracking-tight text-[#FBF8F3]"
+                style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}
+              >
+                Returns <span className="italic text-[#D4A574]">&amp;</span> Exchanges
+              </h1>
+              <p className="text-[12px] text-[#FBF8F3]/60 mt-2">
+                {counts.all} total cases
+                {lastUpdated && <> · Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}</>}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" onClick={() => setNewReturnOpen(true)}
+                className="bg-[#D4A574] hover:bg-[#C49560] text-[#1C1917] shadow-sm font-medium">
+                <Plus className="h-4 w-4 mr-1" />New Return
+              </Button>
+              <Button size="sm" onClick={() => setNewExchangeOpen(true)} variant="outline"
+                className="bg-transparent border-[#FBF8F3]/25 text-[#FBF8F3] hover:bg-[#FBF8F3]/10 hover:text-[#FBF8F3]">
+                <Plus className="h-4 w-4 mr-1" />New Exchange
+              </Button>
+              <Button variant="ghost" size="sm" onClick={exportCsv}
+                className="text-[#FBF8F3]/80 hover:bg-[#FBF8F3]/10 hover:text-[#FBF8F3]">
+                <Download className="h-4 w-4 mr-1" />Export
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setNewReturnOpen(true)} className="bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white shadow-sm">
-              <Plus className="h-4 w-4 mr-1" />New Return
-            </Button>
-            <Button size="sm" onClick={() => setNewExchangeOpen(true)} className="bg-[#D4A574] hover:bg-[#C49560] text-[#1C1917] shadow-sm">
-              <Plus className="h-4 w-4 mr-1" />New Exchange
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportCsv} className="border-stone-300 dark:border-border">
-              <Download className="h-4 w-4 mr-1" />Export
-            </Button>
+
+          {/* Inline stat strip */}
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-y-4 md:gap-y-0 md:divide-x divide-[#FBF8F3]/10 border-t border-[#FBF8F3]/10 pt-6">
+            <HeroStat label="Returns" value={counts.returns} />
+            <HeroStat label="Exchanges" value={counts.exchanges} />
+            <HeroStat label="Pending QC" value={counts.pending_qc} pulse />
+            <HeroStat label="Refunds Total" value={`৳${totalRefunds.toLocaleString("en-IN")}`} accent />
           </div>
         </div>
+      </section>
 
-        {/* KPI Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard accent="teal" icon={<Package className="h-4 w-4" />} label="Total Returns" value={counts.returns} />
-          <KpiCard accent="sand" icon={<Repeat className="h-4 w-4" />} label="Exchanges" value={counts.exchanges} />
-          <KpiCard accent="rose" pulse icon={<ClipboardCheck className="h-4 w-4" />} label="Pending QC" value={counts.pending_qc} />
-          <KpiCard accent="ink" icon={<Wallet className="h-4 w-4" />} label="Refunds" value={`৳${totalRefunds.toLocaleString("en-IN")}`} />
-        </div>
-
-        {/* Pill tabs */}
-        <div className="flex flex-wrap gap-2">
-          <PillTab active={tab === "all"} onClick={() => setTab("all")}>All <Count>{counts.all}</Count></PillTab>
-          <PillTab active={tab === "returns"} onClick={() => setTab("returns")}>
-            <RotateCcw className="h-3 w-3 mr-1" />Returns <Count>{counts.returns}</Count>
-          </PillTab>
-          <PillTab active={tab === "exchanges"} onClick={() => setTab("exchanges")}>
-            <Repeat className="h-3 w-3 mr-1" />Exchanges <Count>{counts.exchanges}</Count>
-          </PillTab>
-          <PillTab active={tab === "pending_qc"} onClick={() => setTab("pending_qc")}>
-            Pending QC <Count>{counts.pending_qc}</Count>
-            {counts.pending_qc > 0 && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />}
-          </PillTab>
-          <PillTab active={tab === "restocked"} onClick={() => setTab("restocked")}>Restocked <Count>{counts.restocked}</Count></PillTab>
-          <PillTab active={tab === "closed"} onClick={() => setTab("closed")}>Closed <Count>{counts.closed}</Count></PillTab>
-        </div>
-
-        {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card p-2 shadow-sm">
-          <div className="flex-1 min-w-[240px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-            <Input className="pl-9 h-9 border-0 shadow-none focus-visible:ring-1"
-              placeholder="Search order#, customer, product…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="max-w-[1500px] mx-auto px-4 md:px-8 py-6 space-y-5">
+        {/* Underline tabs + inline filter */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-stone-200 dark:border-border">
+          <div className="flex gap-1 -mb-px overflow-x-auto">
+            <UnderlineTab active={tab === "all"} onClick={() => setTab("all")} label="All" count={counts.all} />
+            <UnderlineTab active={tab === "returns"} onClick={() => setTab("returns")} label="Returns" count={counts.returns} icon={<RotateCcw className="h-3 w-3" />} />
+            <UnderlineTab active={tab === "exchanges"} onClick={() => setTab("exchanges")} label="Exchanges" count={counts.exchanges} icon={<Repeat className="h-3 w-3" />} />
+            <UnderlineTab active={tab === "pending_qc"} onClick={() => setTab("pending_qc")} label="Pending QC" count={counts.pending_qc} alert={counts.pending_qc > 0} />
+            <UnderlineTab active={tab === "restocked"} onClick={() => setTab("restocked")} label="Restocked" count={counts.restocked} />
+            <UnderlineTab active={tab === "closed"} onClick={() => setTab("closed")} label="Closed" count={counts.closed} />
           </div>
-          <div className="flex items-center gap-2">
-            <Input type="date" className="h-9 w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
-            <span className="text-xs text-stone-400">–</span>
-            <Input type="date" className="h-9 w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
+          <div className="flex items-center gap-2 pb-2 md:pb-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+              <Input className="pl-8 h-8 w-[220px] text-xs bg-white dark:bg-card border-stone-200"
+                placeholder="Search case, order, customer…" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+            <Input type="date" className="h-8 w-[130px] text-xs" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
+            <Input type="date" className="h-8 w-[130px] text-xs" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
           </div>
         </div>
 
         {/* Split: list + preview */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className={cn(
-            "rounded-xl border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden shadow-sm",
+            "rounded-2xl border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden shadow-[0_1px_2px_rgba(13,79,76,0.04),0_8px_24px_-12px_rgba(13,79,76,0.08)]",
             selectedId ? "lg:col-span-3" : "lg:col-span-5",
           )}>
+            <div className="px-5 py-2.5 border-b border-stone-100 dark:border-border bg-[#FBF8F3]/50 dark:bg-transparent flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
+                {rows.length} {rows.length === 1 ? "case" : "cases"}
+              </span>
+              <span className="text-[10px] text-stone-400 hidden md:block">Click a row to preview</span>
+            </div>
             {(retQ.isLoading || excQ.isLoading) ? (
               <div className="py-16 text-center text-sm text-stone-500">Loading…</div>
             ) : rows.length === 0 ? (
               <EmptyState onNew={() => setNewReturnOpen(true)} />
             ) : (
-              <ul className="divide-y divide-stone-100 dark:divide-border max-h-[calc(100vh-340px)] overflow-y-auto">
+              <ul className="divide-y divide-stone-100 dark:divide-border max-h-[calc(100vh-380px)] overflow-y-auto">
                 {rows.map((r, i) => (
                   <CaseRow key={r.id} r={r} index={i} selected={selectedId === r.id}
                     onOpen={() => setSelectedId(r.id)} />
