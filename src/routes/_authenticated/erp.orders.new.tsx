@@ -23,6 +23,7 @@ import { pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
 import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
+import { OrderSuccessDialog } from "@/components/erp/orders/order-success-dialog";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/new")({
   head: () => ({ meta: [{ title: "New Order — ERP" }] }),
@@ -284,6 +285,9 @@ function NewOrderPage() {
   const [advanceNumber, setAdvanceNumber] = useState("");
   const [advanceTxnId, setAdvanceTxnId] = useState("");
 
+  // Success animation overlay
+  const [successInfo, setSuccessInfo] = useState<{ id: string; invoice_no: string | null } | null>(null);
+
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.unit_price * i.quantity, 0), [items]);
   // Grand total = items + shipping − discount (advance is NOT subtracted; DB trigger enforces this)
   const grandTotal = Math.max(0, subtotal + Number(shippingFee || 0) - Number(discount || 0));
@@ -334,7 +338,7 @@ function NewOrderPage() {
           is_cross_sale: isCrossSale,
           courier_name: deliveryMethod !== "manual" ? deliveryMethod : null,
         })
-        .select("id")
+        .select("id, invoice_no")
         .single();
       if (orderErr) throw orderErr;
 
@@ -354,13 +358,12 @@ function NewOrderPage() {
       // Reserve stock now that order_items exist
       const { error: reserveErr } = await supabase.rpc("reserve_stock", { _order_id: orderId });
       if (reserveErr) throw reserveErr;
-      return orderId;
+      return { id: orderId, invoice_no: (orderData as { invoice_no?: string | null }).invoice_no ?? null };
     },
-    onSuccess: (id) => {
-      toast.success("Order created");
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["web-orders"] });
-      navigate({ to: "/erp/orders", search: { open: id } as never });
+      setSuccessInfo(res);
     },
     onError: (e: Error) => toast.error(e.message),
   });
