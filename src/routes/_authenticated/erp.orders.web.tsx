@@ -34,6 +34,7 @@ import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } f
 import { WebBulkActionBar, type WebStatusKey } from "@/components/erp/orders/web-bulk-action-bar";
 import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
+import { WebOrdersAnalytics } from "@/components/erp/orders/web-orders-analytics";
 
 const PAGE_SIZE = 25;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
@@ -954,6 +955,10 @@ function _WebOrdersPageBody() {
       </div>
 
       <div className="mt-2 space-y-4">
+
+      {activeTab !== "incomplete" && (
+        <WebOrdersAnalytics rows={rows} />
+      )}
 
       {activeTab === "incomplete" ? (
         <div className="rounded-xl border bg-card overflow-hidden">
