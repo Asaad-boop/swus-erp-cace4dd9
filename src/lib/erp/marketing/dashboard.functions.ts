@@ -322,8 +322,11 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const acc = c.mkt_ad_accounts ?? {};
       const cur = (acc.currency ?? "USD").toUpperCase();
       const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || 110;
+      // Effective USD rate for converting BDT-side totals back to USD display.
+      const usdRate = cur === "USD" ? fx : Number(acc.usd_to_bdt_rate) || 110;
       // Budgets in DB are already in major units (USD or BDT) — sync divides /100 at ingest.
       const budgetBdt = rawBudget * fx;
+      const budgetUsd = cur === "USD" ? rawBudget : rawBudget / usdRate;
       const spent = spendTodayByCampaign.get(c.id) ?? 0;
       const pct = budgetBdt > 0 ? (spent / budgetBdt) * 100 : 0;
       const status_ = pct >= 90 ? "over" : pct >= 70 ? "warn" : "ok";
@@ -331,6 +334,8 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const campLifetime = c.lifetime_budget != null ? Number(c.lifetime_budget) : 0;
       const rawLifetime = campLifetime > 0 ? campLifetime : adsetBud.lifetime;
       const lifetimeBdt = rawLifetime > 0 ? rawLifetime * fx : null;
+      const lifetimeUsd =
+        rawLifetime > 0 ? (cur === "USD" ? rawLifetime : rawLifetime / usdRate) : null;
       const spentMonth = spendMonthByCampaign.get(c.id) ?? 0;
       const pctLifetime = lifetimeBdt && lifetimeBdt > 0 ? (spentMonth / lifetimeBdt) * 100 : null;
       // Projected month = month-to-date pace × days_in_month
@@ -339,13 +344,18 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
         campaign_id: c.id,
         name: c.name,
         daily_budget_bdt: budgetBdt,
+        daily_budget_usd: budgetUsd,
         spent_today_bdt: spent,
+        spent_today_usd: spent / usdRate,
         pct,
         status: status_ as "ok" | "warn" | "over",
         lifetime_budget_bdt: lifetimeBdt,
+        lifetime_budget_usd: lifetimeUsd,
         spent_this_month_bdt: spentMonth,
+        spent_this_month_usd: spentMonth / usdRate,
         pct_lifetime: pctLifetime,
         projected_monthly_bdt: projectedMonthly,
+        projected_monthly_usd: projectedMonthly / usdRate,
       });
     }
     budgetPacing.sort((a, b) => b.pct - a.pct);
