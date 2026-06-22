@@ -5,7 +5,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { format, subDays, eachDayOfInterval, startOfDay, endOfDay, parseISO } from "date-fns";
 import {
-  Calendar as CalIcon, Users, ShoppingCart, DollarSign, TrendingUp, Activity,
+  Users, ShoppingCart, DollarSign, TrendingUp, Activity,
   Package, Globe, MapPin, Repeat, Smartphone, Eye, Zap, ChevronRight,
 } from "lucide-react";
 import {
@@ -15,8 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -87,13 +86,6 @@ function useRangeFromSearch(): [Range, (r: Range) => void] {
   return [range, setRange];
 }
 
-const PRESETS = [
-  { label: "Today", days: 0 },
-  { label: "7 days", days: 6 },
-  { label: "30 days", days: 29 },
-  { label: "90 days", days: 89 },
-] as const;
-
 // -------- Page --------
 function HistoricalAnalyticsPage() {
   const { brandIds, isAllBrands, activeBrand } = useBrand();
@@ -133,8 +125,18 @@ function HistoricalAnalyticsPage() {
 
 // -------- Header --------
 function Header({ brandLabel, range, setRange }: { brandLabel: string; range: Range; setRange: (r: Range) => void }) {
-  const [open, setOpen] = useState(false);
   const days = Math.round((range.to.getTime() - range.from.getTime()) / 86_400_000) + 1;
+  const mktValue: MktRangeValue = useMemo(() => {
+    const from = format(range.from, "yyyy-MM-dd");
+    const to = format(range.to, "yyyy-MM-dd");
+    // try detect preset
+    const presetKeys = ["today","yesterday","7d","14d","30d","90d","this_week","last_week","this_month","last_month","qtd","ytd","last_6m","last_12m","lifetime"];
+    for (const k of presetKeys) {
+      const p = buildPreset(k);
+      if (p.from === from && p.to === to) return p;
+    }
+    return { presetKey: "custom", label: "Custom", from, to };
+  }, [range.from, range.to]);
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -147,46 +149,10 @@ function Header({ brandLabel, range, setRange }: { brandLabel: string; range: Ra
         <Button asChild variant="outline" size="sm">
           <Link to="/erp/analytics/live" className="gap-1.5"><Activity className="h-3.5 w-3.5 text-emerald-500" /> Live</Link>
         </Button>
-        <div className="flex rounded-md border bg-card p-0.5">
-          {PRESETS.map((p) => {
-            const to = endOfDay(new Date());
-            const from = startOfDay(subDays(to, p.days));
-            const isActive = format(from, "yyyy-MM-dd") === format(range.from, "yyyy-MM-dd")
-              && format(to, "yyyy-MM-dd") === format(range.to, "yyyy-MM-dd");
-            return (
-              <button
-                key={p.label}
-                onClick={() => setRange({ from, to })}
-                className={cn(
-                  "px-2.5 py-1 text-xs rounded font-medium transition-colors",
-                  isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >{p.label}</button>
-            );
-          })}
-        </div>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <CalIcon className="h-3.5 w-3.5" /> Custom
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="range"
-              selected={{ from: range.from, to: range.to }}
-              onSelect={(r) => {
-                if (r?.from && r?.to) {
-                  setRange({ from: startOfDay(r.from), to: endOfDay(r.to) });
-                  setOpen(false);
-                }
-              }}
-              numberOfMonths={2}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
-          </PopoverContent>
-        </Popover>
+        <DateRangePicker
+          value={mktValue}
+          onChange={(v) => setRange({ from: startOfDay(parseISO(v.from)), to: endOfDay(parseISO(v.to)) })}
+        />
       </div>
     </div>
   );
