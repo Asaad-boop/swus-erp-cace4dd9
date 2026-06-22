@@ -411,51 +411,65 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 }) {
   if (!row) return null;
   const isReturn = row.type === "return";
-  const serif = { fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' };
+  const accent = isReturn ? "#0D4F4C" : "#B8893F";
+  const accentSoft = isReturn ? "#0D4F4C0F" : "#B8893F14";
   return (
-    <aside className="sticky top-4 rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 dark:border-border shadow-[0_4px_12px_-4px_rgba(13,79,76,0.12),0_24px_48px_-16px_rgba(13,79,76,0.16)] animate-fade-in">
-      {/* Editorial header */}
-      <header className="relative bg-[#0D4F4C] text-[#FBF8F3] px-5 pt-5 pb-6">
+    <aside className="sticky top-[80px] rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 dark:border-border shadow-[0_4px_12px_-4px_rgba(0,0,0,0.06),0_20px_40px_-20px_rgba(0,0,0,0.12)] animate-fade-in">
+      {/* Type ribbon */}
+      <div className="h-1.5" style={{ background: accent }} />
+      <header className="px-5 pt-5 pb-4" style={{ background: accentSoft }}>
         <div className="flex items-start justify-between gap-2">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[#D4A574]">
-            {isReturn ? "Return Case" : "Exchange Case"}
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white" style={{ background: accent }}>
+              {isReturn ? <RotateCcw className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
+              {isReturn ? "Return" : "Exchange"}
+            </span>
+            <span className="font-mono text-[12px] text-stone-700">{row.caseNumber}</span>
           </div>
-          <button onClick={onClose} className="p-1 -m-1 text-[#FBF8F3]/60 hover:text-[#FBF8F3]" aria-label="Close preview">
+          <button onClick={onClose} className="p-1 -m-1 text-stone-400 hover:text-stone-700" aria-label="Close preview">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="font-mono text-[12px] mt-1.5 text-[#FBF8F3]/70">{row.caseNumber}</div>
-        <div className="mt-4">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-[#FBF8F3]/50">
-            {isReturn ? "Refund amount" : "Exchange charge"}
+        <div className="mt-4 flex items-end justify-between gap-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-stone-500 font-medium">
+              {isReturn ? "Refund amount" : "Exchange charge"}
+            </div>
+            <div className="mt-1 text-[36px] leading-none tracking-tight font-semibold tabular-nums" style={{ color: accent }}>
+              {row.amount > 0 ? <>৳{row.amount.toLocaleString("en-IN")}</> : <span className="text-stone-300">—</span>}
+            </div>
           </div>
-          <div className="mt-1 text-[44px] leading-none tracking-tight" style={serif}>
-            {row.amount > 0 ? (
-              <>৳{row.amount.toLocaleString("en-IN")}</>
-            ) : (
-              <span className="text-[#FBF8F3]/40">—</span>
-            )}
-          </div>
+          <ReturnStatusBadge status={row.status} />
         </div>
-        <div className="mt-4"><ReturnStatusBadge status={row.status} /></div>
       </header>
 
-      <div className="p-5 space-y-4 text-xs bg-[#FBF8F3]/40 dark:bg-transparent">
-        <PreviewRow label="Customer" value={row.customer} />
-        <PreviewRow label="Product" value={
-          <div>
+      <div className="p-5 space-y-3.5 text-xs">
+        <div className="flex items-start gap-3">
+          {row.productImage ? (
+            <img src={row.productImage} alt="" className="h-14 w-14 rounded-lg object-cover ring-1 ring-stone-200" />
+          ) : (
+            <div className="h-14 w-14 rounded-lg bg-stone-100 ring-1 ring-stone-200 flex items-center justify-center">
+              <Package className="h-5 w-5 text-stone-400" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
             <div className="text-[13px] font-medium text-[#1C1917] leading-snug">{row.productTitle}</div>
             {row.productSku && <div className="text-[10px] font-mono text-stone-500 mt-0.5">{row.productSku}</div>}
           </div>
-        } />
-        <PreviewRow label="Order" value={row.orderNumber ? <span className="font-mono">#{row.orderNumber}</span> : "—"} />
-        <PreviewRow label="Created" value={format(new Date(row.createdAt), "dd MMM yyyy, hh:mm a")} />
+        </div>
 
-        <div className="flex items-center gap-2 pt-3 border-t border-stone-200">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 pt-3 border-t border-stone-100">
+          <PreviewRow label="Customer" value={row.customer} />
+          <PreviewRow label="Order" value={row.orderNumber ? <span className="font-mono">#{row.orderNumber}</span> : "—"} />
+          <PreviewRow label="Created" value={format(new Date(row.createdAt), "dd MMM yyyy")} />
+          <PreviewRow label="Time" value={format(new Date(row.createdAt), "hh:mm a")} />
+        </div>
+
+        <div className="flex items-center gap-2 pt-4 border-t border-stone-100">
           <CaseActionButton caseId={caseId} type={row.type} status={row.status} />
-          <Button onClick={onOpenFull} size="sm"
-            className="ml-auto bg-[#0D4F4C] hover:bg-[#0A3F3D] text-white">
-            Open case <ExternalLink className="h-3.5 w-3.5 ml-1" />
+          <Button onClick={onOpenFull} size="sm" variant="outline"
+            className="ml-auto border-stone-300 hover:bg-stone-50">
+            Open <ArrowRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
       </div>
@@ -465,9 +479,9 @@ function PreviewPane({ caseId, row, onClose, onOpenFull }: {
 
 function PreviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-start gap-3">
-      <div className="text-[10px] uppercase tracking-[0.14em] text-stone-500 pt-0.5">{label}</div>
-      <div className="text-[12px] text-[#1C1917] dark:text-foreground min-w-0">{value}</div>
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.14em] text-stone-500">{label}</div>
+      <div className="text-[12px] text-[#1C1917] dark:text-foreground mt-0.5 truncate">{value}</div>
     </div>
   );
 }
