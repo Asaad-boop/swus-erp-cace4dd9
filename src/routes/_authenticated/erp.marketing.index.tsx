@@ -558,37 +558,6 @@ function HeroKpi({
   );
 }
 
-function SmallStat({
-  label,
-  value,
-  sub,
-  tone = "neutral",
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "good" | "bad" | "neutral";
-  icon?: React.ComponentType<{ className?: string }>;
-}) {
-  const toneCls =
-    tone === "good"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : tone === "bad"
-        ? "text-rose-600 dark:text-rose-400"
-        : "text-foreground";
-  return (
-    <Card className="p-4">
-      <div className="text-xs text-muted-foreground mb-1.5">{label}</div>
-      <div className={cn("text-xl font-bold tabular-nums flex items-center gap-1.5", toneCls)}>
-        {Icon && <Icon className="h-4 w-4" />}
-        {value}
-      </div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-    </Card>
-  );
-}
-
 function StatusBadge({ row }: { row: PerfRow }) {
   const s = (row.effective_status ?? row.status ?? "").toUpperCase();
   if (s === "ACTIVE")
