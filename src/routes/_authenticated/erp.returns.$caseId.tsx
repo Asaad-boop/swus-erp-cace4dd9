@@ -54,25 +54,62 @@ function CaseDetailPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-[1300px] mx-auto space-y-4 bg-[#FBF8F3] dark:bg-background min-h-screen">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/erp/returns" })}>
-          <ArrowLeft className="h-4 w-4 mr-1" />Back
-        </Button>
-        <div className="flex items-center gap-2">
-          {isExchange
-            ? <Badge variant="outline" className="bg-[#D4A574]/15 text-[#8B6F3D] border-[#D4A574]/40"><Repeat className="h-3 w-3 mr-1" />Exchange</Badge>
-            : <Badge variant="outline" className="bg-[#0D4F4C]/10 text-[#0D4F4C] border-[#0D4F4C]/30"><RotateCcw className="h-3 w-3 mr-1" />Return</Badge>}
-          <span className="font-mono text-sm font-semibold">{c.case_number ?? caseId.slice(0, 8)}</span>
-          <ReturnStatusBadge status={status} />
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
-          {status !== "closed" && status !== "completed" && (
-            <Button variant="outline" size="sm" onClick={closeCase}>Close Case</Button>
-          )}
+    <div className="bg-[#F7F5F0] dark:bg-background min-h-screen pb-24 md:pb-6">
+      {/* Sticky breadcrumb bar */}
+      <div className="bg-white/80 dark:bg-card/40 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-20">
+        <div className="max-w-[1300px] mx-auto px-4 md:px-6 py-2.5 flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/erp/returns" })} className="h-8 px-2 text-stone-600 hover:bg-stone-100">
+            <ArrowLeft className="h-4 w-4 mr-1" />All cases
+          </Button>
+          <span className="text-stone-300">/</span>
+          <span className="font-mono text-xs text-stone-700">{c.case_number ?? caseId.slice(0, 8)}</span>
+          <div className="ml-auto hidden md:flex items-center gap-2">
+            <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
+            {status !== "closed" && status !== "completed" && (
+              <Button variant="outline" size="sm" onClick={closeCase}>Close Case</Button>
+            )}
+          </div>
         </div>
       </div>
+
+      <div className="p-4 md:p-6 max-w-[1300px] mx-auto space-y-4">
+        {/* Hero summary card */}
+        <section className="rounded-2xl overflow-hidden bg-white dark:bg-card border border-stone-200 shadow-[0_4px_14px_-8px_rgba(0,0,0,0.08)]">
+          <div className="h-1.5" style={{ background: isExchange ? "#B8893F" : "#0D4F4C" }} />
+          <div className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start"
+               style={{ background: isExchange ? "#B8893F0A" : "#0D4F4C0A" }}>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white"
+                  style={{ background: isExchange ? "#B8893F" : "#0D4F4C" }}>
+                  {isExchange ? <Repeat className="h-3 w-3" /> : <RotateCcw className="h-3 w-3" />}
+                  {isExchange ? "Exchange" : "Return"}
+                </span>
+                <ReturnStatusBadge status={status} />
+                <span className="text-[11px] text-stone-500">
+                  Created {format(new Date(c.created_at), "dd MMM yyyy, hh:mm a")}
+                </span>
+              </div>
+              <h1 className="mt-2 text-[28px] md:text-[34px] leading-tight tracking-tight font-semibold text-[#1C1917]"
+                  style={{ fontFamily: '"Instrument Serif", ui-serif, Georgia, serif' }}>
+                Case <span className="font-mono text-[24px] md:text-[28px] text-stone-700">{c.case_number ?? caseId.slice(0, 8)}</span>
+              </h1>
+              <div className="mt-2 text-sm text-stone-600 truncate">
+                {c.product?.title ?? "—"}
+                {c.order?.shipping_name && <> · {c.order.shipping_name}</>}
+              </div>
+            </div>
+            <div className="md:text-right">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500 font-medium">
+                {isExchange ? "Exchange Charge" : "Refund Amount"}
+              </div>
+              <div className="mt-1 text-[40px] md:text-[48px] leading-none tracking-tight font-semibold tabular-nums"
+                   style={{ color: isExchange ? "#B8893F" : "#0D4F4C" }}>
+                ৳{bdt(Number(isExchange ? c.exchange_charge_collected ?? 0 : c.refund_amount ?? 0))}
+              </div>
+            </div>
+          </div>
+        </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* LEFT — Timeline + QC + Product */}
@@ -199,6 +236,15 @@ function CaseDetailPage() {
             </Section>
           )}
         </div>
+      </div>
+      </div>
+
+      {/* Mobile sticky action bar */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-stone-200 p-3 flex items-center gap-2 shadow-[0_-4px_14px_-4px_rgba(0,0,0,0.08)]">
+        <CaseActionButton caseId={caseId} type={isExchange ? "exchange" : "return"} status={status} size="default" />
+        {status !== "closed" && status !== "completed" && (
+          <Button variant="outline" size="sm" onClick={closeCase} className="ml-auto">Close</Button>
+        )}
       </div>
     </div>
   );
