@@ -8,6 +8,17 @@ async function assertAccess(supabase: any, userId: string) {
   if (!data) throw new Error("HR access required");
 }
 
+/** Allow if caller is the employee themselves (self-service), else require HR access. */
+async function assertSelfOrAccess(supabase: any, userId: string, employeeId: string) {
+  const { data: emp } = await supabase
+    .from("hr_employees")
+    .select("user_id")
+    .eq("id", employeeId)
+    .maybeSingle();
+  if (emp?.user_id && emp.user_id === userId) return;
+  await assertAccess(supabase, userId);
+}
+
 /** Resolve today's active shift for an employee. */
 async function getActiveShift(supabase: any, employeeId: string, dateStr: string) {
   const { data } = await supabase
