@@ -3,8 +3,37 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format, subDays } from "date-fns";
-import { ArrowLeft, Loader2, Plus, Trash2, Package, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Plus,
+  Trash2,
+  Package,
+  Search,
+  Wallet,
+  ShoppingBag,
+  Receipt,
+  Target,
+  TrendingUp,
+  Activity,
+  ExternalLink,
+  Eye,
+  MousePointerClick,
+  CheckCircle2,
+  Truck,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RTooltip,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import {
   getCampaignDetail,
   listCampaignProducts,
@@ -30,11 +60,24 @@ export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/$c
 
 const RANGES: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
-function fmtMoney(n: number) {
-  return `BDT ${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+function fmtCurrency(n: number, ccy = "USD") {
+  const symbol = ccy === "BDT" ? "৳" : ccy === "USD" ? "$" : `${ccy} `;
+  return `${symbol}${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+function fmtBDT(n: number) {
+  return `৳${Math.round(Number(n) || 0).toLocaleString()}`;
 }
 function fmtNum(n: number) {
-  return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K`;
+  return Number(n || 0).toLocaleString();
+}
+function fmtPct(n: number | null, digits = 1) {
+  if (n == null || !isFinite(n)) return "—";
+  return `${n.toFixed(digits)}%`;
+}
+function fmtMult(n: number | null) {
+  if (n == null || !isFinite(n)) return "—";
+  return `${n.toFixed(2)}×`;
 }
 
 function CampaignDetailPage() {
@@ -53,7 +96,11 @@ function CampaignDetailPage() {
   });
 
   if (q.isLoading) {
-    return <div className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Loading…</div>;
+    return (
+      <div className="py-20 text-center text-sm text-muted-foreground">
+        <Loader2 className="h-5 w-5 inline animate-spin mr-2" /> Loading campaign…
+      </div>
+    );
   }
   if (q.isError || !q.data) {
     return <div className="py-10 text-center text-sm text-red-600">{(q.error as any)?.message ?? "Campaign load failed"}</div>;
@@ -61,93 +108,354 @@ function CampaignDetailPage() {
   const d = q.data;
   const c: any = d.campaign;
   const t: any = d.totals;
-  const maxSpend = Math.max(...d.series.map((s) => s.spend), 1);
   const brandId: string | null = c.brand_id ?? null;
+  const ccy: string = c.mkt_ad_accounts?.currency ?? "USD";
+  const status = (c.effective_status ?? c.status ?? "—").toString().toUpperCase();
+  const isActive = status === "ACTIVE";
+
+  const ctr = t.impressions > 0 ? (t.clicks / t.impressions) * 100 : null;
+  const cpc = t.clicks > 0 ? t.spend / t.clicks : null;
+  const cpm = t.impressions > 0 ? (t.spend / t.impressions) * 1000 : null;
+  const metaCpp = t.meta_purchases > 0 ? t.spend / t.meta_purchases : null;
+  const metaRoas = t.spend > 0 ? t.meta_purchase_value / t.spend : null;
+  // True ROAS uses delivered_revenue (BDT) vs spend (account currency) — only show if same currency or skip
+  const realCpp = t.confirmed_orders > 0 && t.spend > 0 ? t.spend / t.confirmed_orders : null;
+  const returnRate =
+    t.delivered_orders + t.return_orders > 0
+      ? (t.return_orders / (t.delivered_orders + t.return_orders)) * 100
+      : null;
+
+  // Funnel
+  const funnel = [
+    { label: "Impressions", value: t.impressions, icon: Eye, color: "bg-sky-500" },
+    { label: "Clicks", value: t.clicks, icon: MousePointerClick, color: "bg-indigo-500" },
+    { label: "Meta Purchases", value: t.meta_purchases, icon: ShoppingBag, color: "bg-violet-500" },
+    { label: "Confirmed", value: t.confirmed_orders, icon: CheckCircle2, color: "bg-amber-500" },
+    { label: "Delivered", value: t.delivered_orders, icon: Truck, color: "bg-emerald-500" },
+  ];
+  const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-1">
-            <Link to="/erp/marketing/campaigns"><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Campaigns</Link>
+      {/* ── Header ─────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[#1877F2]/5 via-background to-background p-5">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#1877F2]/10 blur-3xl" aria-hidden />
+        <div className="relative">
+          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground hover:text-foreground">
+            <Link to="/erp/marketing/campaigns">
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> All Campaigns
+            </Link>
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">{c.name}</h1>
-          <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-            <Badge variant="outline">{c.mkt_ad_accounts?.name}</Badge>
-            <Badge variant="outline">{c.objective ?? "—"}</Badge>
-            <Badge>{c.effective_status ?? c.status ?? "—"}</Badge>
-            <span className="font-mono text-xs">{c.external_id}</span>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold tracking-tight truncate">{c.name}</h1>
+              <div className="text-sm text-muted-foreground mt-1.5 flex items-center gap-2 flex-wrap">
+                {isActive ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-0 gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">{status}</Badge>
+                )}
+                <Badge variant="outline" className="gap-1.5">
+                  <Activity className="h-3 w-3" />
+                  {c.mkt_ad_accounts?.name ?? "—"}
+                </Badge>
+                <Badge variant="outline">{c.objective ?? "—"}</Badge>
+                <Badge variant="outline">{ccy}</Badge>
+                <span className="font-mono text-[11px] text-muted-foreground">ID {c.external_id}</span>
+              </div>
+            </div>
+            <Select value={rangeKey} onValueChange={setRangeKey}>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <Select value={rangeKey} onValueChange={setRangeKey}>
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Spend" value={fmtMoney(t.spend)} />
-        <Kpi label="Meta Purchases" value={fmtNum(t.meta_purchases)} hint={`Rev ${fmtMoney(t.meta_purchase_value)}`} />
-        <Kpi label="Confirmed Orders" value={fmtNum(t.confirmed_orders)} hint={`Rev ${fmtMoney(t.confirmed_revenue)}`} />
-        <Kpi label="Delivered Orders" value={fmtNum(t.delivered_orders)} hint={`Rev ${fmtMoney(t.delivered_revenue)} · Ret ${t.return_orders}`} />
+      {/* ── KPI grid ─────────────────────────────── */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <Kpi
+          icon={Wallet}
+          label="Spend"
+          value={fmtCurrency(t.spend, ccy)}
+          sub={t.impressions > 0 ? `CPM ${cpm != null ? fmtCurrency(cpm, ccy) : "—"}` : undefined}
+          tone="sky"
+        />
+        <Kpi
+          icon={Eye}
+          label="Reach"
+          value={fmtNum(t.impressions)}
+          sub={`Clicks ${fmtNum(t.clicks)} · CTR ${fmtPct(ctr)}`}
+          tone="indigo"
+        />
+        <Kpi
+          icon={ShoppingBag}
+          label="Meta Purchases"
+          value={fmtNum(t.meta_purchases)}
+          sub={metaCpp != null ? `CPP ${fmtCurrency(metaCpp, ccy)}` : "—"}
+          tone="violet"
+        />
+        <Kpi
+          icon={Target}
+          label="Meta ROAS"
+          value={fmtMult(metaRoas)}
+          sub={t.meta_purchase_value > 0 ? `Rev ${fmtCurrency(t.meta_purchase_value, ccy)}` : "—"}
+          tone={
+            metaRoas == null ? "indigo" : metaRoas >= 2 ? "emerald" : metaRoas >= 1 ? "amber" : "rose"
+          }
+          emphasize
+        />
+        <Kpi
+          icon={CheckCircle2}
+          label="Confirmed"
+          value={fmtNum(t.confirmed_orders)}
+          sub={`Rev ${fmtBDT(t.confirmed_revenue)}`}
+          tone="amber"
+        />
+        <Kpi
+          icon={Truck}
+          label="Delivered"
+          value={fmtNum(t.delivered_orders)}
+          sub={`Rev ${fmtBDT(t.delivered_revenue)}${t.return_orders ? ` · ${t.return_orders} returns` : ""}`}
+          tone="emerald"
+          emphasize
+        />
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Daily Spend</CardTitle></CardHeader>
-        <CardContent>
-          {d.series.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6 text-center">No insight data in this range.</div>
-          ) : (
-            <div className="flex items-end gap-1 h-32">
-              {d.series.map((s) => (
-                <div key={s.date} className="flex-1 flex flex-col items-center gap-1" title={`${s.date} · ${fmtMoney(s.spend)}`}>
-                  <div className="w-full bg-primary/80 rounded-t" style={{ height: `${Math.max(2, (s.spend / maxSpend) * 100)}%` }} />
+      {/* ── Chart + Funnel ───────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2 rounded-2xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-2 border-b border-gray-100">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[#1877F2]" />
+              Daily Spend &amp; Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-72 pt-4">
+            {d.series.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">
+                No insight data in this range.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={d.series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1877F2" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#1877F2" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString())}
+                  />
+                  <RTooltip
+                    contentStyle={{
+                      background: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: any, name: any) => [fmtCurrency(Number(v), ccy), name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Area
+                    type="monotone"
+                    dataKey="spend"
+                    name="Spend"
+                    stroke="#1877F2"
+                    strokeWidth={2}
+                    fill="url(#spendGrad)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="meta_purchase_value"
+                    name="Meta Revenue"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="url(#revGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <CardHeader className="pb-2 border-b border-gray-100">
+            <CardTitle className="text-sm font-semibold">Conversion Funnel</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3">
+            {funnel.map((f, i) => {
+              const pct = (f.value / funnelMax) * 100;
+              const prev = i > 0 ? funnel[i - 1].value : null;
+              const dropPct = prev && prev > 0 ? (f.value / prev) * 100 : null;
+              return (
+                <div key={f.label}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <f.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      {f.label}
+                    </span>
+                    <span className="tabular-nums">
+                      <span className="font-semibold">{fmtNum(f.value)}</span>
+                      {dropPct != null && (
+                        <span
+                          className={cn(
+                            "ml-1.5 text-[10px]",
+                            dropPct < 5
+                              ? "text-rose-600"
+                              : dropPct < 30
+                                ? "text-amber-600"
+                                : "text-emerald-600",
+                          )}
+                        >
+                          {dropPct.toFixed(1)}%
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn("h-full transition-all rounded-full", f.color)}
+                      style={{ width: `${Math.max(2, pct)}%` }}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground mt-2 flex justify-between">
-            <span>{d.from}</span><span>{d.to}</span>
-          </div>
-        </CardContent>
-      </Card>
+              );
+            })}
+            {(returnRate != null || realCpp != null) && (
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-2 text-xs">
+                {realCpp != null && (
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Real CPP
+                    </div>
+                    <div className="font-semibold tabular-nums">{fmtCurrency(realCpp, ccy)}</div>
+                  </div>
+                )}
+                {returnRate != null && (
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Return Rate
+                    </div>
+                    <div
+                      className={cn(
+                        "font-semibold tabular-nums",
+                        returnRate > 30 ? "text-rose-600" : returnRate > 15 ? "text-amber-600" : "text-emerald-600",
+                      )}
+                    >
+                      {fmtPct(returnRate)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Adsets ({d.adsets.length})</CardTitle></CardHeader>
+      {/* ── Adsets ─────────────────────────────── */}
+      <Card className="rounded-2xl border-gray-100 shadow-sm">
+        <CardHeader className="pb-2 border-b border-gray-100">
+          <CardTitle className="text-sm font-semibold flex items-center justify-between">
+            <span>Adsets · {d.adsets.length}</span>
+            {t.spend > 0 && (
+              <span className="text-[11px] font-normal text-muted-foreground">
+                share of campaign spend
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           {d.adsets.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No adsets synced.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">No adsets synced.</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Adset</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Spend</TableHead>
-                  <TableHead className="text-right">Impr.</TableHead>
-                  <TableHead className="text-right">Clicks</TableHead>
-                  <TableHead className="text-right">Meta Pur.</TableHead>
-                  <TableHead className="text-right">Meta Rev.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {d.adsets.map((a: any) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.name}</TableCell>
-                    <TableCell><Badge variant="outline">{a.effective_status ?? a.status ?? "—"}</Badge></TableCell>
-                    <TableCell className="text-right">{fmtMoney(a.spend)}</TableCell>
-                    <TableCell className="text-right">{fmtNum(a.impressions)}</TableCell>
-                    <TableCell className="text-right">{fmtNum(a.clicks)}</TableCell>
-                    <TableCell className="text-right">{fmtNum(a.meta_purchases)}</TableCell>
-                    <TableCell className="text-right">{fmtMoney(a.meta_purchase_value)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="divide-y divide-gray-100">
+              {[...d.adsets]
+                .sort((a: any, b: any) => (b.spend ?? 0) - (a.spend ?? 0))
+                .map((a: any) => {
+                  const share = t.spend > 0 ? (a.spend / t.spend) * 100 : 0;
+                  const aCtr = a.impressions > 0 ? (a.clicks / a.impressions) * 100 : null;
+                  const aCpp = a.meta_purchases > 0 ? a.spend / a.meta_purchases : null;
+                  const aRoas = a.spend > 0 ? a.meta_purchase_value / a.spend : null;
+                  const aStatus = (a.effective_status ?? a.status ?? "").toUpperCase();
+                  const aActive = aStatus === "ACTIVE";
+                  return (
+                    <div key={a.id} className="px-4 py-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span
+                          className={cn(
+                            "h-2 w-2 rounded-full shrink-0",
+                            aActive ? "bg-emerald-500" : "bg-muted-foreground/40",
+                          )}
+                        />
+                        <div className="font-medium text-sm truncate flex-1">{a.name}</div>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] px-1.5 py-0 h-4",
+                            aActive && "border-emerald-500/30 text-emerald-700",
+                          )}
+                        >
+                          {aStatus || "—"}
+                        </Badge>
+                        {a.daily_budget != null && (
+                          <span className="text-[11px] text-muted-foreground tabular-nums">
+                            Budget {fmtCurrency(Number(a.daily_budget) / 100, ccy)}/day
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+                        <AdsetStat label="Spend" value={fmtCurrency(a.spend, ccy)} />
+                        <AdsetStat label="Impr." value={fmtNum(a.impressions)} />
+                        <AdsetStat label="Clicks" value={fmtNum(a.clicks)} sub={`CTR ${fmtPct(aCtr)}`} />
+                        <AdsetStat label="Meta Pur." value={fmtNum(a.meta_purchases)} sub={aCpp != null ? `CPP ${fmtCurrency(aCpp, ccy)}` : "—"} />
+                        <AdsetStat label="Meta Rev." value={fmtCurrency(a.meta_purchase_value, ccy)} />
+                        <AdsetStat
+                          label="Meta ROAS"
+                          value={fmtMult(aRoas)}
+                          valueClass={
+                            aRoas == null
+                              ? ""
+                              : aRoas >= 2
+                                ? "text-emerald-600"
+                                : aRoas >= 1
+                                  ? "text-amber-600"
+                                  : "text-rose-600"
+                          }
+                        />
+                      </div>
+                      {t.spend > 0 && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="relative h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full bg-[#1877F2] rounded-full"
+                              style={{ width: `${Math.min(100, share)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground tabular-nums w-10 text-right">
+                            {share.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -157,15 +465,72 @@ function CampaignDetailPage() {
   );
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = "indigo",
+  emphasize = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "indigo" | "sky" | "violet" | "amber" | "emerald" | "rose";
+  emphasize?: boolean;
+}) {
+  const toneCls: Record<string, { chip: string; value: string; bar: string }> = {
+    indigo: { chip: "bg-indigo-500/10 text-indigo-600 ring-indigo-500/20", value: "text-foreground", bar: "from-indigo-500/60 to-indigo-500/0" },
+    sky: { chip: "bg-sky-500/10 text-sky-600 ring-sky-500/20", value: "text-foreground", bar: "from-sky-500/60 to-sky-500/0" },
+    violet: { chip: "bg-violet-500/10 text-violet-600 ring-violet-500/20", value: "text-foreground", bar: "from-violet-500/60 to-violet-500/0" },
+    amber: { chip: "bg-amber-500/10 text-amber-600 ring-amber-500/20", value: "text-amber-600", bar: "from-amber-500/60 to-amber-500/0" },
+    emerald: { chip: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20", value: "text-emerald-600", bar: "from-emerald-500/60 to-emerald-500/0" },
+    rose: { chip: "bg-rose-500/10 text-rose-600 ring-rose-500/20", value: "text-rose-600", bar: "from-rose-500/60 to-rose-500/0" },
+  };
+  const t = toneCls[tone];
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground uppercase tracking-wide">{label}</div>
-        <div className="text-xl font-semibold mt-1">{value}</div>
-        {hint ? <div className="text-xs text-muted-foreground mt-1">{hint}</div> : null}
-      </CardContent>
+    <Card className="relative overflow-hidden p-4 transition-all hover:shadow-md hover:-translate-y-px">
+      <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r", t.bar)} />
+      <div className="flex items-center gap-2 mb-2">
+        <div className={cn("grid h-7 w-7 place-items-center rounded-lg ring-1", t.chip)}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
+          {label}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "font-bold tracking-tight tabular-nums leading-none truncate",
+          emphasize ? "text-[26px]" : "text-2xl",
+          emphasize ? t.value : "text-foreground",
+        )}
+      >
+        {value}
+      </div>
+      {sub && <div className="text-[11px] text-muted-foreground mt-1.5 truncate">{sub}</div>}
     </Card>
+  );
+}
+
+function AdsetStat({
+  label,
+  value,
+  sub,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={cn("text-sm font-semibold tabular-nums mt-0.5 truncate", valueClass)}>{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground/80 truncate">{sub}</div>}
+    </div>
   );
 }
 
@@ -253,7 +618,7 @@ function LinkedProductsCard({ campaignId, brandId }: { campaignId: string; brand
                   <TableCell className="text-xs font-mono text-muted-foreground">{r.products?.sku ?? "—"}</TableCell>
                   <TableCell className="text-right">{r.products?.price ? `BDT ${Number(r.products.price).toLocaleString()}` : "—"}</TableCell>
                   <TableCell className="text-right font-medium">
-                    {Number(r.allocated_meta_spend ?? 0) > 0 ? fmtMoney(Number(r.allocated_meta_spend)) : "—"}
+                    {Number(r.allocated_meta_spend ?? 0) > 0 ? fmtBDT(Number(r.allocated_meta_spend)) : "—"}
                   </TableCell>
                   <TableCell>
                     <Input
