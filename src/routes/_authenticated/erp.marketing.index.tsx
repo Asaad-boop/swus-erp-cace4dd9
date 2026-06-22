@@ -55,13 +55,10 @@ import { syncBrandInsightsRange } from "@/lib/erp/marketing/meta.functions";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import {
   Activity,
-  Eye,
-  MousePointerClick,
   ShoppingBag,
   Wallet,
   TrendingUp,
   TrendingDown,
-  Minus,
   XCircle,
   CheckCircle2,
   Search,
