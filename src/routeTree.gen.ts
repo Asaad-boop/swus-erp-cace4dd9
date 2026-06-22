@@ -43,6 +43,7 @@ import { Route as AuthenticatedErpReturnsIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedErpReconciliationIndexRouteImport } from './routes/_authenticated/erp.reconciliation.index'
 import { Route as AuthenticatedErpPurchaseOrdersIndexRouteImport } from './routes/_authenticated/erp.purchase-orders.index'
 import { Route as AuthenticatedErpOrdersIndexRouteImport } from './routes/_authenticated/erp.orders.index'
+import { Route as AuthenticatedErpMarketingIndexRouteImport } from './routes/_authenticated/erp.marketing.index'
 import { Route as AuthenticatedErpImportsIndexRouteImport } from './routes/_authenticated/erp.imports.index'
 import { Route as AuthenticatedErpHrIndexRouteImport } from './routes/_authenticated/erp.hr.index'
 import { Route as AuthenticatedErpFinanceIndexRouteImport } from './routes/_authenticated/erp.finance.index'
@@ -306,6 +307,12 @@ const AuthenticatedErpOrdersIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
+const AuthenticatedErpMarketingIndexRoute =
+  AuthenticatedErpMarketingIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
 const AuthenticatedErpImportsIndexRoute =
   AuthenticatedErpImportsIndexRouteImport.update({
@@ -862,6 +869,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr/': typeof AuthenticatedErpHrIndexRoute
   '/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
+  '/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
@@ -892,7 +900,6 @@ export interface FileRoutesByTo {
   '/erp/dispatch': typeof AuthenticatedErpDispatchRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
-  '/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -963,6 +970,7 @@ export interface FileRoutesByTo {
   '/erp/finance': typeof AuthenticatedErpFinanceIndexRoute
   '/erp/hr': typeof AuthenticatedErpHrIndexRoute
   '/erp/imports': typeof AuthenticatedErpImportsIndexRoute
+  '/erp/marketing': typeof AuthenticatedErpMarketingIndexRoute
   '/erp/orders': typeof AuthenticatedErpOrdersIndexRoute
   '/erp/purchase-orders': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationIndexRoute
@@ -1078,6 +1086,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/': typeof AuthenticatedErpFinanceIndexRoute
   '/_authenticated/erp/hr/': typeof AuthenticatedErpHrIndexRoute
   '/_authenticated/erp/imports/': typeof AuthenticatedErpImportsIndexRoute
+  '/_authenticated/erp/marketing/': typeof AuthenticatedErpMarketingIndexRoute
   '/_authenticated/erp/orders/': typeof AuthenticatedErpOrdersIndexRoute
   '/_authenticated/erp/purchase-orders/': typeof AuthenticatedErpPurchaseOrdersIndexRoute
   '/_authenticated/erp/reconciliation/': typeof AuthenticatedErpReconciliationIndexRoute
@@ -1193,6 +1202,7 @@ export interface FileRouteTypes {
     | '/erp/finance/'
     | '/erp/hr/'
     | '/erp/imports/'
+    | '/erp/marketing/'
     | '/erp/orders/'
     | '/erp/purchase-orders/'
     | '/erp/reconciliation/'
@@ -1223,7 +1233,6 @@ export interface FileRouteTypes {
     | '/erp/dispatch'
     | '/erp/inventory'
     | '/erp/inventory-reports'
-    | '/erp/marketing'
     | '/erp/reorder-queue'
     | '/erp/settings'
     | '/erp/suppliers'
@@ -1294,6 +1303,7 @@ export interface FileRouteTypes {
     | '/erp/finance'
     | '/erp/hr'
     | '/erp/imports'
+    | '/erp/marketing'
     | '/erp/orders'
     | '/erp/purchase-orders'
     | '/erp/reconciliation'
@@ -1408,6 +1418,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/finance/'
     | '/_authenticated/erp/hr/'
     | '/_authenticated/erp/imports/'
+    | '/_authenticated/erp/marketing/'
     | '/_authenticated/erp/orders/'
     | '/_authenticated/erp/purchase-orders/'
     | '/_authenticated/erp/reconciliation/'
@@ -1682,6 +1693,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/orders/'
       preLoaderRoute: typeof AuthenticatedErpOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
+    '/_authenticated/erp/marketing/': {
+      id: '/_authenticated/erp/marketing/'
+      path: '/'
+      fullPath: '/erp/marketing/'
+      preLoaderRoute: typeof AuthenticatedErpMarketingIndexRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
     }
     '/_authenticated/erp/imports/': {
       id: '/_authenticated/erp/imports/'
@@ -2440,6 +2458,7 @@ interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingRollupRoute: typeof AuthenticatedErpMarketingRollupRoute
   AuthenticatedErpMarketingSkuPnlRoute: typeof AuthenticatedErpMarketingSkuPnlRoute
   AuthenticatedErpMarketingSyncRoute: typeof AuthenticatedErpMarketingSyncRoute
+  AuthenticatedErpMarketingIndexRoute: typeof AuthenticatedErpMarketingIndexRoute
   AuthenticatedErpMarketingCampaignsCampaignIdRoute: typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   AuthenticatedErpMarketingCampaignsIndexRoute: typeof AuthenticatedErpMarketingCampaignsIndexRoute
 }
@@ -2457,6 +2476,7 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
     AuthenticatedErpMarketingRollupRoute: AuthenticatedErpMarketingRollupRoute,
     AuthenticatedErpMarketingSkuPnlRoute: AuthenticatedErpMarketingSkuPnlRoute,
     AuthenticatedErpMarketingSyncRoute: AuthenticatedErpMarketingSyncRoute,
+    AuthenticatedErpMarketingIndexRoute: AuthenticatedErpMarketingIndexRoute,
     AuthenticatedErpMarketingCampaignsCampaignIdRoute:
       AuthenticatedErpMarketingCampaignsCampaignIdRoute,
     AuthenticatedErpMarketingCampaignsIndexRoute:
