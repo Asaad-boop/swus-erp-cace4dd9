@@ -364,6 +364,7 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
       <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">🟢 On track</Badge>
     );
   const projected = row.projected_monthly_bdt || row.spent_today_bdt * 30;
+  const projectedUsd = row.projected_monthly_usd || row.spent_today_usd * 30;
   const hasLifetime = row.lifetime_budget_bdt != null && row.lifetime_budget_bdt > 0;
   const lifetimePct = Math.min(100, row.pct_lifetime ?? 0);
   return (
@@ -374,11 +375,15 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
       </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
         <span>
-          Budget: <span className="text-foreground">{fmtBDT(row.daily_budget_bdt)}</span>/day
+          Budget:{" "}
+          <span className="text-foreground">{fmtBDT(row.daily_budget_bdt)}</span>
+          <span className="text-muted-foreground/70"> ({fmtUSD(row.daily_budget_usd)})</span>/day
         </span>
         <span>·</span>
         <span>
-          Spent: <span className="text-foreground">{fmtBDT(row.spent_today_bdt)}</span>
+          Spent:{" "}
+          <span className="text-foreground">{fmtBDT(row.spent_today_bdt)}</span>
+          <span className="text-muted-foreground/70"> ({fmtUSD(row.spent_today_usd)})</span>
         </span>
         <span>·</span>
         <span className="ml-auto tabular-nums font-medium">{row.pct.toFixed(0)}%</span>
@@ -393,11 +398,15 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
         <div className="mt-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
             <span>
-              Lifetime: <span className="text-foreground">{fmtBDT(row.lifetime_budget_bdt!)}</span>
+              Lifetime:{" "}
+              <span className="text-foreground">{fmtBDT(row.lifetime_budget_bdt!)}</span>
+              <span className="text-muted-foreground/70"> ({fmtUSD(row.lifetime_budget_usd ?? 0)})</span>
             </span>
             <span>·</span>
             <span>
-              MTD: <span className="text-foreground">{fmtBDT(row.spent_this_month_bdt)}</span>
+              MTD:{" "}
+              <span className="text-foreground">{fmtBDT(row.spent_this_month_bdt)}</span>
+              <span className="text-muted-foreground/70"> ({fmtUSD(row.spent_this_month_usd)})</span>
             </span>
             <span className="ml-auto tabular-nums font-medium">{lifetimePct.toFixed(0)}%</span>
           </div>
@@ -407,7 +416,7 @@ function BudgetRow({ row }: { row: DashboardSummary["budgetPacing"][number] }) {
         </div>
       )}
       <div className="text-xs text-muted-foreground mt-1">
-        Projected ~ {fmtBDT(projected)}/month at current pace
+        Projected ~ {fmtBDT(projected)} ({fmtUSD(projectedUsd)})/month at current pace
       </div>
     </div>
   );
