@@ -513,7 +513,7 @@ function QuickLinks() {
     { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" /> },
     { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" /> },
     { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" /> },
-    { to: "/erp/finance/reconciliation", label: "Reconciliation", icon: <FileText className="size-4" /> },
+    { to: "/erp/finance/reconciliation", label: "Bank Reconciliation", icon: <FileText className="size-4" /> },
     { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" /> },
     { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" /> },
     { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" /> },
