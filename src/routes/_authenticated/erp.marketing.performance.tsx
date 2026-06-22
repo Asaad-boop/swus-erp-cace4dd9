@@ -43,7 +43,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
-import { DashboardOverview } from "@/components/erp/marketing/dashboard-overview";
 import { cn } from "@/lib/utils";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
@@ -75,7 +74,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/performance")({
-  component: PerformanceDashboard,
+  component: PerformanceTablePage,
 });
 
 // ─────────────────────────── helpers ───────────────────────────
@@ -149,7 +148,7 @@ const DECISIONS: Record<
 
 // ─────────────────────────── page ───────────────────────────
 
-function PerformanceDashboard() {
+function PerformanceTablePage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
@@ -382,8 +381,6 @@ function PerformanceDashboard() {
           </div>
         </div>
 
-        {/* DETAILS — Today strip, ROAS reality check, charts, budget pacing */}
-        {brandId && <DashboardOverview brandId={brandId} />}
 
         {/* Filter bar + view toggle */}
         <div className="flex flex-wrap items-center gap-2">
