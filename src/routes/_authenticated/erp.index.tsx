@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ShoppingCart, CheckCircle2, Truck, Wallet, Banknote, AlertTriangle, XCircle,
   TrendingUp, UserPlus, Repeat, RefreshCw, ArrowUpRight, ArrowDownRight,
-  Package, Boxes, Megaphone, Activity, Users, Sparkles, Calendar,
+  Package, Boxes, Megaphone, Activity, Users, Sparkles,
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
@@ -38,21 +39,11 @@ const compact = (n: number) =>
   : n >= 1e3 ? (n / 1e3).toFixed(1) + "k"
   : String(Math.round(n));
 
-type RangeKey = "today" | "yesterday" | "7d" | "30d" | "month";
-const RANGE_LABELS: Record<RangeKey, string> = {
-  today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
-  "30d": "Last 30 Days", month: "This Month",
-};
-function getRange(key: RangeKey): { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number } {
-  const now = new Date();
-  const start = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-  const end = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
-  let from: Date, to: Date;
-  if (key === "today") { from = start(now); to = end(now); }
-  else if (key === "yesterday") { const y = new Date(now); y.setDate(y.getDate()-1); from = start(y); to = end(y); }
-  else if (key === "7d") { from = start(new Date(now.getTime() - 6*86400e3)); to = end(now); }
-  else if (key === "30d") { from = start(new Date(now.getTime() - 29*86400e3)); to = end(now); }
-  else { from = start(new Date(now.getFullYear(), now.getMonth(), 1)); to = end(now); }
+function rangeFromMkt(v: MktRangeValue): { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number } {
+  const [fy, fm, fd] = v.from.split("-").map(Number);
+  const [ty, tm, td] = v.to.split("-").map(Number);
+  const from = new Date(fy, (fm ?? 1) - 1, fd ?? 1, 0, 0, 0, 0);
+  const to = new Date(ty, (tm ?? 1) - 1, td ?? 1, 23, 59, 59, 999);
   const ms = to.getTime() - from.getTime();
   const prevTo = new Date(from.getTime() - 1);
   const prevFrom = new Date(prevTo.getTime() - ms);
@@ -72,8 +63,8 @@ function DashboardPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const enabled = brandIds.length > 0;
-  const [rangeKey, setRangeKey] = useState<RangeKey>("today");
-  const range = useMemo(() => getRange(rangeKey), [rangeKey]);
+  const [mktRange, setMktRange] = useState<MktRangeValue>(() => buildPreset("today"));
+  const range = useMemo(() => rangeFromMkt(mktRange), [mktRange]);
   const [lastSync, setLastSync] = useState(new Date());
 
   // user greeting
@@ -125,20 +116,7 @@ function DashboardPage() {
               <Button size="sm" variant="secondary" onClick={refreshAll} className="gap-1.5">
                 <RefreshCw className="size-3.5" /> Refresh
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="secondary" className="gap-1.5">
-                    <Calendar className="size-3.5" /> {RANGE_LABELS[rangeKey]}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {(Object.keys(RANGE_LABELS) as RangeKey[]).map(k => (
-                    <DropdownMenuItem key={k} onClick={() => setRangeKey(k)}>
-                      {RANGE_LABELS[k]}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <DateRangePicker value={mktRange} onChange={setMktRange} className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
             </div>
           </div>
         </div>
@@ -147,7 +125,7 @@ function DashboardPage() {
       <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
-        <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={RANGE_LABELS[rangeKey]} />
+        <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
