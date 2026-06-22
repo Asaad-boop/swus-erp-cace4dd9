@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +37,8 @@ import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
 import { WebOrdersAnalytics } from "@/components/erp/orders/web-orders-analytics";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
+const DEFAULT_PAGE_SIZE = 25;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
 
 const searchSchema = z.object({
@@ -51,6 +53,7 @@ const searchSchema = z.object({
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
   page: fallback(z.number().int().min(1), 1).default(1),
+  pageSize: fallback(z.number().int().min(0).max(500), DEFAULT_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
 type WebOrdersSearch = z.infer<typeof searchSchema>;
 
