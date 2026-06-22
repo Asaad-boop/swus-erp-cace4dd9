@@ -21,6 +21,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
+import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
