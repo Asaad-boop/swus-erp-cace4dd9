@@ -560,7 +560,7 @@ function CourierCard({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Truck className="size-4 text-blue-600" /> Courier Status</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Truck className="size-5 text-blue-600" /> Courier Status</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {isLoading ? <Skeleton className="h-32" /> : Object.keys(data ?? {}).length === 0 ? (
           <p className="text-sm text-muted-foreground">No courier data yet.</p>
@@ -614,12 +614,12 @@ function CodOutstandingCard({ brandIds, enabled }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Banknote className="size-4 text-amber-600" /> COD Outstanding</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Banknote className="size-5 text-amber-600" /> COD Outstanding</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
-            <div className="text-2xl font-bold">{BDT(data?.amount ?? 0)}</div>
-            <div className="text-xs text-muted-foreground">{data?.count ?? 0} orders pending</div>
+            <div className="text-3xl font-bold tabular-nums">{BDT(data?.amount ?? 0)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{data?.count ?? 0} orders pending</div>
             {(data?.overdue ?? 0) > 0 && (
               <div className="mt-2 text-xs flex items-center gap-1.5 text-rose-600">
                 <span className="size-1.5 rounded-full bg-rose-500" />
@@ -652,7 +652,7 @@ function ReturnsCard({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Repeat className="size-4 text-amber-600" /> Returns & Exchanges</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Repeat className="size-5 text-amber-600" /> Returns & Exchanges</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
@@ -690,7 +690,7 @@ function ImportsCard({ brandIds, enabled }: { brandIds: string[]; enabled: boole
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Package className="size-4 text-violet-600" /> Import Status</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Package className="size-5 text-violet-600" /> Import Status</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : (
           <>
@@ -751,21 +751,21 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2">
-        <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Wallet className="size-4 text-emerald-600" /> Finance Snapshot</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Wallet className="size-5 text-emerald-600" /> Finance Snapshot</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {balances.map(b => (
-              <div key={b.label} className="rounded-lg border bg-card p-3">
-                <div className="text-xs text-muted-foreground flex items-center gap-1"><span>{b.icon}</span>{b.label}</div>
+              <div key={b.label} className="rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
+                <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><span className="text-base">{b.icon}</span>{b.label}</div>
                 {isLoading ? <Skeleton className="h-5 w-20 mt-1" /> :
-                  <div className="text-base font-semibold tabular-nums mt-0.5">{BDT(b.value)}</div>}
+                  <div className="text-lg font-bold tabular-nums mt-1">{BDT(b.value)}</div>}
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle className="text-sm">P&amp;L This Month</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg font-semibold">P&amp;L This Month</CardTitle></CardHeader>
         <CardContent className="space-y-1.5 text-sm">
           {isLoading ? <Skeleton className="h-32" /> : (<>
             <PLRow label="Revenue" v={data?.revenue ?? 0} />
@@ -806,7 +806,7 @@ function InventoryHealth({ brandIds, enabled }: { brandIds: string[]; enabled: b
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Boxes className="size-4 text-indigo-600" /> Inventory Health</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Boxes className="size-5 text-indigo-600" /> Inventory Health</CardTitle></CardHeader>
       <CardContent className="space-y-3 text-sm">
         {isLoading ? <Skeleton className="h-28" /> : (<>
           <div className="flex justify-between"><span className="text-muted-foreground">Stock Value</span><span className="font-semibold tabular-nums">{BDT(data?.value ?? 0)}</span></div>
@@ -832,7 +832,7 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm">Low Stock Products</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold">Low Stock Products</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No low stock alerts 🎉</p>
@@ -884,7 +884,7 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="size-4 text-pink-600" /> Marketing Snapshot</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Megaphone className="size-5 text-pink-600" /> Marketing Snapshot</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -935,7 +935,7 @@ function TopProducts({ brandIds, enabled, range }: { brandIds: string[]; enabled
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="size-4 text-amber-500" /> Top Products</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Sparkles className="size-5 text-amber-500" /> Top Products</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No sales yet.</p>
@@ -981,7 +981,7 @@ function TopCustomers({ brandIds, enabled, range }: { brandIds: string[]; enable
   });
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Users className="size-4 text-violet-600" /> Top Customers</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><Users className="size-5 text-violet-600" /> Top Customers</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No customers yet.</p>
@@ -1053,7 +1053,7 @@ function NeedsAttention({ brandIds, enabled }: { brandIds: string[]; enabled: bo
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="size-4 text-amber-600" /> Needs Attention</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base font-semibold flex items-center gap-2"><AlertTriangle className="size-5 text-amber-600" /> Needs Attention</CardTitle></CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-24" /> : (
           (data ?? []).filter(a => !dismissed.has(a.text)).length === 0 ? (
