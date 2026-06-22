@@ -26,7 +26,6 @@ const groups: NavGroup[] = [
     items: [
       { to: "/erp/orders/web", label: "Web Orders", icon: Globe },
       { to: "/erp/orders/new", label: "Create Order", icon: PlusCircle },
-      { to: "/erp/orders/list", label: "Order List", icon: ListOrdered },
     ],
   },
   {
@@ -38,7 +37,7 @@ const groups: NavGroup[] = [
       { to: "/erp/stocktake", label: "Stocktake", icon: ClipboardCheck },
       { to: "/erp/courier", label: "Courier", icon: Truck },
       { to: "/erp/returns", label: "Returns & Exchanges", icon: RotateCcw },
-      { to: "/erp/reconciliation", label: "Reconciliation", icon: FileSpreadsheet },
+      { to: "/erp/reconciliation", label: "COD Reconciliation (Pathao)", icon: FileSpreadsheet },
       { to: "/erp/suppliers", label: "Suppliers", icon: Users },
       { to: "/erp/imports", label: "Imports", icon: Container },
     ],
