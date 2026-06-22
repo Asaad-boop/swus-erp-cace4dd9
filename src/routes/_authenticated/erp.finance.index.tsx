@@ -237,29 +237,27 @@ function PnlStrip({ data, onDrill }: {
           <div
             className={cn(
               "relative md:col-span-4 p-5 border-r border-border/60 cursor-pointer transition overflow-hidden",
-              positive
-                ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/15"
-                : "bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:from-rose-500/15",
+              positive ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "bg-rose-500/5 hover:bg-rose-500/10",
             )}
             onClick={() => onDrill({ title: "Net profit — all transactions", type: "all" })}
             role="button"
           >
-            <div className={cn("absolute -right-10 -top-10 h-28 w-28 rounded-full blur-3xl", positive ? "bg-emerald-500/20" : "bg-rose-500/20")} aria-hidden />
+            <div className={cn("absolute left-0 top-0 h-full w-1", positive ? "bg-emerald-500" : "bg-rose-500")} aria-hidden />
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-                <Sparkles className="size-3.5" /> Net Profit
+                <Activity className="size-3.5" /> Net Profit
               </div>
               <Badge
                 variant="outline"
                 className={cn(
                   "text-[10px] font-semibold border-0",
-                  positive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+                  positive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400",
                 )}
               >
                 {pnl.margin.toFixed(1)}% margin
               </Badge>
             </div>
-            <div className={cn("relative mt-2 text-[32px] leading-none font-bold tabular-nums tracking-tight", positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+            <div className={cn("relative mt-3 text-[32px] leading-none font-bold tabular-nums tracking-tight", positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
               {positive ? "+" : ""}{fmtBdt(pnl.net)}
             </div>
             <div className="relative text-[11px] text-muted-foreground mt-1.5 flex items-center gap-2">
@@ -285,12 +283,12 @@ function PnlStrip({ data, onDrill }: {
             {items.map((it) => (
               <div
                 key={it.label}
-                className={cn("relative p-4 group", it.drill && "cursor-pointer hover:bg-muted/50 transition")}
+                className={cn("relative p-5 group", it.drill && "cursor-pointer hover:bg-muted/40 transition")}
                 onClick={it.drill ? () => onDrill(it.drill!) : undefined}
                 role={it.drill ? "button" : undefined}
               >
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{it.icon}{it.label}</div>
-                <div className={cn("mt-1.5 text-lg font-bold tabular-nums tracking-tight", it.color)}>{fmtBdt(it.value)}</div>
+                <div className={cn("mt-2.5 text-xl font-bold tabular-nums tracking-tight", it.color)}>{fmtBdt(it.value)}</div>
                 {it.drill && (
                   <ArrowRight className="absolute right-3 top-3 size-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition" />
                 )}
@@ -332,10 +330,10 @@ function WhereMoneyIs({ data }: { data: FinanceOverview }) {
 
   return (
     <Card className="border-border/60 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500" aria-hidden />
+      <div className="h-1 bg-sky-500" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <span className="rounded-md p-1 bg-sky-500/15 text-sky-600 dark:text-sky-400"><Wallet className="size-3.5" /></span>
+          <span className="rounded-md p-1 bg-sky-500/10 text-sky-600 dark:text-sky-400"><Wallet className="size-3.5" /></span>
           Where my money is
         </CardTitle>
       </CardHeader>
