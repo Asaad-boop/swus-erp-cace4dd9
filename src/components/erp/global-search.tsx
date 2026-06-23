@@ -103,11 +103,25 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
     staleTime: 30_000,
     queryFn: async () => {
       const like = `%${term}%`;
+      const isUuid = /^[0-9a-f-]{6,}$/i.test(term);
       const [ordersRes, productsRes, customersRes] = await Promise.all([
         applyBrandScope(
-          supabase.from("orders").select("id, shipping_name, shipping_phone, total, status"),
+          supabase.from("orders").select("id, invoice_no, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, total, status, created_at"),
           brandIds,
-        ).or(`shipping_name.ilike.${like},shipping_phone.ilike.${like}`).limit(5),
+        )
+          .or(
+            [
+              `shipping_name.ilike.${like}`,
+              `shipping_phone.ilike.${like}`,
+              `guest_name.ilike.${like}`,
+              `guest_phone.ilike.${like}`,
+              `shipping_city.ilike.${like}`,
+              `invoice_no.ilike.${like}`,
+              ...(isUuid ? [`id.eq.${term}`] : []),
+            ].join(","),
+          )
+          .order("created_at", { ascending: false })
+          .limit(50),
         applyBrandScope(
           supabase.from("products").select("id, title, sku, stock, image"),
           brandIds,
@@ -119,7 +133,7 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
           .limit(5),
       ]);
       return {
-        orders: (ordersRes.data ?? []) as Array<{ id: string; shipping_name: string | null; shipping_phone: string | null; total: number | null; status: string | null }>,
+        orders: (ordersRes.data ?? []) as Array<{ id: string; invoice_no: string | null; shipping_name: string | null; shipping_phone: string | null; guest_name: string | null; guest_phone: string | null; shipping_city: string | null; total: number | null; status: string | null; created_at: string | null }>,
         products: (productsRes.data ?? []) as Array<{ id: string; title: string; sku: string | null; stock: number | null; image: string | null }>,
         customers: (customersRes.data ?? []) as Array<{ customer_key: string; name: string | null; orders_count: number | null; lifetime_value: number | null }>,
       };
@@ -186,11 +200,17 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
             {data && data.orders.length > 0 && (
               <CommandGroup heading={`Orders (${data.orders.length})`}>
                 {data.orders.map((o) => (
-                  <CommandItem key={o.id} value={`o-${o.id}`} onSelect={() => go(`/erp/orders/list?q=${encodeURIComponent(o.shipping_phone || o.shipping_name || "")}`)}>
-                    <ShoppingCart className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="font-mono text-xs">#{o.id.slice(0, 8).toUpperCase()}</span>
-                    <span className="mx-2 truncate">· {o.shipping_name || "—"}</span>
-                    <span className="ml-auto flex items-center gap-2">
+                  <CommandItem key={o.id} value={`o-${o.id}`} onSelect={() => go(`/erp/orders/${o.id}`)}>
+                    <ShoppingCart className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
+                    <span className="font-mono text-xs shrink-0">#{o.invoice_no || o.id.slice(0, 8).toUpperCase()}</span>
+                    <span className="mx-2 truncate">
+                      · {o.shipping_name || o.guest_name || "—"}
+                      {(o.shipping_phone || o.guest_phone) && (
+                        <span className="text-muted-foreground"> · {o.shipping_phone || o.guest_phone}</span>
+                      )}
+                      {o.shipping_city && <span className="text-muted-foreground"> · {o.shipping_city}</span>}
+                    </span>
+                    <span className="ml-auto flex items-center gap-2 shrink-0">
                       <span className="text-xs">৳{Number(o.total ?? 0).toLocaleString()}</span>
                       {o.status && <Badge variant="outline" className="text-[10px]">{o.status}</Badge>}
                     </span>
