@@ -907,6 +907,7 @@ function OrderDetailsPage() {
       toast.success(`Marked as ${vars.status.replace(/_/g, " ")}`);
       qc.invalidateQueries({ queryKey: ["web-orders"] });
       invalidate();
+      navigate({ to: "/erp/orders/web", search: { tab: vars.status } as never });
     },
     onError: (e: Error) => toast.error(e.message),
   });
