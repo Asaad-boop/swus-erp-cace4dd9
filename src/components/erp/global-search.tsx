@@ -153,7 +153,7 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
     staleTime: 30_000,
     queryFn: async () => {
       const [itemsRes, histRes] = await Promise.all([
-        supabase.from("order_items").select("id, name, quantity, variant_label, image, price").eq("order_id", order.id),
+        supabase.from("order_items").select("id, name, quantity, variant_label, image, price, line_total").eq("order_id", order.id),
         supabase.from("order_status_history").select("id, from_status, to_status, reason, note, changed_by, created_at").eq("order_id", order.id).order("created_at", { ascending: false }).limit(20),
       ]);
       const rows = histRes.data ?? [];
@@ -164,47 +164,83 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
         (profs ?? []).forEach((p: any) => names.set(p.id, p.display_name ?? ""));
       }
       return {
-        items: (itemsRes.data ?? []) as Array<{ id: string; name: string; quantity: number; variant_label: string | null; image: string | null; price: number | null }>,
+        items: (itemsRes.data ?? []) as Array<{ id: string; name: string; quantity: number; variant_label: string | null; image: string | null; price: number | null; line_total: number | null }>,
         history: rows.map((r: any) => ({ ...r, staff: r.changed_by ? names.get(r.changed_by) || "Staff" : "System" })),
       };
     },
   });
   const customerName = order.shipping_name || order.guest_name || "—";
-  const phone = order.shipping_phone || order.guest_phone;
+  const phone = order.shipping_phone || order.guest_phone || order.alternate_phone;
+  const status = primaryStatus(order);
+  const products = order.items ?? [];
+  const remainingProducts = Math.max(0, products.length - 3);
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 mb-1.5 overflow-hidden">
+    <div className="rounded-lg border border-border/60 bg-card/70 mb-2 overflow-hidden shadow-sm">
       <div
         role="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+        className="cursor-pointer hover:bg-muted/40 transition-colors"
       >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-        <ShoppingCart className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="font-mono text-xs font-semibold shrink-0">#{order.invoice_no || order.id.slice(0, 8).toUpperCase()}</span>
-        <span className="text-sm truncate min-w-0 flex-1">
-          {customerName}
-          {phone && <span className="text-muted-foreground"> · {phone}</span>}
-          {order.shipping_city && <span className="text-muted-foreground"> · {order.shipping_city}</span>}
-        </span>
-        <span className="text-xs tabular-nums shrink-0">৳{Number(order.total ?? 0).toLocaleString()}</span>
-        {order.status && (
-          <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize shrink-0", statusTone(order.status))}>
-            {order.status.replace(/_/g, " ")}
-          </span>
-        )}
-        {order.created_at && (
-          <span className="text-[10px] text-muted-foreground shrink-0 hidden md:inline">
-            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
-          </span>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 shrink-0"
-          onClick={(e) => { e.stopPropagation(); onOpen(`/erp/orders/${order.id}`); }}
-        >
-          <ExternalLink className="h-3 w-3 mr-1" /> Open
-        </Button>
+        <div className="flex items-start gap-2 px-2.5 py-2">
+          {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />}
+          <div className="h-8 w-8 rounded-md bg-muted/70 border border-border/50 shrink-0 flex items-center justify-center">
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-mono text-xs font-semibold shrink-0">#{order.invoice_no || order.id.slice(0, 8).toUpperCase()}</span>
+              {status && (
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-semibold capitalize shrink-0", statusTone(status))}>
+                  {prettyStatus(status)}
+                </span>
+              )}
+              {order.web_status && order.status && order.web_status !== order.status && (
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded border capitalize shrink-0", statusTone(order.status))}>
+                  Order: {prettyStatus(order.status)}
+                </span>
+              )}
+              {order.source && <span className="text-[10px] px-1.5 py-0.5 rounded border bg-muted/40 uppercase tracking-wide shrink-0">{order.source}</span>}
+              {order.created_at && (
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span className="font-medium truncate max-w-[190px]">{customerName}</span>
+              {phone && <span className="text-muted-foreground font-mono">{phone}</span>}
+              {orderLocation(order) && <span className="text-muted-foreground truncate max-w-[240px]">{orderLocation(order)}</span>}
+              {order.tracking_number && <span className="text-muted-foreground font-mono truncate max-w-[160px]">{order.tracking_number}</span>}
+            </div>
+            {products.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {products.slice(0, 3).map((it) => (
+                  <span key={it.id} className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background/70 px-1.5 py-1 max-w-[220px]">
+                    {it.image ? (
+                      <img src={it.image} alt="" className="h-5 w-5 rounded object-cover border border-border/50 shrink-0" />
+                    ) : (
+                      <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="text-[11px] font-medium truncate">{it.name}</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">×{it.quantity}</span>
+                  </span>
+                ))}
+                {remainingProducts > 0 && <span className="text-[10px] text-muted-foreground px-1.5 py-1">+{remainingProducts} more</span>}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span className="text-sm font-semibold tabular-nums">৳{Number(order.total ?? 0).toLocaleString()}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 shrink-0"
+              onClick={(e) => { e.stopPropagation(); onOpen(`/erp/orders/${order.id}`); }}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" /> Open
+            </Button>
+          </div>
+        </div>
       </div>
       {expanded && (
         <div className="border-t border-border/60 bg-muted/20 px-3 py-2.5 space-y-3">
@@ -231,7 +267,7 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
                           {it.variant_label && <div className="text-[10px] text-muted-foreground truncate">{it.variant_label}</div>}
                         </div>
                         <span className="text-[11px] tabular-nums shrink-0">×{it.quantity}</span>
-                        {it.price != null && <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">৳{Number(it.price).toLocaleString()}</span>}
+                        {(it.line_total ?? it.price) != null && <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">৳{Number(it.line_total ?? it.price).toLocaleString()}</span>}
                       </li>
                     ))}
                   </ul>
