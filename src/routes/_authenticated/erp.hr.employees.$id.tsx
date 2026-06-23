@@ -126,13 +126,14 @@ function EmployeeDetail() {
         </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         {/* Hero identity card */}
-        <div className="relative overflow-hidden rounded-2xl ring-1 ring-[color:var(--hr-border)] bg-[color:var(--hr-surface-elevated)] shadow-[var(--shadow-hr-card)]">
-          <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl opacity-60 bg-[color:var(--hr-accent-soft)]" />
-          <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-40 bg-[color:var(--hr-accent-soft)]" />
+        <div className="group relative overflow-hidden rounded-2xl ring-1 ring-[color:var(--hr-border)] bg-[color:var(--hr-surface-elevated)] shadow-[var(--shadow-hr-card)] transition-all duration-500 hover:shadow-xl hover:ring-[color:var(--hr-accent)]/20">
+          <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl opacity-60 bg-[color:var(--hr-accent-soft)] transition-transform duration-700 group-hover:scale-110" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-40 bg-[color:var(--hr-accent-soft)] transition-transform duration-700 group-hover:scale-110" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--hr-accent)]/40 to-transparent" />
           <div className="relative p-6 md:p-7 flex flex-col md:flex-row md:items-center gap-6">
-            <div className="ring-4 ring-[color:var(--hr-surface-elevated)] rounded-full shadow-[var(--shadow-hr-card)]">
+            <div className="ring-4 ring-[color:var(--hr-surface-elevated)] rounded-full shadow-[var(--shadow-hr-card)] transition-transform duration-300 hover:scale-[1.03]">
               <PhotoUpload
                 employeeId={e.id}
                 currentUrl={e.photo_url}
@@ -151,8 +152,8 @@ function EmployeeDetail() {
                 <StatusPill tone={tone} dot>{e.status.replace("_"," ")}</StatusPill>
               </div>
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[color:var(--hr-text-muted)]">
-                {e.phone && <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{e.phone}</span>}
-                {e.email && <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{e.email}</span>}
+                {e.phone && <a href={`tel:${e.phone}`} className="inline-flex items-center gap-1.5 transition-colors hover:text-[color:var(--hr-accent)]"><Phone className="h-3.5 w-3.5" />{e.phone}</a>}
+                {e.email && <a href={`mailto:${e.email}`} className="inline-flex items-center gap-1.5 transition-colors hover:text-[color:var(--hr-accent)]"><Mail className="h-3.5 w-3.5" />{e.email}</a>}
                 <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Joined {e.joining_date}</span>
               </div>
 
@@ -161,7 +162,7 @@ function EmployeeDetail() {
                   {facts.filter((f) => f.value).map((f) => (
                     <div
                       key={f.label}
-                      className="rounded-xl px-3 py-2.5 bg-[color:var(--hr-surface)] ring-1 ring-[color:var(--hr-border)]"
+                      className="rounded-xl px-3 py-2.5 bg-[color:var(--hr-surface)] ring-1 ring-[color:var(--hr-border)] transition-all duration-200 hover:-translate-y-0.5 hover:ring-[color:var(--hr-accent)]/30 hover:bg-[color:var(--hr-accent-soft)]/40"
                     >
                       <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[color:var(--hr-text-muted)]">
                         <f.icon className="h-3 w-3" /> {f.label}
@@ -192,32 +193,32 @@ function EmployeeDetail() {
                 <TabsTrigger
                   key={v}
                   value={v}
-                  className="rounded-lg text-[color:var(--hr-text-muted)] data-[state=active]:bg-[color:var(--hr-accent)] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                  className="rounded-lg px-3.5 text-[color:var(--hr-text-muted)] transition-all duration-200 hover:text-[color:var(--hr-text-strong)] data-[state=active]:bg-[color:var(--hr-accent)] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-[color:var(--hr-accent)]/25"
                 >
                   {l}
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
-          <TabsContent value="profile" className="mt-5">
+          <TabsContent value="profile" className="mt-5 animate-fade-in">
             <EmployeeForm initial={e} onSubmit={async (d) => { await mut.mutateAsync(d); }} submitting={mut.isPending} submitLabel="Save Changes" />
           </TabsContent>
-          <TabsContent value="employment" className="mt-5">
+          <TabsContent value="employment" className="mt-5 animate-fade-in">
             <EmployeeForm initial={e} onSubmit={async (d) => { await mut.mutateAsync(d); }} submitting={mut.isPending} submitLabel="Save Changes" />
           </TabsContent>
-          <TabsContent value="salary" className="mt-5">
+          <TabsContent value="salary" className="mt-5 animate-fade-in">
             <SalaryTab employeeId={e.id} initial={e} canEdit={access.canSeeSalary} canView={access.canSeeSalary} />
           </TabsContent>
-          <TabsContent value="documents" className="mt-5">
+          <TabsContent value="documents" className="mt-5 animate-fade-in">
             <DocumentsTab employeeId={e.id} canEdit={access.canManageDocuments} />
           </TabsContent>
-          <TabsContent value="history" className="mt-5">
+          <TabsContent value="history" className="mt-5 animate-fade-in">
             <HistoryTab employeeId={e.id} canEdit={access.canManageEmployees} />
           </TabsContent>
-          <TabsContent value="attendance" className="mt-5">
+          <TabsContent value="attendance" className="mt-5 animate-fade-in">
             <AttendanceSummaryTab employeeId={e.id} />
           </TabsContent>
-          <TabsContent value="leave" className="mt-5">
+          <TabsContent value="leave" className="mt-5 animate-fade-in">
             <LeaveSummaryTab employeeId={e.id} />
           </TabsContent>
         </Tabs>
