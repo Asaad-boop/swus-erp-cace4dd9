@@ -324,10 +324,10 @@ function CustomerResultRow({ customer, brandIds, onOpen }: { customer: { custome
     queryFn: async () => {
       const key = customer.customer_key;
       const res = await applyBrandScope(
-        supabase.from("orders").select("id, invoice_no, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, total, status, created_at"),
+        supabase.from("orders").select(ORDER_SEARCH_SELECT),
         brandIds,
       )
-        .or(`shipping_phone.like.%${key},guest_phone.like.%${key}`)
+        .or(`shipping_phone.like.%${key},guest_phone.like.%${key},alternate_phone.like.%${key}`)
         .order("created_at", { ascending: false })
         .limit(100);
       return (res.data ?? []) as OrderRow[];
@@ -348,14 +348,6 @@ function CustomerResultRow({ customer, brandIds, onOpen }: { customer: { custome
         </span>
         <span className="text-[10px] px-1.5 py-0.5 rounded border bg-muted/40 shrink-0">{customer.orders_count ?? 0} orders</span>
         <span className="text-xs tabular-nums shrink-0">৳{Number(customer.lifetime_value ?? 0).toLocaleString()}</span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 shrink-0"
-          onClick={(e) => { e.stopPropagation(); onOpen(`/erp/crm/${encodeURIComponent(customer.customer_key)}`); }}
-        >
-          <ExternalLink className="h-3 w-3 mr-1" /> CRM
-        </Button>
       </div>
       {expanded && (
         <div className="border-t border-border/60 bg-muted/20 px-2 py-2 space-y-1.5">
@@ -397,17 +389,23 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
       const isUuid = /^[0-9a-f-]{6,}$/i.test(term);
       const [ordersRes, productsRes, customersRes] = await Promise.all([
         applyBrandScope(
-          supabase.from("orders").select("id, invoice_no, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, total, status, created_at"),
+          supabase.from("orders").select(ORDER_SEARCH_SELECT),
           brandIds,
         )
           .or(
             [
               `shipping_name.ilike.${like}`,
               `shipping_phone.ilike.${like}`,
+              `alternate_phone.ilike.${like}`,
+              `shipping_address.ilike.${like}`,
+              `shipping_city.ilike.${like}`,
+              `shipping_district.ilike.${like}`,
+              `shipping_thana.ilike.${like}`,
               `guest_name.ilike.${like}`,
               `guest_phone.ilike.${like}`,
-              `shipping_city.ilike.${like}`,
+              `guest_email.ilike.${like}`,
               `invoice_no.ilike.${like}`,
+              `tracking_number.ilike.${like}`,
               ...(isUuid ? [`id.eq.${term}`] : []),
             ].join(","),
           )
@@ -424,7 +422,7 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
           .limit(5),
       ]);
       return {
-        orders: (ordersRes.data ?? []) as Array<{ id: string; invoice_no: string | null; shipping_name: string | null; shipping_phone: string | null; guest_name: string | null; guest_phone: string | null; shipping_city: string | null; total: number | null; status: string | null; created_at: string | null }>,
+        orders: (ordersRes.data ?? []) as OrderRow[],
         products: (productsRes.data ?? []) as Array<{ id: string; title: string; sku: string | null; stock: number | null; image: string | null }>,
         customers: (customersRes.data ?? []) as Array<{ customer_key: string; name: string | null; orders_count: number | null; lifetime_value: number | null }>,
       };
@@ -447,13 +445,13 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
   const quickLinks = PAGES.slice(0, 6);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false} contentClassName="sm:max-w-3xl">
       <CommandInput
         placeholder="Search orders, products, customers, pages..."
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList className="max-h-[480px]">
+      <CommandList className="max-h-[70vh]">
         {!showResults && (
           <>
             {recent.length > 0 && (
