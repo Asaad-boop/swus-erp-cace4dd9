@@ -554,6 +554,7 @@ function CrmListPage() {
                 <TableHead className="w-10">
                   <Checkbox checked={allOnPageSelected} onCheckedChange={toggleAllOnPage} />
                 </TableHead>
+                <TableHead className="w-8" />
                 <TableHead className="min-w-[220px]">Customer</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Segment</TableHead>
@@ -571,15 +572,28 @@ function CrmListPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={14} className="text-center py-10 text-muted-foreground">Loading customers…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-10 text-muted-foreground">Loading customers…</TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={14} className="text-center py-10 text-muted-foreground">No customers found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-10 text-muted-foreground">No customers found</TableCell></TableRow>
               ) : rows.map((r) => {
                 const dsl = daysSince(r.last_order_at);
+                const isOpen = expanded.has(r.customer_key);
                 return (
+                  <>
                   <TableRow key={r.customer_key} className={`group hover:bg-accent/30 ${selected.has(r.customer_key) ? "bg-primary/5" : ""}`}>
                     <TableCell className={cellPad}>
                       <Checkbox checked={selected.has(r.customer_key)} onCheckedChange={() => toggleRow(r.customer_key)} />
+                    </TableCell>
+                    <TableCell className={cellPad}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => toggleExpand(r.customer_key)}
+                        title={isOpen ? "Hide orders" : "Show orders"}
+                      >
+                        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </Button>
                     </TableCell>
                     <TableCell className={cellPad}>
                       <Link
@@ -668,6 +682,18 @@ function CrmListPage() {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {isOpen && (
+                    <TableRow key={`${r.customer_key}-preview`} className="bg-muted/30 hover:bg-muted/30">
+                      <TableCell colSpan={15} className="p-0">
+                        <CustomerOrdersPreview
+                          customerKey={r.customer_key}
+                          previewFn={previewFn}
+                          brandNameById={brandNameById}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 );
               })}
             </TableBody>
