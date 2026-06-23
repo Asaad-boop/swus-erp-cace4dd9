@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import {
+  X,
+  User,
+  Briefcase,
+  Wallet,
+  MapPin,
+  Tag,
+  CheckCircle2,
+  Loader2,
+  type LucideIcon,
+} from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { listDepartments, listDesignations, listEmployees } from "@/lib/erp/hr/hr.functions";
 import type { HrEmployee } from "@/lib/erp/hr/types";
@@ -88,9 +98,37 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
     await onSubmit(payload);
   };
 
+  const initials = (f.full_name || "").split(" ").filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join("") || "?";
+  const filledRequired = Boolean(f.full_name && f.joining_date);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <Section title="Personal Information">
+    <form onSubmit={handleSubmit} className="space-y-10 pb-24">
+      {/* Hero identity preview */}
+      <div className="relative overflow-hidden rounded-2xl ring-1 ring-[color:var(--hr-border)] bg-[color:var(--hr-surface-elevated)] shadow-[var(--shadow-hr-card)] p-5 flex items-center gap-4">
+        <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full blur-3xl opacity-50 bg-[color:var(--hr-accent-soft)]" />
+        <div className="relative h-14 w-14 rounded-2xl grid place-items-center text-lg font-semibold bg-[color:var(--hr-accent-soft)] text-[color:var(--hr-accent)] ring-1 ring-[color:var(--hr-accent)]/15 tabular-nums">
+          {initials}
+        </div>
+        <div className="relative min-w-0 flex-1">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--hr-text-muted)]">Live preview</div>
+          <div className="text-lg font-semibold tracking-tight text-[color:var(--hr-text-strong)] truncate">
+            {f.full_name || "New employee"}
+          </div>
+          <div className="text-sm text-[color:var(--hr-text-muted)] truncate">
+            {[f.employment_type?.replace("_", " "), f.work_location].filter(Boolean).join(" · ") || "Fill the form to see details"}
+          </div>
+        </div>
+        <div className="relative hidden md:flex items-center gap-1.5 text-xs">
+          <CheckCircle2 className={`h-4 w-4 ${filledRequired ? "text-[color:var(--hr-present)]" : "text-[color:var(--hr-text-muted)] opacity-40"}`} />
+          <span className="text-[color:var(--hr-text-muted)]">{filledRequired ? "Ready to save" : "Name & joining date required"}</span>
+        </div>
+      </div>
+
+      <Section
+        icon={User}
+        title="Personal Information"
+        description="Basic identity used across HR, payroll and the directory."
+      >
         <Field label="Full name" required>
           <Input value={f.full_name} onChange={(e) => set("full_name", e.target.value)} required />
         </Field>
@@ -125,7 +163,11 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         </Field>
       </Section>
 
-      <Section title="Employment">
+      <Section
+        icon={Briefcase}
+        title="Employment"
+        description="Role, reporting line and compensation."
+      >
         <Field label="Status">
           <Select value={f.status} onValueChange={(v) => set("status", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -184,8 +226,11 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         <Field label="Work email">
           <Input type="email" value={f.work_email} onChange={(e) => set("work_email", e.target.value)} />
         </Field>
-        <Field label="Gross salary (BDT/mo)">
-          <Input type="number" value={f.gross_salary} onChange={(e) => set("gross_salary", e.target.value)} />
+        <Field label="Gross salary (BDT / month)">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[color:var(--hr-text-muted)] pointer-events-none">৳</span>
+            <Input type="number" inputMode="numeric" className="pl-7 tabular-nums" value={f.gross_salary} onChange={(e) => set("gross_salary", e.target.value)} />
+          </div>
         </Field>
         <Field label="Brands" full>
           <div className="flex flex-wrap gap-1.5">
@@ -194,7 +239,7 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
                 key={b.id}
                 type="button"
                 onClick={() => toggleBrand(b.id)}
-                className={`px-2.5 py-1 rounded-md text-xs border ${f.brand_ids.includes(b.id) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${f.brand_ids.includes(b.id) ? "bg-[color:var(--hr-accent)] text-white border-[color:var(--hr-accent)]" : "border-[color:var(--hr-border)] text-[color:var(--hr-text-strong)] hover:bg-muted"}`}
               >
                 {b.name}
               </button>
@@ -204,7 +249,11 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         </Field>
       </Section>
 
-      <Section title="Bank / Mobile Banking">
+      <Section
+        icon={Wallet}
+        title="Bank / Mobile Banking"
+        description="Where payroll will be disbursed each cycle."
+      >
         <Field label="Bank name">
           <Input value={f.bank_name} onChange={(e) => set("bank_name", e.target.value)} />
         </Field>
@@ -228,7 +277,11 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         </Field>
       </Section>
 
-      <Section title="Address & Emergency Contact">
+      <Section
+        icon={MapPin}
+        title="Address & Emergency Contact"
+        description="Used for documents and emergency situations."
+      >
         <Field label="Present address" full>
           <Textarea rows={2} value={f.present_address} onChange={(e) => set("present_address", e.target.value)} />
         </Field>
@@ -246,13 +299,17 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         </Field>
       </Section>
 
-      <Section title="Tags & Notes">
+      <Section
+        icon={Tag}
+        title="Tags & Notes"
+        description="Optional metadata for filtering and context."
+      >
         <Field label="Tags" full>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {(f.tags as string[]).map((t) => (
-              <Badge key={t} variant="secondary" className="gap-1">
+              <Badge key={t} variant="secondary" className="gap-1 rounded-md">
                 {t}
-                <button type="button" onClick={() => set("tags", f.tags.filter((x: string) => x !== t))}>
+                <button type="button" onClick={() => set("tags", f.tags.filter((x: string) => x !== t))} className="opacity-60 hover:opacity-100">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
@@ -278,30 +335,73 @@ export function EmployeeForm({ initial, onSubmit, submitting, submitLabel = "Sav
         </Field>
       </Section>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Saving…" : submitLabel}
-        </Button>
+      {/* Sticky action bar */}
+      <div className="fixed bottom-0 inset-x-0 z-30 border-t border-[color:var(--hr-border)] bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+        <div className="mx-auto max-w-5xl px-4 md:px-8 py-3 flex items-center justify-between gap-3">
+          <div className="text-xs text-[color:var(--hr-text-muted)] hidden sm:block">
+            {filledRequired ? (
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-[color:var(--hr-present)]" /> All required fields complete</span>
+            ) : (
+              <span>Required: name, joining date</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button type="submit" disabled={submitting || !filledRequired} className="bg-[color:var(--hr-accent)] hover:opacity-90 text-white min-w-[140px]">
+              {submitting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              ) : (
+                submitLabel
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <div>
-      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">{title}</h3>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border border-border rounded-lg bg-card">
-        {children}
+    <section className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-x-10 gap-y-4">
+      <header className="lg:pt-1">
+        <div className="flex items-center gap-2.5">
+          <div className="grid place-items-center h-8 w-8 rounded-xl bg-[color:var(--hr-accent-soft)] text-[color:var(--hr-accent)] ring-1 ring-[color:var(--hr-accent)]/15">
+            <Icon className="h-4 w-4" />
+          </div>
+          <h3 className="text-[15px] font-semibold tracking-tight text-[color:var(--hr-text-strong)]">{title}</h3>
+        </div>
+        {description && (
+          <p className="mt-1.5 text-xs leading-relaxed text-[color:var(--hr-text-muted)] lg:max-w-[230px]">
+            {description}
+          </p>
+        )}
+      </header>
+      <div className="rounded-2xl bg-[color:var(--hr-surface-elevated)] ring-1 ring-[color:var(--hr-border)] shadow-[var(--shadow-hr-card)] p-5">
+        <div className="grid md:grid-cols-2 gap-x-5 gap-y-4">
+          {children}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function Field({ label, required, full, children }: { label: string; required?: boolean; full?: boolean; children: React.ReactNode }) {
+function Field({ label, required, full, children }: { label: string; required?: boolean; full?: boolean; children: ReactNode }) {
   return (
-    <div className={full ? "md:col-span-2 lg:col-span-3 space-y-1.5" : "space-y-1.5"}>
-      <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+    <div className={full ? "md:col-span-2 space-y-1.5" : "space-y-1.5"}>
+      <Label className="text-[11.5px] font-medium text-[color:var(--hr-text-muted)]">
+        {label}
+        {required && <span className="text-[color:var(--hr-absent)] ml-0.5">*</span>}
+      </Label>
       {children}
     </div>
   );
