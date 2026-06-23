@@ -1,10 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "@tanstack/react-router";
-import { HrSubnav } from "@/components/erp/hr/hr-subnav";
+import { Button } from "@/components/ui/button";
+import { HrPageShell } from "@/components/erp/hr/ui/hr-page-shell";
 import { EmployeeForm } from "@/components/erp/hr/employee-form";
 import { createEmployee } from "@/lib/erp/hr/hr.functions";
 
@@ -29,24 +29,30 @@ function NewEmployee() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <HrSubnav />
-      <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
-        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-[color:var(--hr-text-muted)] hover:text-[color:var(--hr-text-strong)] transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to employees
+    <HrPageShell
+      eyebrow="People · Directory"
+      title="New Employee"
+      subtitle="Add a person to the directory — only Full name and Joining date are required."
+      breadcrumbs={[
+        { label: "HR" },
+        { label: "Employees" },
+        { label: "New" },
+      ]}
+      actions={
+        <Link to="/erp/hr/employees">
+          <Button variant="outline" size="sm" className="rounded-lg">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--hr-text-strong)]">New Employee</h1>
-          <p className="text-sm text-[color:var(--hr-text-muted)] mt-1">Add a person to the directory.</p>
-        </div>
-        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-6">
-          <EmployeeForm
-            onSubmit={async (d) => { await mut.mutateAsync(d); }}
-            submitting={mut.isPending}
-            submitLabel="Create Employee"
-          />
-        </div>
+      }
+    >
+      <div className="max-w-5xl">
+        <EmployeeForm
+          onSubmit={async (d) => { await mut.mutateAsync(d); }}
+          submitting={mut.isPending}
+          submitLabel="Create Employee"
+        />
       </div>
-    </div>
+    </HrPageShell>
   );
 }
