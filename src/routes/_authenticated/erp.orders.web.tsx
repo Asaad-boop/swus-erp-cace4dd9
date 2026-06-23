@@ -521,9 +521,23 @@ function _WebOrdersPageBody() {
       if (activeTab !== "all") q = q.eq("web_status", activeTab);
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
-        q = q.or(
-          `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%`,
-        );
+        const esc = s.replace(/[,()]/g, " ");
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+        const parts = [
+          `shipping_name.ilike.%${esc}%`,
+          `shipping_phone.ilike.%${esc}%`,
+          `shipping_address.ilike.%${esc}%`,
+          `shipping_city.ilike.%${esc}%`,
+          `shipping_thana.ilike.%${esc}%`,
+          `shipping_district.ilike.%${esc}%`,
+          `guest_name.ilike.%${esc}%`,
+          `guest_phone.ilike.%${esc}%`,
+          `guest_email.ilike.%${esc}%`,
+          `invoice_no.ilike.%${esc}%`,
+          `tracking_number.ilike.%${esc}%`,
+        ];
+        if (isUuid) parts.push(`id.eq.${s}`);
+        q = q.or(parts.join(","));
       }
       if (dateRange.from) q = q.gte("created_at", dateRange.from);
       if (dateRange.to) q = q.lte("created_at", dateRange.to);
@@ -914,7 +928,7 @@ function _WebOrdersPageBody() {
           </p>
         </div>
         <Input
-          placeholder="Search by name or phone number…"
+          placeholder="Search by invoice, name, phone, address…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-full sm:w-[300px] h-9"
