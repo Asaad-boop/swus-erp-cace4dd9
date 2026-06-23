@@ -16,6 +16,7 @@ import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedErpRouteImport } from './routes/_authenticated/erp'
 import { Route as AuthenticatedMeIndexRouteImport } from './routes/_authenticated/me.index'
 import { Route as AuthenticatedErpIndexRouteImport } from './routes/_authenticated/erp.index'
+import { Route as AuthenticatedMeTeamRouteImport } from './routes/_authenticated/me.team'
 import { Route as AuthenticatedMeProfileRouteImport } from './routes/_authenticated/me.profile'
 import { Route as AuthenticatedMePerformanceRouteImport } from './routes/_authenticated/me.performance'
 import { Route as AuthenticatedMePayslipsRouteImport } from './routes/_authenticated/me.payslips'
@@ -156,6 +157,11 @@ const AuthenticatedErpIndexRoute = AuthenticatedErpIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedErpRoute,
+} as any)
+const AuthenticatedMeTeamRoute = AuthenticatedMeTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedMeRoute,
 } as any)
 const AuthenticatedMeProfileRoute = AuthenticatedMeProfileRouteImport.update({
   id: '/profile',
@@ -806,6 +812,7 @@ export interface FileRoutesByFullPath {
   '/me/payslips': typeof AuthenticatedMePayslipsRoute
   '/me/performance': typeof AuthenticatedMePerformanceRoute
   '/me/profile': typeof AuthenticatedMeProfileRoute
+  '/me/team': typeof AuthenticatedMeTeamRoute
   '/erp/': typeof AuthenticatedErpIndexRoute
   '/me/': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -910,6 +917,7 @@ export interface FileRoutesByTo {
   '/me/payslips': typeof AuthenticatedMePayslipsRoute
   '/me/performance': typeof AuthenticatedMePerformanceRoute
   '/me/profile': typeof AuthenticatedMeProfileRoute
+  '/me/team': typeof AuthenticatedMeTeamRoute
   '/erp': typeof AuthenticatedErpIndexRoute
   '/me': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -1023,6 +1031,7 @@ export interface FileRoutesById {
   '/_authenticated/me/payslips': typeof AuthenticatedMePayslipsRoute
   '/_authenticated/me/performance': typeof AuthenticatedMePerformanceRoute
   '/_authenticated/me/profile': typeof AuthenticatedMeProfileRoute
+  '/_authenticated/me/team': typeof AuthenticatedMeTeamRoute
   '/_authenticated/erp/': typeof AuthenticatedErpIndexRoute
   '/_authenticated/me/': typeof AuthenticatedMeIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
@@ -1139,6 +1148,7 @@ export interface FileRouteTypes {
     | '/me/payslips'
     | '/me/performance'
     | '/me/profile'
+    | '/me/team'
     | '/erp/'
     | '/me/'
     | '/erp/analytics/live'
@@ -1243,6 +1253,7 @@ export interface FileRouteTypes {
     | '/me/payslips'
     | '/me/performance'
     | '/me/profile'
+    | '/me/team'
     | '/erp'
     | '/me'
     | '/erp/analytics/live'
@@ -1355,6 +1366,7 @@ export interface FileRouteTypes {
     | '/_authenticated/me/payslips'
     | '/_authenticated/me/performance'
     | '/_authenticated/me/profile'
+    | '/_authenticated/me/team'
     | '/_authenticated/erp/'
     | '/_authenticated/me/'
     | '/_authenticated/erp/analytics/live'
@@ -1504,6 +1516,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/erp/'
       preLoaderRoute: typeof AuthenticatedErpIndexRouteImport
       parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/me/team': {
+      id: '/_authenticated/me/team'
+      path: '/team'
+      fullPath: '/me/team'
+      preLoaderRoute: typeof AuthenticatedMeTeamRouteImport
+      parentRoute: typeof AuthenticatedMeRoute
     }
     '/_authenticated/me/profile': {
       id: '/_authenticated/me/profile'
@@ -2620,6 +2639,7 @@ interface AuthenticatedMeRouteChildren {
   AuthenticatedMePayslipsRoute: typeof AuthenticatedMePayslipsRoute
   AuthenticatedMePerformanceRoute: typeof AuthenticatedMePerformanceRoute
   AuthenticatedMeProfileRoute: typeof AuthenticatedMeProfileRoute
+  AuthenticatedMeTeamRoute: typeof AuthenticatedMeTeamRoute
   AuthenticatedMeIndexRoute: typeof AuthenticatedMeIndexRoute
 }
 
@@ -2630,6 +2650,7 @@ const AuthenticatedMeRouteChildren: AuthenticatedMeRouteChildren = {
   AuthenticatedMePayslipsRoute: AuthenticatedMePayslipsRoute,
   AuthenticatedMePerformanceRoute: AuthenticatedMePerformanceRoute,
   AuthenticatedMeProfileRoute: AuthenticatedMeProfileRoute,
+  AuthenticatedMeTeamRoute: AuthenticatedMeTeamRoute,
   AuthenticatedMeIndexRoute: AuthenticatedMeIndexRoute,
 }
 

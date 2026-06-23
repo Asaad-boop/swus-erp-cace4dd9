@@ -1,11 +1,12 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Home, CalendarDays, Plane, Wallet, User, Building2, LogOut, ArrowLeft } from "lucide-react";
+import { Home, CalendarDays, Plane, Wallet, User, Building2, LogOut, ArrowLeft, FileText, TrendingUp, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getMyEmployee } from "@/lib/erp/hr/me.functions";
+import { getMyTeamSummary } from "@/lib/erp/hr/team.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/me")({
@@ -13,19 +14,28 @@ export const Route = createFileRoute("/_authenticated/me")({
   component: MeShell,
 });
 
-const nav = [
+const baseNav = [
   { to: "/me", label: "Home", icon: Home, exact: true },
   { to: "/me/attendance", label: "Attendance", icon: CalendarDays },
   { to: "/me/leave", label: "Leave", icon: Plane },
   { to: "/me/payslips", label: "Payslips", icon: Wallet },
+  { to: "/me/performance", label: "Performance", icon: TrendingUp },
+  { to: "/me/documents", label: "Documents", icon: FileText },
   { to: "/me/profile", label: "Profile", icon: User },
 ];
 
 function MeShell() {
   const location = useLocation();
   const getEmp = useServerFn(getMyEmployee);
+  const getTeam = useServerFn(getMyTeamSummary);
   const { data } = useQuery({ queryKey: ["me", "emp"], queryFn: () => getEmp() });
+  const { data: teamData } = useQuery({ queryKey: ["me", "team", "summary"], queryFn: () => getTeam(), staleTime: 60_000 });
   const emp: any = data?.employee;
+  const isManager = !!teamData?.isManager;
+  const pendingCount: number = teamData?.pendingLeaveCount ?? 0;
+  const nav = isManager
+    ? [...baseNav.slice(0, 3), { to: "/me/team", label: "Team", icon: Users }, ...baseNav.slice(3)]
+    : baseNav;
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
 
@@ -55,7 +65,7 @@ function MeShell() {
         </div>
 
         {/* Desktop horizontal nav */}
-        <nav className="mx-auto hidden max-w-5xl items-center gap-1 px-4 pb-2 md:flex">
+        <nav className="mx-auto hidden max-w-5xl items-center gap-1 px-4 pb-2 md:flex overflow-x-auto">
           {nav.map((n) => {
             const Icon = n.icon;
             const active = isActive(n.to, n.exact);
@@ -64,7 +74,7 @@ function MeShell() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  "relative inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors shrink-0",
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -72,10 +82,15 @@ function MeShell() {
               >
                 <Icon className="h-4 w-4" />
                 {n.label}
+                {n.to === "/me/team" && pendingCount > 0 && (
+                  <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 shrink-0">
             <Button asChild size="sm" variant="outline">
               <Link to="/erp">Back to ERP</Link>
             </Button>
@@ -102,7 +117,7 @@ function MeShell() {
         className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="mx-auto grid max-w-5xl grid-cols-5">
+        <div className="mx-auto flex max-w-5xl overflow-x-auto">
           {nav.map((n) => {
             const Icon = n.icon;
             const active = isActive(n.to, n.exact);
@@ -111,7 +126,7 @@ function MeShell() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
+                  "relative flex flex-1 min-w-[64px] flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -124,6 +139,11 @@ function MeShell() {
                   <Icon className="h-5 w-5" />
                 </div>
                 {n.label}
+                {n.to === "/me/team" && pendingCount > 0 && (
+                  <span className="absolute top-1 right-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })}
