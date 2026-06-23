@@ -353,23 +353,11 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
             )}
             {data && data.orders.length > 0 && (
               <CommandGroup heading={`Orders (${data.orders.length})`}>
-                {data.orders.map((o) => (
-                  <CommandItem key={o.id} value={`o-${o.id}`} onSelect={() => go(`/erp/orders/${o.id}`)}>
-                    <ShoppingCart className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
-                    <span className="font-mono text-xs shrink-0">#{o.invoice_no || o.id.slice(0, 8).toUpperCase()}</span>
-                    <span className="mx-2 truncate">
-                      · {o.shipping_name || o.guest_name || "—"}
-                      {(o.shipping_phone || o.guest_phone) && (
-                        <span className="text-muted-foreground"> · {o.shipping_phone || o.guest_phone}</span>
-                      )}
-                      {o.shipping_city && <span className="text-muted-foreground"> · {o.shipping_city}</span>}
-                    </span>
-                    <span className="ml-auto flex items-center gap-2 shrink-0">
-                      <span className="text-xs">৳{Number(o.total ?? 0).toLocaleString()}</span>
-                      {o.status && <Badge variant="outline" className="text-[10px]">{o.status}</Badge>}
-                    </span>
-                  </CommandItem>
-                ))}
+                <div className="px-1 py-1">
+                  {data.orders.map((o) => (
+                    <OrderResultRow key={o.id} order={o} onOpen={go} />
+                  ))}
+                </div>
               </CommandGroup>
             )}
             {data && data.products.length > 0 && (
