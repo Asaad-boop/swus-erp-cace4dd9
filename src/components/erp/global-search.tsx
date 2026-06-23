@@ -89,11 +89,17 @@ function escapeIlike(s: string) {
 }
 
 const STATUS_TONE: Record<string, string> = {
+  new: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900",
   pending: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900",
   confirmed: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900",
   processing: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900",
+  incomplete: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900",
+  good_but_no_response: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
+  no_response: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900",
+  advance_payment: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900",
   shipped: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900",
   delivered: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+  complete: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
   completed: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
   cancelled: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900",
   on_hold: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
@@ -103,7 +109,41 @@ function statusTone(s: string | null) {
   return STATUS_TONE[(s || "").toLowerCase()] || "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800";
 }
 
-type OrderRow = { id: string; invoice_no: string | null; shipping_name: string | null; shipping_phone: string | null; guest_name: string | null; guest_phone: string | null; shipping_city: string | null; total: number | null; status: string | null; created_at: string | null };
+type OrderItemSummary = { id: string; name: string; quantity: number; variant_label: string | null; image: string | null; price: number | null; line_total?: number | null };
+type OrderRow = {
+  id: string;
+  invoice_no: string | null;
+  shipping_name: string | null;
+  shipping_phone: string | null;
+  alternate_phone?: string | null;
+  guest_name: string | null;
+  guest_phone: string | null;
+  shipping_city: string | null;
+  shipping_district?: string | null;
+  shipping_thana?: string | null;
+  shipping_address?: string | null;
+  total: number | null;
+  status: string | null;
+  web_status?: string | null;
+  source?: string | null;
+  tracking_number?: string | null;
+  created_at: string | null;
+  items?: OrderItemSummary[];
+};
+
+const ORDER_SEARCH_SELECT = "id, invoice_no, shipping_name, shipping_phone, alternate_phone, guest_name, guest_phone, shipping_city, shipping_district, shipping_thana, shipping_address, total, status, web_status, source, tracking_number, created_at, items:order_items(id, name, quantity, variant_label, image, price, line_total)";
+
+function primaryStatus(order: OrderRow) {
+  return order.source === "website" && order.web_status ? order.web_status : order.status;
+}
+
+function prettyStatus(s: string | null | undefined) {
+  return (s || "unknown").replace(/_/g, " ");
+}
+
+function orderLocation(order: OrderRow) {
+  return [order.shipping_city, order.shipping_district, order.shipping_thana].filter(Boolean).join(" · ");
+}
 
 function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: string) => void }) {
   const [expanded, setExpanded] = useState(false);
