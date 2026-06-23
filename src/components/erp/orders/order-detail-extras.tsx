@@ -48,8 +48,9 @@ function StatusChip({ status }: { status: string | null | undefined }) {
 export function OrderTimeline({ orderId }: { orderId: string }) {
   const STORAGE_KEY = "order-detail:timeline-open";
   const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    if (typeof window === "undefined") return true;
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    return v === null ? true : v === "1";
   });
   const toggle = () => {
     setOpen((v) => {
@@ -63,13 +64,20 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
     enabled: open,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("order_status_history")
-        .select("id, from_status, to_status, reason, note, changed_by, created_at")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const rows = data ?? [];
+      const [hist, ord] = await Promise.all([
+        supabase
+          .from("order_status_history")
+          .select("id, from_status, to_status, reason, note, changed_by, created_at")
+          .eq("order_id", orderId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("created_at, source, is_guest_order, user_id")
+          .eq("id", orderId)
+          .maybeSingle(),
+      ]);
+      if (hist.error) throw hist.error;
+      const rows = hist.data ?? [];
       const userIds = Array.from(new Set(rows.map((r) => r.changed_by).filter(Boolean))) as string[];
       const names = new Map<string, string>();
       if (userIds.length) {
@@ -77,7 +85,24 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
           .from("profiles").select("id, display_name").in("id", userIds);
         (profs ?? []).forEach((p: any) => names.set(p.id, p.display_name ?? ""));
       }
-      return rows.map((r) => ({ ...r, staff: r.changed_by ? names.get(r.changed_by) || "Staff" : "System" }));
+      const events = rows.map((r) => ({
+        id: r.id, from_status: r.from_status, to_status: r.to_status,
+        reason: r.reason, note: r.note, created_at: r.created_at,
+        staff: r.changed_by ? names.get(r.changed_by) || "Staff" : "System",
+      }));
+      if (ord.data) {
+        const by = ord.data.source === "website"
+          ? (ord.data.is_guest_order ? "Guest checkout" : "Customer")
+          : "Staff";
+        events.push({
+          id: `created-${orderId}`,
+          from_status: null, to_status: "created",
+          reason: null, note: null,
+          created_at: ord.data.created_at,
+          staff: by,
+        });
+      }
+      return events;
     },
   });
   return (
