@@ -287,6 +287,53 @@ function MeHome() {
         </div>
       </Card>
 
+      {/* GO TO WORKSPACE CTA — visible after check-in */}
+      {(state === "in" || state === "break" || state === "done") && (
+        <Link
+          to="/erp"
+          className="group relative block overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 sm:p-6 transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+        >
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl transition-all group-hover:scale-125 group-hover:bg-primary/25" />
+          <div className="relative flex items-center gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md shadow-primary/30">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  {state === "done" ? "Shift complete" : "You're checked in"}
+                </span>
+              </div>
+              <div className="mt-0.5 truncate text-base font-bold sm:text-lg">Go to Workspace</div>
+              <div className="truncate text-xs text-muted-foreground">
+                Access apnar permitted modules — ERP, CRM, Finance, ar shob kichu
+              </div>
+            </div>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform group-hover:translate-x-1">
+              <ArrowRight className="h-4 w-4" />
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {/* CHECK-IN PROMPT — visible before check-in */}
+      {state === "out" && (
+        <div className="rounded-2xl border border-dashed border-amber-300/60 bg-amber-50/60 p-4 dark:border-amber-500/30 dark:bg-amber-500/5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+              <Timer className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">Check-in korun shift shuru korte</div>
+              <div className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5">
+                Check-in korar por apni apnar workspace e dhukte parben ar din er kaaj track hobe.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
