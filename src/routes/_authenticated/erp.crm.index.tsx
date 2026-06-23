@@ -116,6 +116,15 @@ function CrmListPage() {
   const [dense, setDense] = useState(true);
   const [dupesOpen, setDupesOpen] = useState(false);
   const [metaPushOpen, setMetaPushOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const previewFn = useServerFn(getCrmCustomerOrdersPreview);
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  };
 
   // Advanced filters
   const [advBrandIds, setAdvBrandIds] = useState<string[]>([]);
