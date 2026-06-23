@@ -444,16 +444,11 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
               <>
                 <CommandSeparator />
                 <CommandGroup heading={`Customers (${data.customers.length})`}>
-                  {data.customers.map((c) => (
-                    <CommandItem key={c.customer_key} value={`c-${c.customer_key}`} onSelect={() => go(`/erp/crm?q=${encodeURIComponent(c.customer_key)}`)}>
-                      <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span className="truncate">{c.name || c.customer_key}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{c.customer_key}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {c.orders_count ?? 0} orders · ৳{Number(c.lifetime_value ?? 0).toLocaleString()}
-                      </span>
-                    </CommandItem>
-                  ))}
+                  <div className="px-1 py-1">
+                    {data.customers.map((c) => (
+                      <CustomerResultRow key={c.customer_key} customer={c} brandIds={brandIds} onOpen={go} />
+                    ))}
+                  </div>
                 </CommandGroup>
               </>
             )}
