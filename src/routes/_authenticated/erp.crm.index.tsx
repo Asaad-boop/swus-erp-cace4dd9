@@ -797,3 +797,102 @@ function CrmListPage() {
     </div>
   );
 }
+
+const ORDER_STATUS_TONE: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  packaged: "bg-indigo-100 text-indigo-800",
+  shipped: "bg-purple-100 text-purple-800",
+  delivered: "bg-emerald-100 text-emerald-800",
+  cancelled: "bg-red-100 text-red-700",
+  returned: "bg-orange-100 text-orange-700",
+  refunded: "bg-zinc-200 text-zinc-700",
+  on_hold: "bg-amber-100 text-amber-800",
+  failed: "bg-red-100 text-red-700",
+};
+
+function CustomerOrdersPreview({
+  customerKey,
+  previewFn,
+  brandNameById,
+}: {
+  customerKey: string;
+  previewFn: (args: { data: { customerKey: string; limit?: number } }) => Promise<any>;
+  brandNameById: Map<string, string>;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["crm-orders-preview", customerKey],
+    queryFn: () => previewFn({ data: { customerKey, limit: 5 } }),
+    staleTime: 60_000,
+  });
+  if (isLoading) {
+    return <div className="px-4 py-3 text-xs text-muted-foreground">Loading recent orders…</div>;
+  }
+  const orders = data?.orders ?? [];
+  if (!orders.length) {
+    return <div className="px-4 py-3 text-xs text-muted-foreground">No orders found for this customer.</div>;
+  }
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+        Recent orders ({orders.length})
+      </div>
+      <div className="space-y-2">
+        {orders.map((o: any) => (
+          <div key={o.id} className="rounded-md border bg-card p-2.5 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:w-[260px] shrink-0">
+              <Link
+                to="/erp/orders/$orderId"
+                params={{ orderId: o.id }}
+                className="text-primary hover:underline font-mono text-xs"
+              >
+                #{o.invoice_no || o.id.slice(0, 8)}
+              </Link>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${ORDER_STATUS_TONE[o.status] ?? "bg-zinc-100 text-zinc-700"}`}>
+                {o.status}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {new Date(o.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-muted-foreground mb-1">
+                {brandNameById.get(o.brand_id) ?? "—"}
+                {o.shipping_city ? ` · ${o.shipping_city}` : ""}
+                {o.payment_method ? ` · ${o.payment_method}` : ""}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {(o.items ?? []).slice(0, 6).map((it: any, i: number) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[11px] max-w-[280px]"
+                    title={`${it.name}${it.variant_label ? ` (${it.variant_label})` : ""} × ${it.quantity}`}
+                  >
+                    <span className="truncate">{it.name}</span>
+                    {it.variant_label && <span className="text-muted-foreground">· {it.variant_label}</span>}
+                    <span className="text-muted-foreground">× {it.quantity}</span>
+                  </span>
+                ))}
+                {(o.items?.length ?? 0) > 6 && (
+                  <span className="text-[11px] text-muted-foreground">+{o.items.length - 6} more</span>
+                )}
+              </div>
+            </div>
+            <div className="text-right tabular-nums text-sm font-semibold sm:w-20">
+              ৳{new Intl.NumberFormat("en-BD", { maximumFractionDigits: 0 }).format(o.total)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="pt-1">
+        <Link
+          to="/erp/crm/$customerId"
+          params={{ customerId: customerKey }}
+          className="text-xs text-primary hover:underline"
+        >
+          View full customer profile →
+        </Link>
+      </div>
+    </div>
+  );
+}
