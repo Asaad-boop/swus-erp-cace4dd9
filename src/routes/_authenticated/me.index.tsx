@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Clock, LogIn, LogOut, Coffee, Play, MapPin, Loader2, AlertCircle,
   CalendarCheck2, TrendingUp, Plane, Wallet, ArrowRight, Sparkles,
+  Briefcase, CheckCircle2, Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
