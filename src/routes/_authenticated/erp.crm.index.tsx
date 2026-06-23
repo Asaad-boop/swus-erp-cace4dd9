@@ -579,7 +579,7 @@ function CrmListPage() {
                 const dsl = daysSince(r.last_order_at);
                 const isOpen = expanded.has(r.customer_key);
                 return (
-                  <>
+                  <React.Fragment key={r.customer_key}>
                   <TableRow key={r.customer_key} className={`group hover:bg-accent/30 ${selected.has(r.customer_key) ? "bg-primary/5" : ""}`}>
                     <TableCell className={cellPad}>
                       <Checkbox checked={selected.has(r.customer_key)} onCheckedChange={() => toggleRow(r.customer_key)} />
@@ -693,7 +693,7 @@ function CrmListPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </TableBody>
