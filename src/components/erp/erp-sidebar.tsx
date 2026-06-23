@@ -11,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useGlobalSearch } from "@/components/erp/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCurrentRole } from "@/hooks/use-current-role";
+import { canAccessPath } from "@/lib/erp/access";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 type FlatGroup = { kind: "flat"; label: string; items: NavItem[] };
@@ -163,6 +165,25 @@ export function ErpSidebar() {
   const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const { roles } = useCurrentRole();
+
+  const visibleGroups = useMemo<Group[]>(() => {
+    const filterItems = (items: NavItem[]) =>
+      items.filter((i) => canAccessPath(roles, i.to));
+    const out: Group[] = [];
+    for (const g of groups) {
+      if (g.kind === "flat") {
+        const items = filterItems(g.items);
+        if (items.length) out.push({ ...g, items });
+      } else {
+        const sections = g.sections
+          .map((s) => ({ ...s, items: filterItems(s.items) }))
+          .filter((s) => s.items.length);
+        if (sections.length) out.push({ ...g, sections });
+      }
+    }
+    return out;
+  }, [roles]);
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
@@ -370,7 +391,7 @@ export function ErpSidebar() {
         </div>
 
         <nav className={cn("flex-1 py-3 overflow-y-auto overflow-x-hidden", collapsed ? "px-2" : "px-3")}>
-          {groups.map((group, gi) => (
+          {visibleGroups.map((group, gi) => (
             <div key={group.label} className={cn(gi > 0 && (collapsed ? "mt-3 pt-3 border-t border-border/60" : "mt-4"))}>
               {!collapsed && (
                 <div className="px-3 mb-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground/70 font-semibold">
