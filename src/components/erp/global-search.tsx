@@ -315,7 +315,7 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
   );
 }
 
-function CustomerResultRow({ customer, brandIds, onOpen }: { customer: { customer_key: string; name: string | null; orders_count: number | null; lifetime_value: number | null }; brandIds: string[]; onOpen: (path: string) => void }) {
+function CustomerResultRow({ customer, brandIds }: { customer: { customer_key: string; name: string | null; orders_count: number | null; lifetime_value: number | null }; brandIds: string[] }) {
   const [expanded, setExpanded] = useState(false);
   const { data, isFetching } = useQuery({
     queryKey: ["global-search-customer-orders", customer.customer_key, brandIds],
@@ -520,7 +520,7 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
                 <CommandGroup heading={`Customers (${data.customers.length})`}>
                   <div className="px-1 py-1">
                     {data.customers.map((c) => (
-                      <CustomerResultRow key={c.customer_key} customer={c} brandIds={brandIds} onOpen={go} />
+                      <CustomerResultRow key={c.customer_key} customer={c} brandIds={brandIds} />
                     ))}
                   </div>
                 </CommandGroup>
