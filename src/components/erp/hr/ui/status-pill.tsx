@@ -6,20 +6,20 @@ export type StatusTone =
   | "active" | "inactive" | "neutral";
 
 const toneMap: Record<StatusTone, string> = {
-  present: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  active: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  paid: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  absent: "bg-red-50 text-red-600 ring-red-100",
-  rejected: "bg-red-50 text-red-600 ring-red-100",
-  inactive: "bg-gray-100 text-gray-600 ring-gray-200",
-  late: "bg-amber-50 text-amber-700 ring-amber-100",
-  pending: "bg-amber-50 text-amber-700 ring-amber-100",
-  leave: "bg-blue-50 text-blue-700 ring-blue-100",
-  holiday: "bg-violet-50 text-violet-700 ring-violet-100",
-  draft: "bg-gray-100 text-gray-600 ring-gray-200",
-  finalized: "bg-indigo-50 text-indigo-700 ring-indigo-100",
-  neutral: "bg-gray-100 text-gray-600 ring-gray-200",
+  present:   "bg-[color:var(--hr-present-soft)] text-[color:var(--hr-present)] ring-[color:var(--hr-present)]/20",
+  active:    "bg-[color:var(--hr-present-soft)] text-[color:var(--hr-present)] ring-[color:var(--hr-present)]/20",
+  paid:      "bg-[color:var(--hr-present-soft)] text-[color:var(--hr-present)] ring-[color:var(--hr-present)]/20",
+  approved:  "bg-[color:var(--hr-present-soft)] text-[color:var(--hr-present)] ring-[color:var(--hr-present)]/20",
+  absent:    "bg-[color:var(--hr-absent-soft)]  text-[color:var(--hr-absent)]  ring-[color:var(--hr-absent)]/20",
+  rejected:  "bg-[color:var(--hr-absent-soft)]  text-[color:var(--hr-absent)]  ring-[color:var(--hr-absent)]/20",
+  late:      "bg-[color:var(--hr-late-soft)]    text-[color:var(--hr-late)]    ring-[color:var(--hr-late)]/20",
+  pending:   "bg-[color:var(--hr-late-soft)]    text-[color:var(--hr-late)]    ring-[color:var(--hr-late)]/20",
+  leave:     "bg-[color:var(--hr-leave-soft)]   text-[color:var(--hr-leave)]   ring-[color:var(--hr-leave)]/20",
+  holiday:   "bg-[color:var(--hr-holiday-soft)] text-[color:var(--hr-holiday)] ring-[color:var(--hr-holiday)]/20",
+  finalized: "bg-[color:var(--hr-accent-soft)]  text-[color:var(--hr-accent)]  ring-[color:var(--hr-accent)]/20",
+  inactive:  "bg-muted text-muted-foreground ring-[color:var(--hr-border)]",
+  draft:     "bg-muted text-muted-foreground ring-[color:var(--hr-border)]",
+  neutral:   "bg-muted text-muted-foreground ring-[color:var(--hr-border)]",
 };
 
 interface Props {

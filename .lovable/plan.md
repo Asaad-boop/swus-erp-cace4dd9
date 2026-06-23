@@ -1,57 +1,82 @@
-## Finance Module Restructure: 19 → 10 tabs
+## HR module — full UI redesign + functional polish
 
-Goal: nav declutter, related jinish ekshathe, kintu **zero functionality loss**. Sob existing page survive korbe — kichu top-nav theke sore tab/section hishebe alada page er moddhe dhukbe. Old URLs **redirect** kore dibo, jate kothao link bhange na.
+Scope: HR only (Finance, Inventory baki gula ei plane nai). 22 ta HR route file already ache, real data wired with `hr_*` tables. Kaj holo design language unify kora + functional gap fill kora, structure bhanga noy.
 
-### Final top nav (10 tabs)
+### Notun HR design direction
 
+Finance er moto generic card-grid noy. HR er nijer ekta identity dibo:
+
+- **Palette:** existing `--background/--foreground/--primary` semantic tokens. HR-specific accents:
+  - `--hr-present` (emerald), `--hr-absent` (rose), `--hr-leave` (amber), `--hr-off` (slate) — attendance/leave status er jonno
+  - `--gradient-hr-hero` — overview hero te subtle gradient
+- **Typography hierarchy:** page header e boro display number (today's headcount, attendance %), tar niche dense data
+- **Layout primitive:** new `HrPageShell` component — sticky page header (title + breadcrumb + primary action + filter row) + content area. Sob page eta use korbe → instant consistency.
+- **Data display:** `HrStatTile` (compact KPI), `HrPersonRow` (avatar + name + designation + status pill), `HrStatusPill` (Present/Absent/Leave/Late color-coded)
+
+### Page-by-page kaj
+
+```text
+1. /erp/hr  (Overview)
+   - Hero strip: aaj ke present, on leave, absent, late — boro numbers
+   - Today's attendance mini-grid (department-wise %)
+   - Upcoming: holidays (next 30d), birthdays (this month), pending leave requests
+   - Quick actions: Add employee · Mark attendance · Create payroll run
+
+2. /erp/hr/employees
+   - Redesigned list: avatar grid view toggle (card/table)
+   - Filter rail: department · designation · status · join date
+   - Bulk actions, CSV import button polish
+
+3. /erp/hr/employees/$id  (Profile)
+   - Tabbed profile: Overview · Job · Attendance · Leave · Payroll · Documents
+   - Hero card: avatar + name + designation + employment status pill + quick contact
+
+4. /erp/hr/attendance  (index + muster)
+   - Day view: live present/absent counter top, then department-grouped person rows with check-in/out time + late badge
+   - Muster (monthly grid): cleaner cell colors using new status tokens, sticky employee column, month-picker in header
+
+5. /erp/hr/leave  (index + calendar + policy)
+   - Index: request inbox style — pending top, approved/rejected tabs, approve/reject inline
+   - Calendar: month grid, leave blocks color-coded by type
+   - Policy: leave types as cards with balance formula visible
+
+6. /erp/hr/payroll  (index + run detail)
+   - Index: payroll runs timeline, status pills, gross/net totals
+   - Run detail: payslip table with filter, bulk approve/lock, export
+
+7. /erp/hr/shifts (+ assign)
+   - Shift cards (time bands visualized as a 24h bar)
+   - Assign: drag-free simple flow — pick employees, pick shift, date range
+
+8. /erp/hr/departments, /designations, /holidays
+   - Compact CRUD with new shell, inline edit dialogs
+
+9. /erp/hr/reports
+   - Report cards grid: Attendance summary · Leave usage · Payroll cost · Headcount trend — each opens a focused report view
+
+10. /erp/hr/settings
+    - Sectioned settings: Working hours · Late policy · Leave year · Payroll cycle · Notifications
 ```
-Overview · Chart of Accounts · Wallets · Journal · AR/AP · 
-Budgets · Taxes · Profitability · Reports · Settings
-```
 
-### Merge map (kichu bad jachhe na — sob accessible thakbe)
+### Implementation order
 
-| New page | Tabs/sections inside | Source pages |
-|---|---|---|
-| **Wallets** | Wallets · Reconciliation | wallets + reconciliation |
-| **Journal** | Entries · Recurring · Quick Entry | journal + recurring + simple |
-| **AR/AP** | Receivables · Payables · COD Remit | receivables + payables + cod-remittance |
-| **Profitability** | Product · Brand | product-profitability + brand-profitability |
-| **Settings** | General · FX Rates · Audit Log | settings + fx + audit |
+1. **Foundation (1 batch):** `HrPageShell`, `HrStatTile`, `HrPersonRow`, `HrStatusPill`, status tokens in `src/styles.css`, sub-nav refresh.
+2. **Overview + Employees list + Profile** — high-traffic pages first.
+3. **Attendance (day + muster)** — most data-dense, biggest visual win.
+4. **Leave (index + calendar + policy).**
+5. **Payroll (index + run detail).**
+6. **Shifts, Departments, Designations, Holidays, Reports, Settings** — short pages, batched.
 
-### Implementation steps
+### Non-goals
 
-1. **Nav update** — `erp.finance.tsx` e NAV array 19 → 10 kori.
-2. **Tabbed wrappers** — proti merged page er existing component logic untouched rakhi, shudhu parent route file e shadcn `<Tabs>` diye wrap kori. Internal table/form/data hook kichui bodlabo na.
-3. **Redirect old URLs** — purano route file (e.g. `erp.finance.recurring.tsx`) ke redirect e convert kori (`beforeLoad: () => redirect({ to: "/erp/finance/journal", search: { tab: "recurring" } })`). Eta external bookmark/link bhangbe na.
-4. **Deep-link support** — tab state URL search param e (`?tab=recurring`) jate direct link share kora jay.
-5. **Overview "Quick Links"** — purano label gulai redirect URL e point korbe (auto-correct tab e land korbe).
+- Database schema, RLS, server functions — untouched
+- Finance, Inventory, Sales, Marketing modules — untouched
+- Sidebar structure — untouched (HR entries already correct)
 
-### Ki bad jabe NA (guaranteed)
+### Verification
 
-- Kono data, form, hook, business logic touch korchhi na
-- Sob 18 page er content accessible thakbe
-- External bookmark/old link sob redirect e handle hobe
-- Profitability merge e "SKU" tab add korar option khola thakbe (jodi shukno marketing module er sku-pnl finance e dorkar lage)
+Each batch er por: build pass + Playwright screenshot of redesigned page at 1280×1800 + console error scan. Empty-state guards: data na thakle card/section hide hobe (user rule).
 
-### Files affected
+### Estimate
 
-- **Edit**: `src/routes/_authenticated/erp.finance.tsx` (nav)
-- **Edit (wrap with tabs)**: wallets, journal, receivables, product-profitability, settings
-- **Convert to redirect** (1-liner files): reconciliation, recurring, simple, payables, cod-remittance, brand-profitability, fx, audit
-- **No change**: index, accounts, budgets, taxes, reports
-
-### Technical notes
-
-- Shadcn `<Tabs>` + `useSearch`/`useNavigate` diye `?tab=` sync.
-- Redirect pattern:
-  ```ts
-  export const Route = createFileRoute("/_authenticated/erp/finance/recurring")({
-    beforeLoad: () => { throw redirect({ to: "/erp/finance/journal", search: { tab: "recurring" } }); },
-  });
-  ```
-- Existing page component gulo `_authenticated/erp/finance/_tabs/` folder e move kore default export rakhle parent wrapper clean thake. (Optional — chaile in-place rakhao jay.)
-
----
-
-Confirm korle implement kori. Kono specific merge na pochhondo hole bolo (e.g. "Recurring alada thakuk"), shei tab nav e add kore debo.
+~5-6 turn lagbe pura HR shesh korte. Foundation + first 2 pages ekshathe first turn e diye dibo, tarpor incremental.
