@@ -336,12 +336,12 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
 export const getCrmCustomerOrdersPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { customerKey: string; limit?: number }) =>
-    z.object({ customerKey: z.string().min(1), limit: z.number().int().min(1).max(20).optional() }).parse(d),
+    z.object({ customerKey: z.string().min(1), limit: z.number().int().min(1).max(500).optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const key = normalizePhone(data.customerKey) ?? data.customerKey;
-    const limit = data.limit ?? 5;
+    const limit = data.limit ?? 500;
     const { data: orders, error } = await context.supabase
       .from("orders")
       .select("id, invoice_no, total, status, payment_method, created_at, brand_id, shipping_city")

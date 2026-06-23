@@ -118,6 +118,7 @@ function CrmListPage() {
   const [metaPushOpen, setMetaPushOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const previewFn = useServerFn(getCrmCustomerOrdersPreview);
+  const searchActive = search.trim().length > 0;
   const toggleExpand = (key: string) => {
     setExpanded((prev) => {
       const n = new Set(prev);
@@ -577,7 +578,7 @@ function CrmListPage() {
                 <TableRow><TableCell colSpan={15} className="text-center py-10 text-muted-foreground">No customers found</TableCell></TableRow>
               ) : rows.map((r) => {
                 const dsl = daysSince(r.last_order_at);
-                const isOpen = expanded.has(r.customer_key);
+                const isOpen = searchActive || expanded.has(r.customer_key);
                 return (
                   <Fragment key={r.customer_key}>
                   <TableRow key={r.customer_key} className={`group hover:bg-accent/30 ${selected.has(r.customer_key) ? "bg-primary/5" : ""}`}>
@@ -689,6 +690,7 @@ function CrmListPage() {
                           customerKey={r.customer_key}
                           previewFn={previewFn}
                           brandNameById={brandNameById}
+                          showAll={searchActive}
                         />
                       </TableCell>
                     </TableRow>
@@ -815,14 +817,17 @@ function CustomerOrdersPreview({
   customerKey,
   previewFn,
   brandNameById,
+  showAll,
 }: {
   customerKey: string;
   previewFn: (args: { data: { customerKey: string; limit?: number } }) => Promise<any>;
   brandNameById: Map<string, string>;
+  showAll?: boolean;
 }) {
+  const limit = showAll ? 500 : 5;
   const { data, isLoading } = useQuery({
-    queryKey: ["crm-orders-preview", customerKey],
-    queryFn: () => previewFn({ data: { customerKey, limit: 5 } }),
+    queryKey: ["crm-orders-preview", customerKey, limit],
+    queryFn: () => previewFn({ data: { customerKey, limit } }),
     staleTime: 60_000,
   });
   if (isLoading) {
