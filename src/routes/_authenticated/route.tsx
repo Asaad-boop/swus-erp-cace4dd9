@@ -1,24 +1,14 @@
-import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet, useLocation, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { canAccessPath, hasAnyBackoffice, moduleForPath, getAllowedModules } from "@/lib/erp/access";
+import { ShieldAlert, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   component: AuthGate,
 });
-
-// ERP backoffice roles — any one is enough to access /erp/*
-const ERP_ROLES = new Set([
-  "admin",
-  "moderator",
-  "customer_service",
-  "operations",
-  "packer",
-  "accountant",
-  "marketing_manager",
-  "warehouse_staff",
-]);
 
 type Status =
   | { kind: "loading" }
@@ -27,6 +17,8 @@ type Status =
 
 function AuthGate() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
@@ -67,9 +59,16 @@ function AuthGate() {
   if (status.kind === "guest") return <Navigate to="/auth" replace />;
 
   const { roles } = status;
-  const hasErpAccess = roles.some((r) => ERP_ROLES.has(r));
+  const path = location.pathname;
+  const isErp = path === "/erp" || path.startsWith("/erp/");
+  const isMe = path === "/me" || path.startsWith("/me/");
 
-  if (!hasErpAccess) {
+  // 1. No backoffice roles at all & trying to open /erp → bounce to /me
+  if (isErp && !hasAnyBackoffice(roles)) {
+    // Employees only get the personal workspace
+    if (getAllowedModules(roles).has("workspace")) {
+      return <Navigate to="/me" replace />;
+    }
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center bg-background">
         <div className="max-w-sm space-y-3">
@@ -90,5 +89,39 @@ function AuthGate() {
     );
   }
 
+  // 2. Per-path module check — covers direct URL access
+  const allowed = canAccessPath(roles, path);
+  if (!allowed) {
+    const mod = moduleForPath(path);
+    const fallback = hasAnyBackoffice(roles) ? "/erp" : "/me";
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="max-w-md w-full space-y-4 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <div className="mx-auto h-12 w-12 rounded-full bg-destructive/10 text-destructive grid place-items-center">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-semibold tracking-tight">Permission nei</h1>
+            <p className="text-sm text-muted-foreground">
+              Ei page <code className="px-1.5 py-0.5 rounded bg-muted text-[12px]">{path}</code>{" "}
+              {mod ? `(${mod})` : ""} access korar permission tomar role e nei. Admin ke bolun shei
+              module er role assign korte.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <Button variant="outline" size="sm" onClick={() => navigate({ to: fallback as never })}>
+              <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back to {fallback === "/me" ? "Workspace" : "Dashboard"}
+            </Button>
+          </div>
+          <div className="pt-2 text-[11px] text-muted-foreground">
+            Your roles: {roles.length ? roles.join(", ") : "(none)"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Authenticated but landed on a route we don't classify (e.g. /me) — let it render
+  void isMe;
   return <Outlet />;
 }
