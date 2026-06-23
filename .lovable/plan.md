@@ -1,82 +1,74 @@
-## HR module — full UI redesign + functional polish
+# Staff Workspace — আলাদা Dashboard Plan
 
-Scope: HR only (Finance, Inventory baki gula ei plane nai). 22 ta HR route file already ache, real data wired with `hr_*` tables. Kaj holo design language unify kora + functional gap fill kora, structure bhanga noy.
+Owner-er ERP dashboard staff-der dorkar nei. Tader jonno `/me` ke ekta full **Employee Workspace** banabo — login korle direct etai khulbe, ar tader role/permission onujayi shob kaaj ekhanei thakbe.
 
-### Notun HR design direction
+## 1. Routing & Entry Flow
 
-Finance er moto generic card-grid noy. HR er nijer ekta identity dibo:
-
-- **Palette:** existing `--background/--foreground/--primary` semantic tokens. HR-specific accents:
-  - `--hr-present` (emerald), `--hr-absent` (rose), `--hr-leave` (amber), `--hr-off` (slate) — attendance/leave status er jonno
-  - `--gradient-hr-hero` — overview hero te subtle gradient
-- **Typography hierarchy:** page header e boro display number (today's headcount, attendance %), tar niche dense data
-- **Layout primitive:** new `HrPageShell` component — sticky page header (title + breadcrumb + primary action + filter row) + content area. Sob page eta use korbe → instant consistency.
-- **Data display:** `HrStatTile` (compact KPI), `HrPersonRow` (avatar + name + designation + status pill), `HrStatusPill` (Present/Absent/Leave/Late color-coded)
-
-### Page-by-page kaj
-
-```text
-1. /erp/hr  (Overview)
-   - Hero strip: aaj ke present, on leave, absent, late — boro numbers
-   - Today's attendance mini-grid (department-wise %)
-   - Upcoming: holidays (next 30d), birthdays (this month), pending leave requests
-   - Quick actions: Add employee · Mark attendance · Create payroll run
-
-2. /erp/hr/employees
-   - Redesigned list: avatar grid view toggle (card/table)
-   - Filter rail: department · designation · status · join date
-   - Bulk actions, CSV import button polish
-
-3. /erp/hr/employees/$id  (Profile)
-   - Tabbed profile: Overview · Job · Attendance · Leave · Payroll · Documents
-   - Hero card: avatar + name + designation + employment status pill + quick contact
-
-4. /erp/hr/attendance  (index + muster)
-   - Day view: live present/absent counter top, then department-grouped person rows with check-in/out time + late badge
-   - Muster (monthly grid): cleaner cell colors using new status tokens, sticky employee column, month-picker in header
-
-5. /erp/hr/leave  (index + calendar + policy)
-   - Index: request inbox style — pending top, approved/rejected tabs, approve/reject inline
-   - Calendar: month grid, leave blocks color-coded by type
-   - Policy: leave types as cards with balance formula visible
-
-6. /erp/hr/payroll  (index + run detail)
-   - Index: payroll runs timeline, status pills, gross/net totals
-   - Run detail: payslip table with filter, bulk approve/lock, export
-
-7. /erp/hr/shifts (+ assign)
-   - Shift cards (time bands visualized as a 24h bar)
-   - Assign: drag-free simple flow — pick employees, pick shift, date range
-
-8. /erp/hr/departments, /designations, /holidays
-   - Compact CRUD with new shell, inline edit dialogs
-
-9. /erp/hr/reports
-   - Report cards grid: Attendance summary · Leave usage · Payroll cost · Headcount trend — each opens a focused report view
-
-10. /erp/hr/settings
-    - Sectioned settings: Working hours · Late policy · Leave year · Payroll cycle · Notifications
+```
+Login
+  ├─ admin / backoffice role  → /erp (owner dashboard)
+  └─ employee / staff only    → /me (workspace dashboard)
 ```
 
-### Implementation order
+- `_authenticated/route.tsx` e already redirect ache — confirm korbo: jodi user-er kono backoffice role na thake, `/erp/*` block + `/me` te pathabe.
+- `/me` ke ekhon ekta proper **layout route** banabo (`me.tsx` Outlet + sidebar/topbar shell), shob `me.*` child page er jonno.
 
-1. **Foundation (1 batch):** `HrPageShell`, `HrStatTile`, `HrPersonRow`, `HrStatusPill`, status tokens in `src/styles.css`, sub-nav refresh.
-2. **Overview + Employees list + Profile** — high-traffic pages first.
-3. **Attendance (day + muster)** — most data-dense, biggest visual win.
-4. **Leave (index + calendar + policy).**
-5. **Payroll (index + run detail).**
-6. **Shifts, Departments, Designations, Holidays, Reports, Settings** — short pages, batched.
+## 2. Workspace Shell (নতুন look)
 
-### Non-goals
+`/me` layout e thakbe:
 
-- Database schema, RLS, server functions — untouched
-- Finance, Inventory, Sales, Marketing modules — untouched
-- Sidebar structure — untouched (HR entries already correct)
+- **Top bar**: company logo, greeting ("Salam, Rakib"), live clock, notification bell, profile menu (logout).
+- **Left sidebar** (collapsible, mobile e bottom-nav): My Day, Attendance, Leave, Payslips, Documents, Performance, Profile. Sidebar items **permission onujayi filter** hobe (access matrix theke).
+- **Main**: current page.
 
-### Verification
+## 3. My Day (default `/me` page) — redesign
 
-Each batch er por: build pass + Playwright screenshot of redesigned page at 1280×1800 + console error scan. Empty-state guards: data na thakle card/section hide hobe (user rule).
+Ekta "kaaj shuru korar" hub:
 
-### Estimate
+- **Punch card** (hero) — boro check-in/out button, today's status, work hours timer, break toggle, location/IP shown.
+- **Go to Workspace** card — check-in er por boro CTA (already ache).
+- **Today's snapshot** — shift time, scheduled hours, late/early indicator.
+- **My pending items** — leave request status, approval needed (if manager), unread announcement.
+- **This week** — mini attendance strip (Mon–Sun dots), leave balance, upcoming holiday.
+- **Quick actions** — Apply leave, View payslip, Update profile.
 
-~5-6 turn lagbe pura HR shesh korte. Foundation + first 2 pages ekshathe first turn e diye dibo, tarpor incremental.
+## 4. Sub-pages (already exist, polish)
+
+| Route | Content |
+|---|---|
+| `/me/attendance` | Calendar + month summary + daily punch log |
+| `/me/leave` | Balance cards + apply form + my requests timeline |
+| `/me/payslips` | List of payslips, download PDF, YTD summary |
+| `/me/performance` | Goals, reviews, KPI (jodi data thake; na thakle hide) |
+| `/me/profile` | Read-only personal info + edit request |
+| `/me/documents` (notun) | Offer letter, ID copies, contracts download |
+
+## 5. Permission-driven Visibility
+
+`src/lib/erp/access.ts` extend kore `me` workspace-er jonno feature flags:
+- `me:attendance`, `me:leave`, `me:payslips`, `me:performance`, `me:documents`
+- Manager role hole extra: `me:team-approvals` (team-er leave approve), `me:team-attendance`.
+
+Sidebar + My Day cards eigulor presence onujayi render hobe.
+
+## 6. Data dependencies
+
+Shob existing table use korbe — notun migration lagbe na:
+- `hr_employees`, `hr_attendance`, `hr_leave_requests`, `hr_leave_balances`, `hr_payslips`, `hr_documents`, `hr_shifts`, `hr_holidays`.
+- RLS already user-scoped (`employee_id = auth.uid()` based) — verify korbo.
+
+## 7. Visual direction
+
+HR module-er moto same design tokens (`--hr-accent`, soft surfaces, rounded-2xl cards, subtle gradients). Owner ERP er moto data-heavy noy — **calm, personal, mobile-first**. Boro typography, bhalo spacing, smooth transitions.
+
+## 8. Implementation order
+
+1. `me.tsx` layout shell (sidebar + topbar + Outlet) + access-filtered nav.
+2. `me.index.tsx` redesign — My Day hub.
+3. Sub-pages ekta ekta kore polish (attendance → leave → payslips → profile → documents).
+4. Manager extension (team approvals) — last e, jodi lage.
+5. Login redirect + `/erp` block verify.
+
+## Question
+
+Step 1+2 (shell + My Day hub) diye start kori, naki age **manager role** add korbo jate manager-ra team approve korte pare? Ar `documents` page ekhon banabo na pore?
