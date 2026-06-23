@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Download, Search, Tag as TagIcon, Upload, Users, Filter, X, Phone, MessageSquare,
   ShoppingBag, ShieldCheck, Trash2, Rows3, Rows2, CheckCircle2, AlertCircle, Users2, Megaphone,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
@@ -41,6 +42,7 @@ import { SEGMENT_LABELS, SEGMENT_TONES } from "@/lib/erp/crm/segments";
 import {
   listCrmCustomers, exportCrmCustomersCsv, listCrmTags,
   bulkAddCrmTag, bulkRemoveCrmTag, bulkSetCrmStatus, bulkDeleteCrmCustomers,
+  getCrmCustomerOrdersPreview,
 } from "@/lib/erp/crm/crm.functions";
 import type { CrmFilters, CrmSort, CrmSegment } from "@/lib/erp/crm/types";
 
