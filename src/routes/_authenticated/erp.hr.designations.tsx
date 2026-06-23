@@ -57,28 +57,28 @@ function Designations() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
         <PageHeader
           title="Designations"
           subtitle="Job titles & seniority levels"
-          actions={<Button size="sm" onClick={openNew} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" /> Add Designation</Button>}
+          actions={<Button size="sm" onClick={openNew} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-1.5" /> Add Designation</Button>}
         />
         {(rows as any[]).length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm">
             <EmptyState icon={Briefcase} title="No designations yet" description="Create job titles employees can be assigned to." />
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm divide-y divide-gray-100">
             {(rows as any[]).map((d) => (
-              <div key={d.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+              <div key={d.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors">
                 <div className="h-10 w-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
                   <Briefcase className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900">{d.title}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{deptMap.get(d.department_id ?? "") ?? "No department"}{d.level ? ` · Level ${d.level}` : ""}</div>
+                  <div className="font-semibold text-[color:var(--hr-text-strong)]">{d.title}</div>
+                  <div className="text-xs text-[color:var(--hr-text-muted)] mt-0.5">{deptMap.get(d.department_id ?? "") ?? "No department"}{d.level ? ` · Level ${d.level}` : ""}</div>
                 </div>
                 <StatusPill tone={d.is_active ? "active" : "inactive"} dot>{d.is_active ? "Active" : "Inactive"}</StatusPill>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

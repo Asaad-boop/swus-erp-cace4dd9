@@ -6,7 +6,7 @@ export function SkeletonLine({ className }: { className?: string }) {
 
 export function SkeletonCard({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn("bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3", className)}>
+    <div className={cn("bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-5 space-y-3", className)}>
       <SkeletonLine className="h-4 w-1/3" />
       <SkeletonLine className="h-8 w-1/2" />
       {Array.from({ length: rows }).map((_, i) => (

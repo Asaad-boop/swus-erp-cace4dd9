@@ -49,7 +49,7 @@ function HolidaysPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
         <PageHeader
@@ -58,13 +58,13 @@ function HolidaysPage() {
           actions={
             <>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                 </SelectContent>
               </Select>
               <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
-                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />Add Holiday</Button></DialogTrigger>
+                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-2" />Add Holiday</Button></DialogTrigger>
                 <HolidayDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["hr-holidays"] }); }} upFn={upFn} />
               </Dialog>
             </>
@@ -72,26 +72,26 @@ function HolidaysPage() {
         />
 
         {(rows as any[]).length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm">
             <EmptyState icon={CalendarDays} title={`No holidays for ${year}`} description="Add public, religious, or company holidays." />
           </div>
         ) : (
           <div className="space-y-5">
             {Array.from({ length: 12 }, (_, i) => i).filter((m) => byMonth.has(m)).map((m) => (
-              <div key={m} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100">
-                  <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{new Date(year, m).toLocaleString("en", { month: "long" })}</div>
+              <div key={m} className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm overflow-hidden">
+                <div className="px-5 py-3 bg-muted/40 border-b border-[color:var(--hr-border)]">
+                  <div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">{new Date(year, m).toLocaleString("en", { month: "long" })}</div>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {byMonth.get(m)!.map((h: any) => (
-                    <div key={h.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+                    <div key={h.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors">
                       <div className="text-center w-14 shrink-0">
-                        <div className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{new Date(h.date).getDate()}</div>
-                        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mt-1">{new Date(h.date).toLocaleDateString("en", { weekday: "short" })}</div>
+                        <div className="text-2xl font-bold text-[color:var(--hr-text-strong)] tabular-nums leading-none">{new Date(h.date).getDate()}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold mt-1">{new Date(h.date).toLocaleDateString("en", { weekday: "short" })}</div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900">{h.name}</div>
-                        {h.description && <div className="text-xs text-gray-500 mt-0.5">{h.description}</div>}
+                        <div className="font-semibold text-[color:var(--hr-text-strong)]">{h.name}</div>
+                        {h.description && <div className="text-xs text-[color:var(--hr-text-muted)] mt-0.5">{h.description}</div>}
                       </div>
                       <div className="flex gap-1.5 items-center">
                         <Badge variant="secondary" className="capitalize">{h.type}</Badge>

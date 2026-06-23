@@ -53,25 +53,25 @@ function PayrollIndex() {
   });
 
   if (!access.isLoading && !access.canManagePayroll) {
-    return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-sm text-gray-500"><Lock className="h-5 w-5 inline mr-2" />Payroll is restricted to admin and operations roles.</div></div>;
+    return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8 text-sm text-[color:var(--hr-text-muted)]"><Lock className="h-5 w-5 inline mr-2" />Payroll is restricted to admin and operations roles.</div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         <PageHeader
           title="Payroll"
           subtitle="Monthly payroll runs and payslips"
-          actions={<Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" /> New Run</Button>}
+          actions={<Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-1.5" /> New Run</Button>}
         />
 
         {isLoading ? (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center text-gray-400">Loading…</div>
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-12 text-center text-[color:var(--hr-text-muted)]">Loading…</div>
         ) : (runs as any[]).length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm">
             <EmptyState icon={Wallet} title="No payroll runs yet" description="Generate the first monthly payroll run to get started." action={
-              <Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" />New Run</Button>
+              <Button size="sm" onClick={() => setOpen(true)} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-1.5" />New Run</Button>
             } />
           </div>
         ) : (
@@ -79,25 +79,25 @@ function PayrollIndex() {
             {(runs as any[]).map((r) => {
               const tone: StatusTone = r.status === "finalized" ? "finalized" : r.status === "cancelled" ? "inactive" : "draft";
               return (
-                <Link key={r.id} to="/erp/hr/payroll/$runId" params={{ runId: r.id }} className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all p-5 flex items-center gap-6">
-                  <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-600 font-bold text-sm shrink-0">
+                <Link key={r.id} to="/erp/hr/payroll/$runId" params={{ runId: r.id }} className="group bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm hover:shadow-md hover:border-[color:var(--hr-border)] transition-all p-5 flex items-center gap-6">
+                  <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 text-[color:var(--hr-accent)] font-bold text-sm shrink-0">
                     {MONTHS[r.month - 1]}
                     <span className="sr-only">{r.year}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className="text-base font-semibold text-gray-900">{MONTHS[r.month - 1]} {r.year}</div>
+                      <div className="text-base font-semibold text-[color:var(--hr-text-strong)]">{MONTHS[r.month - 1]} {r.year}</div>
                       <StatusPill tone={tone} dot>{r.status === "finalized" ? <><Lock className="h-3 w-3" />Finalized</> : r.status}</StatusPill>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{r.total_employees} employees</div>
+                    <div className="text-xs text-[color:var(--hr-text-muted)] mt-1">{r.total_employees} employees</div>
                   </div>
                   <div className="hidden sm:block text-right">
-                    <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Gross</div>
-                    <div className="text-sm font-semibold text-gray-700 tabular-nums">৳{Number(r.total_gross).toLocaleString("en-BD")}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Gross</div>
+                    <div className="text-sm font-semibold text-[color:var(--hr-text-strong)] tabular-nums">৳{Number(r.total_gross).toLocaleString("en-BD")}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Net</div>
-                    <div className="text-base font-bold text-gray-900 tabular-nums">৳{Number(r.total_net).toLocaleString("en-BD")}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Net</div>
+                    <div className="text-base font-bold text-[color:var(--hr-text-strong)] tabular-nums">৳{Number(r.total_net).toLocaleString("en-BD")}</div>
                   </div>
                   <div className="flex items-center gap-1">
                     {r.status === "draft" && access.isAdmin && (
@@ -105,7 +105,7 @@ function PayrollIndex() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
-                    <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" />
+                    <ArrowRight className="h-4 w-4 text-[color:var(--hr-text-muted)] group-hover:text-[color:var(--hr-text-strong)] group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </Link>
               );

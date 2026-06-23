@@ -60,33 +60,33 @@ function LeaveCalendar() {
   const holsByDate = useMemo(() => new Map((hols as any[]).map((h: any) => [h.date, h])), [hols]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Leave Calendar</h1>
-            <p className="text-sm text-gray-500 mt-1">Team-wide approved leaves and holidays</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--hr-text-strong)]">Leave Calendar</h1>
+            <p className="text-sm text-[color:var(--hr-text-muted)] mt-1">Team-wide approved leaves and holidays</p>
           </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl shadow-sm p-1.5">
+          <div className="flex items-center gap-2 bg-white border border-[color:var(--hr-border)] rounded-xl shadow-sm p-1.5">
             <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => { if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1); }}><ChevronLeft className="h-4 w-4" /></Button>
-            <div className="text-sm font-semibold w-40 text-center text-gray-900">{new Date(year, month).toLocaleString("en", { month: "long", year: "numeric" })}</div>
+            <div className="text-sm font-semibold w-40 text-center text-[color:var(--hr-text-strong)]">{new Date(year, month).toLocaleString("en", { month: "long", year: "numeric" })}</div>
             <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => { if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1); }}><ChevronRight className="h-4 w-4" /></Button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-4">
           <div className="grid grid-cols-7 gap-1.5 text-xs">
-            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (<div key={d} className="text-center text-gray-500 font-semibold py-2 text-[11px] uppercase tracking-wider">{d}</div>))}
+            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (<div key={d} className="text-center text-[color:var(--hr-text-muted)] font-semibold py-2 text-[11px] uppercase tracking-wider">{d}</div>))}
             {grid.map((c, i) => {
-              if (!c.date) return <div key={i} className="bg-gray-50/50 rounded-lg min-h-[110px]" />;
+              if (!c.date) return <div key={i} className="bg-muted/40 rounded-lg min-h-[110px]" />;
               const evs = eventsByDate.get(c.date) ?? [];
               const hol: any = holsByDate.get(c.date);
               const dow = new Date(c.date).getDay();
               return (
-                <div key={i} className={`rounded-lg border min-h-[110px] p-2 transition-colors ${hol ? "bg-violet-50 border-violet-100" : dow === 5 ? "bg-slate-50 border-gray-100" : "border-gray-100 hover:bg-gray-50/50"}`}>
+                <div key={i} className={`rounded-lg border min-h-[110px] p-2 transition-colors ${hol ? "bg-violet-50 border-violet-100" : dow === 5 ? "bg-slate-50 border-[color:var(--hr-border)]" : "border-[color:var(--hr-border)] hover:bg-muted/40"}`}>
                   <div className="flex items-center justify-between text-[11px] mb-1.5">
-                    <span className="font-semibold text-gray-900">{c.d}</span>
+                    <span className="font-semibold text-[color:var(--hr-text-strong)]">{c.d}</span>
                     {hol && <span className="text-violet-700 truncate text-[10px]" title={hol.name}>{hol.name}</span>}
                   </div>
                   <div className="space-y-0.5">
@@ -95,7 +95,7 @@ function LeaveCalendar() {
                         {e.employee?.full_name}
                       </div>
                     ))}
-                    {evs.length > 3 && <div className="text-[10px] text-gray-500 px-1">+{evs.length - 3} more</div>}
+                    {evs.length > 3 && <div className="text-[10px] text-[color:var(--hr-text-muted)] px-1">+{evs.length - 3} more</div>}
                   </div>
                 </div>
               );

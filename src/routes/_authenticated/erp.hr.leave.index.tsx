@@ -54,7 +54,7 @@ function LeavePage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         <PageHeader
@@ -65,7 +65,7 @@ function LeavePage() {
               <Link to="/erp/hr/leave/calendar"><Button variant="outline" size="sm" className="rounded-lg"><CalendarRange className="h-4 w-4 mr-2" />Calendar</Button></Link>
               <Link to="/erp/hr/leave/policy"><Button variant="outline" size="sm" className="rounded-lg"><Settings className="h-4 w-4 mr-2" />Policy</Button></Link>
               <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild><Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />Apply leave</Button></DialogTrigger>
+                <DialogTrigger asChild><Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-2" />Apply leave</Button></DialogTrigger>
                 <ApplyDialog onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["leave-list"] }); qc.invalidateQueries({ queryKey: ["leave-kpi"] }); }} />
               </Dialog>
             </>
@@ -79,12 +79,12 @@ function LeavePage() {
           <StatCard label="On leave today" value={kpi?.onLeaveToday ?? 0} icon={CalendarDays} accent="blue" />
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-5 space-y-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <Label className="text-xs">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="w-40 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-40 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -96,35 +96,35 @@ function LeavePage() {
             </div>
           </div>
 
-          <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="border border-[color:var(--hr-border)] rounded-xl overflow-hidden">
             <Table>
-              <TableHeader><TableRow className="border-gray-100 hover:bg-transparent">
-                {["Employee","Type","From","To"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
-                <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Days</TableHead>
-                <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Reason</TableHead>
-                <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Status</TableHead>
-                <TableHead className="bg-gray-50/50"></TableHead>
+              <TableHeader><TableRow className="border-[color:var(--hr-border)] hover:bg-transparent">
+                {["Employee","Type","From","To"].map(h => <TableHead key={h} className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">{h}</TableHead>)}
+                <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Days</TableHead>
+                <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Reason</TableHead>
+                <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Status</TableHead>
+                <TableHead className="bg-muted/40"></TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-gray-400">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-[color:var(--hr-text-muted)]">Loading…</TableCell></TableRow>
                 ) : (rows as any[]).length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="p-0"><EmptyState icon={Inbox} title="No leave requests" description="Nothing to review for this filter." /></TableCell></TableRow>
                 ) : (rows as any[]).map((r: any) => (
-                  <TableRow key={r.id} className="border-gray-100 hover:bg-gray-50/60">
-                    <TableCell><div className="font-semibold text-sm text-gray-900">{r.employee?.full_name}</div><div className="text-xs text-gray-500 font-mono">{r.employee?.employee_code}</div></TableCell>
+                  <TableRow key={r.id} className="border-[color:var(--hr-border)] hover:bg-muted/40">
+                    <TableCell><div className="font-semibold text-sm text-[color:var(--hr-text-strong)]">{r.employee?.full_name}</div><div className="text-xs text-[color:var(--hr-text-muted)] font-mono">{r.employee?.employee_code}</div></TableCell>
                     <TableCell><Badge variant="secondary" style={{ backgroundColor: `${r.leave_type?.color}22`, color: r.leave_type?.color }}>{r.leave_type?.name}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs text-gray-700">{r.from_date}</TableCell>
-                    <TableCell className="font-mono text-xs text-gray-700">{r.to_date}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-gray-900">{r.days}{r.is_half_day && " ½"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate text-sm text-gray-600" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs text-[color:var(--hr-text-strong)]">{r.from_date}</TableCell>
+                    <TableCell className="font-mono text-xs text-[color:var(--hr-text-strong)]">{r.to_date}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-[color:var(--hr-text-strong)]">{r.days}{r.is_half_day && " ½"}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-sm text-[color:var(--hr-text-muted)]" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
                     <TableCell><StatusPill tone={TONE[r.status] ?? "neutral"} dot>{r.status}</StatusPill></TableCell>
                     <TableCell className="text-right">
                       {r.status === "pending" && (
                         <div className="flex gap-1 justify-end">
                           <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-emerald-50 hover:text-emerald-700" onClick={() => decideMut.mutate({ id: r.id, decision: "approved" })}><Check className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => decideMut.mutate({ id: r.id, decision: "rejected" })}><X className="h-4 w-4" /></Button>
-                          <Button size="sm" variant="ghost" className="h-8 text-gray-500" onClick={() => cancelMut.mutate(r.id)}>Cancel</Button>
+                          <Button size="sm" variant="ghost" className="h-8 text-[color:var(--hr-text-muted)]" onClick={() => cancelMut.mutate(r.id)}>Cancel</Button>
                         </div>
                       )}
                     </TableCell>
