@@ -46,28 +46,28 @@ function Departments() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
         <PageHeader
           title="Departments"
           subtitle="Organizational units"
-          actions={<Button size="sm" onClick={openNew} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-1.5" /> Add Department</Button>}
+          actions={<Button size="sm" onClick={openNew} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-1.5" /> Add Department</Button>}
         />
         {(depts as any[]).length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm">
             <EmptyState icon={Building2} title="No departments yet" description="Create your first department to organize employees." />
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
+          <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm divide-y divide-gray-100">
             {(depts as any[]).map((d) => (
-              <div key={d.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
-                <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div key={d.id} className="group px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors">
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 text-[color:var(--hr-accent)] flex items-center justify-center">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900">{d.name}</div>
-                  {d.code && <div className="text-xs text-gray-500 font-mono mt-0.5">{d.code}</div>}
+                  <div className="font-semibold text-[color:var(--hr-text-strong)]">{d.name}</div>
+                  {d.code && <div className="text-xs text-[color:var(--hr-text-muted)] font-mono mt-0.5">{d.code}</div>}
                 </div>
                 <StatusPill tone={d.is_active ? "active" : "inactive"} dot>{d.is_active ? "Active" : "Inactive"}</StatusPill>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

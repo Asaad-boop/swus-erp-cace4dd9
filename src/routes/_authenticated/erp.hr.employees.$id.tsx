@@ -63,23 +63,23 @@ function EmployeeDetail() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (isLoading) return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-gray-400">Loading…</div></div>;
-  if (!data) return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8">Not found</div></div>;
+  if (isLoading) return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8 text-[color:var(--hr-text-muted)]">Loading…</div></div>;
+  if (!data) return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8">Not found</div></div>;
   if (!access.canAccess && !access.isLoading) {
-    return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-sm text-gray-500">You don't have access to HR.</div></div>;
+    return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8 text-sm text-[color:var(--hr-text-muted)]">You don't have access to HR.</div></div>;
   }
   const e = data.employee;
   const tone = STATUS_TONE[e.status] ?? "neutral";
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-[color:var(--hr-text-muted)] hover:text-[color:var(--hr-text-strong)] transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to employees
         </Link>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[color:var(--hr-border)] shadow-sm overflow-hidden">
           <div className="h-20 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
           <div className="px-6 pb-6 -mt-10 flex items-end justify-between gap-4 flex-wrap">
             <div className="flex items-end gap-4">
@@ -93,11 +93,11 @@ function EmployeeDetail() {
               </div>
               <div className="pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">{e.full_name}</h1>
+                  <h1 className="text-2xl font-semibold text-[color:var(--hr-text-strong)] tracking-tight">{e.full_name}</h1>
                   <Badge variant="outline" className="font-mono text-xs rounded-md">{e.employee_code}</Badge>
                   <StatusPill tone={tone} dot>{e.status.replace("_"," ")}</StatusPill>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-[color:var(--hr-text-muted)]">
                   {e.phone && <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{e.phone}</span>}
                   {e.email && <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{e.email}</span>}
                   <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />Joined {e.joining_date}</span>
@@ -116,7 +116,7 @@ function EmployeeDetail() {
 
         <Tabs defaultValue="profile">
           <div className="sticky top-[120px] z-10 bg-gray-50 -mx-2 px-2 py-1">
-            <TabsList className="flex-wrap h-auto bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+            <TabsList className="flex-wrap h-auto bg-white border border-[color:var(--hr-border)] rounded-xl p-1 shadow-sm">
               <TabsTrigger value="profile" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Profile</TabsTrigger>
               <TabsTrigger value="employment" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Employment</TabsTrigger>
               <TabsTrigger value="salary" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Salary</TabsTrigger>

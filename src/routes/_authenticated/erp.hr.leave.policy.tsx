@@ -44,7 +44,7 @@ function PolicyPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
         <PageHeader
@@ -53,39 +53,39 @@ function PolicyPage() {
           actions={
             <>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" disabled={allocMut.isPending} onClick={() => allocMut.mutate()} className="rounded-lg"><Sparkles className="h-4 w-4 mr-2" />{allocMut.isPending ? "Allocating…" : "Allocate"}</Button>
               <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEdit(null); }}>
-                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />New type</Button></DialogTrigger>
+                <DialogTrigger asChild><Button size="sm" onClick={() => setEdit(null)} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-2" />New type</Button></DialogTrigger>
                 <TypeDialog initial={edit} onDone={() => { setOpen(false); setEdit(null); qc.invalidateQueries({ queryKey: ["leave-types"] }); }} upFn={upFn} />
               </Dialog>
             </>
           }
         />
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm overflow-hidden">
           <Table>
-            <TableHeader><TableRow className="border-gray-100 hover:bg-transparent">
-              {["Name","Code"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
-              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Days/yr</TableHead>
-              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Carry fwd</TableHead>
-              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Notice</TableHead>
-              <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Status</TableHead>
-              <TableHead className="bg-gray-50/50"></TableHead>
+            <TableHeader><TableRow className="border-[color:var(--hr-border)] hover:bg-transparent">
+              {["Name","Code"].map(h => <TableHead key={h} className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">{h}</TableHead>)}
+              <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Days/yr</TableHead>
+              <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Carry fwd</TableHead>
+              <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Notice</TableHead>
+              <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Status</TableHead>
+              <TableHead className="bg-muted/40"></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {(rows as any[]).length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No leave types</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-10 text-[color:var(--hr-text-muted)]">No leave types</TableCell></TableRow>
               ) : (rows as any[]).map((t: any) => (
-                <TableRow key={t.id} className="border-gray-100 hover:bg-gray-50/60">
+                <TableRow key={t.id} className="border-[color:var(--hr-border)] hover:bg-muted/40">
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="inline-block w-3 h-3 rounded-full" style={{ background: t.color }} />
-                      <span className="font-semibold text-gray-900">{t.name}</span>
+                      <span className="font-semibold text-[color:var(--hr-text-strong)]">{t.name}</span>
                     </div>
                   </TableCell>
                   <TableCell><Badge variant="outline" className="font-mono rounded-md">{t.code}</Badge></TableCell>

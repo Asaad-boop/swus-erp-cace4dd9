@@ -60,9 +60,9 @@ function PayrollRunPage() {
   });
 
   if (!access.isLoading && !access.canManagePayroll) {
-    return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-sm text-gray-500"><Lock className="h-5 w-5 inline mr-2" />Restricted.</div></div>;
+    return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8 text-sm text-[color:var(--hr-text-muted)]"><Lock className="h-5 w-5 inline mr-2" />Restricted.</div></div>;
   }
-  if (isLoading || !data) return <div className="min-h-screen bg-gray-50"><HrSubnav /><div className="p-8 text-gray-400">Loading…</div></div>;
+  if (isLoading || !data) return <div className="min-h-screen bg-background"><HrSubnav /><div className="p-8 text-[color:var(--hr-text-muted)]">Loading…</div></div>;
   const { run, payslips, departments, designations } = data;
   const journalEntry = (data as any).journal_entry as { id: string; entry_no: string; entry_date: string; status: string } | null;
   const isFinalized = run.status === "finalized";
@@ -86,19 +86,19 @@ function PayrollRunPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-        <Link to="/erp/hr/payroll" className="text-sm text-gray-500 inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+        <Link to="/erp/hr/payroll" className="text-sm text-[color:var(--hr-text-muted)] inline-flex items-center gap-1.5 hover:text-[color:var(--hr-text-strong)] transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to payroll
         </Link>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[color:var(--hr-border)] shadow-sm overflow-hidden">
           <div className="h-16 bg-gradient-to-r from-indigo-600 to-violet-600" />
           <div className="px-6 py-5 flex justify-between items-end flex-wrap gap-4 -mt-8">
-            <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-[color:var(--hr-border)]">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-gray-900">{MONTHS[run.month - 1]} {run.year}</h1>
+                <h1 className="text-xl font-semibold text-[color:var(--hr-text-strong)]">{MONTHS[run.month - 1]} {run.year}</h1>
                 {isFinalized && <StatusPill tone="finalized" dot><Lock className="h-3 w-3" />Finalized</StatusPill>}
                 {isFinalized && journalEntry && (
                   <Link
@@ -111,32 +111,32 @@ function PayrollRunPage() {
                   </Link>
                 )}
               </div>
-              <div className="text-xs text-gray-500 mt-1">{run.total_employees} employees · Paid {paidCount}/{(payslips as any[]).length}</div>
+              <div className="text-xs text-[color:var(--hr-text-muted)] mt-1">{run.total_employees} employees · Paid {paidCount}/{(payslips as any[]).length}</div>
             </div>
             <div className="flex gap-2 pb-1">
               <Button size="sm" variant="outline" onClick={exportBankSheet} className="rounded-lg"><Download className="h-4 w-4 mr-1.5" /> Bank Sheet</Button>
               {!isFinalized && access.isAdmin && (
-                <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800" onClick={() => { if (confirm("Finalize this run? You cannot edit after finalizing.")) finMut.mutate(); }}>
+                <Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90" onClick={() => { if (confirm("Finalize this run? You cannot edit after finalizing.")) finMut.mutate(); }}>
                   <Lock className="h-4 w-4 mr-1.5" /> Finalize
                 </Button>
               )}
             </div>
           </div>
           <div className="px-6 pb-5 grid grid-cols-3 gap-4">
-            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Gross</div><div className="text-lg font-bold text-gray-900 tabular-nums mt-1">৳{Number(run.total_gross).toLocaleString("en-BD")}</div></div>
-            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Net</div><div className="text-lg font-bold text-gray-900 tabular-nums mt-1">৳{Number(run.total_net).toLocaleString("en-BD")}</div></div>
+            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Gross</div><div className="text-lg font-bold text-[color:var(--hr-text-strong)] tabular-nums mt-1">৳{Number(run.total_gross).toLocaleString("en-BD")}</div></div>
+            <div className="rounded-xl bg-gray-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Net</div><div className="text-lg font-bold text-[color:var(--hr-text-strong)] tabular-nums mt-1">৳{Number(run.total_net).toLocaleString("en-BD")}</div></div>
             <div className="rounded-xl bg-emerald-50 px-4 py-3"><div className="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold">Paid</div><div className="text-lg font-bold text-emerald-700 tabular-nums mt-1">{paidCount}/{(payslips as any[]).length}</div></div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm overflow-x-auto">
           <Table>
               <TableHeader>
-                <TableRow className="border-gray-100 hover:bg-transparent">
-                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</TableHead>
-                  {["Basic","Allowances","OT Earning","Absent Ded.","Late Ded.","Deductions","Gross","Net Pay"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">{h}</TableHead>)}
-                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payment</TableHead>
-                  <TableHead className="bg-gray-50/50"></TableHead>
+                <TableRow className="border-[color:var(--hr-border)] hover:bg-transparent">
+                  <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Employee</TableHead>
+                  {["Basic","Allowances","OT Earning","Absent Ded.","Late Ded.","Deductions","Gross","Net Pay"].map(h => <TableHead key={h} className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">{h}</TableHead>)}
+                  <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Payment</TableHead>
+                  <TableHead className="bg-muted/40"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -211,24 +211,24 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
   const deductionsBd = { ...ded };
 
   return (
-    <TableRow className="border-gray-100 hover:bg-gray-50/60">
+    <TableRow className="border-[color:var(--hr-border)] hover:bg-muted/40">
       <TableCell>
-        <div className="font-semibold text-sm text-gray-900">{p.hr_employees?.full_name ?? p.snapshot?.full_name ?? "—"}</div>
-        <div className="text-xs text-gray-500">{p.hr_employees?.employee_code ?? p.snapshot?.employee_code ?? ""} · {desigName} · {deptName}</div>
+        <div className="font-semibold text-sm text-[color:var(--hr-text-strong)]">{p.hr_employees?.full_name ?? p.snapshot?.full_name ?? "—"}</div>
+        <div className="text-xs text-[color:var(--hr-text-muted)]">{p.hr_employees?.employee_code ?? p.snapshot?.employee_code ?? ""} · {desigName} · {deptName}</div>
       </TableCell>
       <TableCell className="text-right">
-        <Input type="number" value={basic} disabled={isFinalized} className="w-24 text-right h-8 rounded-md border-gray-200 tabular-nums"
+        <Input type="number" value={basic} disabled={isFinalized} className="w-24 text-right h-8 rounded-md border-[color:var(--hr-border)] tabular-nums"
           onChange={(e) => { setBasic(Number(e.target.value) || 0); setDirty(true); }} />
       </TableCell>
       <TableCell className="text-right text-xs">
-        <div className="font-medium tabular-nums text-gray-700">৳{allowSum.toLocaleString("en-BD")}</div>
+        <div className="font-medium tabular-nums text-[color:var(--hr-text-strong)]">৳{allowSum.toLocaleString("en-BD")}</div>
         <details>
-          <summary className="cursor-pointer text-indigo-600 text-[10px] hover:underline">edit</summary>
+          <summary className="cursor-pointer text-[color:var(--hr-accent)] text-[10px] hover:underline">edit</summary>
           {Object.keys(allow).length === 0 && ["house","transport","medical","other"].map((k) => allow[k] = allow[k] ?? 0)}
           {Object.entries(allow).map(([k, v]) => (
             <div key={k} className="flex items-center gap-1 mt-1">
-              <span className="w-16 capitalize text-[10px] text-gray-500">{k}</span>
-              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-gray-200 tabular-nums"
+              <span className="w-16 capitalize text-[10px] text-[color:var(--hr-text-muted)]">{k}</span>
+              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-[color:var(--hr-border)] tabular-nums"
                 onChange={(e) => { setAllow({ ...allow, [k]: Number(e.target.value) || 0 }); setDirty(true); }} />
             </div>
           ))}
@@ -238,25 +238,25 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
       <TableCell className="text-right tabular-nums text-red-600 text-xs">{absentDed > 0 ? `৳${absentDed.toLocaleString("en-BD")}` : "—"}</TableCell>
       <TableCell className="text-right tabular-nums text-red-600 text-xs">{lateDed > 0 ? `৳${lateDed.toLocaleString("en-BD")}` : "—"}</TableCell>
       <TableCell className="text-right text-xs">
-        <div className="font-medium tabular-nums text-gray-700">৳{dedSum.toLocaleString("en-BD")}</div>
+        <div className="font-medium tabular-nums text-[color:var(--hr-text-strong)]">৳{dedSum.toLocaleString("en-BD")}</div>
         <details>
-          <summary className="cursor-pointer text-indigo-600 text-[10px] hover:underline">edit</summary>
+          <summary className="cursor-pointer text-[color:var(--hr-accent)] text-[10px] hover:underline">edit</summary>
           {Object.keys(ded).length === 0 && ["pf","tax","loan","other"].map((k) => ded[k] = ded[k] ?? 0)}
           {Object.entries(ded).map(([k, v]) => (
             <div key={k} className="flex items-center gap-1 mt-1">
-              <span className="w-16 capitalize text-[10px] text-gray-500">{k}</span>
-              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-gray-200 tabular-nums"
+              <span className="w-16 capitalize text-[10px] text-[color:var(--hr-text-muted)]">{k}</span>
+              <Input type="number" value={v} disabled={isFinalized} className="w-20 h-7 text-right rounded-md border-[color:var(--hr-border)] tabular-nums"
                 onChange={(e) => { setDed({ ...ded, [k]: Number(e.target.value) || 0 }); setDirty(true); }} />
             </div>
           ))}
         </details>
       </TableCell>
-      <TableCell className="text-right tabular-nums text-gray-700">৳{gross.toLocaleString("en-BD")}</TableCell>
+      <TableCell className="text-right tabular-nums text-[color:var(--hr-text-strong)]">৳{gross.toLocaleString("en-BD")}</TableCell>
       <TableCell className="text-right">
         <TooltipProvider delayDuration={120}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="font-bold tabular-nums text-gray-900 cursor-help underline decoration-dotted decoration-gray-300">৳{net.toLocaleString("en-BD")}</span>
+              <span className="font-bold tabular-nums text-[color:var(--hr-text-strong)] cursor-help underline decoration-dotted decoration-gray-300">৳{net.toLocaleString("en-BD")}</span>
             </TooltipTrigger>
             <TooltipContent className="text-xs max-w-xs">
               <div className="font-semibold mb-1">Earnings</div>
@@ -264,7 +264,7 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
                 <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
               ))}
               <div className="font-semibold mt-2 mb-1">Deductions</div>
-              {Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).length === 0 ? <div className="text-gray-400">None</div> :
+              {Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).length === 0 ? <div className="text-[color:var(--hr-text-muted)]">None</div> :
                 Object.entries(deductionsBd).filter(([,v]) => Number(v) > 0).map(([k,v]) => (
                   <div key={k} className="flex justify-between gap-3"><span className="capitalize text-gray-300">{k}</span><span className="tabular-nums">৳{Number(v).toLocaleString("en-BD")}</span></div>
                 ))
@@ -275,12 +275,12 @@ function PayslipRow({ payslip: p, isFinalized, deptName, desigName, onSave, onPr
       </TableCell>
       <TableCell>
         <StatusPill tone={(p.payment_status === "paid" ? "paid" : "pending") as StatusTone} dot>{p.payment_status}</StatusPill>
-        {p.payment_method && <div className="text-[10px] text-gray-500 mt-1">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}
+        {p.payment_method && <div className="text-[10px] text-[color:var(--hr-text-muted)] mt-1">{p.payment_method}{p.payment_ref ? ` · ${p.payment_ref}` : ""}</div>}
       </TableCell>
       <TableCell>
         <div className="inline-flex gap-1">
           {!isFinalized && dirty && (
-            <Button size="sm" className="rounded-md h-7 bg-gray-900 hover:bg-gray-800" onClick={() => { onSave({ basic, allowances: allow, deductions: ded }); setDirty(false); }}>Save</Button>
+            <Button size="sm" className="rounded-md h-7 bg-[color:var(--hr-accent)] hover:opacity-90" onClick={() => { onSave({ basic, allowances: allow, deductions: ded }); setDirty(false); }}>Save</Button>
           )}
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onPrint}><Printer className="h-3.5 w-3.5" /></Button>
           {isFinalized && p.payment_status !== "paid" && (

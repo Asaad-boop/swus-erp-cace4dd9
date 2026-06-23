@@ -29,17 +29,17 @@ function NewEmployee() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
-        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+        <Link to="/erp/hr/employees" className="inline-flex items-center gap-1.5 text-sm text-[color:var(--hr-text-muted)] hover:text-[color:var(--hr-text-strong)] transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to employees
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">New Employee</h1>
-          <p className="text-sm text-gray-500 mt-1">Add a person to the directory.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--hr-text-strong)]">New Employee</h1>
+          <p className="text-sm text-[color:var(--hr-text-muted)] mt-1">Add a person to the directory.</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-6">
           <EmployeeForm
             onSubmit={async (d) => { await mut.mutateAsync(d); }}
             submitting={mut.isPending}

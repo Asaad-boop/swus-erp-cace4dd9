@@ -96,7 +96,7 @@ function MusterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6">
         <PageHeader
@@ -110,12 +110,12 @@ function MusterPage() {
           }
         />
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-5 space-y-4">
           <div className="flex gap-3 items-end flex-wrap">
             <div>
               <Label className="text-xs">Year</Label>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                 </SelectContent>
@@ -124,7 +124,7 @@ function MusterPage() {
             <div>
               <Label className="text-xs">Month</Label>
               <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                <SelectTrigger className="w-36 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-36 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (<SelectItem key={m} value={String(m)}>{new Date(2000, m-1).toLocaleString("en", { month: "long" })}</SelectItem>))}
                 </SelectContent>
@@ -133,7 +133,7 @@ function MusterPage() {
             <div>
               <Label className="text-xs">Department</Label>
               <Select value={dept} onValueChange={setDept}>
-                <SelectTrigger className="w-48 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-48 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   {(depts as any[]).map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
@@ -145,17 +145,17 @@ function MusterPage() {
             </div>
           </div>
 
-          <div className="overflow-auto border border-gray-100 rounded-xl max-h-[70vh]">
+          <div className="overflow-auto border border-[color:var(--hr-border)] rounded-xl max-h-[70vh]">
             <table className="text-xs w-full">
               <thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10">
-                <tr className="border-b border-gray-100">
-                  <th className="px-3 py-2.5 text-left sticky left-0 bg-gray-50/95 z-20 min-w-[180px] text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Employee</th>
+                <tr className="border-b border-[color:var(--hr-border)]">
+                  <th className="px-3 py-2.5 text-left sticky left-0 bg-gray-50/95 z-20 min-w-[180px] text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Employee</th>
                   {days.map((d) => {
                     const dateStr = `${data?.from.slice(0,7) ?? ""}-${String(d).padStart(2,"0")}`;
                     const isHol = !!(data?.holidays as any)?.[dateStr];
                     const dow = data ? new Date(dateStr).getDay() : 0;
                     return (
-                      <th key={d} className={`px-1 py-2.5 text-center min-w-[30px] font-semibold text-gray-600 ${isHol ? "bg-violet-50" : dow === 5 ? "bg-slate-50" : ""}`}>
+                      <th key={d} className={`px-1 py-2.5 text-center min-w-[30px] font-semibold text-[color:var(--hr-text-muted)] ${isHol ? "bg-violet-50" : dow === 5 ? "bg-slate-50" : ""}`}>
                         {d}
                       </th>
                     );
@@ -167,17 +167,17 @@ function MusterPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td className="text-center py-10 text-gray-400" colSpan={days.length + 4}>Loading…</td></tr>
+                  <tr><td className="text-center py-10 text-[color:var(--hr-text-muted)]" colSpan={days.length + 4}>Loading…</td></tr>
                 ) : (data?.employees ?? []).length === 0 ? (
-                  <tr><td className="text-center py-10 text-gray-400" colSpan={days.length + 4}>No employees</td></tr>
+                  <tr><td className="text-center py-10 text-[color:var(--hr-text-muted)]" colSpan={days.length + 4}>No employees</td></tr>
                 ) : (data?.employees as any[]).map((e: any) => {
                   const att = (data?.attendance as any)?.[e.id] ?? {};
                   let p = 0, a = 0, l = 0;
                   return (
-                    <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50/60">
-                      <td className="px-3 py-2 sticky left-0 bg-white font-medium text-gray-900">
+                    <tr key={e.id} className="border-b border-[color:var(--hr-border)] hover:bg-muted/40">
+                      <td className="px-3 py-2 sticky left-0 bg-white font-medium text-[color:var(--hr-text-strong)]">
                         {e.full_name}
-                        <div className="text-[10px] text-gray-500 font-mono">{e.employee_code}</div>
+                        <div className="text-[10px] text-[color:var(--hr-text-muted)] font-mono">{e.employee_code}</div>
                       </td>
                       {days.map((d) => {
                         const dateStr = `${data!.from.slice(0,7)}-${String(d).padStart(2,"0")}`;
@@ -243,19 +243,19 @@ function CellDetailDialog({ data, onClose }: { data: { empId: string; date: stri
               <div><div className="text-xs text-muted-foreground">Total Hours</div><div className="font-mono">{cell.row.total_hours ? `${cell.row.total_hours}h` : (cell.row.work_min ? `${(cell.row.work_min/60).toFixed(1)}h` : "—")}</div></div>
             </div>
             {(cell.row.late_min > 0 || cell.row.ot_min > 0 || cell.row.status === "absent" || Number(cell.row.deduction_amount) > 0 || Number(cell.row.overtime_amount) > 0) && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-1.5">
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Payroll Impact</div>
+              <div className="rounded-lg border border-[color:var(--hr-border)] bg-gray-50 p-3 space-y-1.5">
+                <div className="text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">Payroll Impact</div>
                 {cell.row.late_min > 0 && (
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-[color:var(--hr-text-strong)]">
                     <span className="text-amber-700 font-medium">Late: {cell.row.late_min} min</span>
                     {" → "}
                     {Number(cell.row.deduction_amount) > 0 && cell.row.status !== "absent"
                       ? <span className="text-red-600 font-medium">Deduction: ৳{Number(cell.row.deduction_amount).toLocaleString("en-BD")}</span>
-                      : <span className="text-gray-500">No deduction yet (under consecutive threshold)</span>}
+                      : <span className="text-[color:var(--hr-text-muted)]">No deduction yet (under consecutive threshold)</span>}
                   </div>
                 )}
                 {cell.row.ot_min > 0 && (
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-[color:var(--hr-text-strong)]">
                     <span className="text-blue-700 font-medium">OT: {cell.row.ot_min} min</span>
                     {Number(cell.row.overtime_amount) > 0 && (
                       <> → <span className="text-emerald-600 font-medium">Earning: ৳{Number(cell.row.overtime_amount).toLocaleString("en-BD")}</span></>
@@ -263,14 +263,14 @@ function CellDetailDialog({ data, onClose }: { data: { empId: string; date: stri
                   </div>
                 )}
                 {cell.row.status === "absent" && (
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-[color:var(--hr-text-strong)]">
                     <span className="text-red-700 font-medium">Absent</span>
                     {Number(cell.row.deduction_amount) > 0 && (
                       <> → <span className="text-red-600 font-medium">Day salary deducted: ৳{Number(cell.row.deduction_amount).toLocaleString("en-BD")}</span></>
                     )}
                   </div>
                 )}
-                <div className="text-[10px] text-gray-400 pt-1">Values finalize when the payroll run is generated for this month.</div>
+                <div className="text-[10px] text-[color:var(--hr-text-muted)] pt-1">Values finalize when the payroll run is generated for this month.</div>
               </div>
             )}
             {cell.row.check_in_lat && cell.row.check_in_lng && (

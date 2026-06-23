@@ -75,7 +75,7 @@ function AttendancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         <PageHeader
@@ -89,7 +89,7 @@ function AttendancePage() {
               <Button variant="outline" size="sm" onClick={exportCsv} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Export</Button>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800"><Plus className="h-4 w-4 mr-2" />Mark</Button>
+                  <Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90"><Plus className="h-4 w-4 mr-2" />Mark</Button>
                 </DialogTrigger>
                 <MarkDialog defaultDate={date} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["att-list"] }); qc.invalidateQueries({ queryKey: ["att-kpi"] }); }} />
               </Dialog>
@@ -107,7 +107,7 @@ function AttendancePage() {
         </div>
 
         <Tabs defaultValue="live">
-          <TabsList className="bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+          <TabsList className="bg-white border border-[color:var(--hr-border)] rounded-xl p-1 shadow-sm">
             <TabsTrigger value="live" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Live Punch</TabsTrigger>
             <TabsTrigger value="manual" className="rounded-lg data-[state=active]:bg-gray-900 data-[state=active]:text-white">Manual / Records</TabsTrigger>
           </TabsList>
@@ -115,16 +115,16 @@ function AttendancePage() {
             <LivePunchPanel />
           </TabsContent>
           <TabsContent value="manual" className="mt-5">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap gap-3 items-end">
               <div>
                 <Label className="text-xs">Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-9 rounded-lg border-gray-200" />
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-9 rounded-lg border-[color:var(--hr-border)]" />
               </div>
               <div>
                 <Label className="text-xs">Department</Label>
                 <Select value={dept} onValueChange={setDept}>
-                  <SelectTrigger className="w-48 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-48 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All departments</SelectItem>
                     {(depts as any[]).map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
@@ -134,7 +134,7 @@ function AttendancePage() {
               <div>
                 <Label className="text-xs">Status</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="w-40 h-9 rounded-lg border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-40 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     {Object.keys(TONE).map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
@@ -143,34 +143,34 @@ function AttendancePage() {
               </div>
             </div>
 
-            <div className="border border-gray-100 rounded-xl overflow-hidden">
+            <div className="border border-[color:var(--hr-border)] rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-gray-100 hover:bg-transparent">
-                    {["Employee","Status","In","Out"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
-                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Late</TableHead>
-                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">OT</TableHead>
-                    <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Work</TableHead>
-                    <TableHead className="bg-gray-50/50"></TableHead>
+                  <TableRow className="border-[color:var(--hr-border)] hover:bg-transparent">
+                    {["Employee","Status","In","Out"].map(h => <TableHead key={h} className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">{h}</TableHead>)}
+                    <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Late</TableHead>
+                    <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">OT</TableHead>
+                    <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Work</TableHead>
+                    <TableHead className="bg-muted/40"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-gray-400 py-10">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-[color:var(--hr-text-muted)] py-10">Loading…</TableCell></TableRow>
                   ) : (rows as any[]).length === 0 ? (
                     <TableRow><TableCell colSpan={8} className="p-0"><EmptyState icon={FileText} title="No attendance" description="No records for this date." /></TableCell></TableRow>
                   ) : (rows as any[]).map((r: any) => (
-                    <TableRow key={r.id} className="border-gray-100 hover:bg-gray-50/60">
+                    <TableRow key={r.id} className="border-[color:var(--hr-border)] hover:bg-muted/40">
                       <TableCell>
-                        <div className="text-sm font-semibold text-gray-900">{r.employee?.full_name}</div>
-                        <div className="text-xs text-gray-500 font-mono">{r.employee?.employee_code}</div>
+                        <div className="text-sm font-semibold text-[color:var(--hr-text-strong)]">{r.employee?.full_name}</div>
+                        <div className="text-xs text-[color:var(--hr-text-muted)] font-mono">{r.employee?.employee_code}</div>
                       </TableCell>
                       <TableCell><StatusPill tone={TONE[r.status] ?? "neutral"} dot>{r.status}</StatusPill></TableCell>
-                      <TableCell className="font-mono text-xs text-gray-700">{r.in_time ? new Date(r.in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
-                      <TableCell className="font-mono text-xs text-gray-700">{r.out_time ? new Date(r.out_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums text-gray-700">{r.late_min || ""}</TableCell>
-                      <TableCell className="text-right tabular-nums text-gray-700">{r.ot_min || ""}</TableCell>
-                      <TableCell className="text-right tabular-nums font-medium text-gray-900">{r.work_min ? `${(r.work_min / 60).toFixed(1)}h` : ""}</TableCell>
+                      <TableCell className="font-mono text-xs text-[color:var(--hr-text-strong)]">{r.in_time ? new Date(r.in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
+                      <TableCell className="font-mono text-xs text-[color:var(--hr-text-strong)]">{r.out_time ? new Date(r.out_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[color:var(--hr-text-strong)]">{r.late_min || ""}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[color:var(--hr-text-strong)]">{r.ot_min || ""}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-[color:var(--hr-text-strong)]">{r.work_min ? `${(r.work_min / 60).toFixed(1)}h` : ""}</TableCell>
                       <TableCell className="text-right">
                         <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => delMut.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>

@@ -70,7 +70,7 @@ function ShiftsAssignPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <HrSubnav />
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         <PageHeader
@@ -83,47 +83,47 @@ function ShiftsAssignPage() {
           ) : undefined}
         />
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <Input placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm h-9 rounded-lg border-gray-200" />
-          <div className="border border-gray-100 rounded-xl overflow-hidden">
+        <div className="bg-white rounded-xl border border-[color:var(--hr-border)] shadow-sm p-5 space-y-4">
+          <Input placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm h-9 rounded-lg border-[color:var(--hr-border)]" />
+          <div className="border border-[color:var(--hr-border)] rounded-xl overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="border-gray-100 hover:bg-transparent">
-                  {["Employee","Current Shift","Assign New"].map(h => <TableHead key={h} className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{h}</TableHead>)}
-                  <TableHead className="bg-gray-50/50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold text-right">Action</TableHead>
+                <TableRow className="border-[color:var(--hr-border)] hover:bg-transparent">
+                  {["Employee","Current Shift","Assign New"].map(h => <TableHead key={h} className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold">{h}</TableHead>)}
+                  <TableHead className="bg-muted/40 text-[11px] uppercase tracking-wider text-[color:var(--hr-text-muted)] font-semibold text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {emps.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-gray-400 py-10">No employees.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-[color:var(--hr-text-muted)] py-10">No employees.</TableCell></TableRow>
                 ) : emps.map((e: any) => {
                   const cur = (shiftMap as any)[e.id];
                   return (
-                    <TableRow key={e.id} className="border-gray-100 hover:bg-gray-50/60">
+                    <TableRow key={e.id} className="border-[color:var(--hr-border)] hover:bg-muted/40">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <HrAvatar name={e.full_name} src={e.photo_url} size={32} />
                           <div>
-                            <div className="font-semibold text-sm text-gray-900">{e.full_name}</div>
-                            <div className="text-xs text-gray-500 font-mono">{e.employee_code}</div>
+                            <div className="font-semibold text-sm text-[color:var(--hr-text-strong)]">{e.full_name}</div>
+                            <div className="text-xs text-[color:var(--hr-text-muted)] font-mono">{e.employee_code}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         {cur?.hr_shifts ? (
                           <Badge variant="outline" className="rounded-md font-medium">{cur.hr_shifts.name} · {cur.hr_shifts.start_time}–{cur.hr_shifts.end_time}</Badge>
-                        ) : <span className="text-gray-400 text-sm">—</span>}
+                        ) : <span className="text-[color:var(--hr-text-muted)] text-sm">—</span>}
                       </TableCell>
                       <TableCell>
                         <Select value={pending[e.id] ?? ""} onValueChange={(v) => setPending({ ...pending, [e.id]: v })}>
-                          <SelectTrigger className="w-56 h-9 rounded-lg border-gray-200"><SelectValue placeholder="Select shift" /></SelectTrigger>
+                          <SelectTrigger className="w-56 h-9 rounded-lg border-[color:var(--hr-border)]"><SelectValue placeholder="Select shift" /></SelectTrigger>
                           <SelectContent>
                             {shiftOpts.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 h-8" disabled={!pending[e.id] || !access.canManageEmployees} onClick={() => assignMut.mutate({ emp: e.id, shift: pending[e.id] })}>
+                        <Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90 h-8" disabled={!pending[e.id] || !access.canManageEmployees} onClick={() => assignMut.mutate({ emp: e.id, shift: pending[e.id] })}>
                           <Save className="h-3 w-3 mr-1" /> Save
                         </Button>
                       </TableCell>
