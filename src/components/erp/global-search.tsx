@@ -386,7 +386,7 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
     staleTime: 30_000,
     queryFn: async () => {
       const like = `%${term}%`;
-      const isUuid = /^[0-9a-f-]{6,}$/i.test(term);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term);
       const [ordersRes, productsRes, customersRes] = await Promise.all([
         applyBrandScope(
           supabase.from("orders").select(ORDER_SEARCH_SELECT),
