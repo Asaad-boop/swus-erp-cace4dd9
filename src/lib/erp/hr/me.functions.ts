@@ -441,3 +441,17 @@ export const getMyPayslip = createServerFn({ method: "POST" })
     if (!row) throw new Error("Not found");
     return row;
   });
+
+/* ================= DOCUMENTS ================= */
+export const getMyDocuments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const emp = await getSelfEmployee(context.supabase, context.userId);
+    if (!emp) return { rows: [] };
+    const { data: rows } = await context.supabase
+      .from("hr_documents")
+      .select("id, doc_type, title, file_url, file_name, mime_type, file_size, issue_date, expiry_date, notes, created_at")
+      .eq("employee_id", emp.id)
+      .order("created_at", { ascending: false });
+    return { rows: rows ?? [] };
+  });
