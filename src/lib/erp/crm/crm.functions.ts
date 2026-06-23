@@ -332,6 +332,52 @@ export const getCrmCustomer = createServerFn({ method: "POST" })
     };
   });
 
+/* =================== ORDERS PREVIEW (for CRM list inline expand) =================== */
+export const getCrmCustomerOrdersPreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerKey: string; limit?: number }) =>
+    z.object({ customerKey: z.string().min(1), limit: z.number().int().min(1).max(20).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const key = normalizePhone(data.customerKey) ?? data.customerKey;
+    const limit = data.limit ?? 5;
+    const { data: orders, error } = await context.supabase
+      .from("orders")
+      .select("id, invoice_no, total, status, payment_method, created_at, brand_id, shipping_city")
+      .or(`shipping_phone.like.%${key},guest_phone.like.%${key}`)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    const ids = (orders ?? []).map((o: any) => o.id);
+    let itemsByOrder = new Map<string, { name: string; quantity: number; variant_label: string | null; image: string | null }[]>();
+    if (ids.length) {
+      const { data: items, error: itErr } = await context.supabase
+        .from("order_items")
+        .select("order_id, name, quantity, variant_label, image")
+        .in("order_id", ids);
+      if (itErr) throw itErr;
+      (items ?? []).forEach((it: any) => {
+        const arr = itemsByOrder.get(it.order_id) ?? [];
+        arr.push({ name: it.name, quantity: it.quantity, variant_label: it.variant_label, image: it.image });
+        itemsByOrder.set(it.order_id, arr);
+      });
+    }
+    return {
+      orders: (orders ?? []).map((o: any) => ({
+        id: o.id,
+        invoice_no: o.invoice_no ?? null,
+        total: Number(o.total ?? 0),
+        status: o.status,
+        payment_method: o.payment_method,
+        created_at: o.created_at,
+        brand_id: o.brand_id,
+        shipping_city: o.shipping_city,
+        items: itemsByOrder.get(o.id) ?? [],
+      })),
+    };
+  });
+
 /* =================== EXPORT CSV =================== */
 export const exportCrmCustomersCsv = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

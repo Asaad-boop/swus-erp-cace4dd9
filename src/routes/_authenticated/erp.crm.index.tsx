@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Download, Search, Tag as TagIcon, Upload, Users, Filter, X, Phone, MessageSquare,
   ShoppingBag, ShieldCheck, Trash2, Rows3, Rows2, CheckCircle2, AlertCircle, Users2, Megaphone,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/contexts/brand-context";
@@ -41,6 +42,7 @@ import { SEGMENT_LABELS, SEGMENT_TONES } from "@/lib/erp/crm/segments";
 import {
   listCrmCustomers, exportCrmCustomersCsv, listCrmTags,
   bulkAddCrmTag, bulkRemoveCrmTag, bulkSetCrmStatus, bulkDeleteCrmCustomers,
+  getCrmCustomerOrdersPreview,
 } from "@/lib/erp/crm/crm.functions";
 import type { CrmFilters, CrmSort, CrmSegment } from "@/lib/erp/crm/types";
 
@@ -114,6 +116,15 @@ function CrmListPage() {
   const [dense, setDense] = useState(true);
   const [dupesOpen, setDupesOpen] = useState(false);
   const [metaPushOpen, setMetaPushOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const previewFn = useServerFn(getCrmCustomerOrdersPreview);
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  };
 
   // Advanced filters
   const [advBrandIds, setAdvBrandIds] = useState<string[]>([]);
@@ -543,6 +554,7 @@ function CrmListPage() {
                 <TableHead className="w-10">
                   <Checkbox checked={allOnPageSelected} onCheckedChange={toggleAllOnPage} />
                 </TableHead>
+                <TableHead className="w-8" />
                 <TableHead className="min-w-[220px]">Customer</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Segment</TableHead>
@@ -560,15 +572,28 @@ function CrmListPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={14} className="text-center py-10 text-muted-foreground">Loading customers…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-10 text-muted-foreground">Loading customers…</TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={14} className="text-center py-10 text-muted-foreground">No customers found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-10 text-muted-foreground">No customers found</TableCell></TableRow>
               ) : rows.map((r) => {
                 const dsl = daysSince(r.last_order_at);
+                const isOpen = expanded.has(r.customer_key);
                 return (
+                  <Fragment key={r.customer_key}>
                   <TableRow key={r.customer_key} className={`group hover:bg-accent/30 ${selected.has(r.customer_key) ? "bg-primary/5" : ""}`}>
                     <TableCell className={cellPad}>
                       <Checkbox checked={selected.has(r.customer_key)} onCheckedChange={() => toggleRow(r.customer_key)} />
+                    </TableCell>
+                    <TableCell className={cellPad}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => toggleExpand(r.customer_key)}
+                        title={isOpen ? "Hide orders" : "Show orders"}
+                      >
+                        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </Button>
                     </TableCell>
                     <TableCell className={cellPad}>
                       <Link
@@ -657,6 +682,18 @@ function CrmListPage() {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {isOpen && (
+                    <TableRow key={`${r.customer_key}-preview`} className="bg-muted/30 hover:bg-muted/30">
+                      <TableCell colSpan={15} className="p-0">
+                        <CustomerOrdersPreview
+                          customerKey={r.customer_key}
+                          previewFn={previewFn}
+                          brandNameById={brandNameById}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
                 );
               })}
             </TableBody>
@@ -757,6 +794,105 @@ function CrmListPage() {
       <CrmImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <FindDuplicatesSheet open={dupesOpen} onOpenChange={setDupesOpen} brandId={activeBrand?.id} />
       <PushToMetaDialog open={metaPushOpen} onOpenChange={setMetaPushOpen} brandId={activeBrand?.id} />
+    </div>
+  );
+}
+
+const ORDER_STATUS_TONE: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  packaged: "bg-indigo-100 text-indigo-800",
+  shipped: "bg-purple-100 text-purple-800",
+  delivered: "bg-emerald-100 text-emerald-800",
+  cancelled: "bg-red-100 text-red-700",
+  returned: "bg-orange-100 text-orange-700",
+  refunded: "bg-zinc-200 text-zinc-700",
+  on_hold: "bg-amber-100 text-amber-800",
+  failed: "bg-red-100 text-red-700",
+};
+
+function CustomerOrdersPreview({
+  customerKey,
+  previewFn,
+  brandNameById,
+}: {
+  customerKey: string;
+  previewFn: (args: { data: { customerKey: string; limit?: number } }) => Promise<any>;
+  brandNameById: Map<string, string>;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["crm-orders-preview", customerKey],
+    queryFn: () => previewFn({ data: { customerKey, limit: 5 } }),
+    staleTime: 60_000,
+  });
+  if (isLoading) {
+    return <div className="px-4 py-3 text-xs text-muted-foreground">Loading recent orders…</div>;
+  }
+  const orders = data?.orders ?? [];
+  if (!orders.length) {
+    return <div className="px-4 py-3 text-xs text-muted-foreground">No orders found for this customer.</div>;
+  }
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+        Recent orders ({orders.length})
+      </div>
+      <div className="space-y-2">
+        {orders.map((o: any) => (
+          <div key={o.id} className="rounded-md border bg-card p-2.5 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:w-[260px] shrink-0">
+              <Link
+                to="/erp/orders/$orderId"
+                params={{ orderId: o.id }}
+                className="text-primary hover:underline font-mono text-xs"
+              >
+                #{o.invoice_no || o.id.slice(0, 8)}
+              </Link>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${ORDER_STATUS_TONE[o.status] ?? "bg-zinc-100 text-zinc-700"}`}>
+                {o.status}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {new Date(o.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-muted-foreground mb-1">
+                {brandNameById.get(o.brand_id) ?? "—"}
+                {o.shipping_city ? ` · ${o.shipping_city}` : ""}
+                {o.payment_method ? ` · ${o.payment_method}` : ""}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {(o.items ?? []).slice(0, 6).map((it: any, i: number) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[11px] max-w-[280px]"
+                    title={`${it.name}${it.variant_label ? ` (${it.variant_label})` : ""} × ${it.quantity}`}
+                  >
+                    <span className="truncate">{it.name}</span>
+                    {it.variant_label && <span className="text-muted-foreground">· {it.variant_label}</span>}
+                    <span className="text-muted-foreground">× {it.quantity}</span>
+                  </span>
+                ))}
+                {(o.items?.length ?? 0) > 6 && (
+                  <span className="text-[11px] text-muted-foreground">+{o.items.length - 6} more</span>
+                )}
+              </div>
+            </div>
+            <div className="text-right tabular-nums text-sm font-semibold sm:w-20">
+              ৳{new Intl.NumberFormat("en-BD", { maximumFractionDigits: 0 }).format(o.total)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="pt-1">
+        <Link
+          to="/erp/crm/$customerId"
+          params={{ customerId: customerKey }}
+          className="text-xs text-primary hover:underline"
+        >
+          View full customer profile →
+        </Link>
+      </div>
     </div>
   );
 }
