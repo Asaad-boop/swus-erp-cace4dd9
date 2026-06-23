@@ -129,10 +129,6 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
       };
     },
   });
-  return <OrderResultRowInner order={order} onOpen={onOpen} expanded={expanded} setExpanded={setExpanded} data={data} isFetching={isFetching} />;
-}
-
-function OrderResultRowInner({ order, onOpen, expanded, setExpanded, data, isFetching }: { order: OrderRow; onOpen: (path: string) => void; expanded: boolean; setExpanded: (v: boolean | ((p: boolean) => boolean)) => void; data: any; isFetching: boolean }) {
   const customerName = order.shipping_name || order.guest_name || "—";
   const phone = order.shipping_phone || order.guest_phone;
   return (
