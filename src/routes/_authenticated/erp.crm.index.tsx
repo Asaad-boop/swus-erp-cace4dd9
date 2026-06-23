@@ -817,14 +817,17 @@ function CustomerOrdersPreview({
   customerKey,
   previewFn,
   brandNameById,
+  showAll,
 }: {
   customerKey: string;
   previewFn: (args: { data: { customerKey: string; limit?: number } }) => Promise<any>;
   brandNameById: Map<string, string>;
+  showAll?: boolean;
 }) {
+  const limit = showAll ? 500 : 5;
   const { data, isLoading } = useQuery({
-    queryKey: ["crm-orders-preview", customerKey],
-    queryFn: () => previewFn({ data: { customerKey, limit: 5 } }),
+    queryKey: ["crm-orders-preview", customerKey, limit],
+    queryFn: () => previewFn({ data: { customerKey, limit } }),
     staleTime: 60_000,
   });
   if (isLoading) {
