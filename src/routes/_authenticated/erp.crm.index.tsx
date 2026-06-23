@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -579,7 +579,7 @@ function CrmListPage() {
                 const dsl = daysSince(r.last_order_at);
                 const isOpen = expanded.has(r.customer_key);
                 return (
-                  <React.Fragment key={r.customer_key}>
+                  <Fragment key={r.customer_key}>
                   <TableRow key={r.customer_key} className={`group hover:bg-accent/30 ${selected.has(r.customer_key) ? "bg-primary/5" : ""}`}>
                     <TableCell className={cellPad}>
                       <Checkbox checked={selected.has(r.customer_key)} onCheckedChange={() => toggleRow(r.customer_key)} />
@@ -693,7 +693,7 @@ function CrmListPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  </React.Fragment>
+                  </Fragment>
                 );
               })}
             </TableBody>
