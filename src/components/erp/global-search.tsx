@@ -239,6 +239,67 @@ function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: str
   );
 }
 
+function CustomerResultRow({ customer, brandIds, onOpen }: { customer: { customer_key: string; name: string | null; orders_count: number | null; lifetime_value: number | null }; brandIds: string[]; onOpen: (path: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data, isFetching } = useQuery({
+    queryKey: ["global-search-customer-orders", customer.customer_key, brandIds],
+    enabled: expanded,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const key = customer.customer_key;
+      const res = await applyBrandScope(
+        supabase.from("orders").select("id, invoice_no, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, total, status, created_at"),
+        brandIds,
+      )
+        .or(`shipping_phone.like.%${key},guest_phone.like.%${key}`)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return (res.data ?? []) as OrderRow[];
+    },
+  });
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 mb-1.5 overflow-hidden">
+      <div
+        role="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium truncate min-w-0 flex-1">
+          {customer.name || customer.customer_key}
+          <span className="text-muted-foreground font-normal"> · {customer.customer_key}</span>
+        </span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded border bg-muted/40 shrink-0">{customer.orders_count ?? 0} orders</span>
+        <span className="text-xs tabular-nums shrink-0">৳{Number(customer.lifetime_value ?? 0).toLocaleString()}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 shrink-0"
+          onClick={(e) => { e.stopPropagation(); onOpen(`/erp/crm/${encodeURIComponent(customer.customer_key)}`); }}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" /> CRM
+        </Button>
+      </div>
+      {expanded && (
+        <div className="border-t border-border/60 bg-muted/20 px-2 py-2 space-y-1.5">
+          {isFetching && (
+            <div className="flex items-center justify-center py-3 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Loading orders…
+            </div>
+          )}
+          {!isFetching && data && data.length === 0 && (
+            <p className="text-[11px] text-muted-foreground px-2 py-1">No orders found.</p>
+          )}
+          {!isFetching && data && data.map((o) => (
+            <OrderResultRow key={o.id} order={o} onOpen={onOpen} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
   const { brandIds } = useBrand();
@@ -383,16 +444,11 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
               <>
                 <CommandSeparator />
                 <CommandGroup heading={`Customers (${data.customers.length})`}>
-                  {data.customers.map((c) => (
-                    <CommandItem key={c.customer_key} value={`c-${c.customer_key}`} onSelect={() => go(`/erp/crm?q=${encodeURIComponent(c.customer_key)}`)}>
-                      <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span className="truncate">{c.name || c.customer_key}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{c.customer_key}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {c.orders_count ?? 0} orders · ৳{Number(c.lifetime_value ?? 0).toLocaleString()}
-                      </span>
-                    </CommandItem>
-                  ))}
+                  <div className="px-1 py-1">
+                    {data.customers.map((c) => (
+                      <CustomerResultRow key={c.customer_key} customer={c} brandIds={brandIds} onOpen={go} />
+                    ))}
+                  </div>
                 </CommandGroup>
               </>
             )}
