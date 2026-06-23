@@ -88,6 +88,157 @@ function escapeIlike(s: string) {
   return s.replace(/[%,()]/g, " ").trim();
 }
 
+const STATUS_TONE: Record<string, string> = {
+  pending: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900",
+  confirmed: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900",
+  processing: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900",
+  shipped: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900",
+  delivered: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+  completed: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+  cancelled: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900",
+  on_hold: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
+  returned: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800",
+};
+function statusTone(s: string | null) {
+  return STATUS_TONE[(s || "").toLowerCase()] || "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800";
+}
+
+type OrderRow = { id: string; invoice_no: string | null; shipping_name: string | null; shipping_phone: string | null; guest_name: string | null; guest_phone: string | null; shipping_city: string | null; total: number | null; status: string | null; created_at: string | null };
+
+function OrderResultRow({ order, onOpen }: { order: OrderRow; onOpen: (path: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data, isFetching } = useQuery({
+    queryKey: ["global-search-order-detail", order.id],
+    enabled: expanded,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const [itemsRes, histRes] = await Promise.all([
+        supabase.from("order_items").select("id, name, quantity, variant_label, image, price").eq("order_id", order.id),
+        supabase.from("order_status_history").select("id, from_status, to_status, reason, note, changed_by, created_at").eq("order_id", order.id).order("created_at", { ascending: false }).limit(20),
+      ]);
+      const rows = histRes.data ?? [];
+      const userIds = Array.from(new Set(rows.map((r: any) => r.changed_by).filter(Boolean))) as string[];
+      const names = new Map<string, string>();
+      if (userIds.length) {
+        const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", userIds);
+        (profs ?? []).forEach((p: any) => names.set(p.id, p.display_name ?? ""));
+      }
+      return {
+        items: (itemsRes.data ?? []) as Array<{ id: string; name: string; quantity: number; variant_label: string | null; image: string | null; price: number | null }>,
+        history: rows.map((r: any) => ({ ...r, staff: r.changed_by ? names.get(r.changed_by) || "Staff" : "System" })),
+      };
+    },
+  });
+  const customerName = order.shipping_name || order.guest_name || "—";
+  const phone = order.shipping_phone || order.guest_phone;
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 mb-1.5 overflow-hidden">
+      <div
+        role="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        <ShoppingCart className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="font-mono text-xs font-semibold shrink-0">#{order.invoice_no || order.id.slice(0, 8).toUpperCase()}</span>
+        <span className="text-sm truncate min-w-0 flex-1">
+          {customerName}
+          {phone && <span className="text-muted-foreground"> · {phone}</span>}
+          {order.shipping_city && <span className="text-muted-foreground"> · {order.shipping_city}</span>}
+        </span>
+        <span className="text-xs tabular-nums shrink-0">৳{Number(order.total ?? 0).toLocaleString()}</span>
+        {order.status && (
+          <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize shrink-0", statusTone(order.status))}>
+            {order.status.replace(/_/g, " ")}
+          </span>
+        )}
+        {order.created_at && (
+          <span className="text-[10px] text-muted-foreground shrink-0 hidden md:inline">
+            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+          </span>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 shrink-0"
+          onClick={(e) => { e.stopPropagation(); onOpen(`/erp/orders/${order.id}`); }}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" /> Open
+        </Button>
+      </div>
+      {expanded && (
+        <div className="border-t border-border/60 bg-muted/20 px-3 py-2.5 space-y-3">
+          {isFetching && (
+            <div className="flex items-center justify-center py-3 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Loading…
+            </div>
+          )}
+          {!isFetching && data && (
+            <>
+              {data.items.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Products ({data.items.length})</div>
+                  <ul className="space-y-1.5">
+                    {data.items.map((it) => (
+                      <li key={it.id} className="flex items-center gap-2 text-xs">
+                        {it.image ? (
+                          <img src={it.image} alt="" className="h-7 w-7 rounded object-cover border border-border/60 shrink-0" />
+                        ) : (
+                          <div className="h-7 w-7 rounded bg-muted shrink-0 flex items-center justify-center"><Package className="h-3 w-3 text-muted-foreground" /></div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium">{it.name}</div>
+                          {it.variant_label && <div className="text-[10px] text-muted-foreground truncate">{it.variant_label}</div>}
+                        </div>
+                        <span className="text-[11px] tabular-nums shrink-0">×{it.quantity}</span>
+                        {it.price != null && <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">৳{Number(it.price).toLocaleString()}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div>
+                <div className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Activity timeline</div>
+                {data.history.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">No status changes yet.</p>
+                ) : (
+                  <ol className="relative pl-4 space-y-2 before:absolute before:left-1 before:top-1 before:bottom-1 before:w-px before:bg-border">
+                    {data.history.map((e: any) => (
+                      <li key={e.id} className="relative">
+                        <span className={cn("absolute -left-[10px] top-1.5 h-2 w-2 rounded-full ring-2 ring-background",
+                          /confirm|deliver|complete/.test((e.to_status ?? "").toLowerCase()) ? "bg-emerald-500"
+                          : /cancel/.test((e.to_status ?? "").toLowerCase()) ? "bg-rose-500"
+                          : /hold/.test((e.to_status ?? "").toLowerCase()) ? "bg-amber-500"
+                          : "bg-slate-400")} />
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                          {e.from_status && (
+                            <>
+                              <span className={cn("px-1 py-0.5 rounded border text-[10px] capitalize", statusTone(e.from_status))}>{String(e.from_status).replace(/_/g, " ")}</span>
+                              <span className="text-muted-foreground">→</span>
+                            </>
+                          )}
+                          <span className={cn("px-1 py-0.5 rounded border text-[10px] capitalize", statusTone(e.to_status))}>{String(e.to_status).replace(/_/g, " ")}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
+                          <UserIcon className="h-2.5 w-2.5" /><span>{e.staff}</span>
+                        </div>
+                        {(e.reason || e.note) && (
+                          <p className="text-[10px] mt-0.5 rounded bg-background/60 border border-border/40 px-1.5 py-1 whitespace-pre-wrap">{e.reason || e.note}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
   const { brandIds } = useBrand();
