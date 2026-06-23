@@ -371,7 +371,7 @@ function SearchDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
   const quickLinks = PAGES.slice(0, 6);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
         placeholder="Search orders, products, customers, pages..."
         value={query}
