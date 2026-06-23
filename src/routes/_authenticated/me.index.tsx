@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Clock, LogIn, LogOut, Coffee, Play, MapPin, Loader2, AlertCircle,
   CalendarCheck2, TrendingUp, Plane, Wallet, ArrowRight, Sparkles,
+  Briefcase, CheckCircle2, Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -136,10 +137,10 @@ function MeHome() {
   }
 
   const statusTone =
-    state === "out" ? "from-slate-500 to-slate-700"
-    : state === "in" ? "from-emerald-500 to-emerald-700"
-    : state === "break" ? "from-amber-500 to-orange-600"
-    : "from-blue-500 to-indigo-600";
+    state === "out" ? "from-slate-700 via-slate-800 to-slate-900"
+    : state === "in" ? "from-emerald-500 via-emerald-600 to-teal-700"
+    : state === "break" ? "from-amber-500 via-orange-500 to-orange-700"
+    : "from-indigo-500 via-blue-600 to-blue-800";
 
   const statusLabel =
     state === "out" ? "Not checked in"
@@ -152,44 +153,63 @@ function MeHome() {
       {/* HERO PUNCH CARD */}
       <Card
         className={cn(
-          "relative overflow-hidden border-0 p-5 sm:p-7 text-white shadow-xl",
+          "relative overflow-hidden border-0 p-5 sm:p-8 text-white shadow-2xl rounded-2xl",
           "bg-gradient-to-br",
           statusTone,
         )}
       >
-        <div className="absolute inset-0 opacity-10" style={{
+        {/* Decorative glows */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{
           backgroundImage: "radial-gradient(circle at 20% 20%, white 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          backgroundSize: "22px 22px",
         }} />
         <div className="relative space-y-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-medium uppercase tracking-wider text-white/70">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
                 {greeting(now)}
               </div>
-              <div className="truncate text-xl font-bold sm:text-2xl">
+              <div className="truncate text-2xl font-bold sm:text-3xl">
                 {employee?.display_name || employee?.full_name || "Hello"}
               </div>
+              {employee?.designations?.name && (
+                <div className="mt-0.5 truncate text-xs text-white/70">
+                  {employee.designations.name}
+                  {employee?.departments?.name ? ` · ${employee.departments.name}` : ""}
+                </div>
+              )}
             </div>
-            <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur shrink-0">
+            <Badge
+              variant="secondary"
+              className="bg-white/15 text-white border border-white/20 backdrop-blur-md shrink-0 px-3 py-1 text-[11px] font-semibold tracking-wide"
+            >
+              <span className={cn(
+                "mr-1.5 inline-block h-1.5 w-1.5 rounded-full",
+                state === "in" ? "bg-emerald-200 animate-pulse" :
+                state === "break" ? "bg-amber-200 animate-pulse" :
+                state === "done" ? "bg-blue-200" : "bg-slate-300",
+              )} />
               {statusLabel}
             </Badge>
           </div>
 
-          <div className="flex items-end justify-between gap-3">
+          <div className="flex items-end justify-between gap-3 border-t border-white/10 pt-5">
             <div>
-              <div className="font-mono text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
+              <div className="font-mono text-5xl font-bold tabular-nums tracking-tight sm:text-6xl drop-shadow-sm">
                 {timeStr(now)}
               </div>
-              <div className="mt-1 text-xs text-white/70">
+              <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-white/75">
+                <Clock className="h-3 w-3" />
                 {shift?.name
                   ? `${shift.name} · ${shift.start_time?.slice(0, 5)} – ${shift.end_time?.slice(0, 5)}`
                   : "No shift assigned"}
               </div>
             </div>
             {att?.check_in_time && (
-              <div className="text-right">
-                <div className="text-xs text-white/70">Worked today</div>
+              <div className="rounded-xl bg-white/10 px-4 py-2.5 text-right backdrop-blur-md border border-white/15">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-white/70">Worked today</div>
                 <div className="font-mono text-2xl font-bold tabular-nums">{formatMin(liveWorkMin)}</div>
               </div>
             )}
@@ -266,6 +286,53 @@ function MeHome() {
           </div>
         </div>
       </Card>
+
+      {/* GO TO WORKSPACE CTA — visible after check-in */}
+      {(state === "in" || state === "break" || state === "done") && (
+        <Link
+          to="/erp"
+          className="group relative block overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 sm:p-6 transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+        >
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl transition-all group-hover:scale-125 group-hover:bg-primary/25" />
+          <div className="relative flex items-center gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md shadow-primary/30">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  {state === "done" ? "Shift complete" : "You're checked in"}
+                </span>
+              </div>
+              <div className="mt-0.5 truncate text-base font-bold sm:text-lg">Go to Workspace</div>
+              <div className="truncate text-xs text-muted-foreground">
+                Access apnar permitted modules — ERP, CRM, Finance, ar shob kichu
+              </div>
+            </div>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform group-hover:translate-x-1">
+              <ArrowRight className="h-4 w-4" />
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {/* CHECK-IN PROMPT — visible before check-in */}
+      {state === "out" && (
+        <div className="rounded-2xl border border-dashed border-amber-300/60 bg-amber-50/60 p-4 dark:border-amber-500/30 dark:bg-amber-500/5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+              <Timer className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">Check-in korun shift shuru korte</div>
+              <div className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5">
+                Check-in korar por apni apnar workspace e dhukte parben ar din er kaaj track hobe.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
