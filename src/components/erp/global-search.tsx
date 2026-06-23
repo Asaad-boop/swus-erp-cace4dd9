@@ -5,13 +5,16 @@ import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import {
   Package, ShoppingCart, Users, LayoutDashboard, Wallet, Boxes, ClipboardList, Globe, Heart,
-  BarChart3, Loader2, Clock,
+  BarChart3, Loader2, Clock, ChevronRight, ChevronDown, ExternalLink, User as UserIcon,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Ctx = { open: boolean; setOpen: (v: boolean) => void; openSearch: () => void };
 const SearchCtx = createContext<Ctx | null>(null);
