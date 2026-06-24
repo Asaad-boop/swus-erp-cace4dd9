@@ -26,8 +26,25 @@ function greeting() {
 export function StaffDashboard() {
   const navigate = useNavigate();
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
-  const { roles } = useCurrentRole();
-  const enabled = brandIds.length > 0;
+  const { roles, userId } = useCurrentRole();
+  const enabled = brandIds.length > 0 && !!userId;
+
+  // Build a per-staff OR filter so KPIs only count orders this user touches.
+  // ops/customer_service → assigned_to; packer/warehouse → packaged_by; fallback → created_by.
+  const has = (r: string) => roles.includes(r as any);
+  const scopeParts: string[] = [];
+  if (userId) {
+    if (has("operations") || has("customer_service") || roles.length === 0) {
+      scopeParts.push(`assigned_to.eq.${userId}`);
+    }
+    if (has("packer") || has("warehouse_staff") || has("operations")) {
+      scopeParts.push(`packaged_by.eq.${userId}`);
+    }
+    scopeParts.push(`created_by.eq.${userId}`);
+  }
+  const staffOr = Array.from(new Set(scopeParts)).join(",");
+  const scopeOrders = <T,>(q: T): T =>
+    (staffOr ? (q as any).or(staffOr) : q) as T;
 
   const { data: me } = useQuery({
     queryKey: ["me-profile-staff"],
@@ -44,27 +61,27 @@ export function StaffDashboard() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["staff-dash", brandIds.join(",")],
+    queryKey: ["staff-dash", userId, staffOr, brandIds.join(",")],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
       const [todayOrders, pending, inTransit, attention, lowStock, recent] = await Promise.all([
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .gte("created_at", todayStart.toISOString()),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["shipped", "in_transit"]),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["new" as any])
           .lt("created_at", new Date(Date.now() - 3 * 86400e3).toISOString()),
         applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds)
           .eq("is_resolved", false),
-        applyBrandScope(
+        scopeOrders(applyBrandScope(
           supabase.from("orders").select("id,order_number,status,created_at,customer_name,total"),
           brandIds,
-        ).order("created_at", { ascending: false }).limit(8),
+        )).order("created_at", { ascending: false }).limit(8),
       ]);
       return {
         todayOrders: todayOrders.count ?? 0,
@@ -88,7 +105,6 @@ export function StaffDashboard() {
     : "Staff";
 
   // Show quick-links tailored to common staff roles; safe fallback for all.
-  const has = (r: string) => roles.includes(r as any);
   const quickLinks: { to: string; icon: any; title: string; desc: string; show: boolean }[] = [
     { to: "/erp/orders/web", icon: ShoppingCart, title: "Orders", desc: "Process & confirm",
       show: has("operations") || has("customer_service") || has("warehouse_staff") || has("packer") || roles.length === 0 },
