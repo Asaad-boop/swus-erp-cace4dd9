@@ -56,6 +56,7 @@ import {
   deletePathaoReconciliationRun,
   manualMatchReconciliationRow,
   searchOrdersForMatch,
+  previewPathaoReconciliation,
 } from "@/lib/erp/reconciliation.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/reconciliation/invoice")({
@@ -103,6 +104,10 @@ type NormalizedRow = {
   row_type: "paid" | "return" | "partial";
   return_fee: number;
   partial_amount: number;
+  delivery_payout: number;
+  insta_fee_amount: number;
+  insta_fee_count: number;
+  sub_row_count: number;
 };
 
 function num(v: string | undefined): number {
@@ -189,6 +194,14 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
       : 0;
     const partialAmount = rowType === "partial" ? collected : 0;
 
+    // Per-sub-row split: delivery vs insta_fee (Pathao posts insta as a
+    // separate row under the same consignment with negative Payout).
+    const deliveryPayout = rs
+      .filter((r) => (r.Invoice_type ?? "").toLowerCase() === "delivery")
+      .reduce((s, r) => s + num(r.Payout), 0);
+    const instaRows = rs.filter((r) => (r.Invoice_type ?? "").toLowerCase().includes("insta"));
+    const instaFeeAmount = instaRows.reduce((s, r) => s + Math.abs(num(r.Payout)), 0);
+
     out.push({
       consignment_id: cleanId(primary.Consignment_ID),
       merchant_order_id: cleanId(primary.Merchant_Order_ID),
@@ -207,6 +220,10 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
       row_type: rowType,
       return_fee: returnFee,
       partial_amount: partialAmount,
+      delivery_payout: deliveryPayout,
+      insta_fee_amount: instaFeeAmount,
+      insta_fee_count: instaRows.length,
+      sub_row_count: rs.length,
     });
   }
   return out;
