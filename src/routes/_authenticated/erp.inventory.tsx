@@ -400,6 +400,33 @@ function InventoryPage() {
                       <Download className="h-3.5 w-3.5 mr-2" />Export selected
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="text-xs">
+                        <Tag className="h-3.5 w-3.5 mr-2" />Move to brand
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {brands.length === 0 && (
+                            <DropdownMenuItem disabled className="text-xs">No brands</DropdownMenuItem>
+                          )}
+                          {brands.map((b) => {
+                            const allSame = selectedRows.every((r) => r.brand_id === b.id);
+                            return (
+                              <DropdownMenuItem
+                                key={b.id}
+                                className="text-xs"
+                                disabled={allSame || bulkMoveBrand.isPending}
+                                onClick={() => bulkMoveBrand.mutate({ ids: Array.from(selected), brandId: b.id })}
+                              >
+                                {allSame && <Check className="h-3.5 w-3.5 mr-2 opacity-60" />}
+                                {!allSame && <Tag className="h-3.5 w-3.5 mr-2 opacity-60" />}
+                                {b.name}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
                     <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
                       <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
                     </DropdownMenuItem>
