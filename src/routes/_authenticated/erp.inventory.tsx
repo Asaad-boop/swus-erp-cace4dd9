@@ -353,6 +353,13 @@ function InventoryPage() {
             <Table>
               <TableHeader className="bg-muted/30 sticky top-0 z-10 backdrop-blur-sm">
                 <TableRow className="hover:bg-transparent border-b border-border/70">
+                  <TableHead className="w-10 pl-4">
+                    <Checkbox
+                      checked={allPageSelected ? true : somePageSelected ? "indeterminate" : false}
+                      onCheckedChange={togglePageAll}
+                      aria-label="Select all rows on page"
+                    />
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product</TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">SKU</TableHead>
@@ -369,10 +376,10 @@ function InventoryPage() {
               </TableHeader>
               <TableBody>
                 {isLoading && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">Loading inventory…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">Loading inventory…</TableCell></TableRow>
                 )}
                 {!isLoading && rows.length === 0 && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">No products found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">No products found</TableCell></TableRow>
                 )}
                 {rows.map((r) => {
                   const variants = r.variants ?? [];
