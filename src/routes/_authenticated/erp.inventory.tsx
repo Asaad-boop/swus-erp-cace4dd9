@@ -46,6 +46,7 @@ import {
 import { downloadCsv } from "@/lib/erp/orders";
 import { StockAdjustDialog } from "@/components/erp/inventory/stock-adjust-dialog";
 import { ProductEditDialog } from "@/components/erp/inventory/product-edit-dialog";
+import { ProductAddDialog } from "@/components/erp/inventory/product-add-dialog";
 
 export const Route = createFileRoute("/_authenticated/erp/inventory")({
   head: () => ({ meta: [{ title: "Inventory — ERP" }] }),
