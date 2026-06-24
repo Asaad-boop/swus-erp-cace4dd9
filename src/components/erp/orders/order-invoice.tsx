@@ -446,17 +446,17 @@ function TemplateInvoice(p: ThemeProps) {
   const addr = [p.order.shipping_thana, p.order.shipping_city, p.order.shipping_district]
     .filter(Boolean).join(", ");
   return (
-    <div className="text-[12px] text-gray-900" style={{ fontFamily: "inherit" }}>
+    <div className="text-[14px] text-gray-900" style={{ fontFamily: "inherit" }}>
       {/* HEADER */}
       <div className="flex justify-between items-start pb-3" style={{ borderBottom: "2px solid #111" }}>
         <div>
           {p.brandLogo
             ? <img src={p.brandLogo} alt={p.brandName} style={{ height: p.cfg.header.logoHeight, objectFit: "contain" }} />
             : <div className="font-extrabold text-xl" style={{ color: accent }}>{p.brandName}</div>}
-          {p.cfg.header.tagline && <div className="text-[10px] text-gray-500 mt-0.5">{p.cfg.header.tagline}</div>}
+          {p.cfg.header.tagline && <div className="text-[12px] text-gray-500 mt-0.5">{p.cfg.header.tagline}</div>}
         </div>
-        <div className="text-right text-[11px] leading-tight">
-          <div className="font-bold text-[13px]">HQ</div>
+        <div className="text-right text-[13px] leading-tight">
+          <div className="font-bold text-[15px]">HQ</div>
           {p.cfg.business.address && <div className="text-gray-600">{p.cfg.business.address}</div>}
           {p.cfg.business.hotline && <div className="text-gray-600">Hotline: {p.cfg.business.hotline}</div>}
         </div>
@@ -465,23 +465,23 @@ function TemplateInvoice(p: ThemeProps) {
       {/* DELIVERY + INVOICE META */}
       <div className="grid grid-cols-2 gap-6 mt-5">
         <div>
-          <div className="text-[10px] tracking-[0.18em] text-gray-400 font-semibold">DELIVERY ADDRESS</div>
-          <div className="font-extrabold text-[20px] mt-1 uppercase">{customerName(p.order as any)} -</div>
-          {p.order.shipping_address && <div className="text-[12px] text-gray-700 mt-0.5">{p.order.shipping_address}</div>}
-          {addr && <div className="text-[12px] text-gray-700">{addr}</div>}
-          <div className="font-bold text-[14px] mt-1.5">{customerPhone(p.order as any)}</div>
+          <div className="text-[12px] tracking-[0.18em] text-gray-400 font-semibold">DELIVERY ADDRESS</div>
+          <div className="font-extrabold text-[22px] mt-1 uppercase">{customerName(p.order as any)} -</div>
+          {p.order.shipping_address && <div className="text-[14px] text-gray-700 mt-0.5">{p.order.shipping_address}</div>}
+          {addr && <div className="text-[14px] text-gray-700">{addr}</div>}
+          <div className="font-bold text-[16px] mt-1.5">{customerPhone(p.order as any)}</div>
           <div className="mt-3"><Barcode value={inv} /></div>
-          <div className="text-[10px] tracking-widest text-gray-500 mt-0.5">{inv}</div>
+          <div className="text-[12px] tracking-widest text-gray-500 mt-0.5">{inv}</div>
         </div>
         <div>
-          <div className="text-right font-extrabold text-[28px] tracking-tight" style={{ color: accent }}>Invoice</div>
-          <table className="w-full mt-2 text-[11.5px]">
+          <div className="text-right font-extrabold text-[32px] tracking-tight" style={{ color: accent }}>Invoice</div>
+          <table className="w-full mt-2 text-[13px]">
             <tbody>
               <MetaRow k="Invoice ID" v={<span className="font-semibold">{inv}</span>} />
               {p.cfg.meta.showDate && <MetaRow k="Date" v={format(new Date(p.order.created_at), "yyyy-MM-dd")} />}
               <MetaRow k="Item Count" v={String(itemCount)} />
               {p.cfg.meta.showPayment && <MetaRow k="Payment" v={<span className="font-semibold">{p.order.payment_method || "Cash On Delivery"}</span>} />}
-              <MetaRow k="Payable" v={<span className="font-extrabold text-[18px]">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</span>} />
+              <MetaRow k="Payable" v={<span className="font-extrabold text-[20px]">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</span>} />
               {p.cfg.meta.showCourier && <MetaRow k="Delivery Partner" v={p.order.courier_name || "—"} />}
               {p.cfg.meta.showTracking && <MetaRow k="Tracking ID" v={p.order.tracking_number || "—"} />}
             </tbody>
@@ -493,7 +493,7 @@ function TemplateInvoice(p: ThemeProps) {
       <div className="mt-5">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="text-[10px] tracking-wider text-gray-500" style={{ borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb" }}>
+            <tr className="text-[12px] tracking-wider text-gray-500" style={{ borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb" }}>
               <th className="text-left py-2 px-2 w-6">#</th>
               <th className="text-left py-2 px-2">TITLE</th>
               <th className="text-left py-2 px-2 w-16">TYPE</th>
@@ -509,17 +509,17 @@ function TemplateInvoice(p: ThemeProps) {
               const lt = Number(it.line_total ?? up * Number(it.quantity || 0));
               return (
                 <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <td className="py-2 px-2 align-top text-[11.5px]">{i + 1}.</td>
-                  <td className="py-2 px-2 align-top text-[12px] font-medium">{it.name}</td>
-                  <td className="py-2 px-2 align-top text-[11px] text-gray-600">{it.variant_label?.split(/[/,|]/)[0]?.trim() || "—"}</td>
+                  <td className="py-2 px-2 align-top text-[13px]">{i + 1}.</td>
+                  <td className="py-2 px-2 align-top text-[14px] font-medium">{it.name}</td>
+                  <td className="py-2 px-2 align-top text-[13px] text-gray-600">{it.variant_label?.split(/[/,|]/)[0]?.trim() || "—"}</td>
                   <td className="py-2 px-2 align-top text-center">
                     {it.image
                       ? <img src={it.image} alt="" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4, display: "inline-block" }} />
-                      : <span className="text-[11px] text-gray-500">—</span>}
+                      : <span className="text-[13px] text-gray-500">—</span>}
                   </td>
-                  <td className="py-2 px-2 align-top text-right text-[12px]">{Number(up).toFixed(1)}</td>
-                  <td className="py-2 px-2 align-top text-center text-[12px]">{it.quantity}</td>
-                  <td className="py-2 px-2 align-top text-right text-[12px]">{Number(lt).toFixed(1)}</td>
+                  <td className="py-2 px-2 align-top text-right text-[14px]">{Number(up).toFixed(1)}</td>
+                  <td className="py-2 px-2 align-top text-center text-[14px]">{it.quantity}</td>
+                  <td className="py-2 px-2 align-top text-right text-[14px]">{Number(lt).toFixed(1)}</td>
                 </tr>
               );
             })}
@@ -527,7 +527,7 @@ function TemplateInvoice(p: ThemeProps) {
         </table>
 
         {p.order.shipping_note && (
-          <div className="text-[11px] py-2 px-2 flex gap-1.5 items-start" style={{ borderBottom: "1px solid #f1f5f9" }}>
+          <div className="text-[13px] py-2 px-2 flex gap-1.5 items-start" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <span style={{ color: callout }}>📝 Note:</span>
             <span className="text-gray-700">{p.order.shipping_note}</span>
           </div>
@@ -539,35 +539,35 @@ function TemplateInvoice(p: ThemeProps) {
         <table style={{ minWidth: 320 }}>
           <tbody>
             {p.cfg.totals.showSubtotal && (
-              <tr><td className="py-1 pr-6 text-[12px] text-gray-700">Sub Total:</td>
-                  <td className="py-1 text-right text-[12px]">{p.cfg.items.currency} {Number(t.subtotal).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Sub Total:</td>
+                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.subtotal).toFixed(1)}</td></tr>
             )}
             {p.cfg.totals.showDiscount && t.discount > 0 && (
-              <tr><td className="py-1 pr-6 text-[12px] text-gray-700">Discount(-):</td>
-                  <td className="py-1 text-right text-[12px]">{p.cfg.items.currency} {Number(t.discount).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Discount(-):</td>
+                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.discount).toFixed(1)}</td></tr>
             )}
             {p.cfg.totals.showShipping && (
-              <tr><td className="py-1 pr-6 text-[12px] text-gray-700">Shipping Fee(+):</td>
-                  <td className="py-1 text-right text-[12px]">{p.cfg.items.currency} {Number(t.shipping).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Shipping Fee(+):</td>
+                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.shipping).toFixed(1)}</td></tr>
             )}
             {p.cfg.totals.tax.rate > 0 && (
-              <tr><td className="py-1 pr-6 text-[12px] text-gray-700">VAT ({p.cfg.totals.tax.rate}%):</td>
-                  <td className="py-1 text-right text-[12px]">{p.cfg.items.currency} {Number(t.tax).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">VAT ({p.cfg.totals.tax.rate}%):</td>
+                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.tax).toFixed(1)}</td></tr>
             )}
             <tr style={{ borderTop: "2px solid #111" }}>
-              <td className="py-2 pr-6 text-[18px] font-extrabold">Total:</td>
-              <td className="py-2 text-right text-[18px] font-extrabold">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</td>
+              <td className="py-2 pr-6 text-[20px] font-extrabold">Total:</td>
+              <td className="py-2 text-right text-[20px] font-extrabold">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</td>
             </tr>
             {p.cfg.totals.showAdvance && t.advance > 0 && (
-              <tr><td className="py-1 pr-6 text-[12px] text-gray-700">Advance Paid:</td>
-                  <td className="py-1 text-right text-[12px]">− {p.cfg.items.currency} {Number(t.advance).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Advance Paid:</td>
+                  <td className="py-1 text-right text-[14px]">− {p.cfg.items.currency} {Number(t.advance).toFixed(1)}</td></tr>
             )}
             {p.cfg.totals.showDue && t.due > 0 && (
-              <tr><td className="py-1 pr-6 text-[12px] font-bold">Amount Due:</td>
-                  <td className="py-1 text-right text-[12px] font-bold">{p.cfg.items.currency} {Number(t.due).toFixed(1)}</td></tr>
+              <tr><td className="py-1 pr-6 text-[14px] font-bold">Amount Due:</td>
+                  <td className="py-1 text-right text-[14px] font-bold">{p.cfg.items.currency} {Number(t.due).toFixed(1)}</td></tr>
             )}
             {inWords && (
-              <tr><td colSpan={2} className="pt-1 text-right text-[11px] text-gray-600">
+              <tr><td colSpan={2} className="pt-1 text-right text-[13px] text-gray-600">
                 <span className="font-semibold">In Words:</span> {inWords}
               </td></tr>
             )}
@@ -578,46 +578,46 @@ function TemplateInvoice(p: ThemeProps) {
       {/* RIDER NOTE */}
       {(p.order.customer_note || p.cfg.footer.terms) && (
         <div className="mt-4 rounded-md p-3" style={{ border: `1px dashed ${callout}` }}>
-          <div className="font-semibold text-[12px] mb-1" style={{ color: callout }}>
+          <div className="font-semibold text-[14px] mb-1" style={{ color: callout }}>
             ⊘ Note for Rider / রাইডারের জন্য নির্দেশনা:
           </div>
-          {p.order.customer_note && <div className="text-[11.5px] text-gray-800">{p.order.customer_note}</div>}
-          {p.cfg.business.whatsapp && <div className="text-[11.5px] text-gray-800">WhatsApp: {p.cfg.business.whatsapp}</div>}
+          {p.order.customer_note && <div className="text-[13px] text-gray-800">{p.order.customer_note}</div>}
+          {p.cfg.business.whatsapp && <div className="text-[13px] text-gray-800">WhatsApp: {p.cfg.business.whatsapp}</div>}
         </div>
       )}
 
       {/* CALLOUT BOXES */}
       <div className="grid grid-cols-2 gap-4 mt-6">
         <div className="rounded-md p-3" style={{ border: `1px solid ${softGreen}` }}>
-          <div className="font-bold text-[13px]">আমাদের মতামত দিন</div>
-          <div className="text-[10.5px] text-gray-600 mt-0.5">আপনার মতামত আমাদের আরো ভালো করতে সাহায্য করে</div>
+          <div className="font-bold text-[15px]">আমাদের মতামত দিন</div>
+          <div className="text-[12px] text-gray-600 mt-0.5">আপনার মতামত আমাদের আরো ভালো করতে সাহায্য করে</div>
         </div>
         <div className="rounded-md p-3" style={{ border: `1px solid ${softGreen}` }}>
-          <div className="font-bold text-[13px]">আমাদের সাথে থাকুন</div>
-          <div className="text-[10.5px] text-gray-600 mt-0.5">আমাদের গ্রুপে যোগ দিন, পান এক্সক্লুসিভ অফার</div>
+          <div className="font-bold text-[15px]">আমাদের সাথে থাকুন</div>
+          <div className="text-[12px] text-gray-600 mt-0.5">আমাদের গ্রুপে যোগ দিন, পান এক্সক্লুসিভ অফার</div>
         </div>
       </div>
 
       {/* FOOTER */}
       <div className="mt-4 pt-3" style={{ borderTop: "1px solid #e5e7eb" }}>
         <div className="flex justify-between items-start">
-          <div className="font-extrabold text-[13px] tracking-wide">THANK YOU FOR CHOOSING US</div>
-          <div className="text-right text-[11px] leading-tight">
+          <div className="font-extrabold text-[15px] tracking-wide">THANK YOU FOR CHOOSING US</div>
+          <div className="text-right text-[13px] leading-tight">
             {p.cfg.business.website && <div>VISIT: <span className="font-semibold">{p.cfg.business.website}</span></div>}
             {p.cfg.business.hotline && <div>SUPPORT: <span className="font-semibold">{p.cfg.business.hotline}</span></div>}
           </div>
         </div>
         {p.cfg.footer.returnPolicy && (
-          <ol className="list-decimal pl-4 mt-2 text-[10.5px] text-gray-700 space-y-0.5">
+          <ol className="list-decimal pl-4 mt-2 text-[12px] text-gray-700 space-y-0.5">
             {p.cfg.footer.returnPolicy.split(/\n+/).filter(Boolean).map((line, i) => (
               <li key={i}>{line.replace(/^\d+\.\s*/, "")}</li>
             ))}
           </ol>
         )}
-        <div className="text-[9.5px] text-gray-400 text-center mt-3 italic">
+        <div className="text-[11px] text-gray-400 text-center mt-3 italic">
           This document &amp; any information transmitted with it are confidential &amp; intended solely for the use of the individual or entity to whom they are addressed.
         </div>
-        <div className="text-[10px] text-gray-500 text-center mt-1">
+        <div className="text-[12px] text-gray-500 text-center mt-1">
           © {new Date().getFullYear()} {p.brandName}. All Rights Reserved
         </div>
       </div>
@@ -628,8 +628,8 @@ function TemplateInvoice(p: ThemeProps) {
 function MetaRow({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <tr>
-      <td className="py-1 pr-3 text-gray-500 text-[11px] align-top w-[42%]">{k}:</td>
-      <td className="py-1 text-[11.5px] align-top">{v}</td>
+      <td className="py-1 pr-3 text-gray-500 text-[13px] align-top w-[42%]">{k}:</td>
+      <td className="py-1 text-[13px] align-top">{v}</td>
     </tr>
   );
 }
