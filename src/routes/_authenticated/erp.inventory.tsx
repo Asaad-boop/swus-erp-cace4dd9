@@ -615,6 +615,7 @@ function InventoryPage() {
         product={editProduct}
         onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
+      </div>
     </div>
   );
 }
