@@ -19,31 +19,31 @@ import { Globe } from "lucide-react";
  *   // render {picker} in your toolbar
  */
 export function useBrandPicker(_opts?: { label?: string; hint?: string }) {
-  const { activeBrand, brands, isAllBrands } = useBrand();
+  const { activeBrand, brands } = useBrand();
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
-  // Auto-pick the first brand when in All-Brands mode and nothing chosen yet.
+  // Seed the page-local picker from the global active brand on first render,
+  // but after that the picker is fully independent of the header switcher.
   useEffect(() => {
-    if (!isAllBrands) return;
     if (pickedBrandId) {
-      // make sure it still exists
+      // drop stale selection if the brand was deleted
       if (!brands.some((b) => b.id === pickedBrandId)) setPickedBrandId("");
       return;
     }
-    if (brands.length > 0) setPickedBrandId(brands[0].id);
-  }, [isAllBrands, brands, pickedBrandId]);
+    if (activeBrand) setPickedBrandId(activeBrand.id);
+  }, [activeBrand, brands, pickedBrandId]);
 
   const effectiveBrand: Brand | null =
-    activeBrand ?? brands.find((b) => b.id === pickedBrandId) ?? null;
+    brands.find((b) => b.id === pickedBrandId) ?? null;
   const brandId = (effectiveBrand?.id ?? "") as string;
 
-  // Inline picker — shown only in All-Brands mode (otherwise the top
-  // BrandSwitcher already shows the single active brand).
-  const picker: ReactNode = isAllBrands && brands.length > 1 ? (
+  // Inline picker — always visible. Page-local override of the header brand.
+  // Empty selection means "no brand", and the page hides its data.
+  const picker: ReactNode = (
     <div className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2 py-1 text-xs">
       <Globe className="h-3.5 w-3.5 text-primary" />
       <span className="text-muted-foreground">Brand:</span>
-      <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
+      <Select value={pickedBrandId || undefined} onValueChange={setPickedBrandId}>
         <SelectTrigger className="h-7 border-0 bg-transparent px-1.5 text-xs font-medium focus:ring-0">
           <SelectValue placeholder="Pick brand" />
         </SelectTrigger>
@@ -54,11 +54,11 @@ export function useBrandPicker(_opts?: { label?: string; hint?: string }) {
         </SelectContent>
       </Select>
     </div>
-  ) : null;
+  );
 
   // Back-compat: `gate` is now always null so existing
   // `if (gate) return gate;` short-circuits become no-ops.
   const gate: ReactNode = null;
 
-  return { effectiveBrand, brandId, isAllBrands, pickedBrandId, setPickedBrandId, gate, picker };
+  return { effectiveBrand, brandId, isAllBrands: !effectiveBrand, pickedBrandId, setPickedBrandId, gate, picker };
 }
