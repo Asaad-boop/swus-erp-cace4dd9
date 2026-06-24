@@ -366,7 +366,7 @@ function InventoryPage() {
                     <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
                       <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs text-red-600" onClick={() => toast.info("Bulk delete — coming soon")}>
+                    <DropdownMenuItem className="text-xs text-red-600 focus:text-red-600" onClick={() => setConfirmDelete(true)}>
                       <Trash2 className="h-3.5 w-3.5 mr-2" />Delete selected
                     </DropdownMenuItem>
                   </DropdownMenuContent>
