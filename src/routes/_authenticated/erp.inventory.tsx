@@ -735,6 +735,36 @@ function InventoryPage() {
         product={editProduct}
         onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} product{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Products gulo deactivate kora hobe — storefront e ar dekha jabe na, kintu data + stock history thakbe.
+              Toast e "Undo" button paben 8 second er moddhe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+            {selectedRows.slice(0, 8).map((r) => (
+              <div key={r.id} className="truncate">• {r.title}</div>
+            ))}
+            {selectedRows.length > 8 && (
+              <div className="text-muted-foreground">+{selectedRows.length - 8} more…</div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDelete.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkDelete.isPending}
+              onClick={(e) => { e.preventDefault(); bulkDelete.mutate(Array.from(selected)); }}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {bulkDelete.isPending ? "Deleting…" : `Delete ${selected.size}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
