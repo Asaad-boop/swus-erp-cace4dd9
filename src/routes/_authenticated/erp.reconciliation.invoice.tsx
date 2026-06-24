@@ -672,6 +672,22 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function PreviewStatusBadge({ status, loading }: { status: string; loading?: boolean }) {
+  if (loading)
+    return (
+      <Badge variant="outline" className="text-[10px] gap-1">
+        <Loader2 className="h-3 w-3 animate-spin" /> …
+      </Badge>
+    );
+  if (status === "matched")
+    return <Badge className="bg-emerald-600 text-white text-[10px]">Matched</Badge>;
+  if (status === "amount_mismatch")
+    return <Badge className="bg-amber-500 text-white text-[10px]">Diff</Badge>;
+  if (status === "duplicate")
+    return <Badge variant="destructive" className="text-[10px]">Duplicate</Badge>;
+  return <Badge variant="outline" className="text-[10px]">Unmatched</Badge>;
+}
+
 // ----- Run Detail Dialog -----
 
 type Row = {
