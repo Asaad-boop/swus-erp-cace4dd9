@@ -691,11 +691,23 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
           // didn't echo merchant_order_id back.
           const { data: ords } = await supabase
             .from("orders")
-            .select("id, total, shipping_phone, created_at, courier_shipments(id, brand_id)")
+            .select("id, total, shipping_phone, created_at")
             .eq("brand_id", data.brandId)
             .ilike("shipping_phone", `%${phone}`)
             .order("created_at", { ascending: false })
             .limit(10);
+
+          // Bulk lookup: which of those orders already has a shipment row for this brand?
+          const candidateOrderIds = (ords ?? []).map((o) => o.id);
+          const shipmentOrderIds = new Set<string>();
+          if (candidateOrderIds.length) {
+            const { data: ships } = await supabase
+              .from("courier_shipments")
+              .select("order_id")
+              .eq("brand_id", data.brandId)
+              .in("order_id", candidateOrderIds);
+            (ships ?? []).forEach((s) => shipmentOrderIds.add(s.order_id));
+          }
 
           type Cand = {
             id: string;
@@ -708,8 +720,7 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
           const cands: Cand[] = (ords ?? []).map((o) => {
             const total = Number(o.total);
             const diff = Math.abs(total - r.collected);
-            const ships = (o.courier_shipments ?? []) as { brand_id: string | null }[];
-            const hasShipment = ships.some((s) => s.brand_id === data.brandId);
+            const hasShipment = shipmentOrderIds.has(o.id);
             // Score: amount closeness (up to 0.6) + shipment-link bonus (0.3) + phone-only base (0.2)
             let score = 0.2;
             if (diff <= data.tolerance) score += 0.6;
