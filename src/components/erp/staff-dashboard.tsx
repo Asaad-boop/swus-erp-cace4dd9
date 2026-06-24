@@ -53,11 +53,11 @@ export function StaffDashboard() {
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .gte("created_at", todayStart.toISOString()),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .in("status", ["new", "processing", "confirmed", "packaging", "packed", "ready_to_ship"]),
+          .in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["shipped", "in_transit"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .in("status", ["new" as any, "processing" as any])
+          .in("status", ["new" as any])
           .lt("created_at", new Date(Date.now() - 3 * 86400e3).toISOString()),
         applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds)
           .eq("is_resolved", false),
@@ -203,7 +203,7 @@ export function StaffDashboard() {
                 <Link
                   key={o.id}
                   to={"/erp/orders/$orderId" as any}
-                  params={{ orderId: o.id }}
+                  params={{ orderId: o.id } as any}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
