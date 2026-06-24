@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -40,6 +40,7 @@ function greeting(d: Date) {
 
 function MeHome() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const todayFn = useServerFn(getMyToday);
   const statsFn = useServerFn(getMyDashboardStats);
   const pIn = useServerFn(punchIn);
@@ -123,15 +124,24 @@ function MeHome() {
 
   const noEmployee = !isLoading && !employee;
 
+  // Staff-only page. If no employee linked (e.g. admin/ops landed here),
+  // bounce back to the main ERP workspace automatically.
+  useEffect(() => {
+    if (noEmployee) {
+      const t = setTimeout(() => navigate({ to: "/erp" }), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [noEmployee, navigate]);
+
   if (noEmployee) {
     return (
       <Card className="p-8 text-center space-y-3">
-        <AlertCircle className="h-10 w-10 mx-auto text-amber-500" />
-        <h2 className="text-lg font-semibold">No employee record linked</h2>
+        <Loader2 className="h-8 w-8 mx-auto text-muted-foreground animate-spin" />
+        <h2 className="text-lg font-semibold">Workspace e niye jacchi…</h2>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Apnar account ekhono HR e ekjon employee hisheb e link hoyni. HR team ke bolen apnar profile create kore user account link kore dite.
+          Apnar account er shathe kono employee record link nei. ERP workspace e redirect kora hocche.
         </p>
-        <Button asChild variant="outline"><Link to="/erp">Back to ERP</Link></Button>
+        <Button asChild variant="outline"><Link to="/erp">Akhonei jao</Link></Button>
       </Card>
     );
   }
