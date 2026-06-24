@@ -4,7 +4,7 @@ import {
   Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes,
   AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3, MoreVertical,
   ScanLine, Plus, Settings, Lock, TrendingUp, TrendingDown, Layers, Clock,
-  Edit3, AlertCircle, X, Trash2,
+  Edit3, AlertCircle, X, Trash2, Tag,
 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
@@ -145,6 +146,42 @@ function InventoryPage() {
     const slug = isAllBrands ? "all-brands" : activeBrand?.slug ?? "brand";
     downloadCsv(`inventory-selected-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
+
+  const bulkMoveBrand = useMutation({
+    mutationFn: async ({ ids, brandId }: { ids: string[]; brandId: string }) => {
+      const { error } = await supabase.from("products").update({ brand_id: brandId }).in("id", ids);
+      if (error) throw error;
+      return { ids, brandId };
+    },
+    onSuccess: ({ ids, brandId }) => {
+      const targetName = brandNameById.get(brandId) ?? "brand";
+      const prevByProduct = new Map(selectedRows.map((r) => [r.id, r.brand_id as string | null]));
+      clearSelection();
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success(`${ids.length} product${ids.length === 1 ? "" : "s"} moved to ${targetName}`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const groups = new Map<string, string[]>();
+            for (const id of ids) {
+              const prev = prevByProduct.get(id);
+              if (!prev) continue;
+              const arr = groups.get(prev) ?? [];
+              arr.push(id);
+              groups.set(prev, arr);
+            }
+            for (const [prevBrand, pids] of groups) {
+              await supabase.from("products").update({ brand_id: prevBrand }).in("id", pids);
+            }
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            toast.success("Restored");
+          },
+        },
+        duration: 8000,
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const summary = useMemo(() => {
     let units = 0, value = 0, low = 0, out = 0, reserved = 0;
@@ -363,6 +400,33 @@ function InventoryPage() {
                       <Download className="h-3.5 w-3.5 mr-2" />Export selected
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="text-xs">
+                        <Tag className="h-3.5 w-3.5 mr-2" />Move to brand
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {brands.length === 0 && (
+                            <DropdownMenuItem disabled className="text-xs">No brands</DropdownMenuItem>
+                          )}
+                          {brands.map((b) => {
+                            const allSame = selectedRows.every((r) => r.brand_id === b.id);
+                            return (
+                              <DropdownMenuItem
+                                key={b.id}
+                                className="text-xs"
+                                disabled={allSame || bulkMoveBrand.isPending}
+                                onClick={() => bulkMoveBrand.mutate({ ids: Array.from(selected), brandId: b.id })}
+                              >
+                                {allSame && <Check className="h-3.5 w-3.5 mr-2 opacity-60" />}
+                                {!allSame && <Tag className="h-3.5 w-3.5 mr-2 opacity-60" />}
+                                {b.name}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
                     <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
                       <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
                     </DropdownMenuItem>
