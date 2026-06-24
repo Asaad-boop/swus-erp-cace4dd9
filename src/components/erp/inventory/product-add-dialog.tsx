@@ -154,13 +154,15 @@ export function ProductAddDialog({ open, onClose }: Props) {
       // Seed opening stock movement so weighted_avg_cost is correct
       const startStock = Number(f.initial_stock) || 0;
       if (startStock > 0) {
-        await supabase.rpc("apply_stock_movement", {
+        await supabase.rpc("adjust_stock_v2", {
           _product_id: (data as { id: string }).id,
+          _variant_id: null as unknown as string,
           _delta: startStock,
           _reason: "stock_in",
           _note: "Opening stock",
-          _unit_cost: f.cost_price ? Number(f.cost_price) : null,
-        } as never);
+          _unit_cost: f.cost_price ? Number(f.cost_price) : undefined,
+          _source: "manual",
+        });
       }
       return data;
     },
