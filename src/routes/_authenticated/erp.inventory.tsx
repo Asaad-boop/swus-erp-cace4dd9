@@ -4,7 +4,7 @@ import {
   Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes,
   AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3, MoreVertical,
   ScanLine, Plus, Settings, Lock, TrendingUp, TrendingDown, Layers, Clock,
-  Edit3, AlertCircle,
+  Edit3, AlertCircle, X, Trash2,
 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSeparator, DropdownMenuLabel,
@@ -77,6 +78,11 @@ function InventoryPage() {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
   const [adjustVariant, setAdjustVariant] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => setSelected((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const clearSelection = () => setSelected(new Set());
 
   const handleExport = () => {
     const csv = exportProductsCsv(rows);
@@ -91,6 +97,24 @@ function InventoryPage() {
   const titles = useProductTitles(movementProductIds);
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
+
+  const pageIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const pageSelectedCount = pageIds.filter((id) => selected.has(id)).length;
+  const allPageSelected = pageIds.length > 0 && pageSelectedCount === pageIds.length;
+  const somePageSelected = pageSelectedCount > 0 && !allPageSelected;
+  const togglePageAll = () => setSelected((s) => {
+    const n = new Set(s);
+    if (allPageSelected) { for (const id of pageIds) n.delete(id); }
+    else { for (const id of pageIds) n.add(id); }
+    return n;
+  });
+  const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const handleExportSelected = () => {
+    if (!selectedRows.length) return;
+    const csv = exportProductsCsv(selectedRows);
+    const slug = isAllBrands ? "all-brands" : activeBrand?.slug ?? "brand";
+    downloadCsv(`inventory-selected-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
 
   const summary = useMemo(() => {
     let units = 0, value = 0, low = 0, out = 0, reserved = 0;
@@ -265,25 +289,77 @@ function InventoryPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">Bulk Actions</Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="text-xs">Bulk Stock In</DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs">Bulk Stock Out</DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs">Export Selected</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
           </div>
+
+          {/* Selection action bar */}
+          {selected.size > 0 && (
+            <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-foreground/20 bg-foreground text-background px-3 py-2 shadow-lg animate-fade-in">
+              <div className="flex items-center gap-3 text-sm">
+                <span className="inline-flex items-center justify-center h-6 min-w-[24px] rounded-md bg-background/15 px-1.5 text-xs font-semibold tabular-nums">
+                  {selected.size}
+                </span>
+                <span className="font-medium">selected</span>
+                <button onClick={clearSelection} className="text-xs text-background/70 hover:text-background underline-offset-2 hover:underline">
+                  Clear
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button size="sm" variant="secondary" className="h-8 gap-1.5" onClick={handleExportSelected}>
+                  <Download className="h-3.5 w-3.5" />Export CSV
+                </Button>
+                <Button
+                  size="sm" variant="secondary" className="h-8 gap-1.5"
+                  onClick={() => { if (selectedRows[0]) setAdjust({ product: selectedRows[0], mode: "in" }); }}
+                >
+                  <ArrowUp className="h-3.5 w-3.5 text-emerald-600" />Stock In
+                </Button>
+                <Button
+                  size="sm" variant="secondary" className="h-8 gap-1.5"
+                  onClick={() => { if (selectedRows[0]) setAdjust({ product: selectedRows[0], mode: "out" }); }}
+                >
+                  <ArrowDown className="h-3.5 w-3.5 text-red-600" />Stock Out
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <MoreVertical className="h-3.5 w-3.5" />More
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="text-xs">Bulk actions</DropdownMenuLabel>
+                    <DropdownMenuItem className="text-xs" onClick={handleExportSelected}>
+                      <Download className="h-3.5 w-3.5 mr-2" />Export selected
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
+                      <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-xs text-red-600" onClick={() => toast.info("Bulk delete — coming soon")}>
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />Delete selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-background/70 hover:text-background hover:bg-background/10" onClick={clearSelection}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="rounded-2xl border border-border/70 bg-card overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/30 sticky top-0 z-10 backdrop-blur-sm">
                 <TableRow className="hover:bg-transparent border-b border-border/70">
+                  <TableHead className="w-10 pl-4">
+                    <Checkbox
+                      checked={allPageSelected ? true : somePageSelected ? "indeterminate" : false}
+                      onCheckedChange={togglePageAll}
+                      aria-label="Select all rows on page"
+                    />
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product</TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">SKU</TableHead>
@@ -300,10 +376,10 @@ function InventoryPage() {
               </TableHeader>
               <TableBody>
                 {isLoading && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">Loading inventory…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">Loading inventory…</TableCell></TableRow>
                 )}
                 {!isLoading && rows.length === 0 && (
-                  <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">No products found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-12 text-muted-foreground">No products found</TableCell></TableRow>
                 )}
                 {rows.map((r) => {
                   const variants = r.variants ?? [];
@@ -320,7 +396,20 @@ function InventoryPage() {
 
                   return (
                     <Fragment key={r.id}>
-                      <TableRow className="group transition-all hover:bg-muted/40 hover:shadow-sm border-b">
+                      <TableRow
+                        data-state={selected.has(r.id) ? "selected" : undefined}
+                        className={cn(
+                          "group transition-colors border-b",
+                          selected.has(r.id) ? "bg-foreground/[0.04] hover:bg-foreground/[0.06]" : "hover:bg-muted/40",
+                        )}
+                      >
+                        <TableCell className="pl-4 align-middle">
+                          <Checkbox
+                            checked={selected.has(r.id)}
+                            onCheckedChange={() => toggleSelect(r.id)}
+                            aria-label={`Select ${r.title}`}
+                          />
+                        </TableCell>
                         <TableCell className="p-1 align-middle">
                           {hasVariants ? (
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleExpand(r.id)}>
@@ -434,6 +523,7 @@ function InventoryPage() {
                         const vOut = v.stock <= 0;
                         return (
                           <TableRow key={`${r.id}__${v.id}`} className="bg-muted/20 border-l-2 border-l-indigo-300 dark:border-l-indigo-700 animate-fade-in">
+                            <TableCell></TableCell>
                             <TableCell></TableCell>
                             <TableCell className="pl-12 text-xs">
                               <div className="flex items-center gap-2">
