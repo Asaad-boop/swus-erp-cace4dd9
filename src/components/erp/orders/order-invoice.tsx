@@ -34,8 +34,14 @@ export function PrintableInvoice({
   visible?: boolean; // when true, render visibly (for live preview)
   bulk?: boolean; // when true, omit #print-invoice id so multiple copies don't stack via the single-print CSS
 }) {
-  const { activeBrand } = useBrand();
-  const { data: cfgData } = useInvoiceConfig(activeBrand?.id);
+  const { activeBrand, brands } = useBrand();
+  // Prefer the order's own brand so invoices print correctly even when no brand
+  // is selected in the header (e.g. "All brands" or bulk print across brands).
+  const orderBrand =
+    (order?.brand_id ? brands.find((b) => b.id === order.brand_id) : null) ??
+    activeBrand ??
+    null;
+  const { data: cfgData } = useInvoiceConfig(orderBrand?.id);
   const cfg: InvoiceConfig = configOverride ?? cfgData ?? DEFAULT_INVOICE_CONFIG;
 
   const isPos = cfg.paper === "80mm" || cfg.paper === "58mm";
@@ -105,7 +111,7 @@ export function PrintableInvoice({
             {wmText}
           </div>
         )}
-        <ThemeBody order={order} items={items} cfg={cfg} brandName={activeBrand?.name ?? "Invoice"} brandLogo={activeBrand?.logo_url ?? null} qrDataUrl={qrDataUrl} />
+        <ThemeBody order={order} items={items} cfg={cfg} brandName={orderBrand?.name ?? "Invoice"} brandLogo={orderBrand?.logo_url ?? null} qrDataUrl={qrDataUrl} />
       </div>
     </div>
   );
