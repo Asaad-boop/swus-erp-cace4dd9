@@ -217,8 +217,9 @@ function PoDetailPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[64px]"></TableHead>
+              <TableHead>Product</TableHead>
               <TableHead>SKU</TableHead>
-              <TableHead>Name</TableHead>
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Unit {po.currency}</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>
@@ -227,8 +228,26 @@ function PoDetailPage() {
           <TableBody>
             {items.map((it) => (
               <TableRow key={it.id}>
-                <TableCell className="font-mono text-xs">{it.sku_snapshot ?? "—"}</TableCell>
-                <TableCell className="font-medium">{it.name_snapshot}</TableCell>
+                <TableCell className="py-2">
+                  {it.image_snapshot ? (
+                    <img
+                      src={it.image_snapshot}
+                      alt={it.name_snapshot ?? ""}
+                      className="h-12 w-12 rounded-md object-cover border border-border bg-muted"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-md bg-muted border border-dashed border-border flex items-center justify-center text-muted-foreground/60 text-[10px]">
+                      No img
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-medium max-w-[420px]">
+                  <div className="truncate" title={it.name_snapshot ?? ""}>{it.name_snapshot}</div>
+                  {it.product_id && (
+                    <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Inventory linked</div>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{it.sku_snapshot ?? "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
                 <TableCell className="text-right tabular-nums">{Number(it.unit_cost_foreign).toFixed(2)}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtBdt(it.subtotal_bdt)}</TableCell>

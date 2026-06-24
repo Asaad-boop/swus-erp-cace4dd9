@@ -347,34 +347,99 @@ function NewPoPage() {
             <div className="mt-3 space-y-2">
               {items.map((it) => {
                 const subBdt = it.quantity * it.unit_cost_foreign * (fxRate || 0);
+                const unitBdt = it.unit_cost_foreign * (fxRate || 0);
                 return (
-                  <div key={it.id} className="grid grid-cols-12 gap-2 items-end p-3 rounded-md border border-border bg-card/50">
-                    <div className="col-span-12 md:col-span-5">
-                      <Label className="text-xs">Product</Label>
-                      <ProductPicker
-                        brandId={brandId!}
-                        value={it.picked}
-                        onChange={(p) => updItem(it.id, { picked: p })}
-                      />
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <Label className="text-xs">Qty</Label>
-                      <Input type="number" min={1} value={it.quantity}
-                        onChange={(e) => updItem(it.id, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <Label className="text-xs">Unit ({currency})</Label>
-                      <Input type="number" step="0.01" value={it.unit_cost_foreign}
-                        onChange={(e) => updItem(it.id, { unit_cost_foreign: Number(e.target.value) || 0 })} />
-                    </div>
-                    <div className="col-span-3 md:col-span-2 text-right">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Subtotal</div>
-                      <div className="font-semibold tabular-nums text-sm">{fmtBdt(subBdt)}</div>
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <Button size="icon" variant="ghost" disabled={items.length === 1} onClick={() => removeItem(it.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                  <div
+                    key={it.id}
+                    className="group relative rounded-lg border border-border bg-gradient-to-br from-card to-muted/20 p-3 md:p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:items-stretch">
+                      {/* Thumbnail */}
+                      <div className="flex-shrink-0 self-start">
+                        {it.picked.image ? (
+                          <img
+                            src={it.picked.image}
+                            alt={it.picked.title}
+                            className="h-16 w-16 md:h-20 md:w-20 rounded-md object-cover border border-border bg-muted"
+                          />
+                        ) : (
+                          <div className="h-16 w-16 md:h-20 md:w-20 rounded-md bg-muted border border-dashed border-border flex items-center justify-center">
+                            <Package className="h-7 w-7 text-muted-foreground/60" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Picker + meta */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Product</Label>
+                        <ProductPicker
+                          brandId={brandId!}
+                          value={it.picked}
+                          onChange={(p) => updItem(it.id, { picked: p })}
+                        />
+                        {(it.picked.sku || it.picked.id) && (
+                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground pt-0.5">
+                            {it.picked.sku && (
+                              <span className="font-mono px-1.5 py-0.5 rounded bg-muted">{it.picked.sku}</span>
+                            )}
+                            {it.picked.id && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900">
+                                Inventory linked
+                              </Badge>
+                            )}
+                            {!it.picked.id && it.picked.title && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5">Ad-hoc</Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Numeric inputs */}
+                      <div className="grid grid-cols-3 gap-2 md:gap-3 md:w-[360px] flex-shrink-0">
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                          <Input
+                            type="number" min={1} value={it.quantity}
+                            onChange={(e) => updItem(it.id, { quantity: Math.max(1, Number(e.target.value) || 1) })}
+                            className="h-9 text-center font-semibold tabular-nums"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Unit ({currency})</Label>
+                          <Input
+                            type="number" step="0.01" value={it.unit_cost_foreign}
+                            onChange={(e) => updItem(it.id, { unit_cost_foreign: Number(e.target.value) || 0 })}
+                            className="h-9 text-right tabular-nums"
+                          />
+                          {unitBdt > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5 text-right tabular-nums">
+                              ≈ {fmtBdt(unitBdt)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Subtotal</Label>
+                          <div className="h-9 flex items-center justify-end font-bold tabular-nums text-sm text-primary">
+                            {fmtBdt(subBdt)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground text-right tabular-nums">
+                            {(it.quantity * it.unit_cost_foreign).toFixed(2)} {currency}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Delete */}
+                      <div className="absolute top-2 right-2 md:static md:self-start">
+                        <Button
+                          size="icon" variant="ghost"
+                          className="h-7 w-7 opacity-60 hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          disabled={items.length === 1}
+                          onClick={() => removeItem(it.id)}
+                          title="Remove item"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -422,18 +487,38 @@ function NewPoPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {items.map((it) => (
-                      <div key={it.id} className="flex items-center gap-2 text-xs">
-                        <span className="flex-1 truncate">{it.picked.title || "—"}</span>
-                        <Input
-                          type="number" min={0} max={it.quantity}
-                          className="w-20 h-8 text-right"
-                          value={c.allocations[it.id] ?? 0}
-                          onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
-                        />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {items.map((it) => {
+                      const alloc = c.allocations[it.id] ?? 0;
+                      const over = alloc > it.quantity;
+                      return (
+                        <div
+                          key={it.id}
+                          className={cn(
+                            "flex items-center gap-2 text-xs p-1.5 rounded border bg-background/60",
+                            over ? "border-red-300" : "border-border/60",
+                          )}
+                        >
+                          {it.picked.image ? (
+                            <img src={it.picked.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
+                          ) : (
+                            <div className="h-9 w-9 rounded bg-muted flex items-center justify-center flex-shrink-0 border border-dashed border-border">
+                              <Package className="h-4 w-4 text-muted-foreground/60" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-medium">{it.picked.title || "—"}</div>
+                            <div className="text-[10px] text-muted-foreground tabular-nums">of {it.quantity}</div>
+                          </div>
+                          <Input
+                            type="number" min={0} max={it.quantity}
+                            className={cn("w-16 h-8 text-right tabular-nums", over && "border-red-400 text-red-600")}
+                            value={alloc}
+                            onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
