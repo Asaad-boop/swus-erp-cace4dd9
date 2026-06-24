@@ -24,6 +24,8 @@ import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/e
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
+import { useCurrentRole } from "@/hooks/use-current-role";
+import { StaffDashboard } from "@/components/erp/staff-dashboard";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
@@ -61,6 +63,19 @@ function greeting() {
 
 // ---------- page ----------
 function DashboardPage() {
+  const { isAdmin, isLoading: roleLoading } = useCurrentRole();
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-muted/30">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+  if (!isAdmin) return <StaffDashboard />;
+  return <AdminDashboard />;
+}
+
+function AdminDashboard() {
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const navigate = useNavigate();
   const qc = useQueryClient();
