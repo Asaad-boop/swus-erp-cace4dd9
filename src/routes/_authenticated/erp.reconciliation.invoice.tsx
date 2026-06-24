@@ -245,12 +245,64 @@ function ReconciliationPage() {
   const listFn = useServerFn(listPathaoReconciliationRuns);
   const createFn = useServerFn(createPathaoReconciliationRun);
   const deleteFn = useServerFn(deletePathaoReconciliationRun);
+  const previewFn = useServerFn(previewPathaoReconciliation);
 
   const runsQ = useQuery({
     queryKey: ["pathao-reconciliation-runs", brandId],
     queryFn: () => listFn({ data: { brandId } }),
     enabled: !!brandId,
   });
+
+  // Dry-run match preview (no inserts). Re-runs when parsed rows or brand change.
+  const previewKey = useMemo(() => {
+    if (!preview || !brandId) return null;
+    return preview
+      .map((r) => `${r.consignment_id ?? "-"}|${r.merchant_order_id ?? "-"}|${r.collected}`)
+      .join(";");
+  }, [preview, brandId]);
+  const matchQ = useQuery({
+    queryKey: ["pathao-recon-preview", brandId, previewKey],
+    enabled: !!preview && !!brandId,
+    queryFn: () =>
+      previewFn({
+        data: {
+          brandId,
+          tolerance: 1,
+          rows: (preview ?? []).map((r, idx) => ({
+            idx,
+            consignment_id: r.consignment_id,
+            merchant_order_id: r.merchant_order_id,
+            recipient_phone: r.recipient_phone,
+            collected: r.collected,
+          })),
+        },
+      }),
+  });
+  const matchByIdx = useMemo(() => {
+    const m = new Map<number, NonNullable<typeof matchQ.data>[number]>();
+    (matchQ.data ?? []).forEach((r) => m.set(r.idx, r));
+    return m;
+  }, [matchQ.data]);
+  const previewStatusCounts = useMemo(() => {
+    const c = { matched: 0, amount_mismatch: 0, duplicate: 0, unmatched: 0 };
+    (matchQ.data ?? []).forEach((r) => {
+      c[r.status] = (c[r.status] ?? 0) + 1;
+    });
+    return c;
+  }, [matchQ.data]);
+  const previewGrouped = useMemo(() => {
+    if (!preview)
+      return { deliveryPayout: 0, instaFee: 0, instaCount: 0, subRows: 0 };
+    return preview.reduce(
+      (a, r) => ({
+        deliveryPayout: a.deliveryPayout + r.delivery_payout,
+        instaFee: a.instaFee + r.insta_fee_amount,
+        instaCount: a.instaCount + (r.insta_fee_count > 0 ? 1 : 0),
+        subRows: a.subRows + r.sub_row_count,
+      }),
+      { deliveryPayout: 0, instaFee: 0, instaCount: 0, subRows: 0 },
+    );
+  }, [preview]);
 
   const createMut = useMutation({
     mutationFn: async () => {
