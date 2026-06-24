@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Clock, LogIn, LogOut, Coffee, Play, MapPin, Loader2, AlertCircle,
+  Clock, LogIn, LogOut, Coffee, Play, MapPin, Loader2,
   CalendarCheck2, TrendingUp, Plane, Wallet, ArrowRight, Sparkles,
   Briefcase, CheckCircle2, Timer,
 } from "lucide-react";
