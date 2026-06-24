@@ -98,6 +98,24 @@ function InventoryPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
 
+  const pageIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const pageSelectedCount = pageIds.filter((id) => selected.has(id)).length;
+  const allPageSelected = pageIds.length > 0 && pageSelectedCount === pageIds.length;
+  const somePageSelected = pageSelectedCount > 0 && !allPageSelected;
+  const togglePageAll = () => setSelected((s) => {
+    const n = new Set(s);
+    if (allPageSelected) { for (const id of pageIds) n.delete(id); }
+    else { for (const id of pageIds) n.add(id); }
+    return n;
+  });
+  const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const handleExportSelected = () => {
+    if (!selectedRows.length) return;
+    const csv = exportProductsCsv(selectedRows);
+    const slug = isAllBrands ? "all-brands" : activeBrand?.slug ?? "brand";
+    downloadCsv(`inventory-selected-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   const summary = useMemo(() => {
     let units = 0, value = 0, low = 0, out = 0, reserved = 0;
     for (const r of rows) {
