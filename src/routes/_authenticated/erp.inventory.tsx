@@ -113,6 +113,32 @@ function InventoryPage() {
     return n;
   });
   const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("products").update({ is_active: false }).in("id", ids);
+      if (error) throw error;
+      return ids;
+    },
+    onSuccess: (ids) => {
+      clearSelection();
+      setConfirmDelete(false);
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success(`${ids.length} product${ids.length === 1 ? "" : "s"} deleted`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const { error } = await supabase.from("products").update({ is_active: true }).in("id", ids);
+            if (error) { toast.error(error.message); return; }
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            toast.success("Restored");
+          },
+        },
+        duration: 8000,
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const handleExportSelected = () => {
     if (!selectedRows.length) return;
     const csv = exportProductsCsv(selectedRows);
