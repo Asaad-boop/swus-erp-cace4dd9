@@ -81,6 +81,23 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
     const consignmentIds = [...new Set(data.rows.map((r) => r.consignment_id).filter(Boolean) as string[])];
     const merchantIds = [...new Set(data.rows.map((r) => r.merchant_order_id).filter(Boolean) as string[])];
 
+    // Cross-run duplicate: same consignment_id already exists in another
+    // non-reverted run for this brand. Catches multi-day invoice overlaps
+    // even before apply.
+    const seenConsignments = new Set<string>();
+    if (consignmentIds.length) {
+      const { data: prior } = await supabase
+        .from("erp_reconciliation_rows")
+        .select("consignment_id, run:run_id(id, brand_id, status)")
+        .in("consignment_id", consignmentIds);
+      (prior ?? []).forEach((p: any) => {
+        const st = p.run?.status;
+        if (p.consignment_id && p.run?.brand_id === data.brandId && st !== "reverted" && st !== "draft") {
+          seenConsignments.add(p.consignment_id);
+        }
+      });
+    }
+
     const shipmentByConsignment = new Map<string, { order_id: string }>();
     const shipmentByMerchant = new Map<string, { order_id: string }>();
 
@@ -186,6 +203,11 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
           .not("applied_income_txn_id", "is", null)
           .limit(1);
         if (dupe && dupe.length > 0) status = "duplicate";
+      }
+
+      // Cross-run consignment-level duplicate (independent of match)
+      if (r.consignment_id && seenConsignments.has(r.consignment_id)) {
+        status = "duplicate";
       }
 
       rowInserts.push({
