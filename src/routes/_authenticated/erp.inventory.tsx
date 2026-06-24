@@ -827,6 +827,8 @@ function InventoryPage() {
         onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
 
+      <ProductAddDialog open={addOpen} onClose={() => setAddOpen(false)} />
+
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
