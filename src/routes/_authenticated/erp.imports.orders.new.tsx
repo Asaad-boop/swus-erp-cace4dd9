@@ -487,18 +487,38 @@ function NewPoPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {items.map((it) => (
-                      <div key={it.id} className="flex items-center gap-2 text-xs">
-                        <span className="flex-1 truncate">{it.picked.title || "—"}</span>
-                        <Input
-                          type="number" min={0} max={it.quantity}
-                          className="w-20 h-8 text-right"
-                          value={c.allocations[it.id] ?? 0}
-                          onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
-                        />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {items.map((it) => {
+                      const alloc = c.allocations[it.id] ?? 0;
+                      const over = alloc > it.quantity;
+                      return (
+                        <div
+                          key={it.id}
+                          className={cn(
+                            "flex items-center gap-2 text-xs p-1.5 rounded border bg-background/60",
+                            over ? "border-red-300" : "border-border/60",
+                          )}
+                        >
+                          {it.picked.image ? (
+                            <img src={it.picked.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
+                          ) : (
+                            <div className="h-9 w-9 rounded bg-muted flex items-center justify-center flex-shrink-0 border border-dashed border-border">
+                              <Package className="h-4 w-4 text-muted-foreground/60" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-medium">{it.picked.title || "—"}</div>
+                            <div className="text-[10px] text-muted-foreground tabular-nums">of {it.quantity}</div>
+                          </div>
+                          <Input
+                            type="number" min={0} max={it.quantity}
+                            className={cn("w-16 h-8 text-right tabular-nums", over && "border-red-400 text-red-600")}
+                            value={alloc}
+                            onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
