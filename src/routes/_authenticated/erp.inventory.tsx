@@ -4,7 +4,7 @@ import {
   Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes,
   AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3, MoreVertical,
   ScanLine, Plus, Settings, Lock, TrendingUp, TrendingDown, Layers, Clock,
-  Edit3, AlertCircle, X, Trash2,
+  Edit3, AlertCircle, X, Trash2, Tag,
 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useBrand } from "@/contexts/brand-context";
