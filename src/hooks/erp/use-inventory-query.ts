@@ -24,6 +24,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
         )
         .order("updated_at", { ascending: false });
       q = applyBrandScope(q, filter.brandIds);
+      q = q.eq("is_active", true);
       if (filter.search.trim()) {
         const s = filter.search.trim();
         q = q.or(`title.ilike.%${s}%,sku.ilike.%${s}%,barcode.ilike.%${s}%,slug.ilike.%${s}%`);
