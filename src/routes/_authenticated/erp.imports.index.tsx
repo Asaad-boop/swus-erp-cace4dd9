@@ -170,6 +170,7 @@ function ImportsDashboard() {
                   params={{ orderId: p.id }}
                   className="flex items-center justify-between gap-3 rounded-md border border-border hover:border-primary/40 hover:bg-accent/50 px-3 py-2.5 transition"
                 >
+                  <ProductThumbStack items={p.items ?? []} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-semibold">{p.po_number}</span>
@@ -179,7 +180,9 @@ function ImportsDashboard() {
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {p.agent?.name ?? "No agent"}{p.supplier?.name ? ` · ${p.supplier.name}` : ""}
+                      {(p.items ?? []).length > 0
+                        ? `${(p.items ?? []).length} item${(p.items ?? []).length > 1 ? "s" : ""} · ${(p.items ?? []).reduce((s: number, i: any) => s + Number(i.quantity || 0), 0)} pcs`
+                        : (p.agent?.name ?? "No agent")}
                     </div>
                   </div>
                   <div className="text-right">
