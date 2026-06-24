@@ -170,6 +170,7 @@ function ImportsDashboard() {
                   params={{ orderId: p.id }}
                   className="flex items-center justify-between gap-3 rounded-md border border-border hover:border-primary/40 hover:bg-accent/50 px-3 py-2.5 transition"
                 >
+                  <ProductThumbStack items={p.items ?? []} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-semibold">{p.po_number}</span>
@@ -179,7 +180,9 @@ function ImportsDashboard() {
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {p.agent?.name ?? "No agent"}{p.supplier?.name ? ` · ${p.supplier.name}` : ""}
+                      {(p.items ?? []).length > 0
+                        ? `${(p.items ?? []).length} item${(p.items ?? []).length > 1 ? "s" : ""} · ${(p.items ?? []).reduce((s: number, i: any) => s + Number(i.quantity || 0), 0)} pcs`
+                        : (p.agent?.name ?? "No agent")}
                     </div>
                   </div>
                   <div className="text-right">
@@ -242,5 +245,47 @@ function KpiCard({ label, value, icon: Icon, tone, delta, deltaInverse }: { labe
         </div>
       )}
     </Card>
+  );
+}
+
+export function ProductThumbStack({ items, max = 4, size = "md" }: { items: Array<{ image_snapshot?: string | null; name_snapshot?: string | null; quantity?: number | null }>; max?: number; size?: "sm" | "md" }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className={`${size === "sm" ? "h-8 w-8" : "h-10 w-10"} rounded-md bg-muted border border-dashed border-border flex items-center justify-center flex-shrink-0`}>
+        <Package className={size === "sm" ? "h-3.5 w-3.5 text-muted-foreground/60" : "h-4 w-4 text-muted-foreground/60"} />
+      </div>
+    );
+  }
+  const shown = items.slice(0, max);
+  const extra = items.length - shown.length;
+  const dim = size === "sm" ? "h-8 w-8" : "h-10 w-10";
+  const offset = size === "sm" ? "-ml-2.5" : "-ml-3";
+  return (
+    <div className="flex items-center flex-shrink-0">
+      {shown.map((it, idx) => (
+        <div
+          key={idx}
+          className={`${dim} ${idx === 0 ? "" : offset} rounded-md border-2 border-background bg-muted overflow-hidden ring-1 ring-border`}
+          title={`${it.name_snapshot ?? ""}${it.quantity ? ` × ${it.quantity}` : ""}`}
+          style={{ zIndex: shown.length - idx }}
+        >
+          {it.image_snapshot ? (
+            <img src={it.image_snapshot} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center">
+              <Package className={size === "sm" ? "h-3.5 w-3.5 text-muted-foreground/60" : "h-4 w-4 text-muted-foreground/60"} />
+            </div>
+          )}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div
+          className={`${dim} ${offset} rounded-md border-2 border-background bg-muted ring-1 ring-border flex items-center justify-center text-[10px] font-semibold text-muted-foreground`}
+          title={`+${extra} more`}
+        >
+          +{extra}
+        </div>
+      )}
+    </div>
   );
 }

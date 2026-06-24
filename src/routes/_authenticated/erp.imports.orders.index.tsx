@@ -13,6 +13,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { cn } from "@/lib/utils";
 import { listPurchaseOrders } from "@/lib/erp/imports/imports.functions";
 import { PO_STATUS_LABEL, fmtBdt, type ImpPoStatus } from "@/lib/erp/imports/types";
+import { ProductThumbStack } from "./erp.imports.index";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/")({
   head: () => ({ meta: [{ title: "Purchase Orders — Imports" }] }),
@@ -147,6 +148,7 @@ function PoListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>
+              <TableHead>Products</TableHead>
               <TableHead>Brand</TableHead>
               <SortableHead label="Date" k="date" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
               <TableHead>Supplier / Agent</TableHead>
@@ -158,9 +160,9 @@ function PoListPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="py-16">
+              <TableRow><TableCell colSpan={9} className="py-16">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>
                   <div>
@@ -189,6 +191,16 @@ function PoListPage() {
                       <Link to="/erp/imports/orders/$orderId" params={{ orderId: p.id }} className="font-mono text-sm font-semibold text-primary hover:underline">
                         {p.po_number}
                       </Link>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ProductThumbStack items={p.items ?? []} max={3} size="sm" />
+                        <div className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">
+                          {(p.items ?? []).length > 0
+                            ? `${(p.items ?? []).length} · ${(p.items ?? []).reduce((s: number, i: any) => s + Number(i.quantity || 0), 0)}pcs`
+                            : "—"}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {p.brand?.name ? (
