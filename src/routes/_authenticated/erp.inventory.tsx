@@ -117,39 +117,50 @@ function InventoryPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-5 bg-gradient-to-b from-muted/20 via-background to-background min-h-screen">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-[1600px] p-4 md:p-8 space-y-8">
       {/* HEADER */}
-      <header className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border bg-card/60 backdrop-blur-sm p-4 md:p-5 shadow-sm">
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
-          <p className="text-sm text-muted-foreground">
-            {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"}
-          </p>
-          <div className="flex items-center gap-2 pt-0.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-              <Package className="h-3 w-3" />{total.toLocaleString()} products
+      <header className="flex flex-wrap items-end justify-between gap-6 border-b border-border/60 pb-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span>ERP</span>
+            <span className="text-border">/</span>
+            <span className="text-foreground/70">Inventory</span>
+          </div>
+          <h1 className="text-[40px] leading-none font-semibold tracking-tight">Inventory</h1>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-2.5 py-1 text-xs font-medium text-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {isAllBrands ? `All brands · ${brands.length}` : activeBrand?.name ?? "—"}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs">
+              <Package className="h-3.5 w-3.5" />
+              <span className="tabular-nums font-medium text-foreground">{total.toLocaleString()}</span> products
             </span>
             {syncedAt && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Clock className="h-3 w-3" />Synced {syncedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5" />
+                Synced {syncedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add Product</Button>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-foreground">
+            <Settings className="h-4 w-4" />Settings
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length} className="gap-1.5">
+            <Download className="h-4 w-4" />Export
+          </Button>
           <Link to="/erp/inventory-reports">
             <Button size="sm" variant="outline" className="gap-1.5"><BarChart3 className="h-4 w-4" />Reports</Button>
           </Link>
-          <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length} className="gap-1.5">
-            <Download className="h-4 w-4" />CSV
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5"><Settings className="h-4 w-4" />Settings</Button>
+          <Button size="sm" className="gap-1.5 shadow-sm"><Plus className="h-4 w-4" />Add Product</Button>
         </div>
       </header>
 
       {/* KPI CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/70 bg-border/60 overflow-hidden">
         <KpiCard
           accent="blue"
           icon={<Package className="h-5 w-5" />}
@@ -182,8 +193,8 @@ function InventoryPage() {
       </div>
 
       {/* TABS */}
-      <Tabs defaultValue="products" className="space-y-4">
-        <TabsList className="bg-muted/60 p-1 h-auto rounded-xl gap-1">
+      <Tabs defaultValue="products" className="space-y-6">
+        <TabsList className="bg-transparent border-b border-border/70 rounded-none p-0 h-auto gap-6 w-full justify-start">
           <PillTab value="products" icon={<Package className="h-3.5 w-3.5" />}>Products</PillTab>
           <PillTab value="opening" icon={<Layers className="h-3.5 w-3.5" />}>Opening Stock</PillTab>
           <PillTab value="low" icon={<AlertTriangle className="h-3.5 w-3.5" />} badge={lowQuery.data?.length}>
@@ -193,23 +204,25 @@ function InventoryPage() {
         </TabsList>
 
         {/* PRODUCTS TAB */}
-        <TabsContent value="products" className="space-y-4 mt-0">
+        <TabsContent value="products" className="space-y-5 mt-0">
           {/* Filter bar */}
-          <div className="space-y-3">
+          <div className="rounded-2xl border border-border/70 bg-card/50 p-3 md:p-4 space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                className="pl-10 pr-10 h-10 text-sm"
+                className="pl-10 pr-12 h-11 text-sm rounded-xl border-border/70 bg-background shadow-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 placeholder="Search by title, SKU, barcode or slug — scanner ready…"
                 value={filter.search}
                 onChange={(e) => setFilter({ ...filter, search: e.target.value, page: 0 })}
                 autoFocus
               />
-              <ScanLine className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <ScanLine className="h-3 w-3" /> scan
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {stockPills.map((p) => {
                   const active = (p.k === "reserved" ? false : filter.stockState === p.k);
                   return (
@@ -217,10 +230,10 @@ function InventoryPage() {
                       key={p.k}
                       onClick={() => p.k !== "reserved" && setFilter({ ...filter, stockState: p.k as InventoryFilter["stockState"], page: 0 })}
                       className={cn(
-                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                         active
-                          ? "bg-foreground text-background border-foreground shadow-sm"
-                          : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground border-border",
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted",
                       )}
                     >
                       {p.label}
@@ -267,22 +280,22 @@ function InventoryPage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+          <div className="rounded-2xl border border-border/70 bg-card overflow-hidden">
             <Table>
-              <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
-                <TableRow className="hover:bg-transparent border-b">
+              <TableHeader className="bg-muted/30 sticky top-0 z-10 backdrop-blur-sm">
+                <TableRow className="hover:bg-transparent border-b border-border/70">
                   <TableHead className="w-10"></TableHead>
-                  <TableHead className="font-semibold text-foreground/80">Product</TableHead>
-                  <TableHead className="font-semibold text-foreground/80">SKU</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">Price</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">WAC</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">In Stock</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">Reserved</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">Available</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">Incoming</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80">Reorder</TableHead>
-                  <TableHead className="font-semibold text-foreground/80">Status</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground/80 w-12"></TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">SKU</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Price</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">WAC</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">In Stock</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Reserved</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Available</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Incoming</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Reorder</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -602,6 +615,7 @@ function InventoryPage() {
         product={editProduct}
         onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
+      </div>
     </div>
   );
 }
@@ -612,11 +626,11 @@ function PillTab({ value, icon, badge, children }: { value: string; icon: React.
   return (
     <TabsTrigger
       value={value}
-      className="gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-1.5 text-xs font-medium"
+      className="relative gap-1.5 rounded-none bg-transparent px-0 pb-3 pt-1 text-sm font-medium text-muted-foreground shadow-none border-b-2 border-transparent data-[state=active]:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors hover:text-foreground"
     >
       {icon}{children}
       {badge ? (
-        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 px-1.5 min-w-[18px] h-[18px] text-[10px] font-bold">
+        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 min-w-[18px] h-[18px] text-[10px] font-semibold">
           {badge}
         </span>
       ) : null}
@@ -625,11 +639,11 @@ function PillTab({ value, icon, badge, children }: { value: string; icon: React.
 }
 
 type KpiAccent = "blue" | "purple" | "green" | "red";
-const ACCENT_STYLES: Record<KpiAccent, { border: string; icon: string; bg: string; ring: string }> = {
-  blue:   { border: "border-l-blue-500",    icon: "text-blue-600 bg-blue-50 dark:bg-blue-950/50",       bg: "bg-gradient-to-br from-blue-50/60 via-card to-card dark:from-blue-950/20",         ring: "ring-blue-500/10" },
-  purple: { border: "border-l-purple-500",  icon: "text-purple-600 bg-purple-50 dark:bg-purple-950/50", bg: "bg-gradient-to-br from-purple-50/60 via-card to-card dark:from-purple-950/20",     ring: "ring-purple-500/10" },
-  green:  { border: "border-l-emerald-500", icon: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50", bg: "bg-gradient-to-br from-emerald-50/60 via-card to-card dark:from-emerald-950/20", ring: "ring-emerald-500/10" },
-  red:    { border: "border-l-red-500",     icon: "text-red-600 bg-red-50 dark:bg-red-950/50",         bg: "bg-gradient-to-br from-red-50/60 via-card to-card dark:from-red-950/20",           ring: "ring-red-500/10" },
+const ACCENT_STYLES: Record<KpiAccent, { dot: string; icon: string }> = {
+  blue:   { dot: "bg-blue-500",    icon: "text-blue-600 dark:text-blue-400" },
+  purple: { dot: "bg-purple-500",  icon: "text-purple-600 dark:text-purple-400" },
+  green:  { dot: "bg-emerald-500", icon: "text-emerald-600 dark:text-emerald-400" },
+  red:    { dot: "bg-red-500",     icon: "text-red-600 dark:text-red-400" },
 };
 
 function KpiCard({ icon, label, value, hint, accent, emphasize }: {
@@ -637,56 +651,54 @@ function KpiCard({ icon, label, value, hint, accent, emphasize }: {
 }) {
   const s = ACCENT_STYLES[accent];
   return (
-    <Card className={cn(
-      "border-l-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 animate-fade-in ring-1",
-      s.border, s.bg, s.ring,
-    )}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 min-w-0">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-            <div className={cn(
-              "text-2xl font-bold tabular-nums tracking-tight",
-              emphasize && accent === "red" && "text-red-600 dark:text-red-400",
-            )}>
-              {value}
-            </div>
-            {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-          </div>
-          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ring-1 ring-border/50", s.icon)}>
-            {icon}
+    <div className="group bg-card transition-colors hover:bg-muted/30 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">{label}</div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <div className={cn("opacity-60 group-hover:opacity-100 transition-opacity", s.icon)}>
+          {icon}
+        </div>
+      </div>
+      <div className={cn(
+        "mt-3 text-[32px] leading-none font-semibold tabular-nums tracking-tight",
+        emphasize && accent === "red" && "text-red-600 dark:text-red-400",
+      )}>
+        {value}
+      </div>
+      {hint && <div className="mt-2 text-[11px] text-muted-foreground">{hint}</div>}
+    </div>
   );
 }
 
 function StatusPill({ out, low, reserved }: { out: boolean; low: boolean; reserved?: boolean }) {
   if (out) {
     return (
-      <span className="inline-flex items-center rounded-full bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 text-[11px] font-semibold animate-pulse">
-        Out of Stock
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />Out of stock
       </span>
     );
   }
   if (low) {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 text-[11px] font-semibold">
-        Low Stock
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Low stock
       </span>
     );
   }
   if (reserved) {
     return (
-      <span className="inline-flex items-center rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.5 text-[11px] font-semibold">
-        Reserved
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />Reserved
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-semibold">
-      In Stock
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-medium">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />In stock
     </span>
   );
 }
