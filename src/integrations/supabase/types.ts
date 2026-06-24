@@ -8613,6 +8613,10 @@ export type Database = {
         Args: { _product_id: string }
         Returns: undefined
       }
+      recompute_reserved_stock: {
+        Args: { p_product_id: string; p_variant_id: string }
+        Returns: undefined
+      }
       record_ar_payment: {
         Args: {
           _amount: number
