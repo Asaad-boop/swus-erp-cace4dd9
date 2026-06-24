@@ -79,6 +79,7 @@ function InventoryPage() {
   const [adjust, setAdjust] = useState<{ product: ProductRow; mode: "in" | "out" } | null>(null);
   const [historyProduct, setHistoryProduct] = useState<ProductRow | null>(null);
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((s) => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -247,7 +248,9 @@ function InventoryPage() {
           <Link to="/erp/inventory-reports">
             <Button size="sm" variant="outline" className="gap-1.5"><BarChart3 className="h-4 w-4" />Reports</Button>
           </Link>
-          <Button size="sm" className="gap-1.5 shadow-sm"><Plus className="h-4 w-4" />Add Product</Button>
+          <Button size="sm" className="gap-1.5 shadow-sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />Add Product
+          </Button>
         </div>
       </header>
 
