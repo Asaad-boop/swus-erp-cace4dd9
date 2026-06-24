@@ -116,6 +116,15 @@ function cleanPhone(v: string | undefined): string | null {
   return String(v).replace(/"/g, "").trim() || null;
 }
 
+// Pathao often writes "N/A" / "-" when merchant id wasn't passed. Treat as null
+// so server-side matching falls back to consignment_id / phone instead.
+function cleanId(v: string | undefined): string | null {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s || /^(n\/?a|na|null|none|-+)$/i.test(s)) return null;
+  return s;
+}
+
 function getRowType(invoiceType: string | undefined): "paid" | "return" | "partial" {
   if (!invoiceType) return "paid";
   const t = invoiceType.toLowerCase();
@@ -181,8 +190,8 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
     const partialAmount = rowType === "partial" ? collected : 0;
 
     out.push({
-      consignment_id: primary.Consignment_ID || null,
-      merchant_order_id: primary.Merchant_Order_ID || null,
+      consignment_id: cleanId(primary.Consignment_ID),
+      merchant_order_id: cleanId(primary.Merchant_Order_ID),
       recipient_name: primary.Recipient_Name || null,
       recipient_phone: cleanPhone(primary.Recipient_Phone),
       invoice_date: dateStr,
