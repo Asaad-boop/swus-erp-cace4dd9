@@ -16,6 +16,8 @@ import {
   Loader2,
   ChevronRight,
 } from "lucide-react";
+import { Download, FileDown } from "lucide-react";
+import { exportReconciliationCsv, exportReconciliationPdf } from "@/lib/erp/reconciliation-export";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
 import { useAccounts, useCategories } from "@/hooks/erp/use-finance-query";
 import { Button } from "@/components/ui/button";
