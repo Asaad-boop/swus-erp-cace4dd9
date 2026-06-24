@@ -40,8 +40,9 @@ const SAMPLE_ITEMS = [
 ];
 
 export function InvoiceSettings({ brandIdOverride }: { brandIdOverride?: string | null } = {}) {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands } = useBrand();
   const brandId = brandIdOverride ?? activeBrand?.id;
+  const brandName = brands.find((b) => b.id === brandId)?.name ?? activeBrand?.name ?? "";
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -101,7 +102,7 @@ export function InvoiceSettings({ brandIdOverride }: { brandIdOverride?: string 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <header className="px-5 py-3 border-b bg-muted/30 flex items-center justify-between">
           <div>
-            <h2 className="font-bold text-base">Invoice — {activeBrand?.name}</h2>
+            <h2 className="font-bold text-base">Invoice — {brandName}</h2>
             <p className="text-xs text-muted-foreground">Per-brand invoice design & content</p>
           </div>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
