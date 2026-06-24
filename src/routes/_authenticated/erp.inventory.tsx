@@ -147,6 +147,42 @@ function InventoryPage() {
     downloadCsv(`inventory-selected-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
 
+  const bulkMoveBrand = useMutation({
+    mutationFn: async ({ ids, brandId }: { ids: string[]; brandId: string }) => {
+      const { error } = await supabase.from("products").update({ brand_id: brandId }).in("id", ids);
+      if (error) throw error;
+      return { ids, brandId };
+    },
+    onSuccess: ({ ids, brandId }) => {
+      const targetName = brandNameById.get(brandId) ?? "brand";
+      const prevByProduct = new Map(selectedRows.map((r) => [r.id, r.brand_id as string | null]));
+      clearSelection();
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success(`${ids.length} product${ids.length === 1 ? "" : "s"} moved to ${targetName}`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const groups = new Map<string, string[]>();
+            for (const id of ids) {
+              const prev = prevByProduct.get(id);
+              if (!prev) continue;
+              const arr = groups.get(prev) ?? [];
+              arr.push(id);
+              groups.set(prev, arr);
+            }
+            for (const [prevBrand, pids] of groups) {
+              await supabase.from("products").update({ brand_id: prevBrand }).in("id", pids);
+            }
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            toast.success("Restored");
+          },
+        },
+        duration: 8000,
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const summary = useMemo(() => {
     let units = 0, value = 0, low = 0, out = 0, reserved = 0;
     for (const r of rows) {
