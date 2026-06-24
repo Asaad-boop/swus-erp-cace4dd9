@@ -396,7 +396,20 @@ function InventoryPage() {
 
                   return (
                     <Fragment key={r.id}>
-                      <TableRow className="group transition-all hover:bg-muted/40 hover:shadow-sm border-b">
+                      <TableRow
+                        data-state={selected.has(r.id) ? "selected" : undefined}
+                        className={cn(
+                          "group transition-colors border-b",
+                          selected.has(r.id) ? "bg-foreground/[0.04] hover:bg-foreground/[0.06]" : "hover:bg-muted/40",
+                        )}
+                      >
+                        <TableCell className="pl-4 align-middle">
+                          <Checkbox
+                            checked={selected.has(r.id)}
+                            onCheckedChange={() => toggleSelect(r.id)}
+                            aria-label={`Select ${r.title}`}
+                          />
+                        </TableCell>
                         <TableCell className="p-1 align-middle">
                           {hasVariants ? (
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleExpand(r.id)}>
