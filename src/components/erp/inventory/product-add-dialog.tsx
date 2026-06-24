@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import {
   Package, Tag, Barcode, DollarSign, AlertTriangle, RotateCcw, ImagePlus,
-  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info,
+  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +50,7 @@ type Form = {
   specs: { key: string; value: string }[];
   image: string;
   gallery: string[];
+  video_url: string;
 };
 
 const empty = (brandId: string): Form => ({
@@ -62,7 +63,7 @@ const empty = (brandId: string): Form => ({
   shipping_fee_inside: "", shipping_fee_outside: "",
   is_active: true, is_featured: false, is_new_arrival: false,
   benefits: [], specs: [],
-  image: "", gallery: [],
+  image: "", gallery: [], video_url: "",
 });
 
 const slugify = (s: string) =>
@@ -147,6 +148,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         specs: cleanSpecs,
         image: f.image || null,
         gallery: f.gallery,
+        video_url: f.video_url || null,
       };
       const { data, error } = await supabase.from("products").insert(payload as never).select("id").single();
       if (error) throw error;
@@ -259,6 +261,19 @@ export function ProductAddDialog({ open, onClose }: Props) {
                     items={f.gallery}
                     onAdd={(url) => set("gallery", [...f.gallery, url])}
                     onRemove={(i) => set("gallery", f.gallery.filter((_, idx) => idx !== i))}
+                  />
+                </div>
+                <Separator />
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground inline-flex items-center gap-1.5">
+                    <Film className="h-3.5 w-3.5" /> Product video
+                    <span className="text-[10px] font-normal text-muted-foreground">(autoplays on thumbnail)</span>
+                  </Label>
+                  <VideoUploader
+                    value={f.video_url}
+                    poster={f.image}
+                    onChange={(url) => set("video_url", url)}
+                    onClear={() => set("video_url", "")}
                   />
                 </div>
               </TabsContent>
