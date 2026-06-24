@@ -415,7 +415,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           orderUpdate.partial_amount = partialAmount > 0 ? partialAmount : Number(r.collected ?? 0);
           orderUpdate.delivered_at = new Date(txnDate).toISOString();
         } else {
-          orderUpdate.status = "delivered";
+          orderUpdate.status = "paid";
           orderUpdate.payment_status = "paid";
           orderUpdate.delivered_at = new Date(txnDate).toISOString();
         }
