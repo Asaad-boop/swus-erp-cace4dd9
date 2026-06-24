@@ -450,6 +450,113 @@ function ReconciliationPage() {
         </CardContent>
       </Card>
 
+      {/* CSV preview table — mapping, grouped totals, dry-run statuses */}
+      {preview && (
+        <Card>
+          <CardContent className="p-4 md:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Preview — before processing</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  {preview.length} consignment, {previewGrouped.subRows} CSV row.
+                  Insta-fee {previewGrouped.instaCount} ta consignment-e (
+                  {fmtBdt(previewGrouped.instaFee)}). "Process" click korle apply hobe.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700">
+                  ✅ Matched {previewStatusCounts.matched}
+                </Badge>
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700">
+                  ⚠ Amount diff {previewStatusCounts.amount_mismatch}
+                </Badge>
+                <Badge variant="outline" className="border-red-500/50 bg-red-500/10 text-red-700">
+                  ✖ Duplicate {previewStatusCounts.duplicate}
+                </Badge>
+                <Badge variant="outline">? Unmatched {previewStatusCounts.unmatched}</Badge>
+                {matchQ.isFetching && (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> matching…
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/20 px-3 py-2 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <Stat label="Delivery payout (sum)" value={fmtBdt(previewGrouped.deliveryPayout)} tone="good" />
+              <Stat label="Insta-fee charges" value={fmtBdt(previewGrouped.instaFee)} tone="warn" />
+              <Stat label="Net payout" value={fmtBdt(previewTotals.payout)} tone="good" />
+              <Stat label="Total courier fees" value={fmtBdt(previewTotals.fee)} tone="warn" />
+            </div>
+
+            <div className="max-h-[420px] overflow-auto rounded-md border">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-[110px]">Status</TableHead>
+                    <TableHead>Consignment / Order ID</TableHead>
+                    <TableHead>Mapped order</TableHead>
+                    <TableHead className="text-right">Collected</TableHead>
+                    <TableHead className="text-right">Delivery</TableHead>
+                    <TableHead className="text-right">Insta-fee</TableHead>
+                    <TableHead className="text-right">Payout</TableHead>
+                    <TableHead className="text-right">Diff</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.map((r, idx) => {
+                    const m = matchByIdx.get(idx);
+                    const status = m?.status ?? "unmatched";
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          <PreviewStatusBadge status={status} loading={!m && matchQ.isFetching} />
+                        </TableCell>
+                        <TableCell className="text-xs font-mono">
+                          <div>{r.consignment_id ?? "—"}</div>
+                          <div className="text-muted-foreground">
+                            {r.merchant_order_id ?? <span className="italic">no merchant id</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {m?.matched_order_id ? (
+                            <>
+                              <div className="font-medium">{m.order_name ?? "—"}</div>
+                              <div className="text-muted-foreground">
+                                {fmtBdt(m.order_total ?? 0)} · {m.order_status} ·{" "}
+                                <span className="text-[10px]">via {m.matched_via}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="font-medium">{r.recipient_name ?? "—"}</div>
+                              <div className="text-muted-foreground">{r.recipient_phone ?? ""}</div>
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{fmtBdt(r.collected)}</TableCell>
+                        <TableCell className="text-right font-mono">{fmtBdt(r.delivery_payout)}</TableCell>
+                        <TableCell className="text-right font-mono text-amber-700">
+                          {r.insta_fee_amount > 0 ? `−${fmtBdt(r.insta_fee_amount)}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-emerald-700">
+                          {fmtBdt(r.payout)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {m?.amount_diff !== null && m?.amount_diff !== undefined && m.amount_diff !== 0
+                            ? `${m.amount_diff > 0 ? "+" : ""}${m.amount_diff.toFixed(0)}`
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* History */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">History</h2>
