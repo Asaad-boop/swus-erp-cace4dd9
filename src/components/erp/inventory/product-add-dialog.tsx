@@ -422,6 +422,68 @@ async function uploadToBucket(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+function VideoUploader({ value, poster, onChange, onClear }: {
+  value: string; poster?: string; onChange: (url: string) => void; onClear: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const onFile = async (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Video too large (max 50MB)");
+      return;
+    }
+    setBusy(true);
+    try { onChange(await uploadToBucket(file)); toast.success("Video uploaded"); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="mt-2 flex items-start gap-3">
+      <div
+        onClick={() => !value && ref.current?.click()}
+        className={cn(
+          "relative h-32 w-32 shrink-0 rounded-xl border-2 border-dashed grid place-items-center overflow-hidden transition",
+          value ? "border-transparent bg-black cursor-default" : "border-border hover:border-primary/40 hover:bg-muted/40 cursor-pointer",
+        )}
+      >
+        {busy ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          : value ? (
+              <video
+                src={value}
+                poster={poster || undefined}
+                className="h-full w-full object-cover"
+                muted autoPlay loop playsInline
+              />
+            )
+          : <div className="text-center text-muted-foreground">
+              <Play className="h-6 w-6 mx-auto mb-1" />
+              <div className="text-[11px]">Click to upload</div>
+            </div>}
+        {value && !busy && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-background border shadow-sm hover:bg-destructive hover:text-white"
+          ><X className="h-3.5 w-3.5" /></button>
+        )}
+      </div>
+      <div className="flex-1 space-y-2">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Or paste video URL (mp4 / webm)"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          MP4 / WebM — autoplays muted on product thumbnail. Max 50MB. Falls back to main image as poster.
+        </p>
+      </div>
+      <input ref={ref} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+    </div>
+  );
+}
+
 function ImageUploader({ value, onChange, onClear }: {
   value: string; onChange: (url: string) => void; onClear: () => void;
 }) {
