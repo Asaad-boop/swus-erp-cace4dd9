@@ -289,19 +289,64 @@ function InventoryPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">Bulk Actions</Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="text-xs">Bulk Stock In</DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs">Bulk Stock Out</DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs">Export Selected</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
           </div>
+
+          {/* Selection action bar */}
+          {selected.size > 0 && (
+            <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-foreground/20 bg-foreground text-background px-3 py-2 shadow-lg animate-fade-in">
+              <div className="flex items-center gap-3 text-sm">
+                <span className="inline-flex items-center justify-center h-6 min-w-[24px] rounded-md bg-background/15 px-1.5 text-xs font-semibold tabular-nums">
+                  {selected.size}
+                </span>
+                <span className="font-medium">selected</span>
+                <button onClick={clearSelection} className="text-xs text-background/70 hover:text-background underline-offset-2 hover:underline">
+                  Clear
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button size="sm" variant="secondary" className="h-8 gap-1.5" onClick={handleExportSelected}>
+                  <Download className="h-3.5 w-3.5" />Export CSV
+                </Button>
+                <Button
+                  size="sm" variant="secondary" className="h-8 gap-1.5"
+                  onClick={() => { if (selectedRows[0]) setAdjust({ product: selectedRows[0], mode: "in" }); }}
+                >
+                  <ArrowUp className="h-3.5 w-3.5 text-emerald-600" />Stock In
+                </Button>
+                <Button
+                  size="sm" variant="secondary" className="h-8 gap-1.5"
+                  onClick={() => { if (selectedRows[0]) setAdjust({ product: selectedRows[0], mode: "out" }); }}
+                >
+                  <ArrowDown className="h-3.5 w-3.5 text-red-600" />Stock Out
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <MoreVertical className="h-3.5 w-3.5" />More
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="text-xs">Bulk actions</DropdownMenuLabel>
+                    <DropdownMenuItem className="text-xs" onClick={handleExportSelected}>
+                      <Download className="h-3.5 w-3.5 mr-2" />Export selected
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
+                      <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-xs text-red-600" onClick={() => toast.info("Bulk delete — coming soon")}>
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />Delete selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-background/70 hover:text-background hover:bg-background/10" onClick={clearSelection}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="rounded-2xl border border-border/70 bg-card overflow-hidden">
