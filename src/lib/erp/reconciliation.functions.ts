@@ -604,6 +604,8 @@ export type PreviewMatchResult = {
   order_total: number | null;
   order_status: string | null;
   order_name: string | null;
+  confidence: number; // 0..1
+  match_reason: string | null;
 };
 
 export const previewPathaoReconciliation = createServerFn({ method: "POST" })
@@ -668,26 +670,73 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
     for (const r of data.rows) {
       let orderId: string | null = null;
       let via: string | null = null;
+      let confidence = 0;
+      let reason: string | null = null;
       if (r.consignment_id && byConsignment.has(r.consignment_id)) {
         orderId = byConsignment.get(r.consignment_id)!;
         via = "consignment";
+        confidence = 1.0;
+        reason = "Consignment ID exact match in courier_shipments";
       } else if (r.merchant_order_id && byMerchant.has(r.merchant_order_id)) {
         orderId = byMerchant.get(r.merchant_order_id)!;
         via = "merchant_order_id";
+        confidence = 0.95;
+        reason = "Merchant order ID exact match";
       } else {
         const phone = normalizePhone(r.recipient_phone);
         if (phone) {
+          // Smarter fallback: pull recent orders by phone AND check if any
+          // already has a courier_shipments row for this brand. A linked
+          // shipment dramatically increases confidence even when Pathao
+          // didn't echo merchant_order_id back.
           const { data: ords } = await supabase
             .from("orders")
-            .select("id, total, shipping_phone")
+            .select("id, total, shipping_phone, created_at, courier_shipments(id, brand_id)")
             .eq("brand_id", data.brandId)
             .ilike("shipping_phone", `%${phone}`)
             .order("created_at", { ascending: false })
-            .limit(5);
-          const best = (ords ?? []).find((o) => Math.abs(Number(o.total) - r.collected) <= 50);
-          if (best) {
+            .limit(10);
+
+          type Cand = {
+            id: string;
+            total: number;
+            diff: number;
+            hasShipment: boolean;
+            score: number;
+            label: string;
+          };
+          const cands: Cand[] = (ords ?? []).map((o) => {
+            const total = Number(o.total);
+            const diff = Math.abs(total - r.collected);
+            const ships = (o.courier_shipments ?? []) as { brand_id: string | null }[];
+            const hasShipment = ships.some((s) => s.brand_id === data.brandId);
+            // Score: amount closeness (up to 0.6) + shipment-link bonus (0.3) + phone-only base (0.2)
+            let score = 0.2;
+            if (diff <= data.tolerance) score += 0.6;
+            else if (diff <= 50) score += 0.45;
+            else if (diff <= 150) score += 0.25;
+            if (hasShipment) score += 0.3;
+            const parts: string[] = [`phone last-${phone.length}`];
+            if (diff <= data.tolerance) parts.push("amount exact");
+            else if (diff <= 50) parts.push(`amount ±${diff.toFixed(0)}`);
+            else if (diff <= 150) parts.push(`amount diff ${diff.toFixed(0)}`);
+            if (hasShipment) parts.push("has shipment");
+            return { id: o.id, total, diff, hasShipment, score: Math.min(score, 0.95), label: parts.join(" + ") };
+          });
+          cands.sort((a, b) => b.score - a.score);
+          const best = cands[0];
+          // Require minimum signal: either amount within 50, OR shipment-linked
+          if (best && (best.diff <= 50 || best.hasShipment)) {
             orderId = best.id;
-            via = "phone+amount";
+            via = best.hasShipment ? "shipment+phone" : "phone+amount";
+            confidence = best.score;
+            reason = best.label;
+          } else if (best && cands.length === 1 && best.diff <= 300) {
+            // Single phone hit, lenient: keep but low confidence
+            orderId = best.id;
+            via = "phone-only";
+            confidence = best.score;
+            reason = `single phone hit (diff ${best.diff.toFixed(0)})`;
           }
         }
       }
@@ -724,6 +773,8 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
         order_total: orderTotal,
         order_status: orderStatus,
         order_name: orderName,
+        confidence,
+        match_reason: reason,
       });
     }
     return out;
