@@ -429,11 +429,16 @@ function InventoryPage() {
                       <TableRow
                         data-state={selected.has(r.id) ? "selected" : undefined}
                         className={cn(
-                          "group transition-colors border-b",
-                          selected.has(r.id) ? "bg-foreground/[0.04] hover:bg-foreground/[0.06]" : "hover:bg-muted/40",
+                          "group transition-colors border-b border-border/60 relative",
+                          selected.has(r.id)
+                            ? "bg-foreground/[0.035] hover:bg-foreground/[0.05]"
+                            : "hover:bg-muted/30",
                         )}
                       >
-                        <TableCell className="pl-4 align-middle">
+                        <TableCell className="pl-4 align-middle relative">
+                          {selected.has(r.id) && (
+                            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-foreground" />
+                          )}
                           <Checkbox
                             checked={selected.has(r.id)}
                             onCheckedChange={() => toggleSelect(r.id)}
@@ -442,79 +447,97 @@ function InventoryPage() {
                         </TableCell>
                         <TableCell className="p-1 align-middle">
                           {hasVariants ? (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleExpand(r.id)}>
-                              <ChevronRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} />
+                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground" onClick={() => toggleExpand(r.id)}>
+                              <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", isOpen && "rotate-90")} />
                             </Button>
                           ) : null}
                         </TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-3">
+                        <TableCell className="py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditProduct(r)}
+                            className="flex items-center gap-3 text-left w-full group/cell"
+                          >
                             {r.image ? (
-                              <img src={r.image} alt="" className="h-12 w-12 rounded-lg object-cover ring-1 ring-border" />
+                              <img
+                                src={r.image} alt=""
+                                className="h-11 w-11 rounded-lg object-cover ring-1 ring-border/70 shadow-sm transition-transform duration-200 group-hover/cell:scale-[1.03]"
+                              />
                             ) : (
-                              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                                <Package className="h-5 w-5 text-muted-foreground" />
+                              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center ring-1 ring-border/70">
+                                <Package className="h-4.5 w-4.5 text-muted-foreground" />
                               </div>
                             )}
                             <div className="min-w-0">
-                              <div className="font-medium text-sm truncate max-w-[260px]">{r.title}</div>
-                              <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5 mt-0.5">
+                              <div className="font-medium text-[13.5px] leading-tight truncate max-w-[260px] text-foreground group-hover/cell:underline underline-offset-4 decoration-foreground/30">
+                                {r.title}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                 {isAllBrands && r.brand_id && (
-                                  <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-medium">
+                                  <span className="inline-flex items-center rounded-md border border-border/70 bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground/80">
                                     {brandNameById.get(r.brand_id) ?? "Brand"}
-                                  </Badge>
+                                  </span>
                                 )}
-                                <span className="truncate">{r.barcode ? `📷 ${r.barcode}` : r.slug}</span>
+                                <span className="truncate font-mono">
+                                  {r.barcode ? `${r.barcode}` : r.slug}
+                                </span>
                                 {hasVariants && (
-                                  <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 px-1.5 py-0.5 text-[10px] font-medium">
-                                    {variants.length} variants
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">
+                                    <Layers className="h-2.5 w-2.5" />{variants.length}
                                   </span>
                                 )}
                               </div>
                             </div>
-                          </div>
+                          </button>
                         </TableCell>
                         <TableCell>
                           <InlineTextEdit value={r.sku ?? ""} placeholder="SKU" onSave={(v) => updateInventoryField(r.id, { sku: v })} />
                         </TableCell>
-                        <TableCell className="text-right text-sm font-medium">৳{Number(r.price).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          <span className="font-mono text-xs text-muted-foreground">৳{wac.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <TableCell className="text-right tabular-nums text-sm font-medium">
+                          <span className="text-muted-foreground/60 mr-0.5">৳</span>{Number(r.price).toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-foreground/80">{r.stock}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                          <span className="text-muted-foreground/50 mr-0.5">৳</span>{wac.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm text-foreground/80">{r.stock}</TableCell>
                         <TableCell className="text-right">
                           {reserved > 0 ? (
-                            <span className="inline-flex items-center gap-1 font-mono text-sm text-amber-600 dark:text-amber-400 font-semibold">
+                            <span className="inline-flex items-center gap-1 tabular-nums text-sm text-amber-600 dark:text-amber-400 font-medium">
                               <Lock className="h-3 w-3" />{reserved}
                             </span>
                           ) : (
-                            <span className="font-mono text-sm text-muted-foreground">0</span>
+                            <span className="tabular-nums text-sm text-muted-foreground/50">—</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
                           <span className={cn(
-                            "font-mono text-sm font-bold",
+                            "inline-flex items-center gap-1.5 tabular-nums text-base font-semibold tracking-tight",
                             isOut && "text-red-600 dark:text-red-400",
                             isLow && "text-amber-600 dark:text-amber-400",
-                            !isOut && !isLow && "text-emerald-600 dark:text-emerald-400",
+                            !isOut && !isLow && "text-foreground",
                           )}>
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              isOut ? "bg-red-500" : isLow ? "bg-amber-500" : "bg-emerald-500",
+                            )} />
                             {available}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           {Number(r.incoming) > 0 ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-0.5 text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 tabular-nums text-xs font-medium text-blue-600 dark:text-blue-400">
                               <ArrowUp className="h-3 w-3" />{r.incoming}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="inline-flex items-center gap-1.5 group/rp">
-                            {needsReorder && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
+                          <div className="inline-flex items-center gap-1.5 group/rp justify-end">
+                            {needsReorder && (
+                              <span title="Below reorder point" className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                            )}
                             <InlineNumberEdit value={reorderPoint} onSave={(v) => updateInventoryField(r.id, { reorder_point: v })} />
-                            <Edit3 className="h-3 w-3 text-muted-foreground opacity-0 group-hover/rp:opacity-100 transition-opacity" />
                           </div>
                         </TableCell>
                         <TableCell>
@@ -523,7 +546,7 @@ function InventoryPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-8 w-8 opacity-60 group-hover:opacity-100">
+                              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
