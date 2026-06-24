@@ -626,11 +626,11 @@ function PillTab({ value, icon, badge, children }: { value: string; icon: React.
   return (
     <TabsTrigger
       value={value}
-      className="gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-1.5 text-xs font-medium"
+      className="relative gap-1.5 rounded-none bg-transparent px-0 pb-3 pt-1 text-sm font-medium text-muted-foreground shadow-none border-b-2 border-transparent data-[state=active]:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors hover:text-foreground"
     >
       {icon}{children}
       {badge ? (
-        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 px-1.5 min-w-[18px] h-[18px] text-[10px] font-bold">
+        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 min-w-[18px] h-[18px] text-[10px] font-semibold">
           {badge}
         </span>
       ) : null}
@@ -639,11 +639,11 @@ function PillTab({ value, icon, badge, children }: { value: string; icon: React.
 }
 
 type KpiAccent = "blue" | "purple" | "green" | "red";
-const ACCENT_STYLES: Record<KpiAccent, { border: string; icon: string; bg: string; ring: string }> = {
-  blue:   { border: "border-l-blue-500",    icon: "text-blue-600 bg-blue-50 dark:bg-blue-950/50",       bg: "bg-gradient-to-br from-blue-50/60 via-card to-card dark:from-blue-950/20",         ring: "ring-blue-500/10" },
-  purple: { border: "border-l-purple-500",  icon: "text-purple-600 bg-purple-50 dark:bg-purple-950/50", bg: "bg-gradient-to-br from-purple-50/60 via-card to-card dark:from-purple-950/20",     ring: "ring-purple-500/10" },
-  green:  { border: "border-l-emerald-500", icon: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50", bg: "bg-gradient-to-br from-emerald-50/60 via-card to-card dark:from-emerald-950/20", ring: "ring-emerald-500/10" },
-  red:    { border: "border-l-red-500",     icon: "text-red-600 bg-red-50 dark:bg-red-950/50",         bg: "bg-gradient-to-br from-red-50/60 via-card to-card dark:from-red-950/20",           ring: "ring-red-500/10" },
+const ACCENT_STYLES: Record<KpiAccent, { dot: string; icon: string }> = {
+  blue:   { dot: "bg-blue-500",    icon: "text-blue-600 dark:text-blue-400" },
+  purple: { dot: "bg-purple-500",  icon: "text-purple-600 dark:text-purple-400" },
+  green:  { dot: "bg-emerald-500", icon: "text-emerald-600 dark:text-emerald-400" },
+  red:    { dot: "bg-red-500",     icon: "text-red-600 dark:text-red-400" },
 };
 
 function KpiCard({ icon, label, value, hint, accent, emphasize }: {
@@ -651,56 +651,54 @@ function KpiCard({ icon, label, value, hint, accent, emphasize }: {
 }) {
   const s = ACCENT_STYLES[accent];
   return (
-    <Card className={cn(
-      "border-l-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 animate-fade-in ring-1",
-      s.border, s.bg, s.ring,
-    )}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 min-w-0">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-            <div className={cn(
-              "text-2xl font-bold tabular-nums tracking-tight",
-              emphasize && accent === "red" && "text-red-600 dark:text-red-400",
-            )}>
-              {value}
-            </div>
-            {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-          </div>
-          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ring-1 ring-border/50", s.icon)}>
-            {icon}
+    <div className="group bg-card transition-colors hover:bg-muted/30 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">{label}</div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <div className={cn("opacity-60 group-hover:opacity-100 transition-opacity", s.icon)}>
+          {icon}
+        </div>
+      </div>
+      <div className={cn(
+        "mt-3 text-[32px] leading-none font-semibold tabular-nums tracking-tight",
+        emphasize && accent === "red" && "text-red-600 dark:text-red-400",
+      )}>
+        {value}
+      </div>
+      {hint && <div className="mt-2 text-[11px] text-muted-foreground">{hint}</div>}
+    </div>
   );
 }
 
 function StatusPill({ out, low, reserved }: { out: boolean; low: boolean; reserved?: boolean }) {
   if (out) {
     return (
-      <span className="inline-flex items-center rounded-full bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 text-[11px] font-semibold animate-pulse">
-        Out of Stock
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />Out of stock
       </span>
     );
   }
   if (low) {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 text-[11px] font-semibold">
-        Low Stock
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Low stock
       </span>
     );
   }
   if (reserved) {
     return (
-      <span className="inline-flex items-center rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.5 text-[11px] font-semibold">
-        Reserved
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-[11px] font-medium">
+        <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />Reserved
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-semibold">
-      In Stock
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-medium">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />In stock
     </span>
   );
 }
