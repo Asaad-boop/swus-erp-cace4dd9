@@ -6851,6 +6851,7 @@ export type Database = {
           title: string
           total_cost_value: number | null
           updated_at: string
+          video_url: string | null
           weighted_avg_cost: number
         }
         Insert: {
@@ -6886,6 +6887,7 @@ export type Database = {
           title: string
           total_cost_value?: number | null
           updated_at?: string
+          video_url?: string | null
           weighted_avg_cost?: number
         }
         Update: {
@@ -6921,6 +6923,7 @@ export type Database = {
           title?: string
           total_cost_value?: number | null
           updated_at?: string
+          video_url?: string | null
           weighted_avg_cost?: number
         }
         Relationships: [

@@ -526,7 +526,17 @@ function InventoryPage() {
                             onClick={() => setEditProduct(r)}
                             className="flex items-center gap-3 text-left w-full group/cell"
                           >
-                            {r.image ? (
+                            {r.video_url ? (
+                              <video
+                                src={r.video_url}
+                                poster={r.image ?? undefined}
+                                muted
+                                autoPlay
+                                loop
+                                playsInline
+                                className="h-11 w-11 rounded-lg object-cover ring-1 ring-border/70 shadow-sm transition-transform duration-200 group-hover/cell:scale-[1.03] bg-black"
+                              />
+                            ) : r.image ? (
                               <img
                                 src={r.image} alt=""
                                 className="h-11 w-11 rounded-lg object-cover ring-1 ring-border/70 shadow-sm transition-transform duration-200 group-hover/cell:scale-[1.03]"
