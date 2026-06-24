@@ -19,6 +19,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
@@ -109,6 +113,32 @@ function InventoryPage() {
     return n;
   });
   const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("products").update({ is_active: false }).in("id", ids);
+      if (error) throw error;
+      return ids;
+    },
+    onSuccess: (ids) => {
+      clearSelection();
+      setConfirmDelete(false);
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success(`${ids.length} product${ids.length === 1 ? "" : "s"} deleted`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const { error } = await supabase.from("products").update({ is_active: true }).in("id", ids);
+            if (error) { toast.error(error.message); return; }
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            toast.success("Restored");
+          },
+        },
+        duration: 8000,
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const handleExportSelected = () => {
     if (!selectedRows.length) return;
     const csv = exportProductsCsv(selectedRows);
@@ -336,7 +366,7 @@ function InventoryPage() {
                     <DropdownMenuItem className="text-xs" onClick={() => toast.info("Bulk reorder point — coming soon")}>
                       <AlertCircle className="h-3.5 w-3.5 mr-2" />Set reorder point
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs text-red-600" onClick={() => toast.info("Bulk delete — coming soon")}>
+                    <DropdownMenuItem className="text-xs text-red-600 focus:text-red-600" onClick={() => setConfirmDelete(true)}>
                       <Trash2 className="h-3.5 w-3.5 mr-2" />Delete selected
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -705,6 +735,36 @@ function InventoryPage() {
         product={editProduct}
         onClose={() => { setEditProduct(null); qc.invalidateQueries({ queryKey: ["inventory"] }); }}
       />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} product{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Products gulo deactivate kora hobe — storefront e ar dekha jabe na, kintu data + stock history thakbe.
+              Toast e "Undo" button paben 8 second er moddhe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+            {selectedRows.slice(0, 8).map((r) => (
+              <div key={r.id} className="truncate">• {r.title}</div>
+            ))}
+            {selectedRows.length > 8 && (
+              <div className="text-muted-foreground">+{selectedRows.length - 8} more…</div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDelete.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkDelete.isPending}
+              onClick={(e) => { e.preventDefault(); bulkDelete.mutate(Array.from(selected)); }}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {bulkDelete.isPending ? "Deleting…" : `Delete ${selected.size}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
