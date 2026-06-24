@@ -19,7 +19,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
       let q = supabase
         .from("products")
         .select(
-          "id,title,slug,image,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,reorder_qty,reserved_stock,available_stock,weighted_avg_cost,product_variants(id,product_id,sku,stock,reserved_stock,available_stock,reorder_point,weighted_avg_cost,is_active)",
+          "id,title,slug,image,video_url,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,reorder_qty,reserved_stock,available_stock,weighted_avg_cost,product_variants(id,product_id,sku,stock,reserved_stock,available_stock,reorder_point,weighted_avg_cost,is_active)",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
