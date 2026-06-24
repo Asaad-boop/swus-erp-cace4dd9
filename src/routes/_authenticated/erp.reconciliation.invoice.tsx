@@ -841,6 +841,24 @@ function RunDetailDialog({
         </div>
 
         <DialogFooter className="gap-2">
+          {run && rows.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportReconciliationCsv(run as never, rows as never)}
+              >
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportReconciliationPdf(run as never, rows as never)}
+              >
+                <FileDown className="h-4 w-4 mr-1" /> PDF
+              </Button>
+            </>
+          )}
           {run?.status === "draft" || run?.status === "partial" ? (
             <Button onClick={() => setApplyOpen(true)} disabled={counts.matched === 0 && counts.mismatch === 0}>
               Apply to finance
