@@ -78,6 +78,11 @@ function InventoryPage() {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
   const [adjustVariant, setAdjustVariant] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => setSelected((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const clearSelection = () => setSelected(new Set());
 
   const handleExport = () => {
     const csv = exportProductsCsv(rows);
