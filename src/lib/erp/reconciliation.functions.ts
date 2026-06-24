@@ -584,3 +584,147 @@ export const searchOrdersForMatch = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return orders ?? [];
   });
+
+// ---------- Preview (dry-run match + duplicate detection) ----------
+
+const PreviewRow = z.object({
+  idx: z.number().int(),
+  consignment_id: z.string().nullable().optional(),
+  merchant_order_id: z.string().nullable().optional(),
+  recipient_phone: z.string().nullable().optional(),
+  collected: z.number(),
+});
+
+export type PreviewMatchResult = {
+  idx: number;
+  status: "matched" | "amount_mismatch" | "unmatched" | "duplicate";
+  matched_order_id: string | null;
+  matched_via: string | null;
+  amount_diff: number | null;
+  order_total: number | null;
+  order_status: string | null;
+  order_name: string | null;
+};
+
+export const previewPathaoReconciliation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        brandId: z.string().uuid(),
+        rows: z.array(PreviewRow).min(1),
+        tolerance: z.number().min(0).default(1),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<PreviewMatchResult[]> => {
+    const { supabase } = context;
+    const consignmentIds = [
+      ...new Set(data.rows.map((r) => r.consignment_id).filter(Boolean) as string[]),
+    ];
+    const merchantIds = [
+      ...new Set(data.rows.map((r) => r.merchant_order_id).filter(Boolean) as string[]),
+    ];
+
+    // Cross-run duplicate consignment ids
+    const seen = new Set<string>();
+    if (consignmentIds.length) {
+      const { data: prior } = await supabase
+        .from("erp_reconciliation_rows")
+        .select("consignment_id, run:run_id(brand_id, status)")
+        .in("consignment_id", consignmentIds);
+      (prior ?? []).forEach((p: any) => {
+        const st = p.run?.status;
+        if (p.consignment_id && p.run?.brand_id === data.brandId && st !== "reverted" && st !== "draft") {
+          seen.add(p.consignment_id);
+        }
+      });
+    }
+
+    const byConsignment = new Map<string, string>();
+    const byMerchant = new Map<string, string>();
+    if (consignmentIds.length) {
+      const { data: ships } = await supabase
+        .from("courier_shipments")
+        .select("order_id, consignment_id")
+        .eq("brand_id", data.brandId)
+        .in("consignment_id", consignmentIds);
+      (ships ?? []).forEach((s) => {
+        if (s.consignment_id) byConsignment.set(s.consignment_id, s.order_id);
+      });
+    }
+    if (merchantIds.length) {
+      const { data: ships } = await supabase
+        .from("courier_shipments")
+        .select("order_id, merchant_order_id")
+        .eq("brand_id", data.brandId)
+        .in("merchant_order_id", merchantIds);
+      (ships ?? []).forEach((s) => {
+        if (s.merchant_order_id) byMerchant.set(s.merchant_order_id, s.order_id);
+      });
+    }
+
+    const out: PreviewMatchResult[] = [];
+    for (const r of data.rows) {
+      let orderId: string | null = null;
+      let via: string | null = null;
+      if (r.consignment_id && byConsignment.has(r.consignment_id)) {
+        orderId = byConsignment.get(r.consignment_id)!;
+        via = "consignment";
+      } else if (r.merchant_order_id && byMerchant.has(r.merchant_order_id)) {
+        orderId = byMerchant.get(r.merchant_order_id)!;
+        via = "merchant_order_id";
+      } else {
+        const phone = normalizePhone(r.recipient_phone);
+        if (phone) {
+          const { data: ords } = await supabase
+            .from("orders")
+            .select("id, total, shipping_phone")
+            .eq("brand_id", data.brandId)
+            .ilike("shipping_phone", `%${phone}`)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          const best = (ords ?? []).find((o) => Math.abs(Number(o.total) - r.collected) <= 50);
+          if (best) {
+            orderId = best.id;
+            via = "phone+amount";
+          }
+        }
+      }
+
+      let amountDiff: number | null = null;
+      let orderTotal: number | null = null;
+      let orderStatus: string | null = null;
+      let orderName: string | null = null;
+      let status: PreviewMatchResult["status"] = "unmatched";
+      if (orderId) {
+        const { data: ord } = await supabase
+          .from("orders")
+          .select("total, status, shipping_name")
+          .eq("id", orderId)
+          .maybeSingle();
+        if (ord) {
+          orderTotal = Number(ord.total);
+          orderStatus = ord.status;
+          orderName = ord.shipping_name ?? null;
+          amountDiff = r.collected - orderTotal;
+          status = Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+        } else {
+          status = "matched";
+        }
+      }
+      if (r.consignment_id && seen.has(r.consignment_id)) status = "duplicate";
+
+      out.push({
+        idx: r.idx,
+        status,
+        matched_order_id: orderId,
+        matched_via: via,
+        amount_diff: amountDiff,
+        order_total: orderTotal,
+        order_status: orderStatus,
+        order_name: orderName,
+      });
+    }
+    return out;
+  });

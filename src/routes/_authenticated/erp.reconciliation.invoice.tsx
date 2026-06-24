@@ -56,6 +56,7 @@ import {
   deletePathaoReconciliationRun,
   manualMatchReconciliationRow,
   searchOrdersForMatch,
+  previewPathaoReconciliation,
 } from "@/lib/erp/reconciliation.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/reconciliation/invoice")({
@@ -103,6 +104,10 @@ type NormalizedRow = {
   row_type: "paid" | "return" | "partial";
   return_fee: number;
   partial_amount: number;
+  delivery_payout: number;
+  insta_fee_amount: number;
+  insta_fee_count: number;
+  sub_row_count: number;
 };
 
 function num(v: string | undefined): number {
@@ -189,6 +194,14 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
       : 0;
     const partialAmount = rowType === "partial" ? collected : 0;
 
+    // Per-sub-row split: delivery vs insta_fee (Pathao posts insta as a
+    // separate row under the same consignment with negative Payout).
+    const deliveryPayout = rs
+      .filter((r) => (r.Invoice_type ?? "").toLowerCase() === "delivery")
+      .reduce((s, r) => s + num(r.Payout), 0);
+    const instaRows = rs.filter((r) => (r.Invoice_type ?? "").toLowerCase().includes("insta"));
+    const instaFeeAmount = instaRows.reduce((s, r) => s + Math.abs(num(r.Payout)), 0);
+
     out.push({
       consignment_id: cleanId(primary.Consignment_ID),
       merchant_order_id: cleanId(primary.Merchant_Order_ID),
@@ -207,6 +220,10 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
       row_type: rowType,
       return_fee: returnFee,
       partial_amount: partialAmount,
+      delivery_payout: deliveryPayout,
+      insta_fee_amount: instaFeeAmount,
+      insta_fee_count: instaRows.length,
+      sub_row_count: rs.length,
     });
   }
   return out;
@@ -228,12 +245,64 @@ function ReconciliationPage() {
   const listFn = useServerFn(listPathaoReconciliationRuns);
   const createFn = useServerFn(createPathaoReconciliationRun);
   const deleteFn = useServerFn(deletePathaoReconciliationRun);
+  const previewFn = useServerFn(previewPathaoReconciliation);
 
   const runsQ = useQuery({
     queryKey: ["pathao-reconciliation-runs", brandId],
     queryFn: () => listFn({ data: { brandId } }),
     enabled: !!brandId,
   });
+
+  // Dry-run match preview (no inserts). Re-runs when parsed rows or brand change.
+  const previewKey = useMemo(() => {
+    if (!preview || !brandId) return null;
+    return preview
+      .map((r) => `${r.consignment_id ?? "-"}|${r.merchant_order_id ?? "-"}|${r.collected}`)
+      .join(";");
+  }, [preview, brandId]);
+  const matchQ = useQuery({
+    queryKey: ["pathao-recon-preview", brandId, previewKey],
+    enabled: !!preview && !!brandId,
+    queryFn: () =>
+      previewFn({
+        data: {
+          brandId,
+          tolerance: 1,
+          rows: (preview ?? []).map((r, idx) => ({
+            idx,
+            consignment_id: r.consignment_id,
+            merchant_order_id: r.merchant_order_id,
+            recipient_phone: r.recipient_phone,
+            collected: r.collected,
+          })),
+        },
+      }),
+  });
+  const matchByIdx = useMemo(() => {
+    const m = new Map<number, NonNullable<typeof matchQ.data>[number]>();
+    (matchQ.data ?? []).forEach((r) => m.set(r.idx, r));
+    return m;
+  }, [matchQ.data]);
+  const previewStatusCounts = useMemo(() => {
+    const c = { matched: 0, amount_mismatch: 0, duplicate: 0, unmatched: 0 };
+    (matchQ.data ?? []).forEach((r) => {
+      c[r.status] = (c[r.status] ?? 0) + 1;
+    });
+    return c;
+  }, [matchQ.data]);
+  const previewGrouped = useMemo(() => {
+    if (!preview)
+      return { deliveryPayout: 0, instaFee: 0, instaCount: 0, subRows: 0 };
+    return preview.reduce(
+      (a, r) => ({
+        deliveryPayout: a.deliveryPayout + r.delivery_payout,
+        instaFee: a.instaFee + r.insta_fee_amount,
+        instaCount: a.instaCount + (r.insta_fee_count > 0 ? 1 : 0),
+        subRows: a.subRows + r.sub_row_count,
+      }),
+      { deliveryPayout: 0, instaFee: 0, instaCount: 0, subRows: 0 },
+    );
+  }, [preview]);
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -381,6 +450,113 @@ function ReconciliationPage() {
         </CardContent>
       </Card>
 
+      {/* CSV preview table — mapping, grouped totals, dry-run statuses */}
+      {preview && (
+        <Card>
+          <CardContent className="p-4 md:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Preview — before processing</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  {preview.length} consignment, {previewGrouped.subRows} CSV row.
+                  Insta-fee {previewGrouped.instaCount} ta consignment-e (
+                  {fmtBdt(previewGrouped.instaFee)}). "Process" click korle apply hobe.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700">
+                  ✅ Matched {previewStatusCounts.matched}
+                </Badge>
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700">
+                  ⚠ Amount diff {previewStatusCounts.amount_mismatch}
+                </Badge>
+                <Badge variant="outline" className="border-red-500/50 bg-red-500/10 text-red-700">
+                  ✖ Duplicate {previewStatusCounts.duplicate}
+                </Badge>
+                <Badge variant="outline">? Unmatched {previewStatusCounts.unmatched}</Badge>
+                {matchQ.isFetching && (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> matching…
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/20 px-3 py-2 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <Stat label="Delivery payout (sum)" value={fmtBdt(previewGrouped.deliveryPayout)} tone="good" />
+              <Stat label="Insta-fee charges" value={fmtBdt(previewGrouped.instaFee)} tone="warn" />
+              <Stat label="Net payout" value={fmtBdt(previewTotals.payout)} tone="good" />
+              <Stat label="Total courier fees" value={fmtBdt(previewTotals.fee)} tone="warn" />
+            </div>
+
+            <div className="max-h-[420px] overflow-auto rounded-md border">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-[110px]">Status</TableHead>
+                    <TableHead>Consignment / Order ID</TableHead>
+                    <TableHead>Mapped order</TableHead>
+                    <TableHead className="text-right">Collected</TableHead>
+                    <TableHead className="text-right">Delivery</TableHead>
+                    <TableHead className="text-right">Insta-fee</TableHead>
+                    <TableHead className="text-right">Payout</TableHead>
+                    <TableHead className="text-right">Diff</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.map((r, idx) => {
+                    const m = matchByIdx.get(idx);
+                    const status = m?.status ?? "unmatched";
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          <PreviewStatusBadge status={status} loading={!m && matchQ.isFetching} />
+                        </TableCell>
+                        <TableCell className="text-xs font-mono">
+                          <div>{r.consignment_id ?? "—"}</div>
+                          <div className="text-muted-foreground">
+                            {r.merchant_order_id ?? <span className="italic">no merchant id</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {m?.matched_order_id ? (
+                            <>
+                              <div className="font-medium">{m.order_name ?? "—"}</div>
+                              <div className="text-muted-foreground">
+                                {fmtBdt(m.order_total ?? 0)} · {m.order_status} ·{" "}
+                                <span className="text-[10px]">via {m.matched_via}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="font-medium">{r.recipient_name ?? "—"}</div>
+                              <div className="text-muted-foreground">{r.recipient_phone ?? ""}</div>
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{fmtBdt(r.collected)}</TableCell>
+                        <TableCell className="text-right font-mono">{fmtBdt(r.delivery_payout)}</TableCell>
+                        <TableCell className="text-right font-mono text-amber-700">
+                          {r.insta_fee_amount > 0 ? `−${fmtBdt(r.insta_fee_amount)}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-emerald-700">
+                          {fmtBdt(r.payout)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {m?.amount_diff !== null && m?.amount_diff !== undefined && m.amount_diff !== 0
+                            ? `${m.amount_diff > 0 ? "+" : ""}${m.amount_diff.toFixed(0)}`
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* History */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">History</h2>
@@ -494,6 +670,22 @@ function StatusBadge({ status }: { status: string }) {
       {m.t}
     </Badge>
   );
+}
+
+function PreviewStatusBadge({ status, loading }: { status: string; loading?: boolean }) {
+  if (loading)
+    return (
+      <Badge variant="outline" className="text-[10px] gap-1">
+        <Loader2 className="h-3 w-3 animate-spin" /> …
+      </Badge>
+    );
+  if (status === "matched")
+    return <Badge className="bg-emerald-600 text-white text-[10px]">Matched</Badge>;
+  if (status === "amount_mismatch")
+    return <Badge className="bg-amber-500 text-white text-[10px]">Diff</Badge>;
+  if (status === "duplicate")
+    return <Badge variant="destructive" className="text-[10px]">Duplicate</Badge>;
+  return <Badge variant="outline" className="text-[10px]">Unmatched</Badge>;
 }
 
 // ----- Run Detail Dialog -----
