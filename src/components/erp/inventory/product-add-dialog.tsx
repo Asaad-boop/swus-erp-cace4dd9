@@ -144,7 +144,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         is_featured: f.is_featured,
         is_new_arrival: f.is_new_arrival,
         benefits: f.benefits.filter(Boolean),
-        specs: Object.keys(cleanSpecs).length ? cleanSpecs : null,
+        specs: cleanSpecs,
         image: f.image || null,
         gallery: f.gallery,
       };
