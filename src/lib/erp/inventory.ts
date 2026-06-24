@@ -3,6 +3,7 @@ export type ProductRow = {
   title: string;
   slug: string;
   image: string | null;
+  video_url?: string | null;
   price: number;
   stock: number;
   low_stock_threshold: number | null;
