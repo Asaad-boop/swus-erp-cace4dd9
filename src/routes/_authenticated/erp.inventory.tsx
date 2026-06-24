@@ -524,6 +524,7 @@ function InventoryPage() {
                         return (
                           <TableRow key={`${r.id}__${v.id}`} className="bg-muted/20 border-l-2 border-l-indigo-300 dark:border-l-indigo-700 animate-fade-in">
                             <TableCell></TableCell>
+                            <TableCell></TableCell>
                             <TableCell className="pl-12 text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="text-indigo-500">↳</span>
