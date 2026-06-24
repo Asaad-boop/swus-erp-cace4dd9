@@ -6942,43 +6942,52 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           admin_notes: string | null
           cancellation_count: number
           created_at: string
           customer_segment: string | null
           display_name: string | null
+          email: string | null
           fake_order_count: number
           flag_reason: string | null
           id: string
           is_flagged: boolean
+          phone: string | null
           total_orders: number | null
           total_spent: number | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           admin_notes?: string | null
           cancellation_count?: number
           created_at?: string
           customer_segment?: string | null
           display_name?: string | null
+          email?: string | null
           fake_order_count?: number
           flag_reason?: string | null
           id: string
           is_flagged?: boolean
+          phone?: string | null
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           admin_notes?: string | null
           cancellation_count?: number
           created_at?: string
           customer_segment?: string | null
           display_name?: string | null
+          email?: string | null
           fake_order_count?: number
           flag_reason?: string | null
           id?: string
           is_flagged?: boolean
+          phone?: string | null
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string
