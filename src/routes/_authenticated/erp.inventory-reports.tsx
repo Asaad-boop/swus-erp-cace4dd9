@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft, BarChart3, Boxes, AlertTriangle, History, RefreshCw, Download,
-  TrendingUp, Wallet, Package, Check, X as XIcon,
+  TrendingUp, TrendingDown, Wallet, Package, Check, X as XIcon, Search, Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { exportToXlsx } from "@/lib/erp/hr/excel";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import {
   getStockValuationReport,
   getStockMovementReport,
@@ -37,29 +38,47 @@ function InventoryReportsPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/erp/inventory"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Inventory</Button></Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-primary" />Inventory Reports
-            </h1>
-            <p className="text-sm text-muted-foreground">{effectiveBrand?.name ?? "—"}</p>
+    <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto">
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-5 md:p-6">
+        <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-wrap items-center gap-3 justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/erp/inventory">
+              <Button variant="ghost" size="sm" className="rounded-full"><ArrowLeft className="h-4 w-4 mr-1" />Inventory</Button>
+            </Link>
+            <div className="hidden md:block h-8 w-px bg-border" />
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
+                <BarChart3 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight leading-tight">Inventory Reports</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {effectiveBrand?.name ?? "—"} · valuation, movements & reorder intelligence
+                </p>
+              </div>
+            </div>
           </div>
+          {picker}
         </div>
-        {picker}
       </div>
 
       {!brandId ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">Select a brand to view reports.</Card>
+        <Card className="p-12 text-center">
+          <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+            <Package className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="text-sm font-medium">Select a brand to view reports</div>
+          <div className="text-xs text-muted-foreground mt-1">Use the brand picker above to load data.</div>
+        </Card>
       ) : (
-        <Tabs defaultValue="valuation" className="space-y-4">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-            <TabsTrigger value="valuation"><Wallet className="h-3.5 w-3.5 mr-1.5" />Valuation</TabsTrigger>
-            <TabsTrigger value="movement"><History className="h-3.5 w-3.5 mr-1.5" />Movement</TabsTrigger>
-            <TabsTrigger value="low-stock"><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Low Stock</TabsTrigger>
-            <TabsTrigger value="reorder"><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Reorder</TabsTrigger>
+        <Tabs defaultValue="valuation" className="space-y-5">
+          <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur rounded-xl grid grid-cols-4 w-full max-w-2xl">
+            <TabsTrigger value="valuation" className="rounded-lg data-[state=active]:shadow-sm"><Wallet className="h-3.5 w-3.5 mr-1.5" />Valuation</TabsTrigger>
+            <TabsTrigger value="movement" className="rounded-lg data-[state=active]:shadow-sm"><History className="h-3.5 w-3.5 mr-1.5" />Movement</TabsTrigger>
+            <TabsTrigger value="low-stock" className="rounded-lg data-[state=active]:shadow-sm"><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Low Stock</TabsTrigger>
+            <TabsTrigger value="reorder" className="rounded-lg data-[state=active]:shadow-sm"><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Reorder</TabsTrigger>
           </TabsList>
 
           <TabsContent value="valuation"><ValuationTab brandId={brandId} /></TabsContent>
@@ -116,15 +135,18 @@ function ValuationTab({ brandId }: { brandId: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <KpiTile label="Total SKUs" value={String(totals.skus)} icon={Package} tone="text-slate-600" />
-        <KpiTile label="Total Units" value={totals.units.toLocaleString()} icon={Boxes} tone="text-blue-600" />
-        <KpiTile label="Inventory Value (WAC)" value={fmtBdt(totals.value)} icon={TrendingUp} tone="text-emerald-600" />
+        <KpiTile label="Total SKUs" value={String(totals.skus)} icon={Package} accent="slate" />
+        <KpiTile label="Total Units" value={totals.units.toLocaleString()} icon={Boxes} accent="blue" />
+        <KpiTile label="Inventory Value (WAC)" value={fmtBdt(totals.value)} icon={TrendingUp} accent="emerald" hero />
       </div>
 
       <Card className="p-3 flex flex-wrap items-center gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or SKU…" className="flex-1 min-w-[220px]" />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={includeZero} onChange={(e) => setIncludeZero(e.target.checked)} />
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or SKU…" className="pl-9" />
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-3 h-9 rounded-md border bg-background hover:bg-muted/50 transition">
+          <input type="checkbox" checked={includeZero} onChange={(e) => setIncludeZero(e.target.checked)} className="accent-primary" />
           Include zero-stock
         </label>
         <Button size="sm" variant="outline" onClick={handleExport} disabled={filtered.length === 0}>
@@ -134,8 +156,8 @@ function ValuationTab({ brandId }: { brandId: string }) {
 
       <Card className="overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               <TableHead className="text-right">Reserved</TableHead>
@@ -146,15 +168,15 @@ function ValuationTab({ brandId }: { brandId: string }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <SkeletonRows cols={6} />
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-10">No data</TableCell></TableRow>
+              <EmptyRow cols={6} icon={Package} text="No products match your filters" />
             ) : (
               filtered.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="group">
                   <TableCell>
-                    <div className="text-sm font-medium">{r.title}</div>
-                    {r.sku && <div className="text-[11px] font-mono text-muted-foreground">{r.sku}</div>}
+                    <div className="text-sm font-medium leading-tight">{r.title}</div>
+                    {r.sku && <div className="text-[11px] font-mono text-muted-foreground/70 mt-0.5">{r.sku}</div>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{r.stock}</TableCell>
                   <TableCell className={cn("text-right tabular-nums", r.reserved_stock > 0 && "text-amber-600")}>{r.reserved_stock}</TableCell>
@@ -186,11 +208,10 @@ const SOURCE_OPTIONS = [
 
 function MovementTab({ brandId }: { brandId: string }) {
   const fn = useServerFn(getStockMovementReport);
-  const today = new Date().toISOString().slice(0, 10);
-  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const [from, setFrom] = useState(monthAgo);
-  const [to, setTo] = useState(today);
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
   const [source, setSource] = useState("all");
+  const from = range.from;
+  const to = range.to;
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["report-movement", brandId, from, to, source],
@@ -225,30 +246,23 @@ function MovementTab({ brandId }: { brandId: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiTile label="Movements" value={String(totals.count)} icon={History} tone="text-slate-600" />
-        <KpiTile label="Stock In" value={`+${totals.inQty.toLocaleString()}`} icon={TrendingUp} tone="text-emerald-600" />
-        <KpiTile label="Stock Out" value={`-${totals.outQty.toLocaleString()}`} icon={TrendingUp} tone="text-red-600" />
-        <KpiTile label="Cost Value" value={fmtBdt(totals.value)} icon={Wallet} tone="text-blue-600" />
+        <KpiTile label="Movements" value={String(totals.count)} icon={History} accent="slate" />
+        <KpiTile label="Stock In" value={`+${totals.inQty.toLocaleString()}`} icon={TrendingUp} accent="emerald" />
+        <KpiTile label="Stock Out" value={`-${totals.outQty.toLocaleString()}`} icon={TrendingDown} accent="red" />
+        <KpiTile label="Cost Value" value={fmtBdt(totals.value)} icon={Wallet} accent="blue" hero />
       </div>
 
-      <Card className="p-3 flex flex-wrap items-end gap-2">
-        <div>
-          <div className="text-[11px] text-muted-foreground mb-1">From</div>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
-        </div>
-        <div>
-          <div className="text-[11px] text-muted-foreground mb-1">To</div>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
-        </div>
-        <div>
-          <div className="text-[11px] text-muted-foreground mb-1">Source</div>
-          <Select value={source} onValueChange={setSource}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {SOURCE_OPTIONS.map((o) => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+      <Card className="p-3 flex flex-wrap items-center gap-2">
+        <DateRangePicker value={range} onChange={setRange} />
+        <Select value={source} onValueChange={setSource}>
+          <SelectTrigger className="w-[180px]">
+            <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCE_OPTIONS.map((o) => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Button size="sm" variant="outline" onClick={handleExport} disabled={rows.length === 0} className="ml-auto">
           <Download className="h-3.5 w-3.5 mr-1" />Export
         </Button>
@@ -256,8 +270,8 @@ function MovementTab({ brandId }: { brandId: string }) {
 
       <Card className="overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Date</TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Source</TableHead>
@@ -269,20 +283,20 @@ function MovementTab({ brandId }: { brandId: string }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <SkeletonRows cols={7} />
             ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">No movements</TableCell></TableRow>
+              <EmptyRow cols={7} icon={History} text="No movements in this period" />
             ) : (
               rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{r.created_at?.slice(0, 16).replace("T", " ")}</TableCell>
                   <TableCell>
-                    <div className="text-sm">{r.product?.title ?? "—"}</div>
+                    <div className="text-sm font-medium leading-tight">{r.product?.title ?? "—"}</div>
                     {(r.variant?.sku || r.product?.sku) && (
-                      <div className="text-[10px] font-mono text-muted-foreground">{r.variant?.sku ?? r.product?.sku}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">{r.variant?.sku ?? r.product?.sku}</div>
                     )}
                   </TableCell>
-                  <TableCell><Badge variant="outline" className="text-[10px]">{r.movement_source ?? "manual"}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="text-[10px] capitalize font-normal">{r.movement_source ?? "manual"}</Badge></TableCell>
                   <TableCell className="text-xs">{r.reason}</TableCell>
                   <TableCell className={cn("text-right tabular-nums font-semibold", r.delta > 0 ? "text-emerald-600" : "text-red-600")}>
                     {r.delta > 0 ? "+" : ""}{r.delta}
@@ -326,10 +340,21 @@ function LowStockTab({ brandId }: { brandId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-3 flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm">
-          <span className="font-semibold">{rows.length}</span>
-          <span className="text-muted-foreground"> products at or below reorder point</span>
+      <Card className={cn(
+        "p-4 flex items-center justify-between flex-wrap gap-2 border-l-4",
+        rows.length === 0 ? "border-l-emerald-500" : "border-l-amber-500",
+      )}>
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-9 w-9 rounded-lg flex items-center justify-center",
+            rows.length === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600",
+          )}>
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">{rows.length} product{rows.length === 1 ? "" : "s"} at or below reorder point</div>
+            <div className="text-xs text-muted-foreground">Suggested quantities are based on 2× the reorder point.</div>
+          </div>
         </div>
         <Button size="sm" variant="outline" onClick={handleExport} disabled={rows.length === 0}>
           <Download className="h-3.5 w-3.5 mr-1" />Export
@@ -338,8 +363,8 @@ function LowStockTab({ brandId }: { brandId: string }) {
 
       <Card className="overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               <TableHead className="text-right">Available</TableHead>
@@ -350,9 +375,9 @@ function LowStockTab({ brandId }: { brandId: string }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <SkeletonRows cols={6} />
             ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-10">All products above reorder point ✓</TableCell></TableRow>
+              <EmptyRow cols={6} icon={Check} text="All products are above reorder point" tone="emerald" />
             ) : (
               rows.map((r) => {
                 const severity = r.stock <= 0 ? "out" : r.stock <= r.reorder_point / 2 ? "critical" : "low";
@@ -360,8 +385,8 @@ function LowStockTab({ brandId }: { brandId: string }) {
                 return (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="text-sm font-medium">{r.title}</div>
-                      {r.sku && <div className="text-[11px] font-mono text-muted-foreground">{r.sku}</div>}
+                      <div className="text-sm font-medium leading-tight">{r.title}</div>
+                      {r.sku && <div className="text-[11px] font-mono text-muted-foreground/70 mt-0.5">{r.sku}</div>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{r.stock}</TableCell>
                     <TableCell className={cn("text-right tabular-nums", r.available_stock <= 0 && "text-red-600 font-semibold")}>{r.available_stock}</TableCell>
@@ -369,6 +394,7 @@ function LowStockTab({ brandId }: { brandId: string }) {
                     <TableCell className="text-right tabular-nums font-semibold">{suggested}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={cn(
+                        "font-medium",
                         severity === "out" ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" :
                         severity === "critical" ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300" :
                         "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
@@ -415,11 +441,15 @@ function ReorderTab({ brandId }: { brandId: string }) {
   return (
     <div className="space-y-4">
       <Card className="p-3 flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm text-muted-foreground">
-          Daily cron-generated reorder suggestions based on reorder points.
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Daily cron-generated suggestions based on reorder points.
         </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[180px]">
+            <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="processed">Processed</SelectItem>
@@ -431,8 +461,8 @@ function ReorderTab({ brandId }: { brandId: string }) {
 
       <Card className="overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Generated</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Current Stock</TableHead>
@@ -445,11 +475,9 @@ function ReorderTab({ brandId }: { brandId: string }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <SkeletonRows cols={8} />
             ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-10">
-                No {status === "all" ? "" : status} suggestions
-              </TableCell></TableRow>
+              <EmptyRow cols={8} icon={RefreshCw} text={`No ${status === "all" ? "" : status} suggestions`} />
             ) : (
               rows.map((r) => {
                 const wac = Number(r.product?.weighted_avg_cost || 0);
@@ -460,9 +488,9 @@ function ReorderTab({ brandId }: { brandId: string }) {
                       {r.created_at?.slice(0, 10)}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium">{r.product?.title ?? "—"}</div>
+                      <div className="text-sm font-medium leading-tight">{r.product?.title ?? "—"}</div>
                       {(r.variant?.sku || r.product?.sku) && (
-                        <div className="text-[11px] font-mono text-muted-foreground">{r.variant?.sku ?? r.product?.sku}</div>
+                        <div className="text-[11px] font-mono text-muted-foreground/70 mt-0.5">{r.variant?.sku ?? r.product?.sku}</div>
                       )}
                     </TableCell>
                     <TableCell className={cn("text-right tabular-nums", r.current_stock <= 0 && "text-red-600 font-semibold")}>{r.current_stock}</TableCell>
@@ -471,6 +499,7 @@ function ReorderTab({ brandId }: { brandId: string }) {
                     <TableCell className="text-right tabular-nums text-xs">{estCost > 0 ? fmtBdt(estCost) : "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={cn(
+                        "font-medium capitalize",
                         r.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" :
                         r.status === "processed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" :
                         "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
@@ -479,11 +508,11 @@ function ReorderTab({ brandId }: { brandId: string }) {
                     <TableCell className="text-right">
                       {r.status === "pending" && (
                         <div className="inline-flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Mark processed"
+                          <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950" title="Mark processed"
                             onClick={() => mut.mutate({ id: r.id, status: "processed" })} disabled={mut.isPending}>
                             <Check className="h-3.5 w-3.5 text-emerald-600" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Dismiss"
+                          <Button size="icon" variant="ghost" className="h-7 w-7 hover:bg-muted" title="Dismiss"
                             onClick={() => mut.mutate({ id: r.id, status: "dismissed" })} disabled={mut.isPending}>
                             <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
@@ -504,14 +533,59 @@ function ReorderTab({ brandId }: { brandId: string }) {
 /* ============================================================
    shared
    ============================================================ */
-function KpiTile({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone: string }) {
+const ACCENTS: Record<string, { text: string; bg: string; ring: string; grad: string }> = {
+  slate:   { text: "text-slate-600",   bg: "bg-slate-500/10",   ring: "ring-slate-500/20",   grad: "from-slate-500/5" },
+  blue:    { text: "text-blue-600",    bg: "bg-blue-500/10",    ring: "ring-blue-500/20",    grad: "from-blue-500/5" },
+  emerald: { text: "text-emerald-600", bg: "bg-emerald-500/10", ring: "ring-emerald-500/20", grad: "from-emerald-500/10" },
+  red:     { text: "text-red-600",     bg: "bg-red-500/10",     ring: "ring-red-500/20",     grad: "from-red-500/5" },
+};
+
+function KpiTile({ label, value, icon: Icon, accent = "slate", hero = false }: { label: string; value: string; icon: any; accent?: keyof typeof ACCENTS; hero?: boolean }) {
+  const a = ACCENTS[accent] ?? ACCENTS.slate;
   return (
-    <Card className="p-3.5">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-        <Icon className={cn("h-3.5 w-3.5", tone)} />
+    <Card className={cn(
+      "relative overflow-hidden p-4 transition hover:shadow-md",
+      hero && `bg-gradient-to-br ${a.grad} to-background`,
+    )}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+        <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center ring-1", a.bg, a.ring)}>
+          <Icon className={cn("h-3.5 w-3.5", a.text)} />
+        </div>
       </div>
-      <div className="text-lg font-bold tabular-nums">{value}</div>
+      <div className={cn("text-2xl font-bold tabular-nums tracking-tight", hero && a.text)}>{value}</div>
     </Card>
+  );
+}
+
+function SkeletonRows({ cols, rows = 5 }: { cols: number; rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <TableRow key={i}>
+          {Array.from({ length: cols }).map((__, j) => (
+            <TableCell key={j}><div className="h-3 bg-muted/60 rounded animate-pulse" style={{ width: `${40 + ((i + j) * 13) % 50}%` }} /></TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+function EmptyRow({ cols, icon: Icon, text, tone = "muted" }: { cols: number; icon: any; text: string; tone?: "muted" | "emerald" }) {
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell colSpan={cols} className="py-12">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className={cn(
+            "h-10 w-10 rounded-full flex items-center justify-center",
+            tone === "emerald" ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground",
+          )}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <div className="text-sm text-muted-foreground">{text}</div>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
