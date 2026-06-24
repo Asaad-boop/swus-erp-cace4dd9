@@ -526,6 +526,28 @@ function ReconciliationPage() {
                                 {fmtBdt(m.order_total ?? 0)} · {m.order_status} ·{" "}
                                 <span className="text-[10px]">via {m.matched_via}</span>
                               </div>
+                              {typeof m.confidence === "number" && (
+                                <div className="mt-0.5 flex items-center gap-1.5">
+                                  <div className="h-1 w-20 rounded bg-muted overflow-hidden">
+                                    <div
+                                      className={
+                                        m.confidence >= 0.85
+                                          ? "h-full bg-emerald-500"
+                                          : m.confidence >= 0.6
+                                            ? "h-full bg-amber-500"
+                                            : "h-full bg-red-500"
+                                      }
+                                      style={{ width: `${Math.round(m.confidence * 100)}%` }}
+                                    />
+                                  </div>
+                                  <span
+                                    className="text-[10px] font-mono text-muted-foreground"
+                                    title={m.match_reason ?? ""}
+                                  >
+                                    {Math.round(m.confidence * 100)}%
+                                  </span>
+                                </div>
+                              )}
                             </>
                           ) : (
                             <>
