@@ -442,65 +442,88 @@ function TemplateInvoice(p: ThemeProps) {
   const inWords = amountInWords(t.total, p.cfg.totals.amountInWords || "en");
   const accent = p.cfg.accentColor || "#0f172a";
   const callout = "#e11d48";
-  const softGreen = "#10b981";
   const addr = [p.order.shipping_thana, p.order.shipping_city, p.order.shipping_district]
     .filter(Boolean).join(", ");
+  const wm =
+    String(p.order.status).toLowerCase() === "cancelled" ? "CANCELLED"
+      : Number(p.order.advance_amount || 0) >= Number(p.order.total || 0) ? "PAID"
+      : Number(p.order.advance_amount || 0) > 0 ? "PARTIAL"
+      : "DUE";
   return (
-    <div className="text-[14px] text-gray-900" style={{ fontFamily: "inherit" }}>
-      {/* HEADER */}
-      <div className="flex justify-between items-start pb-3" style={{ borderBottom: "2px solid #111" }}>
-        <div>
-          {p.brandLogo
-            ? <img src={p.brandLogo} alt={p.brandName} style={{ height: p.cfg.header.logoHeight, objectFit: "contain" }} />
-            : <div className="font-extrabold text-xl" style={{ color: accent }}>{p.brandName}</div>}
-          {p.cfg.header.tagline && <div className="text-[12px] text-gray-500 mt-0.5">{p.cfg.header.tagline}</div>}
-        </div>
-        <div className="text-right text-[13px] leading-tight">
-          <div className="font-bold text-[15px]">HQ</div>
-          {p.cfg.business.address && <div className="text-gray-600">{p.cfg.business.address}</div>}
-          {p.cfg.business.hotline && <div className="text-gray-600">Hotline: {p.cfg.business.hotline}</div>}
-        </div>
+    <div className="relative text-[13px] text-slate-900" style={{ fontFamily: "inherit" }}>
+      {/* WATERMARK */}
+      <div aria-hidden className="absolute inset-0 flex items-center justify-center pointer-events-none select-none" style={{ opacity: 0.04 }}>
+        <span className="font-black tracking-widest" style={{ fontSize: 180, transform: "rotate(-35deg)", color: "#0f172a" }}>{wm}</span>
       </div>
 
-      {/* DELIVERY + INVOICE META */}
-      <div className="grid grid-cols-2 gap-6 mt-5">
-        <div>
-          <div className="text-[12px] tracking-[0.18em] text-gray-400 font-semibold">DELIVERY ADDRESS</div>
-          <div className="font-extrabold text-[22px] mt-1 uppercase">{customerName(p.order as any)} -</div>
-          {p.order.shipping_address && <div className="text-[14px] text-gray-700 mt-0.5">{p.order.shipping_address}</div>}
-          {addr && <div className="text-[14px] text-gray-700">{addr}</div>}
-          <div className="font-bold text-[16px] mt-1.5">{customerPhone(p.order as any)}</div>
-          <div className="mt-3"><Barcode value={inv} /></div>
-          <div className="text-[12px] tracking-widest text-gray-500 mt-0.5">{inv}</div>
+      {/* HEADER */}
+      <header className="relative z-10 flex justify-between items-start pb-5 mb-7" style={{ borderBottom: "2px solid #0f172a" }}>
+        <div className="flex items-center gap-3">
+          {p.brandLogo
+            ? <img src={p.brandLogo} alt={p.brandName} style={{ height: p.cfg.header.logoHeight, objectFit: "contain" }} />
+            : <div className="font-extrabold tracking-tighter uppercase text-[22px] leading-none" style={{ color: accent }}>{p.brandName}</div>}
+          {p.cfg.header.tagline && <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-semibold">{p.cfg.header.tagline}</span>}
         </div>
-        <div>
-          <div className="text-right font-extrabold text-[32px] tracking-tight" style={{ color: accent }}>Invoice</div>
-          <table className="w-full mt-2 text-[13px]">
-            <tbody>
-              <MetaRow k="Invoice ID" v={<span className="font-semibold">{inv}</span>} />
-              {p.cfg.meta.showDate && <MetaRow k="Date" v={format(new Date(p.order.created_at), "yyyy-MM-dd")} />}
-              <MetaRow k="Item Count" v={String(itemCount)} />
-              {p.cfg.meta.showPayment && <MetaRow k="Payment" v={<span className="font-semibold">{p.order.payment_method || "Cash On Delivery"}</span>} />}
-              <MetaRow k="Payable" v={<span className="font-extrabold text-[20px]">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</span>} />
-              {p.cfg.meta.showCourier && <MetaRow k="Delivery Partner" v={p.order.courier_name || "—"} />}
-              {p.cfg.meta.showTracking && <MetaRow k="Tracking ID" v={p.order.tracking_number || "—"} />}
-            </tbody>
-          </table>
+        <div className="text-right">
+          <div className="text-[13px] font-bold tracking-widest uppercase">HQ</div>
+          {p.cfg.business.hotline && (
+            <div className="text-[11px] text-slate-500 mt-0.5">Hotline: <span className="text-slate-900 font-medium">{p.cfg.business.hotline}</span></div>
+          )}
+          {p.cfg.business.address && <div className="text-[11px] text-slate-500">{p.cfg.business.address}</div>}
+        </div>
+      </header>
+
+      {/* META + ADDRESS */}
+      <div className="relative z-10 grid grid-cols-12 gap-8 mb-9">
+        <div className="col-span-7">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: callout }}>Delivery Address</div>
+          <div className="font-black text-[26px] leading-tight tracking-tight uppercase mb-1">{customerName(p.order as any)} —</div>
+          {p.order.shipping_address && <div className="text-[13px] text-slate-600 leading-relaxed">{p.order.shipping_address}</div>}
+          {addr && <div className="text-[13px] text-slate-600 leading-relaxed mb-3">{addr}</div>}
+          <div className="mt-2">
+            <span className="inline-block px-3 py-1 text-[13px] font-bold tracking-wider" style={{ background: "#0f172a", color: "#fff" }}>
+              {customerPhone(p.order as any)}
+            </span>
+          </div>
+          <div className="mt-5">
+            <div className="inline-block p-2 border border-slate-200">
+              <Barcode value={inv} />
+              <div className="text-[10px] font-mono mt-1 text-center tracking-[0.3em] text-slate-500">{inv}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-5 pl-7" style={{ borderLeft: "2px solid #f1f5f9" }}>
+          <div className="text-right font-black italic uppercase tracking-tighter leading-none mb-5" style={{ fontSize: 42, color: "#e2e8f0" }}>Invoice</div>
+          <div className="space-y-2.5">
+            <MetaLine k="Invoice ID" v={<span className="font-bold">{inv}</span>} />
+            {p.cfg.meta.showDate && <MetaLine k="Date" v={<span className="font-bold">{format(new Date(p.order.created_at), "yyyy-MM-dd")}</span>} />}
+            <MetaLine k="Item Count" v={<span className="font-bold">{itemCount}</span>} />
+            {p.cfg.meta.showPayment && (
+              <MetaLine k="Payment" v={
+                <span className="px-2 py-0.5 rounded font-bold uppercase text-[10px]" style={{ background: "#dcfce7", color: "#166534" }}>
+                  {p.order.payment_method || "COD"}
+                </span>
+              } />
+            )}
+            {(p.cfg.meta.showCourier || p.cfg.meta.showTracking) && <div className="pt-2" style={{ borderTop: "1px solid #f1f5f9" }} />}
+            {p.cfg.meta.showCourier && <MetaLine k="Partner" v={<span className="font-bold capitalize">{p.order.courier_name || "—"}</span>} />}
+            {p.cfg.meta.showTracking && <MetaLine k="Tracking ID" v={<span className="font-mono font-medium">{p.order.tracking_number || "—"}</span>} />}
+          </div>
         </div>
       </div>
 
       {/* ITEMS TABLE */}
-      <div className="mt-5">
-        <table className="w-full border-collapse">
+      <div className="relative z-10">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="text-[12px] tracking-wider text-gray-500" style={{ borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb" }}>
-              <th className="text-left py-2 px-2 w-6">#</th>
-              <th className="text-left py-2 px-2">TITLE</th>
-              <th className="text-left py-2 px-2 w-16">TYPE</th>
-              <th className="text-center py-2 px-2 w-16">SIZE</th>
-              <th className="text-right py-2 px-2 w-20">PRICE</th>
-              <th className="text-center py-2 px-2 w-12">QTY</th>
-              <th className="text-right py-2 px-2 w-20">TOTAL</th>
+            <tr style={{ borderTop: "2px solid #0f172a", borderBottom: "2px solid #0f172a" }}>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest w-10">#</th>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest">Item Description</th>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest text-center w-20">Details</th>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest text-right w-24">Price</th>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest text-center w-12">Qty</th>
+              <th className="py-3 px-2 text-[10px] font-bold uppercase tracking-widest text-right w-24">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -509,17 +532,22 @@ function TemplateInvoice(p: ThemeProps) {
               const lt = Number(it.line_total ?? up * Number(it.quantity || 0));
               return (
                 <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <td className="py-2 px-2 align-top text-[13px]">{i + 1}.</td>
-                  <td className="py-2 px-2 align-top text-[14px] font-medium">{it.name}</td>
-                  <td className="py-2 px-2 align-top text-[13px] text-gray-600">{it.variant_label?.split(/[/,|]/)[0]?.trim() || "—"}</td>
-                  <td className="py-2 px-2 align-top text-center">
-                    {it.image
-                      ? <img src={it.image} alt="" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4, display: "inline-block" }} />
-                      : <span className="text-[13px] text-gray-500">—</span>}
+                  <td className="py-5 px-2 align-top text-[13px] text-slate-400 font-medium">{String(i + 1).padStart(2, "0")}</td>
+                  <td className="py-5 px-2 align-top">
+                    <div className="flex gap-3">
+                      {it.image && (
+                        <img src={it.image} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 4 }} className="flex-shrink-0" />
+                      )}
+                      <div className="space-y-1">
+                        <div className="text-[13px] font-bold leading-tight">{it.name}</div>
+                        {it.variant_label && <div className="text-[11px] text-slate-500">{it.variant_label}</div>}
+                      </div>
+                    </div>
                   </td>
-                  <td className="py-2 px-2 align-top text-right text-[14px]">{Number(up).toFixed(1)}</td>
-                  <td className="py-2 px-2 align-top text-center text-[14px]">{it.quantity}</td>
-                  <td className="py-2 px-2 align-top text-right text-[14px]">{Number(lt).toFixed(1)}</td>
+                  <td className="py-5 px-2 align-top text-center text-[11px] font-bold text-slate-400">—</td>
+                  <td className="py-5 px-2 align-top text-right text-[13px] font-medium">{p.cfg.items.currency} {Number(up).toFixed(1)}</td>
+                  <td className="py-5 px-2 align-top text-center text-[13px]">{it.quantity}</td>
+                  <td className="py-5 px-2 align-top text-right text-[13px] font-bold">{p.cfg.items.currency} {Number(lt).toFixed(1)}</td>
                 </tr>
               );
             })}
@@ -527,109 +555,134 @@ function TemplateInvoice(p: ThemeProps) {
         </table>
 
         {p.order.shipping_note && (
-          <div className="text-[13px] py-2 px-2 flex gap-1.5 items-start" style={{ borderBottom: "1px solid #f1f5f9" }}>
-            <span style={{ color: callout }}>📝 Note:</span>
-            <span className="text-gray-700">{p.order.shipping_note}</span>
+          <div className="text-[11px] py-2 px-2 flex gap-2 items-start" style={{ borderBottom: "1px solid #f1f5f9" }}>
+            <span className="font-bold" style={{ color: callout }}>Note:</span>
+            <span className="text-slate-700">{p.order.shipping_note}</span>
           </div>
         )}
       </div>
 
       {/* TOTALS */}
-      <div className="flex justify-end mt-3">
-        <table style={{ minWidth: 320 }}>
-          <tbody>
-            {p.cfg.totals.showSubtotal && (
-              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Sub Total:</td>
-                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.subtotal).toFixed(1)}</td></tr>
-            )}
-            {p.cfg.totals.showDiscount && t.discount > 0 && (
-              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Discount(-):</td>
-                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.discount).toFixed(1)}</td></tr>
-            )}
-            {p.cfg.totals.showShipping && (
-              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Shipping Fee(+):</td>
-                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.shipping).toFixed(1)}</td></tr>
-            )}
-            {p.cfg.totals.tax.rate > 0 && (
-              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">VAT ({p.cfg.totals.tax.rate}%):</td>
-                  <td className="py-1 text-right text-[14px]">{p.cfg.items.currency} {Number(t.tax).toFixed(1)}</td></tr>
-            )}
-            <tr style={{ borderTop: "2px solid #111" }}>
-              <td className="py-2 pr-6 text-[20px] font-extrabold">Total:</td>
-              <td className="py-2 text-right text-[20px] font-extrabold">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</td>
-            </tr>
-            {p.cfg.totals.showAdvance && t.advance > 0 && (
-              <tr><td className="py-1 pr-6 text-[14px] text-gray-700">Advance Paid:</td>
-                  <td className="py-1 text-right text-[14px]">− {p.cfg.items.currency} {Number(t.advance).toFixed(1)}</td></tr>
-            )}
-            {p.cfg.totals.showDue && t.due > 0 && (
-              <tr><td className="py-1 pr-6 text-[14px] font-bold">Amount Due:</td>
-                  <td className="py-1 text-right text-[14px] font-bold">{p.cfg.items.currency} {Number(t.due).toFixed(1)}</td></tr>
-            )}
-            {inWords && (
-              <tr><td colSpan={2} className="pt-1 text-right text-[13px] text-gray-600">
-                <span className="font-semibold">In Words:</span> {inWords}
-              </td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="relative z-10 flex justify-end mt-7">
+        <div className="w-80 space-y-2.5">
+          {p.cfg.totals.showSubtotal && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-slate-500">Sub Total</span>
+              <span className="font-medium">{p.cfg.items.currency} {Number(t.subtotal).toFixed(1)}</span>
+            </div>
+          )}
+          {p.cfg.totals.showDiscount && t.discount > 0 && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-slate-500">Discount</span>
+              <span className="font-medium">− {p.cfg.items.currency} {Number(t.discount).toFixed(1)}</span>
+            </div>
+          )}
+          {p.cfg.totals.showShipping && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-slate-500">Shipping Fee</span>
+              <span className="font-medium">+ {p.cfg.items.currency} {Number(t.shipping).toFixed(1)}</span>
+            </div>
+          )}
+          {p.cfg.totals.tax.rate > 0 && (
+            <div className="flex justify-between text-[13px]">
+              <span className="text-slate-500">VAT ({p.cfg.totals.tax.rate}%)</span>
+              <span className="font-medium">{p.cfg.items.currency} {Number(t.tax).toFixed(1)}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center py-2" style={{ borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9" }}>
+            <span className="text-[13px] font-black uppercase tracking-wider">Total</span>
+            <span className="text-[22px] font-black">{p.cfg.items.currency} {Number(t.total).toFixed(1)}</span>
+          </div>
+          {p.cfg.totals.showAdvance && t.advance > 0 && (
+            <div className="flex justify-between text-[13px] text-slate-500 italic">
+              <span>Advance Paid</span>
+              <span>− {p.cfg.items.currency} {Number(t.advance).toFixed(1)}</span>
+            </div>
+          )}
+          {p.cfg.totals.showDue && t.due > 0 && (
+            <div className="flex justify-between items-center p-3 mt-1" style={{ background: "#0f172a", color: "#fff" }}>
+              <span className="text-[11px] font-bold uppercase tracking-widest">Amount Due</span>
+              <span className="text-[22px] font-black">{p.cfg.items.currency} {Number(t.due).toFixed(1)}</span>
+            </div>
+          )}
+          {inWords && (
+            <div className="text-right text-[10px] text-slate-400 font-medium italic mt-2">
+              In Words: {inWords}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* RIDER NOTE */}
-      {(p.order.customer_note || p.cfg.footer.terms) && (
-        <div className="mt-4 rounded-md p-3" style={{ border: `1px dashed ${callout}` }}>
-          <div className="font-semibold text-[14px] mb-1" style={{ color: callout }}>
-            ⊘ Note for Rider / রাইডারের জন্য নির্দেশনা:
+      {(p.order.customer_note || p.cfg.business.whatsapp) && (
+        <div className="relative z-10 mt-10 flex gap-4 p-4" style={{ background: "#fef2f2", borderLeft: `4px solid ${callout}` }}>
+          <div style={{ color: callout }} className="pt-0.5">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-          {p.order.customer_note && <div className="text-[13px] text-gray-800">{p.order.customer_note}</div>}
-          {p.cfg.business.whatsapp && <div className="text-[13px] text-gray-800">WhatsApp: {p.cfg.business.whatsapp}</div>}
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-widest mb-1" style={{ color: "#b91c1c" }}>
+              Note for Rider / রাইডারের জন্য নির্দেশনা:
+            </div>
+            {p.order.customer_note && <div className="text-[12px] font-medium" style={{ color: callout }}>{p.order.customer_note}</div>}
+            {p.cfg.business.whatsapp && <div className="text-[12px] font-medium" style={{ color: callout }}>WhatsApp: {p.cfg.business.whatsapp}</div>}
+          </div>
         </div>
       )}
 
-      {/* CALLOUT BOXES */}
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        <div className="rounded-md p-3" style={{ border: `1px solid ${softGreen}` }}>
-          <div className="font-bold text-[15px]">আমাদের মতামত দিন</div>
-          <div className="text-[12px] text-gray-600 mt-0.5">আপনার মতামত আমাদের আরো ভালো করতে সাহায্য করে</div>
+      {/* CALLOUTS */}
+      <div className="relative z-10 grid grid-cols-2 gap-4 mt-6">
+        <div className="p-4 rounded-lg flex items-center justify-between" style={{ border: "2px solid #f1f5f9" }}>
+          <div>
+            <div className="font-bold text-[14px] tracking-tight">আমাদের মতামত দিন</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">আপনার মতামত আমাদের সাহায্য করে</div>
+          </div>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400" style={{ background: "#f8fafc" }}>
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/></svg>
+          </div>
         </div>
-        <div className="rounded-md p-3" style={{ border: `1px solid ${softGreen}` }}>
-          <div className="font-bold text-[15px]">আমাদের সাথে থাকুন</div>
-          <div className="text-[12px] text-gray-600 mt-0.5">আমাদের গ্রুপে যোগ দিন, পান এক্সক্লুসিভ অফার</div>
+        <div className="p-4 rounded-lg flex items-center justify-between" style={{ border: "2px solid #f1f5f9" }}>
+          <div>
+            <div className="font-bold text-[14px] tracking-tight">আমাদের সাথে থাকুন</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">গ্রুপে যোগ দিন এক্সক্লুসিভ অফার পেতে</div>
+          </div>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400" style={{ background: "#f8fafc" }}>
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>
+          </div>
         </div>
       </div>
 
       {/* FOOTER */}
-      <div className="mt-4 pt-3" style={{ borderTop: "1px solid #e5e7eb" }}>
-        <div className="flex justify-between items-start">
-          <div className="font-extrabold text-[15px] tracking-wide">THANK YOU FOR CHOOSING US</div>
-          <div className="text-right text-[13px] leading-tight">
-            {p.cfg.business.website && <div>VISIT: <span className="font-semibold">{p.cfg.business.website}</span></div>}
-            {p.cfg.business.hotline && <div>SUPPORT: <span className="font-semibold">{p.cfg.business.hotline}</span></div>}
+      <footer className="relative z-10 mt-10 pt-7" style={{ borderTop: "1px solid #f1f5f9" }}>
+        <div className="flex justify-between items-end text-[10px] uppercase tracking-widest text-slate-400">
+          <div className="space-y-2">
+            <div className="font-black text-slate-900">Thank you for choosing us</div>
+            {p.cfg.footer.returnPolicy && (
+              <ol className="list-decimal pl-4 normal-case tracking-normal space-y-0.5 text-slate-500">
+                {p.cfg.footer.returnPolicy.split(/\n+/).filter(Boolean).map((line, i) => (
+                  <li key={i} className="text-[10px]">{line.replace(/^\d+\.\s*/, "")}</li>
+                ))}
+              </ol>
+            )}
+          </div>
+          <div className="text-right space-y-1.5">
+            {p.cfg.business.website && <div>Visit: <span className="font-bold text-slate-900">{p.cfg.business.website}</span></div>}
+            {p.cfg.business.hotline && <div>Support: <span className="font-bold text-slate-900">{p.cfg.business.hotline}</span></div>}
+            <div>© {new Date().getFullYear()} {p.brandName}. All Rights Reserved</div>
           </div>
         </div>
-        {p.cfg.footer.returnPolicy && (
-          <ol className="list-decimal pl-4 mt-2 text-[12px] text-gray-700 space-y-0.5">
-            {p.cfg.footer.returnPolicy.split(/\n+/).filter(Boolean).map((line, i) => (
-              <li key={i}>{line.replace(/^\d+\.\s*/, "")}</li>
-            ))}
-          </ol>
-        )}
-        <div className="text-[11px] text-gray-400 text-center mt-3 italic">
+        <div className="mt-6 text-[9px] text-center text-slate-300 normal-case italic leading-tight max-w-lg mx-auto">
           This document &amp; any information transmitted with it are confidential &amp; intended solely for the use of the individual or entity to whom they are addressed.
         </div>
-        <div className="text-[12px] text-gray-500 text-center mt-1">
-          © {new Date().getFullYear()} {p.brandName}. All Rights Reserved
-        </div>
-      </div>
+      </footer>
     </div>
   );
 }
 
-function MetaRow({ k, v }: { k: string; v: React.ReactNode }) {
+function MetaLine({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <tr>
-      <td className="py-1 pr-3 text-gray-500 text-[13px] align-top w-[42%]">{k}:</td>
-      <td className="py-1 text-[13px] align-top">{v}</td>
-    </tr>
+    <div className="flex justify-between items-center text-[11.5px]">
+      <span className="text-slate-500 uppercase tracking-wider font-semibold">{k}</span>
+      <span>{v}</span>
+    </div>
   );
 }
