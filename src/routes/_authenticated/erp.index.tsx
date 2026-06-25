@@ -112,46 +112,36 @@ function AdminDashboard() {
 
   return (
     <div
-      className="dark min-h-screen bg-background text-foreground font-sans"
+      className="min-h-screen bg-background text-foreground font-sans"
       style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
     >
-      {/* HEADER — bento hero card */}
-      <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#08080a] via-[#15151a] to-[#1f1f24]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            background:
-              "radial-gradient(60% 80% at 90% 0%, rgba(255,255,255,0.06), transparent 60%), radial-gradient(40% 60% at 0% 100%, rgba(99,102,241,0.10), transparent 60%)",
-          }}
-        />
-        <div className="relative px-6 md:px-10 py-10 max-w-[1600px] mx-auto">
+      {/* HEADER — minimal */}
+      <div className="border-b border-border/60 bg-background">
+        <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 sm:flex sm:flex-wrap sm:justify-between">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400 mb-3 font-medium">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2 font-semibold">
                 SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
               </p>
               <h1
-                className="text-3xl md:text-5xl font-bold tracking-tight text-white"
+                className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground"
                 style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
               >
                 {greeting()}, {me?.name ?? "..."}
               </h1>
-              <p className="text-sm text-zinc-400 mt-2">
+              <p className="text-sm text-muted-foreground mt-1.5">
                 {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur text-[11px] text-zinc-200">
-                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-muted/40 text-[11px] text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Synced {timeAgo(lastSync)}
               </div>
-              <Button size="sm" variant="secondary" onClick={refreshAll}
-                className="gap-1.5 bg-white/10 border border-white/10 text-white hover:bg-white/20 backdrop-blur">
+              <Button size="sm" variant="outline" onClick={refreshAll} className="gap-1.5">
                 <RefreshCw className="size-3.5" /> Refresh
               </Button>
-              <DateRangePicker value={mktRange} onChange={setMktRange}
-                className="bg-white/10 border-white/15 text-white hover:bg-white/20 hover:text-white backdrop-blur" />
+              <DateRangePicker value={mktRange} onChange={setMktRange} />
             </div>
           </div>
         </div>
@@ -311,37 +301,27 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 auto-rows-[140px] gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 auto-rows-[128px] gap-3">
       {cards.map((c, i) => {
-        // Bento sizing: feature the first two (Orders + Revenue) as larger tiles
-        const feature = i === 0 || i === 3;
+        const feature = false;
         return (
           <button
             key={i}
             onClick={() => c.to && onNav(c.to)}
             className={cn(
-              "group relative text-left rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-5 overflow-hidden",
-              "transition-all duration-200 hover:border-primary/40 hover:bg-card",
-              feature && "sm:col-span-2 sm:row-span-1",
+              "group relative text-left rounded-xl border border-border/60 bg-card p-4 overflow-hidden",
+              "transition-colors duration-150 hover:border-foreground/20",
               c.to && "cursor-pointer",
             )}
           >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ background: "radial-gradient(80% 100% at 100% 0%, rgba(79,70,229,0.10), transparent 60%)" }}
-            />
             <div className="relative flex items-start justify-between mb-3">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.label}</span>
-              <span className={cn("rounded-lg p-1.5 ring-1 ring-border/60", toneBg(c.tone))}>
-                <c.icon className={cn("size-3.5", toneFg(c.tone))} />
-              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{c.label}</span>
+              <c.icon className="size-3.5 text-muted-foreground/70" />
             </div>
             {isLoading ? <Skeleton className="h-9 w-28" /> : (
               <div
                 className={cn(
-                  "relative tabular-nums leading-none tracking-tight font-bold text-foreground",
-                  feature ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl",
+                  "relative tabular-nums leading-none tracking-tight font-semibold text-foreground text-2xl md:text-[28px]",
                   typeof (c as any).amount === "number" && moneyTier((c as any).amount),
                 )}
                 style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
