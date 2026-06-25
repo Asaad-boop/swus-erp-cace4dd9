@@ -1469,7 +1469,7 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         strokeWidth={2}
                       >
                         {sourceData.map((d, i) => (
-                          <Cell key={d.name} fill={SOURCE_MONO[i % SOURCE_MONO.length]} />
+                          <Cell key={d.name} fill={colorForSource(d.name, i)} />
                         ))}
                       </Pie>
                       <Tooltip
