@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, created_by, order_items(name, quantity, unit_price)",
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, confirmed_by, assigned_to, user_id, order_items(name, quantity, unit_price)",
       )
       .eq("id", order_id)
       .single();
@@ -81,16 +81,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Lookup creator name (staff who created the order)
+    // Lookup creator name (staff who created/confirmed the order)
     let createdByName = "";
-    if (order.created_by) {
+    const creatorId = order.confirmed_by || order.assigned_to || null;
+    if (creatorId) {
       const { data: prof } = await supabase
         .from("profiles")
-        .select("full_name, email")
-        .eq("id", order.created_by)
+        .select("display_name, email")
+        .eq("id", creatorId)
         .maybeSingle();
-      createdByName = (prof?.full_name as string) || (prof?.email as string) || "";
+      createdByName = (prof?.display_name as string) || (prof?.email as string) || "";
     }
+    if (!createdByName && order.source === "manual") createdByName = "ERP Staff";
     const isCustomerOrder = !createdByName;
 
     const items = (order.order_items ?? []) as Array<{

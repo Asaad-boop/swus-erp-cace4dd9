@@ -307,12 +307,17 @@ function NewOrderPage() {
         if (!advanceNumber || advanceNumber.length < 4) throw new Error("Advance number (min 4 digit) din");
       }
 
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData.user?.id ?? null;
+
       const { data: orderData, error: orderErr } = await supabase
         .from("orders")
         .insert({
           brand_id: effectiveBrand.id,
           status: "confirmed",
           confirmation_status: "confirmed",
+          confirmed_by: currentUserId,
+          confirmed_at: new Date().toISOString(),
           source: "manual",
           source_platform: orderSource || null,
           is_guest_order: true,
@@ -358,6 +363,12 @@ function NewOrderPage() {
       // Reserve stock now that order_items exist
       const { error: reserveErr } = await supabase.rpc("reserve_stock", { _order_id: orderId });
       if (reserveErr) throw reserveErr;
+
+      const { error: notifyErr } = await supabase.functions.invoke("notify-order-telegram", {
+        body: { order_id: orderId },
+      });
+      if (notifyErr) console.warn("Telegram order notification failed", notifyErr);
+
       return { id: orderId, invoice_no: (orderData as { invoice_no?: string | null }).invoice_no ?? null };
     },
     onSuccess: (res) => {
