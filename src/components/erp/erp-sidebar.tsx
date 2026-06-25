@@ -246,8 +246,8 @@ export function ErpSidebar() {
             ? "pl-8 pr-3 py-1.5 text-[13px] font-medium"
             : "px-3 py-2 text-sm font-semibold",
           active
-            ? "bg-primary/10 text-primary font-semibold shadow-sm"
-            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+            ? "bg-accent text-foreground font-semibold"
+            : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
         )}
       >
         <span
