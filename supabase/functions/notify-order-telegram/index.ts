@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "id, order_number, brand_id, customer_name, customer_phone, shipping_city, shipping_area, total_amount, subtotal, shipping_cost, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(product_name, quantity, unit_price)",
+        "id, brand_id, customer_name, customer_phone, shipping_city, shipping_area, total_amount, subtotal, shipping_cost, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(product_name, quantity, unit_price)",
       )
       .eq("id", order_id)
       .single();
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
     const lines = [
       `🛒 <b>New ${esc(brandName)} Order</b>`,
-      `<b>#${esc(order.order_number ?? order.id)}</b>`,
+      `<b>#${esc(String(order.id).slice(0, 8))}</b>`,
       ``,
       `👤 ${esc(order.customer_name)}  ·  📞 ${esc(order.customer_phone)}`,
       order.shipping_city || order.shipping_area
