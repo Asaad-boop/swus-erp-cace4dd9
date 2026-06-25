@@ -108,38 +108,53 @@ function AdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* HEADER */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white">
-        <div className="px-4 md:px-6 py-6 max-w-[1600px] mx-auto">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-                {greeting()}, {me?.name ?? "..."} <span className="inline-block">👋</span>
-              </h1>
-              <p className="text-sm text-slate-300 mt-1">
+    <div
+      className="dark min-h-screen bg-background text-foreground font-sans"
+      style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
+    >
+      {/* HEADER — bento hero card */}
+      <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#0a0a1a] via-[#141432] to-[#1e1e5a]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-60"
+          style={{
+            background:
+              "radial-gradient(60% 80% at 90% 0%, rgba(79,70,229,0.35), transparent 60%), radial-gradient(40% 60% at 0% 100%, rgba(30,30,90,0.5), transparent 60%)",
+          }}
+        />
+        <div className="relative px-6 md:px-10 py-10 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 sm:flex sm:flex-wrap sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-indigo-300/80 mb-3 font-medium">
                 SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
-                {" · "}
-                <span className="text-slate-400">
-                  {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? ""}
-                </span>
+              </p>
+              <h1
+                className="text-3xl md:text-5xl font-bold tracking-tight text-white"
+                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+              >
+                {greeting()}, {me?.name ?? "..."}
+              </h1>
+              <p className="text-sm text-indigo-200/70 mt-2">
+                {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/10 text-xs text-slate-200">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur text-[11px] text-indigo-100/90">
                 <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Synced {timeAgo(lastSync)}
               </div>
-              <Button size="sm" variant="secondary" onClick={refreshAll} className="gap-1.5">
+              <Button size="sm" variant="secondary" onClick={refreshAll}
+                className="gap-1.5 bg-white/10 border border-white/10 text-white hover:bg-white/20 backdrop-blur">
                 <RefreshCw className="size-3.5" /> Refresh
               </Button>
-              <DateRangePicker value={mktRange} onChange={setMktRange} className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
+              <DateRangePicker value={mktRange} onChange={setMktRange}
+                className="bg-white/10 border-white/15 text-white hover:bg-white/20 hover:text-white backdrop-blur" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
+      <div className="px-4 md:px-8 py-10 max-w-[1600px] mx-auto space-y-10">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
