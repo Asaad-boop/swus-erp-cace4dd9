@@ -364,11 +364,7 @@ function NewOrderPage() {
       const { error: reserveErr } = await supabase.rpc("reserve_stock", { _order_id: orderId });
       if (reserveErr) throw reserveErr;
 
-      const { error: notifyErr } = await supabase.functions.invoke("notify-order-telegram", {
-        body: { order_id: orderId },
-      });
-      if (notifyErr) console.warn("Telegram order notification failed", notifyErr);
-
+      // Telegram notification handled by DB webhook on orders insert — avoid double-firing.
       return { id: orderId, invoice_no: (orderData as { invoice_no?: string | null }).invoice_no ?? null };
     },
     onSuccess: (res) => {
