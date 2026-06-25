@@ -38,7 +38,7 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className={cn("flex flex-wrap", compact ? "gap-0.5" : "gap-1")}>
+      <div className={cn("flex flex-wrap items-center", compact ? "gap-1" : "gap-1.5")}>
         {visible.map((entry, idx) => {
           if (entry.kind === "auto") {
             const t = entry.tag;
@@ -47,10 +47,10 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
                 <TooltipTrigger asChild>
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-md ring-1 ring-inset cursor-help leading-none font-bold",
+                      "inline-flex items-center cursor-help leading-none transition-all hover:scale-110",
                       compact
-                        ? "h-5 w-5 justify-center p-0 text-[11px]"
-                        : "gap-1 text-[10px] px-1.5 py-0.5",
+                        ? "h-[18px] w-[18px] justify-center rounded-full text-[10px] ring-1 ring-inset shadow-sm"
+                        : "gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
                       t.chip,
                     )}
                   >
@@ -70,14 +70,14 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
               <TooltipTrigger asChild>
                 <span
                   className={cn(
-                    "inline-flex items-center rounded-md ring-1 ring-inset leading-none font-medium cursor-help",
+                    "inline-flex items-center rounded-full leading-none font-medium cursor-help transition-colors",
                     compact
-                      ? "h-5 px-1 text-[10px] uppercase max-w-[60px] truncate"
-                      : "text-[10px] px-1.5 py-0.5",
-                    manualTagColor(entry.tag),
+                      ? "h-[18px] px-1.5 text-[9.5px] tracking-wide uppercase max-w-[64px] truncate bg-muted/60 text-muted-foreground hover:bg-muted ring-1 ring-inset ring-border/50"
+                      : "text-[10px] px-2 py-0.5 ring-1 ring-inset",
+                    compact ? "" : manualTagColor(entry.tag),
                   )}
                 >
-                  {compact ? entry.tag.slice(0, 3) : `#${entry.tag}`}
+                  {compact ? entry.tag.slice(0, 6) : `#${entry.tag}`}
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
@@ -89,7 +89,7 @@ export function AutoTagChips({ autoTags, manualTags, max = 4, compact = false }:
         {extra > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-[10px] text-muted-foreground self-center font-medium cursor-help px-0.5">
+              <span className="inline-flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full bg-muted/60 text-[9.5px] text-muted-foreground font-semibold cursor-help ring-1 ring-inset ring-border/50">
                 +{extra}
               </span>
             </TooltipTrigger>
