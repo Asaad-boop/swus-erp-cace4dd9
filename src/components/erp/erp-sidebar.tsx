@@ -319,25 +319,25 @@ export function ErpSidebar() {
       <aside
         data-collapsed={collapsed}
         className={cn(
-          "hidden md:flex flex-col border-r border-border bg-card/60 backdrop-blur-sm transition-[width] duration-300 ease-out h-screen sticky top-0 shrink-0",
+          "hidden md:flex flex-col border-r border-border/70 bg-sidebar transition-[width] duration-300 ease-out h-screen sticky top-0 shrink-0",
           collapsed ? "w-[60px]" : "w-60",
         )}
       >
         {/* Brand header */}
-        <div className={cn("flex items-center border-b border-border h-16 px-3", collapsed ? "justify-center" : "justify-between")}>
+        <div className={cn("flex items-center border-b border-border/60 h-14 px-3", collapsed ? "justify-center" : "justify-between")}>
           {!collapsed ? (
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm shrink-0">
-                <Sparkles className="h-4.5 w-4.5 text-primary-foreground" />
+              <div className="h-8 w-8 rounded-md bg-foreground flex items-center justify-center shrink-0">
+                <Sparkles className="h-4 w-4 text-background" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-bold tracking-tight leading-tight truncate">ERP Suite</div>
-                <div className="text-[10px] text-muted-foreground tracking-wide uppercase">Multi-brand</div>
+                <div className="font-display text-[15px] font-semibold tracking-tight leading-none truncate">SyncWithUs</div>
+                <div className="text-[10px] text-muted-foreground tracking-[0.14em] uppercase mt-1">ERP Suite</div>
               </div>
             </div>
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm">
-              <Sparkles className="h-4.5 w-4.5 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-md bg-foreground flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-background" />
             </div>
           )}
           {!collapsed && (
@@ -420,8 +420,8 @@ export function ErpSidebar() {
 
         </nav>
 
-        <div className={cn("border-t border-border text-[11px] text-muted-foreground", collapsed ? "py-2 text-center" : "px-4 py-2.5")}>
-          {collapsed ? "v0.1" : "v0.1 · Phase 0"}
+        <div className={cn("border-t border-border/60 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80", collapsed ? "py-2 text-center" : "px-4 py-3")}>
+          {collapsed ? "v0.1" : "v0.1 — Phase 0"}
         </div>
       </aside>
     </TooltipProvider>
