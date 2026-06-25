@@ -69,50 +69,50 @@ export function TodayCommandPanel({ brandIds, enabled }: { brandIds: string[]; e
   ];
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-zinc-950 to-zinc-900 text-zinc-100 overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400 font-semibold">Command Panel</div>
-          <div className="text-base font-bold mt-0.5" style={{ fontFamily: "Sora, ui-sans-serif" }}>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Command Panel</div>
+          <div className="text-base font-semibold mt-0.5 text-foreground" style={{ fontFamily: "Sora, ui-sans-serif" }}>
             Today's Actions
           </div>
         </div>
-        <Gauge className="size-4 text-zinc-500" />
+        <Gauge className="size-4 text-muted-foreground" />
       </div>
-      <ul className="divide-y divide-white/5">
+      <ul className="divide-y divide-border/60">
         {items.map((it) => (
           <li key={it.label}>
             <Link
               to={it.to as any}
-              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-white/[0.04] transition-colors"
+              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span
                   className={cn(
-                    "size-7 grid place-items-center rounded-md ring-1 ring-white/10",
-                    it.tone === "amber" && "bg-amber-500/10 text-amber-300",
-                    it.tone === "rose" && "bg-rose-500/10 text-rose-300",
-                    it.tone === "blue" && "bg-blue-500/10 text-blue-300",
+                    "size-7 grid place-items-center rounded-md ring-1 ring-border/60",
+                    it.tone === "amber" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                    it.tone === "rose" && "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                    it.tone === "blue" && "bg-blue-500/10 text-blue-600 dark:text-blue-400",
                   )}
                 >
                   <it.icon className="size-3.5" />
                 </span>
-                <span className="text-sm text-zinc-200 truncate">{it.label}</span>
+                <span className="text-sm text-foreground truncate">{it.label}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {isLoading ? (
-                  <Skeleton className="h-4 w-10 bg-white/10" />
+                  <Skeleton className="h-4 w-10" />
                 ) : (
                   <span
                     className={cn(
                       "tabular-nums font-bold text-sm",
-                      it.v === 0 ? "text-zinc-500" : "text-zinc-50",
+                      it.v === 0 ? "text-muted-foreground" : "text-foreground",
                     )}
                   >
                     {it.money ? BDT(it.v as number) : it.v}
                   </span>
                 )}
-                <ArrowRight className="size-3.5 text-zinc-500" />
+                <ArrowRight className="size-3.5 text-muted-foreground" />
               </div>
             </Link>
           </li>
