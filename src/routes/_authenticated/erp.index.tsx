@@ -116,20 +116,20 @@ function AdminDashboard() {
       style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
     >
       {/* HEADER — minimal */}
-      <div className="border-b border-border/60 bg-background">
-        <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 sm:flex sm:flex-wrap sm:justify-between">
+      <div className="border-b border-border/60 bg-background sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="px-4 md:px-8 py-5 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2 font-semibold">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1 font-semibold">
                 SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
               </p>
               <h1
-                className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground"
+                className="text-xl md:text-2xl font-semibold tracking-tight text-foreground truncate"
                 style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
               >
                 {greeting()}, {me?.name ?? "..."}
               </h1>
-              <p className="text-sm text-muted-foreground mt-1.5">
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
               </p>
             </div>
@@ -147,12 +147,12 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 py-10 max-w-[1600px] mx-auto space-y-10">
+      <div className="px-4 md:px-8 py-6 max-w-[1600px] mx-auto space-y-6">
         {/* Command grid: KPIs + Today panel + Live visitors */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
+          <div className="space-y-3">
             <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <ProfitQuality brandIds={brandIds} enabled={enabled} range={range} />
               <LiveVisitors />
             </div>
@@ -168,7 +168,7 @@ function AdminDashboard() {
 
         <TrendChart brandIds={brandIds} enabled={enabled} range={range} brands={brands} isAllBrands={isAllBrands} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <CourierCard brandIds={brandIds} enabled={enabled} range={range} />
           <CodOutstandingCard brandIds={brandIds} enabled={enabled} range={range} />
           <ReturnsCard brandIds={brandIds} enabled={enabled} range={range} />
@@ -179,7 +179,7 @@ function AdminDashboard() {
 
         <ProductDangerZone brandIds={brandIds} enabled={enabled} range={range} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <InventoryHealth brandIds={brandIds} enabled={enabled} />
           <div className="lg:col-span-2">
             <LowStockList brandIds={brandIds} enabled={enabled} />
@@ -188,7 +188,7 @@ function AdminDashboard() {
 
         <MarketingCard brandIds={brandIds} enabled={enabled} range={range} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <TopProducts brandIds={brandIds} enabled={enabled} range={range} />
           <TopCustomers brandIds={brandIds} enabled={enabled} range={range} />
         </div>
@@ -301,7 +301,7 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 auto-rows-[128px] gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 auto-rows-[112px] gap-2.5">
       {cards.map((c, i) => {
         const feature = false;
         return (
@@ -309,19 +309,19 @@ function KpiStrip({
             key={i}
             onClick={() => c.to && onNav(c.to)}
             className={cn(
-              "group relative text-left rounded-xl border border-border/60 bg-card p-4 overflow-hidden",
+              "group relative text-left rounded-lg border border-border/60 bg-card p-3.5 overflow-hidden",
               "transition-colors duration-150 hover:border-foreground/20",
               c.to && "cursor-pointer",
             )}
           >
-            <div className="relative flex items-start justify-between mb-3">
+            <div className="relative flex items-start justify-between mb-2">
               <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{c.label}</span>
               <c.icon className="size-3.5 text-muted-foreground/70" />
             </div>
             {isLoading ? <Skeleton className="h-9 w-28" /> : (
               <div
                 className={cn(
-                  "relative tabular-nums leading-none tracking-tight font-semibold text-foreground text-2xl md:text-[28px]",
+                  "relative tabular-nums leading-none tracking-tight font-semibold text-foreground text-xl md:text-[24px]",
                   typeof (c as any).amount === "number" && moneyTier((c as any).amount),
                 )}
                 style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
@@ -329,7 +329,7 @@ function KpiStrip({
                 {c.value}
               </div>
             )}
-            <div className="relative mt-3 flex items-center gap-1.5 min-h-[20px]">
+            <div className="relative mt-2 flex items-center gap-1.5 min-h-[18px]">
               {typeof (c as any).trend === "number" ? (
                 <TrendChip trend={(c as any).trend} />
               ) : null}
