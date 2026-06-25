@@ -1,74 +1,214 @@
-# Staff Workspace — আলাদা Dashboard Plan
+# World-Class ERP Dashboard — Plan
 
-Owner-er ERP dashboard staff-der dorkar nei. Tader jonno `/me` ke ekta full **Employee Workspace** banabo — login korle direct etai khulbe, ar tader role/permission onujayi shob kaaj ekhanei thakbe.
+Goal: ekta perfect, advance, "command center" style dashboard banano — grey/dark premium KPI tiles, live website visitor, orders/revenue/profit, real-time pulse, ar deep insights. Bloomberg terminal + Linear + Vercel analytics er moto feel.
 
-## 1. Routing & Entry Flow
+## Layout (Bento Grid, 12-col)
 
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ HERO STRIP — Brand • Live clock • Date range • Compare      │
+├──────────┬──────────┬──────────┬──────────┬──────────┬──────┤
+│ Revenue  │ Profit   │ Orders   │ AOV      │ Conv %   │ ROAS │  ← 6 KPI tiles (grey, sparkline + delta vs prev period)
+├──────────┴──────────┴──────────┼──────────┴──────────┴──────┤
+│ REVENUE vs PROFIT (area, 30d)  │ LIVE VISITORS (pulse)      │
+│  + cost overlay                │  • Active now: 47          │
+│                                │  • Top pages list          │
+│                                │  • Country dots            │
+├────────────────────────────────┼────────────────────────────┤
+│ ORDER FUNNEL                   │ ORDER STATUS DONUT         │
+│ Visit→Cart→Checkout→Paid       │ new/confirmed/packed/...   │
+├────────────────────────────────┼────────────────────────────┤
+│ TOP PRODUCTS (table+thumb)     │ LOW STOCK ALERTS           │
+├────────────────────────────────┼────────────────────────────┤
+│ RECENT ORDERS (live feed)      │ COURIER PERFORMANCE        │
+├────────────────────────────────┴────────────────────────────┤
+│ MARKETING ROAS BY CAMPAIGN (bar) │ CASHFLOW MINI (in/out)   │
+└──────────────────────────────────────────────────────────────┘
 ```
-Login
-  ├─ admin / backoffice role  → /erp (owner dashboard)
-  └─ employee / staff only    → /me (workspace dashboard)
-```
 
-- `_authenticated/route.tsx` e already redirect ache — confirm korbo: jodi user-er kono backoffice role na thake, `/erp/*` block + `/me` te pathabe.
-- `/me` ke ekhon ekta proper **layout route** banabo (`me.tsx` Outlet + sidebar/topbar shell), shob `me.*` child page er jonno.
+## KPI Tiles (top row — 6 tiles)
 
-## 2. Workspace Shell (নতুন look)
+Each tile: uppercase tracked label, hero number (Sora 32px), delta chip (▲ green / ▼ red vs previous period), 40px sparkline at bottom. Grey surface (`--surface-1`), hairline border, hover lift.
 
-`/me` layout e thakbe:
+1. **Revenue** — sum of paid orders
+2. **Net Profit** — revenue − COGS − courier fee − ad spend
+3. **Orders** — confirmed + paid count
+4. **AOV** — revenue / orders
+5. **Conversion %** — paid orders / sessions
+6. **ROAS** — revenue / ad spend
 
-- **Top bar**: company logo, greeting ("Salam, Rakib"), live clock, notification bell, profile menu (logout).
-- **Left sidebar** (collapsible, mobile e bottom-nav): My Day, Attendance, Leave, Payslips, Documents, Performance, Profile. Sidebar items **permission onujayi filter** hobe (access matrix theke).
-- **Main**: current page.
+## Live Section (real-time)
 
-## 3. My Day (default `/me` page) — redesign
+- **Live visitors** — Supabase realtime on `active_sessions` table, pulse animation, top 5 active pages, country flags
+- **Live order feed** — realtime on `orders` insert, slide-in cards last 10
+- **Today's pulse** — orders today vs same hour yesterday (mini bar)
 
-Ekta "kaaj shuru korar" hub:
+## Charts (Recharts)
 
-- **Punch card** (hero) — boro check-in/out button, today's status, work hours timer, break toggle, location/IP shown.
-- **Go to Workspace** card — check-in er por boro CTA (already ache).
-- **Today's snapshot** — shift time, scheduled hours, late/early indicator.
-- **My pending items** — leave request status, approval needed (if manager), unread announcement.
-- **This week** — mini attendance strip (Mon–Sun dots), leave balance, upcoming holiday.
-- **Quick actions** — Apply leave, View payslip, Update profile.
+- Revenue vs Profit area chart, 7/30/90d toggle
+- Order status donut
+- Funnel (Visit → Cart → Checkout → Paid) with drop-off %
+- ROAS by campaign horizontal bar
+- Cashflow mini sparkline (in/out)
 
-## 4. Sub-pages (already exist, polish)
+## Tables
 
-| Route | Content |
-|---|---|
-| `/me/attendance` | Calendar + month summary + daily punch log |
-| `/me/leave` | Balance cards + apply form + my requests timeline |
-| `/me/payslips` | List of payslips, download PDF, YTD summary |
-| `/me/performance` | Goals, reviews, KPI (jodi data thake; na thakle hide) |
-| `/me/profile` | Read-only personal info + edit request |
-| `/me/documents` (notun) | Offer letter, ID copies, contracts download |
+- **Top products** — thumbnail, name, units sold, revenue, margin %
+- **Low stock alerts** — product, current, reorder point, days-of-cover
+- **Recent orders** — id, customer, total, status pill, timestamp
+- **Courier performance** — courier, delivered %, avg days, returns %
 
-## 5. Permission-driven Visibility
+## Filters / Controls
 
-`src/lib/erp/access.ts` extend kore `me` workspace-er jonno feature flags:
-- `me:attendance`, `me:leave`, `me:payslips`, `me:performance`, `me:documents`
-- Manager role hole extra: `me:team-approvals` (team-er leave approve), `me:team-attendance`.
+- Date range picker (advanced — presets + custom, already exists)
+- Compare to: previous period / last year / none
+- Brand-scoped (header brand picker)
+- Auto-refresh toggle (30s)
 
-Sidebar + My Day cards eigulor presence onujayi render hobe.
+## Data Sources
 
-## 6. Data dependencies
 
-Shob existing table use korbe — notun migration lagbe na:
-- `hr_employees`, `hr_attendance`, `hr_leave_requests`, `hr_leave_balances`, `hr_payslips`, `hr_documents`, `hr_shifts`, `hr_holidays`.
-- RLS already user-scoped (`employee_id = auth.uid()` based) — verify korbo.
+| Section               | Table/Query                                                   |
+| --------------------- | ------------------------------------------------------------- |
+| Revenue/Profit/Orders | `orders` (status in paid, delivered) + `order_items` for COGS |
+| Ad spend              | `mkt_insights_daily`                                          |
+| Live visitors         | `active_sessions` (realtime)                                  |
+| Funnel                | `analytics_events` + `orders`                                 |
+| Stock                 | `products` low_stock view                                     |
+| Courier               | `courier_shipments`                                           |
+| Cashflow              | `erp_transactions`                                            |
 
-## 7. Visual direction
 
-HR module-er moto same design tokens (`--hr-accent`, soft surfaces, rounded-2xl cards, subtle gradients). Owner ERP er moto data-heavy noy — **calm, personal, mobile-first**. Boro typography, bhalo spacing, smooth transitions.
+## Tech Approach
 
-## 8. Implementation order
+- One `useDashboardData(dateRange, brandId, compare)` hook — parallel server functions, returns all KPIs + chart series
+- Realtime: separate `useLiveVisitors()` + `useLiveOrders()` hooks with Supabase channels (cleanup in useEffect)
+- Skeleton loaders per tile (no blocking)
+- Admin-only — staff dashboard already separate
 
-1. `me.tsx` layout shell (sidebar + topbar + Outlet) + access-filtered nav.
-2. `me.index.tsx` redesign — My Day hub.
-3. Sub-pages ekta ekta kore polish (attendance → leave → payslips → profile → documents).
-4. Manager extension (team approvals) — last e, jodi lage.
-5. Login redirect + `/erp` block verify.
+## Design Tokens
 
-## Question
+- Surface: `--surface-1` (graphite), `--surface-2` (slate)
+- Accent: existing primary; positive = emerald, negative = rose
+- Font: Sora display, Manrope body (already set)
+- Spacing: gap-3 grid, p-5 tiles, rounded-2xl
+- Subtle gradient sweep on hero, hairline 1px borders, no heavy shadows
 
-Step 1+2 (shell + My Day hub) diye start kori, naki age **manager role** add korbo jate manager-ra team approve korte pare? Ar `documents` page ekhon banabo na pore?
+## Build Order
+
+1. Data layer — `dashboard.functions.ts` with `getDashboardMetrics`, `getRevenueProfitSeries`, `getFunnel`, `getTopProducts`, `getCourierPerf`
+2. Realtime hooks — `useLiveVisitors`, `useLiveOrders`
+3. KPI tile component (sparkline + delta)
+4. Bento layout in `erp.index.tsx` (admin branch)
+5. Charts + tables
+6. Polish — animations, skeletons, empty states
+
+## Out of Scope (for now)
+
+- Custom dashboard builder / drag-rearrange
+- Saved views per user
+- Export to PDF  
+Must Add Advanced Blocks
+  **1. Profit Quality Score**
+  - Revenue high but profit low kina
+  - Return loss + ad cost + courier loss include
+  - Green / Yellow / Red score
+  **2. Brand Health**
+  - HobbyShop vs Toyora
+  - Revenue, profit, return rate, stock value, ad spend
+  - Which brand growing faster
+  **3. Cash Risk Alert**
+  - Courier theke koto COD pending
+  - Supplier payment due
+  - Salary/expense upcoming
+  - Available cash runway
+  **4. Product Danger Zone**
+  - High sale but low stock
+  - High order but high return
+  - High ad spend but low profit
+  - Slow moving dead stock
+  **5. Operator Performance**
+  - Staff-wise confirmed orders
+  - Cancel rate
+  - Follow-up pending
+  - Average response time
+  **6. Area Intelligence**
+  - Top cities/areas
+  - High return area
+  - High delivery success area
+  - Courier-wise area performance
+  **7. Today Command Panel**  
+  Right side e ekta action list:
+  ```
+
+  ```
+  ```
+  Need Confirmation: 42
+  Need Packing: 18
+  Low Stock: 9
+  Courier Issue: 6
+  Payment Pending: ৳48,500
+  Losing Campaigns: 3
+  ```
+  ### KPI Tile e aro add kora jay
+  Top 6 thik ase, but hidden expandable KPI rakhba:
+  -   
+  Gross Profit  
+
+  -   
+  Product Cost  
+
+  -   
+  Courier Cost  
+
+  -   
+  Packaging Cost  
+
+  -   
+  Return Loss  
+
+  -   
+  Paid Return Loss  
+
+  -   
+  Net Margin %  
+
+  -   
+  COD Pending  
+
+  -   
+  Stock Value  
+
+  -   
+  Daily Burn  
+
+  ### Dashboard Logic Best Hobe
+  **Default view:** All Brands  
+    
+  **Filter:** HobbyShop / Toyora / Date / Courier / Campaign / Product
+  ### Most Important Formula
+  ```
+
+  ```
+  ```
+  Net Profit =
+  Delivered Revenue
+  - Product Cost
+  - Courier Cost
+  - Packaging Cost
+  - Ad Spend
+  - Return Loss
+  - Refund / Damage / Exchange Loss
+  ```
+  ### Final Recommendation
+  Dashboard ke just “beautiful analytics” banio na. Eta banaba **decision dashboard**:
+  ```
+
+  ```
+  ```
+  What happened?
+  Why happened?
+  Where money stuck?
+  Which product/campaign/courier is losing money?
+  What should I do today?
+  ```
