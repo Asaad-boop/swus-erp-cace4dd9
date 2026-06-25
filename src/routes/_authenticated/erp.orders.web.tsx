@@ -372,17 +372,17 @@ function CustomerBadges({ total, confirmRate, delivered }: { total: number; conf
         <TooltipTrigger asChild>
           <span className="inline-flex items-center gap-1 flex-wrap">
             {total >= 5 ? (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-800">
-                <Star className="h-2.5 w-2.5 fill-current" /> VIP
+              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20">
+                <Star className="h-2.5 w-2.5 fill-current" />VIP
               </span>
             ) : (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 ring-1 ring-indigo-300 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800">
-                <Repeat className="h-2.5 w-2.5" /> {total}x
+              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200/70 dark:bg-indigo-500/10 dark:text-indigo-200 dark:ring-indigo-400/20">
+                <Repeat className="h-2.5 w-2.5" />{total}×
               </span>
             )}
             {confirmRate < 30 && total >= 3 && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-bold bg-rose-100 text-rose-800 ring-1 ring-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-800">
-                <AlertTriangle className="h-2.5 w-2.5" /> Low
+              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70 dark:bg-rose-500/10 dark:text-rose-200 dark:ring-rose-400/20">
+                <AlertTriangle className="h-2.5 w-2.5" />Low
               </span>
             )}
           </span>
