@@ -36,7 +36,7 @@ function ErpLayout() {
       <div className="flex h-screen bg-background overflow-hidden">
         <ErpSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen">
-          <header className="h-14 shrink-0 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 gap-3">
+          <header className="h-14 shrink-0 border-b border-border/70 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8 gap-3">
             <div className="flex items-center gap-2 md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
@@ -44,19 +44,20 @@ function ErpLayout() {
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 w-60"><ErpSidebar /></SheetContent>
               </Sheet>
-              <span className="font-semibold">ERP</span>
+              <span className="font-display font-semibold tracking-tight">ERP</span>
             </div>
             <div className="flex-1" />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <HeaderQuickActions />
               <BrandSwitcher />
-              <div className="hidden sm:block text-sm text-muted-foreground truncate max-w-[180px]">{email}</div>
-              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
+              <div className="mx-2 hidden sm:block h-5 w-px bg-border" />
+              <div className="hidden sm:block text-xs text-muted-foreground truncate max-w-[180px]">{email}</div>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out" className="rounded-full">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-background">
             <Outlet />
           </main>
         </div>
