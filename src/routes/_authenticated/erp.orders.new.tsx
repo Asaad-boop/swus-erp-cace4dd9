@@ -307,12 +307,17 @@ function NewOrderPage() {
         if (!advanceNumber || advanceNumber.length < 4) throw new Error("Advance number (min 4 digit) din");
       }
 
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData.user?.id ?? null;
+
       const { data: orderData, error: orderErr } = await supabase
         .from("orders")
         .insert({
           brand_id: effectiveBrand.id,
           status: "confirmed",
           confirmation_status: "confirmed",
+          confirmed_by: currentUserId,
+          confirmed_at: new Date().toISOString(),
           source: "manual",
           source_platform: orderSource || null,
           is_guest_order: true,
