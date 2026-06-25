@@ -1292,6 +1292,14 @@ const SOURCE_COLORS_LIGHT: Record<string, string> = {
 const CONFIRMED_STATUSES = new Set([
   "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
 ]);
+const SOURCE_MONO = [
+  "hsl(var(--foreground))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--foreground) / 0.55)",
+  "hsl(var(--muted-foreground) / 0.5)",
+  "hsl(var(--foreground) / 0.3)",
+  "hsl(var(--muted-foreground) / 0.3)",
+];
 function classifySource(raw: string | null | undefined): string {
   const s = (raw ?? "").toLowerCase().trim();
   if (!s) return "Direct";
@@ -1391,66 +1399,65 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
   const xInterval = mode === "hourly" ? 2 : Math.max(0, Math.floor(series.length / 10));
 
   return (
-    <Card className="border-border/60">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <span>📊</span> Order Analytics
-          <span className="text-xs font-normal text-muted-foreground ml-1">· {rangeLabel}</span>
-          {!isLoading && <Badge variant="secondary" className="ml-2 font-normal">{rows.length} orders</Badge>}
-        </CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)}>
+    <section className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3.5 flex items-center justify-between border-b border-border/60">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-7 grid place-items-center rounded-md bg-muted border border-border/60 shrink-0">
+            <Activity className="size-3.5 text-muted-foreground" />
+          </div>
+          <h2
+            className="text-[12px] font-semibold uppercase tracking-[0.16em] text-foreground truncate"
+            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+          >
+            Order Analytics
+          </h2>
+          <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted text-muted-foreground border border-border/60">
+            {rangeLabel}
+          </span>
+          {!isLoading && (
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-foreground text-background tabular-nums">
+              {rows.length} {rows.length === 1 ? "order" : "orders"}
+            </span>
+          )}
+        </div>
+        <Button variant="ghost" size="sm" className="size-8 p-0" onClick={() => setOpen(o => !o)}>
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
-      </CardHeader>
+      </header>
       {open && (
-        <CardContent>
+        <div className="p-5">
           {isLoading ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {[0,1,2].map(i => <Skeleton key={i} className="h-64 w-full" />)}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Donut — premium */}
-              <div className="relative rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/30 p-4 overflow-hidden">
-                <div className="absolute -top-12 -right-12 size-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Order Sources</div>
+              {/* Donut */}
+              <div className="relative rounded-xl border border-border/60 bg-muted/30 p-5 overflow-hidden">
+                <div
+                  className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
+                  style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+                >
+                  Order Sources
+                </div>
                 <div className="relative h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <defs>
-                        {sourceData.map((d) => {
-                          const c = SOURCE_COLORS[d.name] ?? "#94A3B8";
-                          const l = SOURCE_COLORS_LIGHT[d.name] ?? "#CBD5E1";
-                          return (
-                            <linearGradient key={d.name} id={`grad-${d.name}`} x1="0" y1="0" x2="1" y2="1">
-                              <stop offset="0%" stopColor={l} stopOpacity={0.95} />
-                              <stop offset="100%" stopColor={c} stopOpacity={1} />
-                            </linearGradient>
-                          );
-                        })}
-                        <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                          <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                          <feOffset dx="0" dy="2" result="offsetblur" />
-                          <feComponentTransfer><feFuncA type="linear" slope="0.18" /></feComponentTransfer>
-                          <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
-                        </filter>
-                      </defs>
                       <Pie
                         data={sourceData}
                         dataKey="value"
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={62}
-                        outerRadius={92}
-                        paddingAngle={3}
-                        cornerRadius={6}
-                        stroke="hsl(var(--background))"
+                        innerRadius={64}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        cornerRadius={4}
+                        stroke="hsl(var(--card))"
                         strokeWidth={2}
-                        filter="url(#donut-shadow)"
                       >
-                        {sourceData.map((d) => (
-                          <Cell key={d.name} fill={`url(#grad-${d.name})`} />
+                        {sourceData.map((d, i) => (
+                          <Cell key={d.name} fill={SOURCE_MONO[i % SOURCE_MONO.length]} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -1460,29 +1467,42 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                           `${value} (${totalSource ? Math.round((value / totalSource) * 100) : 0}%)`, name,
                         ]}
                       />
-                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 11, fontWeight: 500 }} />
+                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
                     <div className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-semibold">Total</div>
-                    <div className="text-3xl font-extrabold tabular-nums bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">{totalSource}</div>
+                    <div
+                      className="text-3xl font-semibold tabular-nums text-foreground"
+                      style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+                    >
+                      {totalSource}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Hourly bar */}
-              <div className="rounded-lg border bg-background p-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{mode === "hourly" ? "Orders by Hour" : "Orders by Day"}</div>
+              {/* Hourly / daily bar */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+                <div
+                  className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
+                  style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+                >
+                  {mode === "hourly" ? "Orders by Hour" : "Orders by Day"}
+                </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
+                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
                       <Tooltip />
-                      <Bar dataKey="created" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="created" radius={[3, 3, 0, 0]}>
                         {series.map((b) => (
-                          <Cell key={b.key} fill={b.isPeak ? "#F59E0B" : b.isCurrent ? "#FCD34D" : "#6366F1"} />
+                          <Cell
+                            key={b.key}
+                            fill={b.isPeak ? "hsl(var(--foreground))" : b.isCurrent ? "hsl(var(--foreground) / 0.7)" : "hsl(var(--muted-foreground) / 0.5)"}
+                          />
                         ))}
                       </Bar>
                     </BarChart>
@@ -1491,14 +1511,19 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
               </div>
 
               {/* Created vs Confirmed line */}
-              <div className="rounded-lg border bg-background p-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Created vs Confirmed</div>
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+                <div
+                  className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
+                  style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+                >
+                  Created vs Confirmed
+                </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={xInterval} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={28} />
+                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
                       <Tooltip content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
                         const created = Number(payload.find((p: any) => p.dataKey === "created")?.value ?? 0);
@@ -1507,23 +1532,23 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         return (
                           <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
                             <div className="font-semibold mb-1">{label}</div>
-                            <div className="text-indigo-600">Created: {created}</div>
-                            <div className="text-emerald-600">Confirmed: {confirmed}</div>
+                            <div className="text-muted-foreground">Created: <span className="text-foreground font-semibold tabular-nums">{created}</span></div>
+                            <div className="text-muted-foreground">Confirmed: <span className="text-foreground font-semibold tabular-nums">{confirmed}</span></div>
                             <div className="text-muted-foreground mt-0.5">Rate: {rate}%</div>
                           </div>
                         );
                       }} />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                      <Line type="monotone" dataKey="created" stroke="#6366F1" strokeWidth={2} dot={false} name="Created" />
-                      <Line type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} dot={false} name="Confirmed" />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }} />
+                      <Line type="monotone" dataKey="created" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} name="Created" />
+                      <Line type="monotone" dataKey="confirmed" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 3, fill: "hsl(var(--card))", stroke: "hsl(var(--foreground))", strokeWidth: 2 }} name="Confirmed" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
           )}
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </section>
   );
 }
