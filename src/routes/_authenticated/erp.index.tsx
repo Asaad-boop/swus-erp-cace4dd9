@@ -1278,7 +1278,13 @@ const SOURCE_COLORS: Record<string, string> = {
   Facebook: "#1877F2",
   Instagram: "#E1306C",
   Google: "#34A853",
-  Direct: "#94A3B8",
+  TikTok: "#000000",
+  YouTube: "#FF0000",
+  "Landing Page": "#8B5CF6",
+  Toyora: "#F09000",
+  HobbyShop: "#0EA5E9",
+  Referral: "#10B981",
+  Direct: "hsl(var(--foreground))",
   Other: "#F59E0B",
 };
 // Lighter gradient stop per source for premium donut look
@@ -1292,22 +1298,28 @@ const SOURCE_COLORS_LIGHT: Record<string, string> = {
 const CONFIRMED_STATUSES = new Set([
   "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
 ]);
-const SOURCE_MONO = [
-  "hsl(var(--foreground))",
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--foreground) / 0.55)",
-  "hsl(var(--muted-foreground) / 0.5)",
-  "hsl(var(--foreground) / 0.3)",
-  "hsl(var(--muted-foreground) / 0.3)",
+const SOURCE_FALLBACK_PALETTE = [
+  "#6366F1", "#EC4899", "#14B8A6", "#F97316", "#A855F7", "#EAB308", "#06B6D4", "#EF4444",
 ];
+function colorForSource(name: string, index: number): string {
+  if (SOURCE_COLORS[name]) return SOURCE_COLORS[name];
+  return SOURCE_FALLBACK_PALETTE[index % SOURCE_FALLBACK_PALETTE.length];
+}
 function classifySource(raw: string | null | undefined): string {
   const s = (raw ?? "").toLowerCase().trim();
   if (!s) return "Direct";
+  if (s === "main" || s === "website" || s === "web" || s.includes("direct") || s === "(direct)") return "Direct";
   if (s.includes("facebook") || s === "fb" || s.includes("meta")) return "Facebook";
   if (s.includes("instagram") || s === "ig") return "Instagram";
   if (s.includes("google")) return "Google";
-  if (s.includes("direct") || s === "(direct)") return "Direct";
-  return "Other";
+  if (s.includes("tiktok") || s === "tt") return "TikTok";
+  if (s.includes("youtube") || s === "yt") return "YouTube";
+  if (s.startsWith("lp/") || s.startsWith("lp-") || s.includes("landing")) return "Landing Page";
+  if (s.includes("toyora")) return "Toyora";
+  if (s.includes("hobby")) return "HobbyShop";
+  if (s.includes("referral") || s.includes("ref")) return "Referral";
+  // Fallback: title-case the raw value so unknown sources still show distinctly
+  return (raw ?? "Other").toString().replace(/[_\-/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 24);
 }
 
 type RangeT = { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number };
