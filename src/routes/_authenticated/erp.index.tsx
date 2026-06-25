@@ -296,36 +296,53 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {cards.map((c, i) => (
-        <button
-          key={i}
-          onClick={() => c.to && onNav(c.to)}
-          className={cn(
-            "group text-left bg-card rounded-xl border p-5 hover:shadow-lg transition-all duration-200",
-            c.to && "cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20"
-          )}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
-            <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
-              <c.icon className={cn("size-4", toneFg(c.tone))} />
-            </span>
-          </div>
-          {isLoading ? <Skeleton className="h-9 w-28" /> : (
-            <div className={cn(
-              "text-3xl font-bold tracking-tight tabular-nums leading-none",
-              typeof (c as any).amount === "number" && moneyTier((c as any).amount),
-            )}>{c.value}</div>
-          )}
-          <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
-            {typeof (c as any).trend === "number" ? (
-              <TrendChip trend={(c as any).trend} />
-            ) : null}
-            <span className="text-xs text-muted-foreground truncate">{c.sub}</span>
-          </div>
-        </button>
-      ))}
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 auto-rows-[140px] gap-3">
+      {cards.map((c, i) => {
+        // Bento sizing: feature the first two (Orders + Revenue) as larger tiles
+        const feature = i === 0 || i === 3;
+        return (
+          <button
+            key={i}
+            onClick={() => c.to && onNav(c.to)}
+            className={cn(
+              "group relative text-left rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-5 overflow-hidden",
+              "transition-all duration-200 hover:border-primary/40 hover:bg-card",
+              feature && "sm:col-span-2 sm:row-span-1",
+              c.to && "cursor-pointer",
+            )}
+          >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: "radial-gradient(80% 100% at 100% 0%, rgba(79,70,229,0.10), transparent 60%)" }}
+            />
+            <div className="relative flex items-start justify-between mb-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.label}</span>
+              <span className={cn("rounded-lg p-1.5 ring-1 ring-border/60", toneBg(c.tone))}>
+                <c.icon className={cn("size-3.5", toneFg(c.tone))} />
+              </span>
+            </div>
+            {isLoading ? <Skeleton className="h-9 w-28" /> : (
+              <div
+                className={cn(
+                  "relative tabular-nums leading-none tracking-tight font-bold text-foreground",
+                  feature ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl",
+                  typeof (c as any).amount === "number" && moneyTier((c as any).amount),
+                )}
+                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+              >
+                {c.value}
+              </div>
+            )}
+            <div className="relative mt-3 flex items-center gap-1.5 min-h-[20px]">
+              {typeof (c as any).trend === "number" ? (
+                <TrendChip trend={(c as any).trend} />
+              ) : null}
+              <span className="text-[11px] text-muted-foreground truncate">{c.sub}</span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
