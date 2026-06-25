@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "id, brand_id, customer_name, customer_phone, shipping_city, shipping_area, total_amount, subtotal, shipping_cost, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(product_name, quantity, unit_price)",
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(product_name, quantity, unit_price)",
       )
       .eq("id", order_id)
       .single();
@@ -96,17 +96,17 @@ Deno.serve(async (req) => {
 
     const lines = [
       `🛒 <b>New ${esc(brandName)} Order</b>`,
-      `<b>#${esc(String(order.id).slice(0, 8))}</b>`,
+      `<b>#${esc(order.invoice_no ?? String(order.id).slice(0, 8))}</b>`,
       ``,
-      `👤 ${esc(order.customer_name)}  ·  📞 ${esc(order.customer_phone)}`,
-      order.shipping_city || order.shipping_area
-        ? `📍 ${esc([order.shipping_area, order.shipping_city].filter(Boolean).join(", "))}`
+      `👤 ${esc(order.shipping_name ?? order.guest_name ?? "—")}  ·  📞 ${esc(order.shipping_phone ?? order.guest_phone ?? "—")}`,
+      order.shipping_city || order.shipping_thana
+        ? `📍 ${esc([order.shipping_thana, order.shipping_city].filter(Boolean).join(", "))}`
         : "",
       ``,
       itemsText || "<i>no items</i>",
       ``,
-      `💰 Total: <b>${fmtBDT(order.total_amount)}</b>`,
-      `🚚 Shipping: ${fmtBDT(order.shipping_cost)}  ·  💳 ${esc(order.payment_method ?? "—")}`,
+      `💰 Total: <b>${fmtBDT(order.total)}</b>`,
+      `🚚 Shipping: ${fmtBDT(order.shipping_fee)}  ·  💳 ${esc(order.payment_method ?? "—")}`,
       `🌐 Source: ${esc(source)}  ·  Status: ${esc(order.status)}`,
     ]
       .filter(Boolean)
