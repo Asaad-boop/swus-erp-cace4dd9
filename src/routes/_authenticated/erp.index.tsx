@@ -1357,6 +1357,11 @@ function classifySourceSignals(sig: SourceSignals): string {
   if (matchToken(joined, ["pos", "in-store", "in store", "retail"])) return "POS";
 
   // Channel-level fallbacks before bucketing
+  // Explicit user selection (source_platform / utm_source) wins over channel bucket.
+  const explicit = (sig.source_platform ?? sig.utm_source ?? "").trim();
+  if (explicit) {
+    return explicit.replace(/[_\-/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 24);
+  }
   if (sig.source && sig.source.toLowerCase() === "manual") return "Manual";
   if (sig.source && sig.source.toLowerCase() === "pos") return "POS";
   if (sig.source_website && !["main", "website", "web", "direct", "(direct)"].includes(sig.source_website.toLowerCase())) {
