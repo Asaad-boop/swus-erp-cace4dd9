@@ -1292,6 +1292,14 @@ const SOURCE_COLORS_LIGHT: Record<string, string> = {
 const CONFIRMED_STATUSES = new Set([
   "confirmed", "processing", "shipped", "delivered", "complete", "advance_payment", "on_hold",
 ]);
+const SOURCE_MONO = [
+  "hsl(var(--foreground))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--foreground) / 0.55)",
+  "hsl(var(--muted-foreground) / 0.5)",
+  "hsl(var(--foreground) / 0.3)",
+  "hsl(var(--muted-foreground) / 0.3)",
+];
 function classifySource(raw: string | null | undefined): string {
   const s = (raw ?? "").toLowerCase().trim();
   if (!s) return "Direct";
