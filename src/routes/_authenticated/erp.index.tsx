@@ -1284,6 +1284,17 @@ const SOURCE_COLORS: Record<string, string> = {
   Toyora: "#F09000",
   HobbyShop: "#0EA5E9",
   Referral: "#10B981",
+  WhatsApp: "#25D366",
+  Messenger: "#0084FF",
+  Telegram: "#229ED9",
+  Web: "#0EA5E9",
+  Manual: "#64748B",
+  Incomplete: "#EF4444",
+  "Custom Source": "#F59E0B",
+  POS: "#9333EA",
+  Marketplace: "#A855F7",
+  Email: "#22C55E",
+  SMS: "#0EA5E9",
   Direct: "hsl(var(--foreground))",
   Other: "#F59E0B",
 };
@@ -1305,21 +1316,62 @@ function colorForSource(name: string, index: number): string {
   if (SOURCE_COLORS[name]) return SOURCE_COLORS[name];
   return SOURCE_FALLBACK_PALETTE[index % SOURCE_FALLBACK_PALETTE.length];
 }
+// AI-style multi-signal classifier. Looks across all available source signals
+// (source, source_platform, source_website, utm_source) and returns a stable label.
+type SourceSignals = {
+  source?: string | null;          // 'website' | 'manual' | 'pos' | ...
+  source_platform?: string | null; // 'whatsapp' | 'messenger' | 'facebook' | ...
+  source_website?: string | null;  // 'toyora' | 'hobbyshop' | 'main' | host
+  utm_source?: string | null;      // 'fb' | 'ig_reels' | 'google_cpc' | ...
+  status?: string | null;          // used to surface incomplete carts
+};
+function matchToken(s: string, tokens: string[]): boolean {
+  return tokens.some((t) => s === t || s.includes(t));
+}
+function classifySourceSignals(sig: SourceSignals): string {
+  const status = (sig.status ?? "").toLowerCase().trim();
+  if (status === "incomplete" || status === "abandoned" || status === "cart") return "Incomplete";
+
+  const parts = [sig.utm_source, sig.source_platform, sig.source_website, sig.source]
+    .map((v) => (v ?? "").toLowerCase().trim())
+    .filter(Boolean);
+  const joined = parts.join(" | ");
+
+  if (!joined) return "Direct";
+
+  if (matchToken(joined, ["whatsapp", "wa "])) return "WhatsApp";
+  if (matchToken(joined, ["messenger", "m.me", "fb-msg"])) return "Messenger";
+  if (matchToken(joined, ["telegram", "tg "])) return "Telegram";
+  if (matchToken(joined, ["instagram", "ig_", " ig", "ig-"]) || parts.includes("ig")) return "Instagram";
+  if (matchToken(joined, ["facebook", "meta", "fb_", "fb-"]) || parts.includes("fb")) return "Facebook";
+  if (matchToken(joined, ["tiktok"]) || parts.includes("tt")) return "TikTok";
+  if (matchToken(joined, ["youtube", "yt_"]) || parts.includes("yt")) return "YouTube";
+  if (matchToken(joined, ["google", "gads", "adwords"])) return "Google";
+  if (matchToken(joined, ["landing", "lp/", "lp-", "lp_"])) return "Landing Page";
+  if (matchToken(joined, ["referral", "ref_", "ref-"])) return "Referral";
+  if (matchToken(joined, ["email", "newsletter", "mailchimp", "klaviyo"])) return "Email";
+  if (matchToken(joined, ["sms", "otp"])) return "SMS";
+  if (matchToken(joined, ["marketplace", "daraz", "evaly", "ajkerdeal", "pickaboo"])) return "Marketplace";
+  if (matchToken(joined, ["toyora"])) return "Toyora";
+  if (matchToken(joined, ["hobby"])) return "HobbyShop";
+  if (matchToken(joined, ["pos", "in-store", "in store", "retail"])) return "POS";
+
+  // Channel-level fallbacks before bucketing
+  if (sig.source && sig.source.toLowerCase() === "manual") return "Manual";
+  if (sig.source && sig.source.toLowerCase() === "pos") return "POS";
+  if (sig.source_website && !["main", "website", "web", "direct", "(direct)"].includes(sig.source_website.toLowerCase())) {
+    // unknown storefront — title-case for distinct label
+    return sig.source_website.replace(/[_\-/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 24);
+  }
+  if (matchToken(joined, ["main", "website", "web ", "(direct)", "direct"])) return "Web";
+
+  // Final fallback: prettify the most specific signal we have
+  const raw = sig.utm_source ?? sig.source_platform ?? sig.source_website ?? sig.source ?? "Other";
+  return raw.toString().replace(/[_\-/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 24);
+}
+// Back-compat single-string entry point.
 function classifySource(raw: string | null | undefined): string {
-  const s = (raw ?? "").toLowerCase().trim();
-  if (!s) return "Direct";
-  if (s === "main" || s === "website" || s === "web" || s.includes("direct") || s === "(direct)") return "Direct";
-  if (s.includes("facebook") || s === "fb" || s.includes("meta")) return "Facebook";
-  if (s.includes("instagram") || s === "ig") return "Instagram";
-  if (s.includes("google")) return "Google";
-  if (s.includes("tiktok") || s === "tt") return "TikTok";
-  if (s.includes("youtube") || s === "yt") return "YouTube";
-  if (s.startsWith("lp/") || s.startsWith("lp-") || s.includes("landing")) return "Landing Page";
-  if (s.includes("toyora")) return "Toyora";
-  if (s.includes("hobby")) return "HobbyShop";
-  if (s.includes("referral") || s.includes("ref")) return "Referral";
-  // Fallback: title-case the raw value so unknown sources still show distinctly
-  return (raw ?? "Other").toString().replace(/[_\-/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 24);
+  return classifySourceSignals({ utm_source: raw ?? null });
 }
 
 type RangeT = { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number };
