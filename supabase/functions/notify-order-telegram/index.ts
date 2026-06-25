@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(name, quantity, unit_price)",
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, created_by, order_items(name, quantity, unit_price)",
       )
       .eq("id", order_id)
       .single();
@@ -80,6 +80,18 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // Lookup creator name (staff who created the order)
+    let createdByName = "";
+    if (order.created_by) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", order.created_by)
+        .maybeSingle();
+      createdByName = (prof?.full_name as string) || (prof?.email as string) || "";
+    }
+    const isCustomerOrder = !createdByName;
 
     const items = (order.order_items ?? []) as Array<{
       name: string;
@@ -108,6 +120,9 @@ Deno.serve(async (req) => {
       `💰 Total: <b>${fmtBDT(order.total)}</b>`,
       `🚚 Shipping: ${fmtBDT(order.shipping_fee)}  ·  💳 ${esc(order.payment_method ?? "—")}`,
       `🌐 Source: ${esc(source)}  ·  Status: ${esc(order.status)}`,
+      createdByName
+        ? `🧑‍💼 Created by: <b>${esc(createdByName)}</b>`
+        : `🌍 Created from: <b>Website (Customer)</b>`,
     ]
       .filter(Boolean)
       .join("\n");
