@@ -108,38 +108,53 @@ function AdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* HEADER */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white">
-        <div className="px-4 md:px-6 py-6 max-w-[1600px] mx-auto">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-                {greeting()}, {me?.name ?? "..."} <span className="inline-block">👋</span>
-              </h1>
-              <p className="text-sm text-slate-300 mt-1">
+    <div
+      className="dark min-h-screen bg-background text-foreground font-sans"
+      style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
+    >
+      {/* HEADER — bento hero card */}
+      <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#0a0a1a] via-[#141432] to-[#1e1e5a]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-60"
+          style={{
+            background:
+              "radial-gradient(60% 80% at 90% 0%, rgba(79,70,229,0.35), transparent 60%), radial-gradient(40% 60% at 0% 100%, rgba(30,30,90,0.5), transparent 60%)",
+          }}
+        />
+        <div className="relative px-6 md:px-10 py-10 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 sm:flex sm:flex-wrap sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-indigo-300/80 mb-3 font-medium">
                 SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
-                {" · "}
-                <span className="text-slate-400">
-                  {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? ""}
-                </span>
+              </p>
+              <h1
+                className="text-3xl md:text-5xl font-bold tracking-tight text-white"
+                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+              >
+                {greeting()}, {me?.name ?? "..."}
+              </h1>
+              <p className="text-sm text-indigo-200/70 mt-2">
+                {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/10 text-xs text-slate-200">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur text-[11px] text-indigo-100/90">
                 <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Synced {timeAgo(lastSync)}
               </div>
-              <Button size="sm" variant="secondary" onClick={refreshAll} className="gap-1.5">
+              <Button size="sm" variant="secondary" onClick={refreshAll}
+                className="gap-1.5 bg-white/10 border border-white/10 text-white hover:bg-white/20 backdrop-blur">
                 <RefreshCw className="size-3.5" /> Refresh
               </Button>
-              <DateRangePicker value={mktRange} onChange={setMktRange} className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
+              <DateRangePicker value={mktRange} onChange={setMktRange}
+                className="bg-white/10 border-white/15 text-white hover:bg-white/20 hover:text-white backdrop-blur" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 md:px-6 py-8 max-w-[1600px] mx-auto space-y-8">
+      <div className="px-4 md:px-8 py-10 max-w-[1600px] mx-auto space-y-10">
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
@@ -281,36 +296,53 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {cards.map((c, i) => (
-        <button
-          key={i}
-          onClick={() => c.to && onNav(c.to)}
-          className={cn(
-            "group text-left bg-card rounded-xl border p-5 hover:shadow-lg transition-all duration-200",
-            c.to && "cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20"
-          )}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
-            <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
-              <c.icon className={cn("size-4", toneFg(c.tone))} />
-            </span>
-          </div>
-          {isLoading ? <Skeleton className="h-9 w-28" /> : (
-            <div className={cn(
-              "text-3xl font-bold tracking-tight tabular-nums leading-none",
-              typeof (c as any).amount === "number" && moneyTier((c as any).amount),
-            )}>{c.value}</div>
-          )}
-          <div className="mt-2.5 flex items-center gap-1.5 min-h-[20px]">
-            {typeof (c as any).trend === "number" ? (
-              <TrendChip trend={(c as any).trend} />
-            ) : null}
-            <span className="text-xs text-muted-foreground truncate">{c.sub}</span>
-          </div>
-        </button>
-      ))}
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 auto-rows-[140px] gap-3">
+      {cards.map((c, i) => {
+        // Bento sizing: feature the first two (Orders + Revenue) as larger tiles
+        const feature = i === 0 || i === 3;
+        return (
+          <button
+            key={i}
+            onClick={() => c.to && onNav(c.to)}
+            className={cn(
+              "group relative text-left rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-5 overflow-hidden",
+              "transition-all duration-200 hover:border-primary/40 hover:bg-card",
+              feature && "sm:col-span-2 sm:row-span-1",
+              c.to && "cursor-pointer",
+            )}
+          >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: "radial-gradient(80% 100% at 100% 0%, rgba(79,70,229,0.10), transparent 60%)" }}
+            />
+            <div className="relative flex items-start justify-between mb-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.label}</span>
+              <span className={cn("rounded-lg p-1.5 ring-1 ring-border/60", toneBg(c.tone))}>
+                <c.icon className={cn("size-3.5", toneFg(c.tone))} />
+              </span>
+            </div>
+            {isLoading ? <Skeleton className="h-9 w-28" /> : (
+              <div
+                className={cn(
+                  "relative tabular-nums leading-none tracking-tight font-bold text-foreground",
+                  feature ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl",
+                  typeof (c as any).amount === "number" && moneyTier((c as any).amount),
+                )}
+                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+              >
+                {c.value}
+              </div>
+            )}
+            <div className="relative mt-3 flex items-center gap-1.5 min-h-[20px]">
+              {typeof (c as any).trend === "number" ? (
+                <TrendChip trend={(c as any).trend} />
+              ) : null}
+              <span className="text-[11px] text-muted-foreground truncate">{c.sub}</span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
