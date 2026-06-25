@@ -8698,6 +8698,10 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      track_order_public: {
+        Args: { _order_prefix: string; _phone: string }
+        Returns: Json
+      }
       transition_order_status: {
         Args: {
           _new_status: Database["public"]["Enums"]["order_status"]
