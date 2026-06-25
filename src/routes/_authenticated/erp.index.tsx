@@ -26,6 +26,9 @@ import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { StaffDashboard } from "@/components/erp/staff-dashboard";
+import {
+  TodayCommandPanel, LiveVisitors, ProfitQuality, ProductDangerZone,
+} from "@/components/erp/dashboard-command-center";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
@@ -113,19 +116,19 @@ function AdminDashboard() {
       style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
     >
       {/* HEADER — bento hero card */}
-      <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#0a0a1a] via-[#141432] to-[#1e1e5a]">
+      <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#08080a] via-[#15151a] to-[#1f1f24]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-60"
           style={{
             background:
-              "radial-gradient(60% 80% at 90% 0%, rgba(79,70,229,0.35), transparent 60%), radial-gradient(40% 60% at 0% 100%, rgba(30,30,90,0.5), transparent 60%)",
+              "radial-gradient(60% 80% at 90% 0%, rgba(255,255,255,0.06), transparent 60%), radial-gradient(40% 60% at 0% 100%, rgba(99,102,241,0.10), transparent 60%)",
           }}
         />
         <div className="relative px-6 md:px-10 py-10 max-w-[1600px] mx-auto">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 sm:flex sm:flex-wrap sm:justify-between">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-indigo-300/80 mb-3 font-medium">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400 mb-3 font-medium">
                 SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
               </p>
               <h1
@@ -134,12 +137,12 @@ function AdminDashboard() {
               >
                 {greeting()}, {me?.name ?? "..."}
               </h1>
-              <p className="text-sm text-indigo-200/70 mt-2">
+              <p className="text-sm text-zinc-400 mt-2">
                 {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur text-[11px] text-indigo-100/90">
+              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur text-[11px] text-zinc-200">
                 <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Synced {timeAgo(lastSync)}
               </div>
@@ -155,7 +158,17 @@ function AdminDashboard() {
       </div>
 
       <div className="px-4 md:px-8 py-10 max-w-[1600px] mx-auto space-y-10">
-        <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+        {/* Command grid: KPIs + Today panel + Live visitors */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4">
+          <div className="space-y-4">
+            <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ProfitQuality brandIds={brandIds} enabled={enabled} range={range} />
+              <LiveVisitors />
+            </div>
+          </div>
+          <TodayCommandPanel brandIds={brandIds} enabled={enabled} />
+        </div>
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
 
@@ -173,6 +186,8 @@ function AdminDashboard() {
         </div>
 
         <FinanceSection brandIds={brandIds} enabled={enabled} range={range} />
+
+        <ProductDangerZone brandIds={brandIds} enabled={enabled} range={range} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <InventoryHealth brandIds={brandIds} enabled={enabled} />
