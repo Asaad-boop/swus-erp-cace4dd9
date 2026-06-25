@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(product_name, quantity, unit_price)",
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_city, shipping_thana, shipping_address, total, subtotal, shipping_fee, payment_method, source, source_website, source_platform, utm_source, status, created_at, order_items(name, quantity, unit_price)",
       )
       .eq("id", order_id)
       .single();
@@ -82,13 +82,13 @@ Deno.serve(async (req) => {
     }
 
     const items = (order.order_items ?? []) as Array<{
-      product_name: string;
+      name: string;
       quantity: number;
       unit_price: number;
     }>;
 
     const itemsText = items
-      .map((it) => `• ${esc(it.product_name)} × ${it.quantity} — ${fmtBDT(it.unit_price * it.quantity)}`)
+      .map((it) => `• ${esc(it.name)} × ${it.quantity} — ${fmtBDT((it.unit_price ?? 0) * (it.quantity ?? 0))}`)
       .join("\n");
 
     const source =
