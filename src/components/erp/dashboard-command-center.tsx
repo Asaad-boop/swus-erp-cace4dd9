@@ -69,11 +69,11 @@ export function TodayCommandPanel({ brandIds, enabled }: { brandIds: string[]; e
   ];
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Command Panel</div>
-          <div className="text-base font-semibold mt-0.5 text-foreground" style={{ fontFamily: "Sora, ui-sans-serif" }}>
+          <div className="text-sm font-semibold mt-0.5 text-foreground" style={{ fontFamily: "Sora, ui-sans-serif" }}>
             Today's Actions
           </div>
         </div>
@@ -84,7 +84,7 @@ export function TodayCommandPanel({ brandIds, enabled }: { brandIds: string[]; e
           <li key={it.label}>
             <Link
               to={it.to as any}
-              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/40 transition-colors"
+              className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span
@@ -169,8 +169,8 @@ export function LiveVisitors() {
   const active = data?.active ?? 0;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Eye className="size-4 text-muted-foreground" />
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
@@ -181,13 +181,13 @@ export function LiveVisitors() {
           <Radio className="size-3 animate-pulse" /> LIVE
         </span>
       </div>
-      <div className="p-5">
-        <div className="flex items-baseline gap-3 mb-4">
+      <div className="p-4">
+        <div className="flex items-baseline gap-3 mb-3">
           {isLoading ? (
             <Skeleton className="h-12 w-20" />
           ) : (
             <span
-              className="text-5xl font-bold tabular-nums leading-none"
+              className="text-4xl font-bold tabular-nums leading-none"
               style={{ fontFamily: "Sora, ui-sans-serif", letterSpacing: "-0.02em" }}
             >
               {active}
@@ -202,7 +202,7 @@ export function LiveVisitors() {
         {(data?.topPaths ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">No active visitors</p>
         ) : (
-          <ul className="space-y-1.5 mb-4">
+          <ul className="space-y-1 mb-3">
             {(data?.topPaths ?? []).map(([p, n]) => (
               <li key={p} className="flex items-center justify-between text-xs">
                 <span className="truncate text-foreground/80 font-mono">{p || "/"}</span>
@@ -316,13 +316,13 @@ export function ProfitQuality({
   ];
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
             Profit Quality
           </div>
-          <div className="text-base font-bold mt-0.5" style={{ fontFamily: "Sora, ui-sans-serif" }}>
+          <div className="text-sm font-semibold mt-0.5" style={{ fontFamily: "Sora, ui-sans-serif" }}>
             Net Margin Score
           </div>
         </div>
@@ -337,14 +337,14 @@ export function ProfitQuality({
           {data?.score ?? "—"}
         </span>
       </div>
-      <div className="p-5">
+      <div className="p-4">
         {isLoading ? (
-          <Skeleton className="h-12 w-32 mb-4" />
+          <Skeleton className="h-10 w-32 mb-3" />
         ) : (
-          <div className="flex items-baseline gap-2 mb-4">
+          <div className="flex items-baseline gap-2 mb-3">
             <span
               className={cn(
-                "text-4xl font-bold tabular-nums leading-none",
+                "text-3xl font-bold tabular-nums leading-none",
                 (data?.net ?? 0) >= 0 ? "text-emerald-600" : "text-rose-600",
               )}
               style={{ fontFamily: "Sora, ui-sans-serif", letterSpacing: "-0.02em" }}
