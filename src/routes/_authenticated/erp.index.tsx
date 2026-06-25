@@ -1388,18 +1388,31 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
     refetchInterval: 60000,
     queryFn: async () => {
       const { data, error } = await applyBrandScope(
-        supabase.from("orders").select("created_at, status, utm_source, source_website"),
+        supabase.from("orders").select("created_at, status, utm_source, source, source_platform, source_website"),
         brandIds,
       ).gte("created_at", fromISO).lte("created_at", toISO);
       if (error) throw error;
-      return (data ?? []) as Array<{ created_at: string; status: string | null; utm_source: string | null; source_website: string | null }>;
+      return (data ?? []) as Array<{
+        created_at: string;
+        status: string | null;
+        utm_source: string | null;
+        source: string | null;
+        source_platform: string | null;
+        source_website: string | null;
+      }>;
     },
   });
 
   const sourceData = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const r of rows) {
-      const k = classifySource(r.utm_source ?? r.source_website);
+      const k = classifySourceSignals({
+        utm_source: r.utm_source,
+        source: r.source,
+        source_platform: r.source_platform,
+        source_website: r.source_website,
+        status: r.status,
+      });
       counts[k] = (counts[k] ?? 0) + 1;
     }
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
