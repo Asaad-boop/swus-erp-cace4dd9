@@ -915,28 +915,33 @@ function _WebOrdersPageBody() {
   const selectedOrderRows = rows.filter((r) => selectedIds.has(r.id));
 
   return (
-    <div className="p-4 md:p-6">
-      {/* Header — inline search */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="px-5 md:px-8 py-6 md:py-8 max-w-[1600px] mx-auto">
+      {/* Header — refined, minimal */}
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight leading-tight">Web Orders</h1>
-          <p className="text-sm text-muted-foreground truncate">
-            {isAllBrands ? `All Brands (${brands.length})` : activeBrand?.name ?? "—"} · Orders from website
+          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+            Orders
+          </div>
+          <h1 className="mt-1 text-[26px] font-semibold tracking-tight leading-tight text-foreground">
+            Web Orders
+          </h1>
+          <p className="mt-1 text-[13px] text-muted-foreground truncate">
+            {isAllBrands ? `All Brands · ${brands.length}` : activeBrand?.name ?? "—"}
             {activeTab !== "incomplete" && totalRows > 0 && (
-              <span className="ml-1.5">· {rows.length} of {totalRows}</span>
+              <span className="ml-2 text-muted-foreground/70">{rows.length} of {totalRows}</span>
             )}
           </p>
         </div>
         <Input
-          placeholder="Search by invoice, name, phone, address…"
+          placeholder="Search invoice, name, phone…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="w-full sm:w-[300px] h-9"
+          className="w-full sm:w-[280px] h-9 rounded-lg border-border/60 bg-background/80 text-[13px] shadow-none focus-visible:ring-1 focus-visible:ring-ring/40"
         />
       </header>
 
-      {/* Tabs — pill style, single-row scroll */}
-      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:thin]">
+      {/* Tabs — segmented underline, Linear/Notion-style */}
+      <div className="mt-6 flex items-center gap-1 overflow-x-auto -mx-1 px-1 border-b border-border/60 [scrollbar-width:thin]">
         {STATUS_TABS.map((t) => {
           const active = activeTab === t.key;
           const count =
@@ -948,17 +953,19 @@ function _WebOrdersPageBody() {
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               className={cn(
-                "shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                "relative shrink-0 inline-flex items-center gap-2 px-3 py-2.5 text-[13px] font-medium transition-colors -mb-px border-b-2",
                 active
-                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                  : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               <span>{t.label}</span>
               <span
                 className={cn(
-                  "tabular-nums inline-flex items-center justify-center rounded-full text-[10px] font-bold min-w-[18px] h-[18px] px-1.5",
-                  active ? "bg-white text-indigo-800" : "bg-background/80 text-muted-foreground",
+                  "tabular-nums inline-flex items-center justify-center rounded-md text-[10.5px] font-medium min-w-[20px] h-[18px] px-1.5",
+                  active
+                    ? "bg-foreground text-background"
+                    : "bg-muted/70 text-muted-foreground",
                 )}
               >
                 {count}
@@ -969,7 +976,7 @@ function _WebOrdersPageBody() {
       </div>
 
       {/* Filter row — tags inline + dropdowns right-aligned */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-y py-1.5">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 py-1">
         <div className="min-w-0 flex-1">
           <TagFilterBar
             options={filterOptions}
@@ -994,10 +1001,10 @@ function _WebOrdersPageBody() {
         </div>
       </div>
 
-      <div className="mt-2 space-y-4">
+      <div className="mt-4 space-y-4">
 
       {activeTab === "incomplete" ? (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <IncompleteOrdersTable
             brandId={activeBrand?.id ?? null}
             search={debouncedSearch}
@@ -1008,10 +1015,10 @@ function _WebOrdersPageBody() {
           />
         </div>
       ) : (
-      <div className="rounded-xl border bg-card overflow-x-auto">
+      <div className="rounded-xl border border-border/60 bg-card overflow-x-auto shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-border/60">
               <TableHead className="w-[36px] pl-3">
                 <Checkbox
                   checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
