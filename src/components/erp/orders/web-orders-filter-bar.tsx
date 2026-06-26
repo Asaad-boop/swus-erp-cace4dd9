@@ -1,4 +1,4 @@
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Globe } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
@@ -73,9 +73,12 @@ export function WebOrdersFilterBar({ state, onChange, onClearAll: _onClearAll }:
   })();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 rounded-full bg-muted/40 p-1">
       <DateRangePicker
-        className={cn("h-8", state.datePreset !== "all" && "border-primary/40")}
+        className={cn(
+          "h-7 rounded-full border-transparent bg-transparent text-[12px] shadow-none hover:bg-background",
+          state.datePreset !== "all" && "bg-background text-foreground ring-1 ring-inset ring-border/60",
+        )}
         value={mktValue}
         onChange={(v) => {
           if (v.presetKey === "lifetime") {
@@ -92,7 +95,11 @@ export function WebOrdersFilterBar({ state, onChange, onClearAll: _onClearAll }:
 
       {/* Source */}
       <Select value={state.source} onValueChange={(v) => onChange({ source: v })}>
-        <SelectTrigger className={cn("h-8 w-[150px] text-xs", state.source !== "all" && "border-primary/40")}>
+        <SelectTrigger className={cn(
+          "h-7 w-[140px] rounded-full border-transparent bg-transparent text-[12px] gap-1.5 shadow-none hover:bg-background focus:ring-0 focus:ring-offset-0",
+          state.source !== "all" && "bg-background ring-1 ring-inset ring-border/60",
+        )}>
+          <Globe className="h-3.5 w-3.5 opacity-60" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -104,8 +111,11 @@ export function WebOrdersFilterBar({ state, onChange, onClearAll: _onClearAll }:
 
       {/* Sort */}
       <Select value={state.sort} onValueChange={(v) => onChange({ sort: v as SortKey })}>
-        <SelectTrigger className={cn("h-8 w-[170px] text-xs gap-1.5", state.sort !== "newest" && "border-primary/40")}>
-          <ArrowUpDown className="h-3.5 w-3.5 opacity-70" />
+        <SelectTrigger className={cn(
+          "h-7 w-[160px] rounded-full border-transparent bg-transparent text-[12px] gap-1.5 shadow-none hover:bg-background focus:ring-0 focus:ring-offset-0",
+          state.sort !== "newest" && "bg-background ring-1 ring-inset ring-border/60",
+        )}>
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
