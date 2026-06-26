@@ -415,7 +415,7 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
 
     const { data: order, error } = await supabase
       .from("orders")
-      .select("id, brand_id, shipping_address, shipping_thana, shipping_city, shipping_district")
+      .select("id, brand_id, shipping_address, shipping_thana, shipping_city, shipping_district, shipping_phone, guest_phone")
       .eq("id", data.orderId)
       .maybeSingle();
     if (error) throw error;
@@ -429,6 +429,41 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
     const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
       .filter(Boolean)
       .join(", ");
+
+    // ── Priority 0: Pathao's own customer lookup by phone ─────────────
+    // The Pathao merchant portal pre-fills city/zone/area from this exact
+    // endpoint. If the buyer has shipped with any Pathao merchant before,
+    // we get a perfect, official match — no heuristics needed.
+    const phone = (order.shipping_phone || order.guest_phone || "").toString().replace(/\D/g, "").slice(-11);
+    if (phone.length >= 11) {
+      try {
+        const info: any = await client.lookupCustomer(phone);
+        const d = info?.data ?? info ?? {};
+        const cityId = Number(d.city_id || d.recipient_city || 0);
+        const zoneId = Number(d.zone_id || d.recipient_zone || 0);
+        const areaId = Number(d.area_id || d.recipient_area || 0);
+        if (cityId && zoneId) {
+          const cityName = cityItems.find((c) => c.id === cityId)?.name ?? d.city_name ?? "";
+          const zonesRaw = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+          const zoneName = zonesRaw.find((z) => z.zone_id === zoneId)?.zone_name ?? d.zone_name ?? "";
+          let area: { id: number; name: string } | null = null;
+          if (areaId) {
+            try {
+              const areasRaw = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+              const an = areasRaw.find((a) => a.area_id === areaId)?.area_name ?? d.area_name ?? "";
+              area = { id: areaId, name: an };
+            } catch { /* ignore */ }
+          }
+          return {
+            city: { id: cityId, name: cityName },
+            zone: { id: zoneId, name: zoneName },
+            area,
+            confidence: 1,
+            source: "pathao_phone" as const,
+          };
+        }
+      } catch { /* fall through */ }
+    }
 
     // Structured-first
     const cityQuery = (order.shipping_district || order.shipping_city || "").trim();
