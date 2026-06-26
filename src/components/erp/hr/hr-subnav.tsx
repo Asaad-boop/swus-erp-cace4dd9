@@ -1,23 +1,24 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  Users,
   Settings as SettingsIcon,
-  CalendarCheck,
-  CalendarDays,
-  Wallet,
   UsersRound,
+  Activity,
+  ShieldCheck,
+  FileBarChart2,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Slimmed nav — 5 main + Settings (Departments / Designations / Holidays /
-// Shifts / Leave-policy / Reports moved into Settings tabs).
+// HRM subnav — focused on live ops + admin attendance flows.
 const items = [
   { to: "/erp/hr", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/erp/hr/employees", label: "People", icon: Users },
-  { to: "/erp/hr/attendance", label: "Attendance", icon: CalendarCheck },
-  { to: "/erp/hr/leave", label: "Leave", icon: CalendarDays },
-  { to: "/erp/hr/payroll", label: "Payroll", icon: Wallet },
+  { to: "/erp/hr/attendance/muster", label: "Activities", icon: Activity },
+  { to: "/erp/hr/attendance", label: "Admin Attendance", icon: ShieldCheck, exact: true },
+  { to: "/erp/hr/reports", label: "Attendance Report", icon: FileBarChart2, exact: true },
+  { to: "/erp/hr/leave", label: "Approvals", icon: CheckCircle2 },
+  { to: "/erp/hr/reports", label: "Late Report", icon: Clock, search: { view: "late" } as Record<string, string> },
   { to: "/erp/hr/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -36,11 +37,14 @@ export function HrSubnav() {
         </div>
         <nav className="flex items-center gap-0.5 overflow-x-auto scrollbar-thin -mx-1 px-1 flex-1">
           {items.map((it) => {
-            const active = it.exact ? pathname === it.to : pathname.startsWith(it.to);
+            const active = it.exact
+              ? pathname === it.to && (!("search" in it && it.search) || (typeof window !== "undefined" && window.location.search.includes(`view=${(it as { search?: Record<string,string> }).search?.view ?? ""}`)))
+              : pathname.startsWith(it.to);
             return (
               <Link
-                key={it.to}
+                key={it.label}
                 to={it.to as never}
+                search={("search" in it ? it.search : undefined) as never}
                 className={cn(
                   "group relative inline-flex items-center gap-1.5 px-2.5 h-8 text-[12.5px] font-medium rounded-md transition-colors whitespace-nowrap",
                   active
