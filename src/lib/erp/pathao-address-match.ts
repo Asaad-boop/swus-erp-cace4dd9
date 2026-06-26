@@ -106,7 +106,8 @@ const SPELLING_ALIASES: Array<[RegExp, string]> = [
   [/\bgazipur\b|\bgazipure\b/g, "gazipur"],
   [/\bnarayanganj\b|\bnarayangonj\b|\bn ganj\b/g, "narayanganj"],
   [/\bchattogram\b|\bchittagong\b|\bctg\b|\bctg\b/g, "chattogram"],
-  [/\bcumilla\b|\bcomilla\b/g, "cumilla"],
+  [/\bcumilla\b|\bcumila\b|\bcunmilla\b|\bcomilla\b|\bcomila\b|\bkumilla\b|\bkumila\b|\bkumilla\b/g, "cumilla"],
+  [/\bsadar\b|\bsodor\b|\bsador\b|\bsader\b|\bsdr\b/g, "sadar"],
   [/\bsylhet\b|\bsylet\b/g, "sylhet"],
   [/\brajshahi\b|\brajsahi\b/g, "rajshahi"],
   [/\bkhulna\b/g, "khulna"],
@@ -132,6 +133,16 @@ function tokenize(s: string): string[] {
   return s.split(" ").filter((t) => t.length >= 2);
 }
 
+function tokenSet(s: string): Set<string> {
+  return new Set(tokenize(normalize(s)));
+}
+
+function mergeTokenSets(...sets: Array<Set<string> | undefined>): Set<string> {
+  const out = new Set<string>();
+  for (const set of sets) for (const token of set ?? []) out.add(token);
+  return out;
+}
+
 /**
  * Score how strongly `name` appears inside `addr` (both normalized).
  * - Whole-name word-boundary match: very high.
@@ -139,7 +150,7 @@ function tokenize(s: string): string[] {
  * - Per-token overlap: small boost.
  * Returns 0 when nothing useful matches.
  */
-function scoreName(addr: string, name: string): number {
+function scoreName(addr: string, name: string, opts: { ignoreTokens?: Set<string> } = {}): number {
   if (!name) return 0;
   const paddedAddr = ` ${addr} `;
   const paddedName = ` ${name} `;
@@ -150,19 +161,39 @@ function scoreName(addr: string, name: string): number {
   if (nameTokens.length === 0) return 0;
   let tokScore = 0;
   let hits = 0;
+  let distinctiveHits = 0;
   for (const t of nameTokens) {
-    if (addrTokens.has(t)) { tokScore += t.length * 3; hits++; }
-    else if (addr.includes(t) && t.length >= 4) { tokScore += t.length; hits++; }
+    const isIgnored = opts.ignoreTokens?.has(t) ?? false;
+    if (addrTokens.has(t)) {
+      tokScore += t.length * 3;
+      hits++;
+      if (!isIgnored) distinctiveHits++;
+    }
+    else if (addr.includes(t) && t.length >= 4) {
+      tokScore += t.length;
+      hits++;
+      if (!isIgnored) distinctiveHits++;
+    }
   }
   // Require majority of multi-token names to hit; cuts false positives
   if (nameTokens.length >= 2 && hits < Math.ceil(nameTokens.length / 2)) return 0;
+  // Zone/area names often include the parent city (e.g. "Cumilla Cantonment").
+  // Matching only that parent token caused wrong picks like "Cumilla Sadar" →
+  // "Cumilla Cantonment" / "Comilla University". For hierarchical matching,
+  // at least one non-parent token must be present unless the full phrase matched.
+  if (nameTokens.length >= 2 && opts.ignoreTokens?.size && distinctiveHits === 0) return 0;
   return tokScore;
 }
 
-export function rankItems(addressRaw: string, items: MatchItem[], topN: number): Array<{ item: MatchItem; score: number }> {
+export function rankItems(
+  addressRaw: string,
+  items: MatchItem[],
+  topN: number,
+  opts: { ignoreTokens?: Set<string> } = {},
+): Array<{ item: MatchItem; score: number }> {
   const addr = normalize(addressRaw);
   const scored = items
-    .map((it) => ({ item: it, score: scoreName(addr, normalize(it.name)) }))
+    .map((it) => ({ item: it, score: scoreName(addr, normalize(it.name), opts) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
   return scored.slice(0, topN);
@@ -219,7 +250,8 @@ export async function detectHierarchy(opts: {
   for (const c of cityCands) {
     let zones: MatchItem[] = [];
     try { zones = await lookup.zones(c.item.id); } catch { zones = []; }
-    const topZones = rankItems(address, zones, 3);
+    const cityTokens = tokenSet(c.item.name);
+    const topZones = rankItems(address, zones, 3, { ignoreTokens: cityTokens });
     if (topZones.length === 0) {
       combos.push({ city: c.item, zone: null, area: null, score: c.base });
       continue;
@@ -227,7 +259,7 @@ export async function detectHierarchy(opts: {
     for (const z of topZones) {
       let areas: MatchItem[] = [];
       try { areas = await lookup.areas(z.item.id); } catch { areas = []; }
-      const topArea = rankItems(address, areas, 1)[0] ?? null;
+      const topArea = rankItems(address, areas, 1, { ignoreTokens: mergeTokenSets(cityTokens, tokenSet(z.item.name)) })[0] ?? null;
       // Weights: zone matters most, then area, then city presence
       const score = c.base * 1 + z.score * 3 + (topArea?.score ?? 0) * 2;
       combos.push({ city: c.item, zone: z.item, area: topArea?.item ?? null, score });
