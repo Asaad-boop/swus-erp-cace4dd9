@@ -67,11 +67,15 @@ export function StaffDashboard() {
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
-      const [todayOrders, pending, inTransit, attention, lowStock, recent] = await Promise.all([
+      const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"];
+      const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent] = await Promise.all([
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .gte("created_at", todayStart.toISOString()),
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
-          .in("status", ["new", "confirmed", "packaging", "packed", "ready_to_ship"]),
+          .in("status", pendingStatuses),
+        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+          .in("status", pendingStatuses)
+          .gte("created_at", todayStart.toISOString()),
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["shipped", "in_transit"]),
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
@@ -87,6 +91,7 @@ export function StaffDashboard() {
       return {
         todayOrders: todayOrders.count ?? 0,
         pending: pending.count ?? 0,
+        todayPending: todayPending.count ?? 0,
         inTransit: inTransit.count ?? 0,
         attention: attention.count ?? 0,
         lowStock: lowStock.count ?? 0,
@@ -121,7 +126,8 @@ export function StaffDashboard() {
 
   const kpis = [
     { icon: ShoppingCart, label: "Today's orders", value: data?.todayOrders ?? 0, tone: "indigo", to: "/erp/orders/web" },
-    { icon: ClipboardList, label: "Pending action", value: data?.pending ?? 0, tone: "amber", to: "/erp/orders/web" },
+    { icon: ClipboardList, label: "Today pending", value: data?.todayPending ?? 0, tone: "amber", to: "/erp/orders/web" },
+    { icon: ClipboardList, label: "Total pending", value: data?.pending ?? 0, tone: "amber", to: "/erp/orders/web" },
     { icon: Truck, label: "In transit", value: data?.inTransit ?? 0, tone: "blue", to: "/erp/courier" },
     { icon: AlertTriangle, label: "Needs attention", value: data?.attention ?? 0, tone: "rose", to: "/erp/orders/web" },
     { icon: Package, label: "Low stock alerts", value: data?.lowStock ?? 0, tone: "violet", to: "/erp/inventory" },
