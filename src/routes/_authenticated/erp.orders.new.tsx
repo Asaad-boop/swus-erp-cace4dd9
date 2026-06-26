@@ -170,9 +170,9 @@ function NewOrderPage() {
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
   const detectFn = useServerFn(pathaoDetectAddressFn);
   const [lastDetect, setLastDetect] = useState<{
-    city: { id: number; name: string } | null;
-    zone: { id: number; name: string } | null;
-    area: { id: number; name: string } | null;
+    city: { id: number; name: string | null } | null;
+    zone: { id: number; name: string | null } | null;
+    area: { id: number; name: string | null } | null;
     confidence: number;
     address: string;
   } | null>(null);
