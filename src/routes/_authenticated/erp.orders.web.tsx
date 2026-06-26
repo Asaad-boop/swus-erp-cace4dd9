@@ -372,17 +372,17 @@ function CustomerBadges({ total, confirmRate, delivered }: { total: number; conf
         <TooltipTrigger asChild>
           <span className="inline-flex items-center gap-1 flex-wrap">
             {total >= 5 ? (
-              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20">
-                <Star className="h-2.5 w-2.5 fill-current" />VIP
+              <span className="inline-flex items-center gap-1 h-[17px] px-1.5 rounded-full text-[9.5px] font-medium tracking-wide bg-foreground/[0.04] text-foreground/80 ring-1 ring-inset ring-border/60">
+                <span className="h-1 w-1 rounded-full bg-amber-500" />VIP
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200/70 dark:bg-indigo-500/10 dark:text-indigo-200 dark:ring-indigo-400/20">
-                <Repeat className="h-2.5 w-2.5" />{total}×
+              <span className="inline-flex items-center gap-1 h-[17px] px-1.5 rounded-full text-[9.5px] font-medium tracking-wide bg-foreground/[0.04] text-foreground/80 ring-1 ring-inset ring-border/60 tabular-nums">
+                <span className="h-1 w-1 rounded-full bg-indigo-500" />{total}×
               </span>
             )}
             {confirmRate < 30 && total >= 3 && (
-              <span className="inline-flex items-center gap-1 h-[18px] pl-1 pr-1.5 rounded-full text-[9.5px] font-semibold tracking-wide bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70 dark:bg-rose-500/10 dark:text-rose-200 dark:ring-rose-400/20">
-                <AlertTriangle className="h-2.5 w-2.5" />Low
+              <span className="inline-flex items-center gap-1 h-[17px] px-1.5 rounded-full text-[9.5px] font-medium tracking-wide bg-foreground/[0.04] text-foreground/80 ring-1 ring-inset ring-border/60">
+                <span className="h-1 w-1 rounded-full bg-rose-500" />Low
               </span>
             )}
           </span>
@@ -432,49 +432,40 @@ function resolveSite(raw: string | null | undefined): SiteIdentity | null {
   if (s.includes("toyora")) {
     return {
       key: "toyora", label: "Toyora", initial: "T",
-      dotClass: "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-[0_2px_6px_-2px_rgba(244,63,94,0.6)]",
-      pillClass: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-orange-900/60",
+      dotClass: "bg-rose-500",
+      pillClass: "bg-background text-foreground/85 ring-border/70",
     };
   }
   if (s.includes("hobby")) {
     return {
       key: "hobbyshop", label: "HobbyShop", initial: "H",
-      dotClass: "bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-[0_2px_6px_-2px_rgba(79,70,229,0.6)]",
-      pillClass: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900/60",
+      dotClass: "bg-indigo-500",
+      pillClass: "bg-background text-foreground/85 ring-border/70",
     };
   }
   if (s === "main" || s.includes("swus")) {
     return {
       key: "main", label: "Main", initial: "M",
-      dotClass: "bg-gradient-to-br from-zinc-700 to-zinc-900 text-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.5)]",
-      pillClass: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-900/60 dark:text-zinc-300 dark:ring-zinc-800",
+      dotClass: "bg-foreground/70",
+      pillClass: "bg-background text-foreground/85 ring-border/70",
     };
   }
   return {
     key: "other", label: s.length > 18 ? s.slice(0, 18) + "…" : s, initial: s[0]?.toUpperCase() ?? "·",
-    dotClass: "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white",
-    pillClass: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900/60",
+    dotClass: "bg-violet-500",
+    pillClass: "bg-background text-foreground/85 ring-border/70",
   };
 }
 
 function BrandChip({ name }: { name: string }) {
   const n = name.toLowerCase();
-  let cls = "bg-gradient-to-r from-primary/10 to-primary/5 text-primary ring-primary/20";
-  let initial = name[0]?.toUpperCase() ?? "·";
-  let dot = "bg-primary text-primary-foreground";
-  if (n.includes("toyora")) {
-    cls = "bg-gradient-to-r from-orange-50 to-rose-50 text-rose-700 ring-rose-200 dark:from-orange-950/30 dark:to-rose-950/30 dark:text-rose-300 dark:ring-rose-900/50";
-    dot = "bg-gradient-to-br from-orange-500 to-rose-500 text-white";
-    initial = "T";
-  } else if (n.includes("hobby")) {
-    cls = "bg-gradient-to-r from-sky-50 to-indigo-50 text-indigo-700 ring-indigo-200 dark:from-sky-950/30 dark:to-indigo-950/30 dark:text-indigo-300 dark:ring-indigo-900/50";
-    dot = "bg-gradient-to-br from-sky-500 to-indigo-600 text-white";
-    initial = "H";
-  }
+  let dot = "bg-foreground/70";
+  if (n.includes("toyora")) dot = "bg-rose-500";
+  else if (n.includes("hobby")) dot = "bg-indigo-500";
   return (
-    <span className={cn("inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset", cls)}>
-      <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", dot)}>{initial}</span>
-      <span className="tracking-tight">{name}</span>
+    <span className="inline-flex items-center gap-1.5 px-2 h-[20px] rounded-full text-[10.5px] font-medium tracking-tight bg-background text-foreground/85 ring-1 ring-inset ring-border/70">
+      <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+      <span>{name}</span>
     </span>
   );
 }
@@ -1200,18 +1191,10 @@ function _WebOrdersPageBody() {
                     {/* Note */}
                     <TableCell className="py-3">
                       {note ? (
-                        <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-amber-50/40 dark:bg-amber-950/15 border border-amber-200/50 dark:border-amber-900/30 hover:border-amber-300/70 dark:hover:border-amber-800/60 transition-colors">
-                          <div className="mt-0.5 shrink-0 flex items-center justify-center w-4 h-4 rounded-md bg-amber-100/70 dark:bg-amber-900/40">
-                            <MessageSquare className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
-                          </div>
-                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                            <span className="text-[8.5px] font-semibold uppercase tracking-[0.08em] text-amber-700/60 dark:text-amber-400/60 leading-none">
-                              Note
-                            </span>
-                            <p className="text-[11.5px] leading-snug text-foreground/90 font-medium line-clamp-3">
-                              {note}
-                            </p>
-                          </div>
+                        <div className="w-[210px] pl-2.5 border-l-2 border-amber-400/60 dark:border-amber-500/50">
+                          <p className="text-[11.5px] leading-snug text-foreground/85 line-clamp-3" title={note}>
+                            {note}
+                          </p>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground/60">—</span>
@@ -1327,15 +1310,13 @@ function _WebOrdersPageBody() {
                           return (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset max-w-[150px]",
+                                "inline-flex items-center gap-1.5 px-2 h-[20px] rounded-full text-[10.5px] font-medium tracking-tight ring-1 ring-inset max-w-[150px]",
                                 site.pillClass,
                               )}
                               title={r.source_website ?? site.label}
                             >
-                              <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", site.dotClass)}>
-                                {site.initial}
-                              </span>
-                              <span className="truncate tracking-tight">{site.label}</span>
+                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", site.dotClass)} />
+                              <span className="truncate">{site.label}</span>
                             </span>
                           );
                         })()}
