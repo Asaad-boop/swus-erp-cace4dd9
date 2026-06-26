@@ -109,6 +109,36 @@ export const STATUS_ACCENT: Record<string, string> = {
 };
 export function statusAccent(s: string) { return STATUS_ACCENT[s] ?? "#a1a1aa"; }
 
+/**
+ * Settlement = post-delivery financial state. Once an order reaches
+ * delivered / returned / exchanged (any partial variant included), it
+ * must show Paid or Unpaid consistently across list & detail pages.
+ */
+export const SETTLEMENT_STATUSES = new Set<string>([
+  "delivered", "partial_delivered",
+  "returned", "partial_return",
+  "exchange", "exchanged",
+  "paid", "paid_return", "unpaid_return",
+]);
+
+export function isSettlementStatus(status: string | null | undefined): boolean {
+  return !!status && SETTLEMENT_STATUSES.has(status);
+}
+
+export function isOrderPaid(o: { status?: string | null; paid_at?: string | null }): boolean {
+  if (!o) return false;
+  if (o.status === "paid" || o.status === "paid_return") return true;
+  return !!o.paid_at;
+}
+
+export function settlementBadge(o: { status?: string | null; paid_at?: string | null }):
+  { label: "Paid" | "Unpaid"; className: string } | null {
+  if (!isSettlementStatus(o.status)) return null;
+  return isOrderPaid(o)
+    ? { label: "Paid", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" }
+    : { label: "Unpaid", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30" };
+}
+
 export type OrderRow = {
   id: string;
   invoice_no: string | null;
