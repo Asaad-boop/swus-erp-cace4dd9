@@ -12,6 +12,8 @@ export type PathaoCreds = {
 
 const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
 const tokenInflight = new Map<string, Promise<{ access_token: string; expires_at: number }>>();
+const merchantTokenCache = new Map<string, { access_token: string; expires_at: number }>();
+const merchantTokenInflight = new Map<string, Promise<{ access_token: string; expires_at: number }>>();
 const FETCH_TIMEOUT_MS = 12_000;
 
 async function fetchWithTimeout(
@@ -96,9 +98,59 @@ async function getToken(creds: PathaoCreds): Promise<string> {
   return t.access_token;
 }
 
+async function issueMerchantToken(creds: PathaoCreds) {
+  // Pathao's merchant-panel APIs (including /api/v1/address-parser) do not
+  // reliably accept the Aladdin `/issue-token` OAuth token. The Vue merchant
+  // portal logs in with this endpoint, stores `data.access_token`, then calls
+  // the address parser with `Authorization: Bearer <that-token>`. Using the
+  // same token source is what makes our detected city/zone/area match Pathao's
+  // reception/new-delivery form exactly.
+  const res = await fetchWithTimeout("https://merchant.pathao.com/api/v1/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      username: creds.username.trim().toLowerCase(),
+      password: creds.password,
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    if (res.status === 429) {
+      throw new Error("Pathao merchant login rate limit hoyeche. 1-2 minute pore abar try koro.");
+    }
+    throw new Error(`Pathao merchant login failed (${res.status}): ${txt.slice(0, 240)}`);
+  }
+  const j: any = await res.json();
+  const access = j.access_token || j.data?.access_token;
+  const expires = Number(j.expires_in || j.data?.expires_in || 3600);
+  if (!access) throw new Error("Pathao merchant login: no access_token in response");
+  return { access_token: access, expires_at: Date.now() + (Math.max(expires, 120) - 60) * 1000 };
+}
+
+async function getMerchantToken(creds: PathaoCreds): Promise<string> {
+  const key = `merchant::${creds.username}`;
+  const c = merchantTokenCache.get(key);
+  if (c && c.expires_at > Date.now()) return c.access_token;
+  const existing = merchantTokenInflight.get(key);
+  if (existing) return (await existing).access_token;
+  const pending = issueMerchantToken(creds);
+  merchantTokenInflight.set(key, pending);
+  const t = await pending.finally(() => merchantTokenInflight.delete(key));
+  merchantTokenCache.set(key, t);
+  return t.access_token;
+}
+
 export function createPathaoClient(creds: PathaoCreds) {
-  async function callBase<T = any>(baseUrl: string, path: string, init: RequestInit = {}): Promise<T> {
+  async function callBase<T = any>(baseUrl: string, path: string, init: RequestInit = {}, tokenKind: "aladdin" | "merchant" = "aladdin"): Promise<T> {
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const cacheKey = tokenKind === "merchant"
+      ? `merchant::${creds.username}`
+      : `${creds.base_url}::${creds.client_id}::${creds.username}`;
+    const getAuthToken = () => tokenKind === "merchant" ? getMerchantToken(creds) : getToken(creds);
+    const clearAuthToken = () => {
+      if (tokenKind === "merchant") merchantTokenCache.delete(cacheKey);
+      else tokenCache.delete(cacheKey);
+    };
     const doFetch = async (tok: string) =>
       fetchWithTimeout(`${baseUrl}${normalizedPath}`, {
         ...init,
@@ -109,10 +161,10 @@ export function createPathaoClient(creds: PathaoCreds) {
           ...(init.headers || {}),
         },
       });
-    let res = await doFetch(await getToken(creds));
+    let res = await doFetch(await getAuthToken());
     if (res.status === 401) {
-      tokenCache.delete(`${creds.base_url}::${creds.client_id}::${creds.username}`);
-      res = await doFetch(await getToken(creds));
+      clearAuthToken();
+      res = await doFetch(await getAuthToken());
     }
     const text = await res.text();
     let json: any = null;
@@ -144,7 +196,7 @@ export function createPathaoClient(creds: PathaoCreds) {
   }
 
   async function merchantCall<T = any>(path: string, init: RequestInit = {}): Promise<T> {
-    return callBase<T>("https://merchant.pathao.com", path, init);
+    return callBase<T>("https://merchant.pathao.com", path, init, "merchant");
   }
 
   return {
