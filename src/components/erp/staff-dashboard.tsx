@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { cn } from "@/lib/utils";
+import { AttendancePunchCard } from "@/components/erp/hr/attendance-punch-card";
 
 function greeting() {
   const h = new Date().getHours();
@@ -116,8 +117,6 @@ export function StaffDashboard() {
       show: has("operations") || has("warehouse_staff") },
     { to: "/erp/crm", icon: Headphones, title: "CRM", desc: "Customer support",
       show: has("operations") || has("customer_service") },
-    { to: "/me", icon: Users, title: "My Workspace", desc: "Attendance · leave · payslips",
-      show: true },
   ].filter(l => l.show);
 
   const kpis = [
@@ -155,25 +154,28 @@ export function StaffDashboard() {
       </div>
 
       <div className="px-4 md:px-6 py-8 max-w-[1400px] mx-auto space-y-8">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {kpis.map((c, i) => (
-            <button
-              key={i}
-              onClick={() => navigate({ to: c.to as any })}
-              className="group text-left bg-card rounded-xl border p-5 hover:shadow-lg hover:-translate-y-0.5 hover:border-foreground/20 transition-all duration-200"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
-                <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
-                  <c.icon className={cn("size-4", toneFg(c.tone))} />
-                </span>
-              </div>
-              {isLoading ? <Skeleton className="h-9 w-20" /> : (
-                <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
-              )}
-            </button>
-          ))}
+        {/* Attendance + KPIs */}
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
+          <AttendancePunchCard />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {kpis.map((c, i) => (
+              <button
+                key={i}
+                onClick={() => navigate({ to: c.to as any })}
+                className="group text-left bg-card rounded-xl border p-5 hover:shadow-lg hover:-translate-y-0.5 hover:border-foreground/20 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</span>
+                  <span className={cn("rounded-lg p-2", toneBg(c.tone))}>
+                    <c.icon className={cn("size-4", toneFg(c.tone))} />
+                  </span>
+                </div>
+                {isLoading ? <Skeleton className="h-9 w-20" /> : (
+                  <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Quick links */}

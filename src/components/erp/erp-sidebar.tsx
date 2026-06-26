@@ -25,7 +25,6 @@ const groups: Group[] = [
     label: "Overview",
     items: [
       { to: "/erp", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { to: "/me", label: "My Workspace", icon: UserCog },
     ],
   },
   {
