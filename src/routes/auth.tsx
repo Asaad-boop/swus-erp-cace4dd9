@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, ShieldCheck, Sparkles, BarChart3, Boxes } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, Sparkles, BarChart3, Boxes, AtSign } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
@@ -40,10 +40,21 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signin") {
+        // Resolve "username or email" -> email via RPC
+        let email = identifier.trim();
+        if (!email.includes("@")) {
+          const { data: resolved, error: rpcErr } = await supabase
+            .rpc("resolve_login_email", { p_identifier: email });
+          if (rpcErr) throw rpcErr;
+          if (!resolved) throw new Error("Username khuje pawa jay nai. Email diye try korun.");
+          email = resolved as string;
+        }
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back");
       } else {
+        const email = identifier.trim();
+        if (!email.includes("@")) throw new Error("Sign up er jonno email lagbe.");
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast.success("Account created — check your email if confirmation is required");
