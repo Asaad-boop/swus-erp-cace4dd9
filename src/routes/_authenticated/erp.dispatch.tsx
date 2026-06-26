@@ -829,6 +829,22 @@ function DispatchPage() {
           setPrintOverride({ orders: orders as OrderRow[], mode: "picking" });
           setPrintOpen(true);
         }}
+        onFinalizeHandover={async (orders) => {
+          const ids = (orders as OrderRow[]).map((o) => o.id);
+          if (ids.length === 0) return;
+          if (!window.confirm(`Mark ${ids.length} parcel(s) as Shipped? This finalizes the handover.`)) return;
+          const { error } = await supabase
+            .from("orders")
+            .update({ status: "shipped", shipped_at: new Date().toISOString() } as never)
+            .in("id", ids);
+          if (error) {
+            toast.error(`Finalize failed: ${error.message}`);
+            return;
+          }
+          toast.success(`${ids.length} parcel(s) marked as Shipped`);
+          setReportsOpen(false);
+          qc.invalidateQueries({ queryKey });
+        }}
       />
     </div>
   );
