@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -486,6 +486,11 @@ function _WebOrdersPageBody() {
   const [searchInput, setSearchInput] = useState(search.q);
   const [debouncedSearch, setDebouncedSearch] = useState(search.q);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+  const flashTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => () => {
+    flashTimersRef.current.forEach((t) => clearTimeout(t));
+    flashTimersRef.current.clear();
+  }, []);
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printOpen, setPrintOpen] = useState(false);
@@ -702,16 +707,20 @@ function _WebOrdersPageBody() {
             action: { label: "Open", onClick: () => setOpenId(row.id) },
           });
           setFlashIds((prev) => { const n = new Set(prev); n.add(row.id); return n; });
-          setTimeout(() => {
+          const timer = setTimeout(() => {
+            flashTimersRef.current.delete(timer);
             setFlashIds((prev) => { const n = new Set(prev); n.delete(row.id); return n; });
           }, 3000);
+          flashTimersRef.current.add(timer);
           queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
           queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
         },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [brandsKey, brandIds, queryClient]);
+    // brandIds intentionally omitted — brandsKey is the stable identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandsKey, queryClient]);
 
   // customer breakdown by phone — historical totals across all orders in this brand
   const phones = Array.from(new Set(rows.map((r) => r.shipping_phone ?? r.guest_phone).filter(Boolean) as string[]));
