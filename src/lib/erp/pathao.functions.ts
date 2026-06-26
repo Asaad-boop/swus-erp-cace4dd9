@@ -406,6 +406,15 @@ function addressAliasTargetSet(haystack: string) {
   return targets;
 }
 
+function looseGeoNameMatch(targets: Set<string>, name: string) {
+  const normalized = normalizeAddr(name);
+  const compact = normalized.replace(/\s+/g, "");
+  for (const target of targets) {
+    if (target === normalized || target.replace(/\s+/g, "") === compact) return true;
+  }
+  return false;
+}
+
 function isRoadMeasureCandidate(normalizedName: string) {
   const nameTokens = normalizedName.split(" ").filter(Boolean);
   return nameTokens.some((token) => ROAD_MEASURE_TOKENS.has(token)) && numericTokens(normalizedName).size > 0;
@@ -595,8 +604,8 @@ async function resolveByAddress(client: any, address: string) {
         + (area?.score ?? 0)
         + tokenOverlapScore(hayTokens, tokenSet(z.name), cityTokens)
         + (area ? tokenOverlapScore(hayTokens, tokenSet(area.name), cityTokens) : 0)
-        + (aliasTargets.has(normalizeAddr(z.name)) ? 90 : 0)
-        + (area && aliasTargets.has(normalizeAddr(area.name)) ? 60 : 0)
+        + (looseGeoNameMatch(aliasTargets, z.name) ? 90 : 0)
+        + (area && looseGeoNameMatch(aliasTargets, area.name) ? 60 : 0)
         + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
       if (!cityBestRoute || routeScore > cityBestRoute.score) {
         cityBestRoute = {
