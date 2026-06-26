@@ -636,8 +636,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     const client = await clientForBrand(supabase, order.brand_id);
     const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
     const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
-    const { detectHierarchy } = await import("./pathao-address-match");
-    const { bestMatch } = await import("./pathao-address-match");
+    const { detectHierarchy, bestMatch } = await import("./pathao-address-match");
 
     // ── Customer-provided structured fields take priority ─────────────────
     // Website checkout already collects District (= Pathao city) and
