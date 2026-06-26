@@ -77,7 +77,62 @@ function translitBangla(s: string): string {
   return out;
 }
 
-/* -------- Spelling aliases (post-transliteration normalisation) -------- */
+/* -------- Bangla + spelling aliases (normalisation / training data) -------- */
+
+const BANGLA_LOCATION_ALIASES: Array<[RegExp, string]> = [
+  [/ঢাকা/g, " dhaka "],
+  [/চট্টগ্রাম|চট্রগ্রাম|চিটাগাং/g, " chattogram "],
+  [/কুমিল্লা|কুমিল্ল/g, " cumilla "],
+  [/পটু[য়য়]াখালী|পটুয়াখালি|পটুয়াখালি/g, " patuakhali "],
+  [/বরিশাল/g, " barishal "],
+  [/খুলনা/g, " khulna "],
+  [/সিলেট/g, " sylhet "],
+  [/রাজশাহী/g, " rajshahi "],
+  [/রংপুর/g, " rangpur "],
+  [/ম[য়য়]মনসিংহ/g, " mymensingh "],
+  [/গাজীপুর/g, " gazipur "],
+  [/নারা[য়য়]ণগঞ্জ/g, " narayanganj "],
+  [/কক্স\s*বাজার/g, " coxs bazar "],
+  [/ফেনী/g, " feni "],
+  [/নো[য়য়]াখালী/g, " noakhali "],
+  [/লক্ষ্মীপুর|লক্ষীপুর/g, " lakshmipur "],
+  [/চাঁদপুর/g, " chandpur "],
+  [/ব্রাহ্মণবাড়িয়া|ব্রাহ্মণবাড়িয়া/g, " brahmanbaria "],
+  [/হবিগঞ্জ/g, " habiganj "],
+  [/মৌলভীবাজার/g, " moulvibazar "],
+  [/সুনামগঞ্জ/g, " sunamganj "],
+  [/টাঙ্গাইল/g, " tangail "],
+  [/মানিকগঞ্জ/g, " manikganj "],
+  [/মুন্সিগঞ্জ/g, " munshiganj "],
+  [/ফরিদপুর/g, " faridpur "],
+  [/মাদারীপুর/g, " madaripur "],
+  [/শরী[য়য়]তপুর/g, " shariatpur "],
+  [/গোপালগঞ্জ/g, " gopalganj "],
+  [/যশোর/g, " jashore "],
+  [/কুষ্টিয়া|কুষ্টিয়া/g, " kushtia "],
+  [/সাতক্ষীরা/g, " satkhira "],
+  [/বগুড়া|বগুড়া/g, " bogura "],
+  [/পাবনা/g, " pabna "],
+  [/দিনাজপুর/g, " dinajpur "],
+  [/ভোলা/g, " bhola "],
+  [/পিরোজপুর/g, " pirojpur "],
+  [/ঝালকাঠি/g, " jhalokathi "],
+  [/বরগুনা/g, " barguna "],
+  [/সদর|সাদার/g, " sadar "],
+  [/চর\s*পা[ড়ড়]া|চরপা[ড়ড়]া/g, " charpara "],
+  [/কুমির\s*মুখ|কুমিরমুখ/g, " kumirmukh "],
+  [/রোড/g, " road "],
+  [/মো[ড়ড়]/g, " mor "],
+  [/বাজার/g, " bazar "],
+  [/থানা/g, " thana "],
+  [/ইউনিয়ন|ইউনিয়ন/g, " union "],
+  [/ক্যান্টনমেন্ট/g, " cantonment "],
+  [/বিশ্ববিদ্যাল[য়য়]/g, " university "],
+  [/কলেজ/g, " college "],
+  [/স্কুল/g, " school "],
+  [/মাদ্রাসা/g, " madrasa "],
+  [/হাসপাতাল/g, " hospital "],
+];
 
 const SPELLING_ALIASES: Array<[RegExp, string]> = [
   [/\bdhanmondi\b|\bdhanmandi\b|\bdhanmondhi\b/g, "dhanmondi"],
@@ -115,10 +170,16 @@ const SPELLING_ALIASES: Array<[RegExp, string]> = [
   [/\brangpur\b/g, "rangpur"],
   [/\bmymensingh\b|\bmymensing\b/g, "mymensingh"],
   [/\bdhaka\b|\bdacca\b|\bdhakaa\b/g, "dhaka"],
+  [/\bpatuakhali\b|\bpotuakhali\b|\bpatuakhali\b|\bpatua khali\b|\bpotua khali\b/g, "patuakhali"],
+  [/\bcharpara\b|\bchorpara\b|\bchar para\b|\bchor para\b/g, "charpara"],
+  [/\bkumirmukh\b|\bkumir mukh\b/g, "kumirmukh"],
+  [/\bcox bazar\b|\bcox's bazar\b|\bcoxsbazar\b|\bcoxs bazar\b/g, "coxs bazar"],
 ];
 
-function normalize(s: string): string {
-  let out = translitBangla(s);
+export function normalizeAddressText(s: string): string {
+  let out = s.normalize("NFKC");
+  for (const [re, sub] of BANGLA_LOCATION_ALIASES) out = out.replace(re, sub);
+  out = translitBangla(out);
   out = out.toLowerCase();
   out = out.replace(/[।,.\-_/\\()[\]{}'"`!?:;|#+*=<>]/g, " ");
   out = out.replace(/\s+/g, " ").trim();
@@ -134,7 +195,7 @@ function tokenize(s: string): string[] {
 }
 
 function tokenSet(s: string): Set<string> {
-  return new Set(tokenize(normalize(s)));
+  return new Set(tokenize(normalizeAddressText(s)));
 }
 
 function mergeTokenSets(...sets: Array<Set<string> | undefined>): Set<string> {
@@ -191,9 +252,9 @@ export function rankItems(
   topN: number,
   opts: { ignoreTokens?: Set<string> } = {},
 ): Array<{ item: MatchItem; score: number }> {
-  const addr = normalize(addressRaw);
+  const addr = normalizeAddressText(addressRaw);
   const scored = items
-    .map((it) => ({ item: it, score: scoreName(addr, normalize(it.name), opts) }))
+    .map((it) => ({ item: it, score: scoreName(addr, normalizeAddressText(it.name), opts) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
   return scored.slice(0, topN);
