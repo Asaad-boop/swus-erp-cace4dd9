@@ -39,6 +39,8 @@ import {
   toggleUserBan, updateUserProfile, generateAuthLink, bulkDeleteUsers, bulkSetRole,
 } from "@/lib/erp/users.functions";
 import { listUserBrandAccess, setUserBrandAccess } from "@/lib/erp/settings/user-brand-access.functions";
+import { listAllowedPages, setUserAllowedPages } from "@/lib/erp/permissions/page-perms.functions";
+import { PAGE_CATALOG, PAGE_GROUPS, ALL_PAGE_PATHS } from "@/lib/erp/permissions/page-catalog";
 import { useBrand } from "@/contexts/brand-context";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/staff")({
