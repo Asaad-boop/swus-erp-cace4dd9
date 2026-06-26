@@ -423,6 +423,19 @@ function OrderDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
+  // When Pathao detection comes back, auto-fill empty city/zone/area fields
+  // on the order form so user sees them ready without clicking anything.
+  useEffect(() => {
+    if (!pathaoDetected || !formReady) return;
+    setForm((f) => {
+      const next = { ...f };
+      if (!next.city_id && pathaoDetected.city) next.city_id = String(pathaoDetected.city.id);
+      if (!next.zone_id && pathaoDetected.zone) next.zone_id = String(pathaoDetected.zone.id);
+      if (!next.area_id && pathaoDetected.area) next.area_id = String(pathaoDetected.area.id);
+      return next;
+    });
+  }, [pathaoDetected, formReady]);
+
   /* ------------------------------ Pathao geo cascades ---------------------- */
 
   const fetchCities = useServerFn(pathaoCitiesFn);
