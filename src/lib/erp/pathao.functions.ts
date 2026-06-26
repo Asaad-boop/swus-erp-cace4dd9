@@ -650,12 +650,13 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       resolvedZoneName = det.zone.name;
       areaId = det.area?.id;
     } else {
-      cityPick = await aiPickFromList({
+      const aiCityPick = await aiPickFromList({
         address,
         stage: "city",
         items: cityItems,
-      }) as { id: number; name: string | null; confidence: number };
-      if (!cityPick.id) throw new Error("Could not detect city from address");
+      });
+      if (!aiCityPick.id) throw new Error("Could not detect city from address");
+      cityPick = { id: aiCityPick.id, name: aiCityPick.name, confidence: aiCityPick.confidence };
 
       const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
       const zonePick = await aiPickFromList({
