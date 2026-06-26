@@ -53,8 +53,6 @@ function bdtCompact(n: number) {
 
 function pathaoSourceLabel(source?: string) {
   if (source === "pathao_address_parser") return "Pathao merchant address parser";
-  if (source === "pathao_address_live_lists") return "Pathao live location lists";
-  if (source === "pathao_phone") return "Pathao customer API";
   return "Pathao API";
 }
 
