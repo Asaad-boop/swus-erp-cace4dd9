@@ -89,5 +89,22 @@ export function pathAllowedBy(allowed: string[] | null | undefined, pathname: st
     if (a === "/erp") continue;
     if (pathname.startsWith(a + "/")) return true;
   }
+  // Detail pages: `/erp/orders/<id>` is part of the Orders module —
+  // allow it whenever the user has access to any orders sub-page
+  // (web / list / new). Same pattern for a few other modules that
+  // expose `<list>/<id>` detail routes.
+  const detailParents: Array<{ test: RegExp; anyOf: string[] }> = [
+    { test: /^\/erp\/orders\/[^/]+$/, anyOf: ["/erp/orders/web", "/erp/orders/list", "/erp/orders/new"] },
+    { test: /^\/erp\/crm\/[^/]+$/, anyOf: ["/erp/crm"] },
+    { test: /^\/erp\/purchase-orders\/[^/]+$/, anyOf: ["/erp/purchase-orders"] },
+    { test: /^\/erp\/imports\/orders\/[^/]+$/, anyOf: ["/erp/imports"] },
+    { test: /^\/erp\/returns\/[^/]+$/, anyOf: ["/erp/returns"] },
+    { test: /^\/erp\/stocktake\/[^/]+$/, anyOf: ["/erp/stocktake"] },
+    { test: /^\/erp\/hr\/employees\/[^/]+$/, anyOf: ["/erp/hr", "/erp/hr/staff"] },
+    { test: /^\/erp\/hr\/payroll\/[^/]+$/, anyOf: ["/erp/hr"] },
+  ];
+  for (const d of detailParents) {
+    if (d.test.test(pathname) && d.anyOf.some((p) => allowed.includes(p))) return true;
+  }
   return false;
 }
