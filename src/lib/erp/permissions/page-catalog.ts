@@ -84,6 +84,9 @@ export function pathAllowedBy(allowed: string[] | null | undefined, pathname: st
   // Sort longest-first to match the most specific entry first.
   for (const a of [...allowed].sort((x, y) => y.length - x.length)) {
     if (pathname === a) return true;
+    // `/erp` is the dashboard landing only — never treat it as a prefix
+    // that grants every `/erp/...` child page.
+    if (a === "/erp") continue;
     if (pathname.startsWith(a + "/")) return true;
   }
   return false;
