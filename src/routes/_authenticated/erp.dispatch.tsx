@@ -373,7 +373,7 @@ function DispatchPage() {
     return d.getTime();
   }, []);
   const pendingToday = useMemo(
-    () => pending.filter((o) => new Date(o.created_at).getTime() >= todayStartMs),
+    () => pending.filter((o) => o.created_at && new Date(o.created_at).getTime() >= todayStartMs),
     [pending, todayStartMs],
   );
   const pendingOlder = pending.length - pendingToday.length;
