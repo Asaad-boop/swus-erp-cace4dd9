@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useBrand } from "@/contexts/brand-context";
 import { HrPageShell } from "@/components/erp/hr/ui/hr-page-shell";
 import { EmployeeImportDialog } from "@/components/erp/hr/employee-import-dialog";
+import { AddPersonDialog } from "@/components/erp/hr/add-person-dialog";
 import {
   listEmployees, listDepartments, listDesignations, deleteEmployee,
 } from "@/lib/erp/hr/hr.functions";
@@ -45,6 +46,7 @@ function EmployeesList() {
   const qc = useQueryClient();
   const access = useHrAccess();
   const listFn = useServerFn(listEmployees);
+  const [addOpen, setAddOpen] = useState(false);
   const deptsFn = useServerFn(listDepartments);
   const desigsFn = useServerFn(listDesignations);
   const delFn = useServerFn(deleteEmployee);
@@ -145,11 +147,13 @@ function EmployeesList() {
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!rows.length} className="rounded-lg">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Link to="/erp/hr/employees/new">
-            <Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90 text-white">
-              <UserPlus className="h-4 w-4 mr-2" /> Add Employee
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90 text-white"
+          >
+            <UserPlus className="h-4 w-4 mr-2" /> Add Person
+          </Button>
         </>
       }
       filters={
@@ -234,8 +238,8 @@ function EmployeesList() {
                   <TableRow><TableCell colSpan={8} className="text-center py-12 text-[color:var(--hr-text-muted)]">Loading…</TableCell></TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="p-0">
-                    <EmptyState icon={Users} title="No employees yet" description="Add your first employee or import from CSV." action={
-                      <Link to="/erp/hr/employees/new"><Button size="sm" className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90 text-white"><UserPlus className="h-4 w-4 mr-2" />Add Employee</Button></Link>
+                    <EmptyState icon={Users} title="No employees yet" description="Add your first person or import from CSV." action={
+                      <Button size="sm" onClick={() => setAddOpen(true)} className="rounded-lg bg-[color:var(--hr-accent)] hover:opacity-90 text-white"><UserPlus className="h-4 w-4 mr-2" />Add Person</Button>
                     } />
                   </TableCell></TableRow>
                 ) : rows.map((r) => (
@@ -293,6 +297,7 @@ function EmployeesList() {
         )}
 
         <EmployeeImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+        <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
 
         <Dialog open={moveDeptOpen} onOpenChange={setMoveDeptOpen}>
           <DialogContent>
