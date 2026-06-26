@@ -212,12 +212,21 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
  * dropdowns the moment a recipient address is typed.
  */
 function normalizeAddr(s: string) {
-  return (s || "")
+  const normalized = (s || "")
     .toLowerCase()
     .normalize("NFKC")
     .replace(/[।,.;:/|()\-_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  return normalized
+    .split(" ")
+    .map((token) => {
+      if (["sodor", "sodar", "sodhor", "sadr"].includes(token)) return "sadar";
+      if (token === "comilla") return "cumilla";
+      if (token === "ctg") return "chattogram";
+      return token;
+    })
+    .join(" ");
 }
 
 const GENERIC_LOCATION_TOKENS = new Set([
@@ -229,7 +238,13 @@ function tokenSet(s: string) {
   return new Set(normalizeAddr(s).split(" ").filter((t) => t.length >= 2));
 }
 
-function scoreLocationName(haystack: string, hayTokens: Set<string>, name: string, allowGenericOnly = false) {
+function scoreLocationName(
+  haystack: string,
+  hayTokens: Set<string>,
+  name: string,
+  allowGenericOnly = false,
+  ignoredTokens: Set<string> = new Set(),
+) {
   const normalized = normalizeAddr(name);
   if (!normalized) return 0;
   const paddedHay = ` ${haystack} `;
@@ -237,8 +252,10 @@ function scoreLocationName(haystack: string, hayTokens: Set<string>, name: strin
   if (paddedHay.includes(paddedName)) return 120 + normalized.length;
 
   const nameTokens = normalized.split(" ").filter(Boolean);
-  const distinctTokens = nameTokens.filter((t) => !GENERIC_LOCATION_TOKENS.has(t));
-  const usableTokens = distinctTokens.length > 0 || allowGenericOnly ? nameTokens : distinctTokens;
+  const withoutIgnored = nameTokens.filter((t) => !ignoredTokens.has(t));
+  const scopedTokens = withoutIgnored.length > 0 ? withoutIgnored : nameTokens;
+  const distinctTokens = scopedTokens.filter((t) => !GENERIC_LOCATION_TOKENS.has(t));
+  const usableTokens = distinctTokens.length > 0 || allowGenericOnly ? scopedTokens : distinctTokens;
   if (usableTokens.length === 0) return 0;
 
   const matched = usableTokens.filter((t) => hayTokens.has(t));
@@ -257,11 +274,16 @@ function scoreLocationName(haystack: string, hayTokens: Set<string>, name: strin
   return partial;
 }
 
-function bestScoredMatch<T extends { name: string }>(haystack: string, items: T[], allowGenericOnly = false): (T & { score: number }) | null {
+function bestScoredMatch<T extends { name: string }>(
+  haystack: string,
+  items: T[],
+  allowGenericOnly = false,
+  ignoredTokens: Set<string> = new Set(),
+): (T & { score: number }) | null {
   const hayTokens = tokenSet(haystack);
   let best: (T & { score: number }) | null = null;
   for (const it of items) {
-    const score = scoreLocationName(haystack, hayTokens, it.name, allowGenericOnly);
+    const score = scoreLocationName(haystack, hayTokens, it.name, allowGenericOnly, ignoredTokens);
     if (score > 0 && (!best || score > best.score)) best = { ...it, score };
   }
   return best;
@@ -299,10 +321,12 @@ async function resolveByAddress(client: any, address: string) {
 
   for (const c of candidateCities) {
     const zonesRaw = (await client.zones(c.id).catch(() => [])) as Array<{ zone_id: number; zone_name: string }>;
+    const cityTokens = tokenSet(c.name);
     const zone = bestScoredMatch(
       hay,
       zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
       cityHasStrongMatch,
+      cityTokens,
     );
     const minZoneScore = cityHasStrongMatch ? 40 : 55;
     if (!zone || zone.score < minZoneScore) {
