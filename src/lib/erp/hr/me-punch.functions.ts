@@ -59,7 +59,7 @@ export const getMyPunchToday = createServerFn({ method: "POST" })
               email?.split("@")[0] ||
               "Admin User";
             const code = `ADM-${context.userId.slice(0, 8).toUpperCase()}`;
-            const { data: created, error: cErr } = await supabaseAdmin
+            const { data: created, error: cErr } = await (supabaseAdmin as any)
               .from("hr_employees")
               .insert({
                 user_id: context.userId,
