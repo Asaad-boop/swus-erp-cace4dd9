@@ -473,103 +473,19 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .join(", ");
     if (!phone || address.length < 5) throw new Error("Missing phone or address");
 
-    // Resolve city / zone / area. Use the same deterministic Pathao-supported
-    // hierarchy matcher as the new-order form first; AI is only a fallback.
+    // Resolve city / zone / area — Pathao phone API only.
     const client = await clientForBrand(supabase, order.brand_id);
-    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
-    const { detectHierarchy, bestMatch } = await import("./pathao-address-match");
-
-    // ── Customer-provided structured fields take priority ─────────────────
-    // Website checkout already collects District (= Pathao city) and
-    // Thana/Upazila (= Pathao zone). Trust those first — only fall back to
-    // free-form address detection if they don't resolve.
-    let cityPickStruct: { id: number; name: string | null; confidence: number } | null = null;
-    let zonePickStruct: { id: number; name: string | null } | null = null;
-    let areaPickStruct: { id: number; name: string | null } | undefined;
-
-    const cityQuery = (order.shipping_district || order.shipping_city || "").trim();
-    const zoneQuery = (order.shipping_thana || "").trim();
-    if (cityQuery) {
-      const cm = bestMatch(cityQuery, cityItems);
-      if (cm && cm.score >= 2) {
-        const zonesRaw = (await client.zones(cm.id)) as Array<{ zone_id: number; zone_name: string }>;
-        const zoneItems = zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name }));
-        const zm = zoneQuery ? bestMatch(zoneQuery, zoneItems) : null;
-        if (zm && zm.score >= 2) {
-          cityPickStruct = { id: cm.id, name: cm.name, confidence: 1 };
-          zonePickStruct = { id: zm.id, name: zm.name };
-          try {
-            const areasRaw = (await client.areas(zm.id)) as Array<{ area_id: number; area_name: string }>;
-            if (areasRaw.length > 0) {
-              const am = bestMatch(address, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
-              if (am) areaPickStruct = { id: am.id, name: am.name };
-            }
-          } catch { /* area optional */ }
-        }
-      }
+    const resolved = await resolveByPhone(client, phone);
+    if (!resolved) {
+      throw new Error(
+        "Pathao API thake city/zone pawa jayni. Order kholo, manually city/zone select kore Book Pathao chap.",
+      );
     }
+    const cityPick = { id: resolved.city.id, name: resolved.city.name, confidence: 1 };
+    const resolvedZoneId: number = resolved.zone.id;
+    const resolvedZoneName: string = resolved.zone.name;
+    const areaId: number | undefined = resolved.area?.id;
 
-    const det = cityPickStruct && zonePickStruct
-      ? {
-          city: { id: cityPickStruct.id, name: cityPickStruct.name ?? "" },
-          zone: { id: zonePickStruct.id, name: zonePickStruct.name ?? "" },
-          area: areaPickStruct ? { id: areaPickStruct.id, name: areaPickStruct.name ?? "" } : null,
-          confidence: 1,
-        }
-      : await detectHierarchy({
-      address,
-      cities: cityItems,
-      lookup: {
-        zones: async (cityId) => {
-          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
-          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
-        },
-        areas: async (zoneId) => {
-          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
-          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
-        },
-      },
-    });
-
-    let cityPick: { id: number; name: string | null; confidence: number };
-    let resolvedZoneId: number | null;
-    let resolvedZoneName: string | null;
-    let areaId: number | undefined;
-
-    if (det.city && det.zone) {
-      cityPick = { id: det.city.id, name: det.city.name, confidence: det.confidence };
-      resolvedZoneId = det.zone.id;
-      resolvedZoneName = det.zone.name;
-      areaId = det.area?.id;
-    } else {
-      const aiCityPick = await aiPickFromList({
-        address,
-        stage: "city",
-        items: cityItems,
-      });
-      if (!aiCityPick.id) throw new Error("Could not detect city from address");
-      cityPick = { id: aiCityPick.id, name: aiCityPick.name, confidence: aiCityPick.confidence };
-
-      const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
-      const zonePick = await aiPickFromList({
-        address,
-        stage: "zone",
-        parentLabel: cityPick.name ?? undefined,
-        items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
-      });
-      if (!zonePick.id) throw new Error("Could not detect Pathao zone from address");
-      resolvedZoneId = zonePick.id;
-      resolvedZoneName = zonePick.name;
-
-      try {
-        const areasRaw = (await client.areas(resolvedZoneId)) as Array<{ area_id: number; area_name: string }>;
-        if (areasRaw.length > 0) {
-          const local = localPick(address, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
-          areaId = local?.id;
-        }
-      } catch { /* area is optional */ }
-    }
 
     const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
     const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
