@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
-import { pathaoDetectAddressFn } from "@/lib/erp/pathao.functions";
+import { pathaoDetectAddressFn, pathaoLookupByPhoneFn } from "@/lib/erp/pathao.functions";
 import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
@@ -169,6 +169,7 @@ function NewOrderPage() {
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
   const detectFn = useServerFn(pathaoDetectAddressFn);
+  const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
   const [lastDetect, setLastDetect] = useState<{
     city: { id: number; name: string | null } | null;
     zone: { id: number; name: string | null } | null;
@@ -201,6 +202,47 @@ function NewOrderPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // ── Pathao customer phone lookup ─────────────────────────────────────
+  // Uses Pathao's official customer-info endpoint (same call their
+  // merchant portal makes when an operator types a phone in "New
+  // Delivery"). When the buyer has shipped with any Pathao merchant
+  // before, we get authoritative City / Zone / Area without guessing.
+  const [phoneLookup, setPhoneLookup] = useState<null | {
+    name: string; address: string;
+    city?: { id: number; name: string } | null;
+    zone?: { id: number; name: string } | null;
+    area?: { id: number; name: string } | null;
+    success_ratio: number | null;
+  }>(null);
+  useEffect(() => {
+    const p = (debouncedPhone || "").replace(/\D/g, "");
+    if (!showPathao || p.length < 11) { setPhoneLookup(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r: any = await lookupPhoneFn({ data: { phone: p, brandId: effectiveBrandId ?? undefined } });
+        if (cancelled || !r?.found) return;
+        setPhoneLookup({
+          name: r.recipient_name || "",
+          address: r.recipient_address || "",
+          city: r.city, zone: r.zone, area: r.area,
+          success_ratio: r.success_ratio ?? null,
+        });
+        // Auto-apply city/zone/area only if user hasn't set them yet.
+        setCityId((cur) => cur ?? r.city?.id ?? null);
+        setCityName((cur) => cur || r.city?.name || "");
+        setZoneId((cur) => cur ?? r.zone?.id ?? null);
+        setZoneName((cur) => cur || r.zone?.name || "");
+        if (r.area) {
+          setAreaId((cur) => cur ?? r.area.id);
+          setAreaName((cur) => cur || r.area.name || "");
+        }
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedPhone, showPathao, effectiveBrandId]);
 
   // ── autofill suggestion from latest past order for this phone ────────
   const [dismissedAutofillPhone, setDismissedAutofillPhone] = useState<string>("");
