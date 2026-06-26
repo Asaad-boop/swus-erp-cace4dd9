@@ -6,7 +6,7 @@ import {
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2, Search, PackageCheck,
+  FileBarChart, Target, Banknote, Building2, Search, PackageCheck, ShieldCheck, CheckCircle2, Clock, FileBarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalSearch } from "@/components/erp/global-search";
@@ -150,7 +150,13 @@ const groups: Group[] = [
         label: "HRM",
         icon: BriefcaseBusiness,
         items: [
-          { to: "/erp/hr", label: "HR · People", icon: BriefcaseBusiness },
+          { to: "/erp/hr", label: "Live Dashboard", icon: LayoutDashboard, exact: true },
+          { to: "/erp/hr/attendance/muster", label: "Activities", icon: Activity },
+          { to: "/erp/hr/attendance", label: "Admin Attendance", icon: ShieldCheck, exact: true },
+          { to: "/erp/hr/reports", label: "Attendance Report", icon: FileBarChart2, exact: true },
+          { to: "/erp/hr/leave", label: "Approvals", icon: CheckCircle2 },
+          { to: "/erp/hr/reports", label: "Late Report", icon: Clock },
+          { to: "/erp/hr/settings", label: "Settings", icon: Settings },
           { to: "/erp/hr/staff", label: "Staff Logins (advanced)", icon: UserCog },
         ],
       },
