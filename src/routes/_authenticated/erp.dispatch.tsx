@@ -66,7 +66,9 @@ type ScanLogEntry = {
   at: number;
 };
 
-const PENDING_STATUSES = ["new", "confirmed", "processing", "packaging", "ready_to_pack"] as const;
+// Dispatch starts after an order is confirmed by sales/web-orders.
+// `new` stays in Web Orders, and `processing` is not a valid DB enum here.
+const PENDING_STATUSES = ["confirmed", "ready_to_pack", "packaging"] as const;
 
 function bdt(n: number) {
   return `৳${n.toLocaleString("en-BD", { maximumFractionDigits: 0 })}`;
@@ -185,6 +187,11 @@ function DispatchPage() {
           .gte("updated_at", todayIso),
         brandIds,
       ).order("updated_at", { ascending: false }).limit(200);
+
+      if (pending.error) throw pending.error;
+      if (packed.error) throw packed.error;
+      if (ready.error) throw ready.error;
+      if (shipped.error) throw shipped.error;
 
       return {
         pending: (pending.data ?? []) as OrderRow[],
