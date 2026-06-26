@@ -125,8 +125,8 @@ type PickItem = { id: number; name: string };
 function normalizeText(s: string): string {
   return s
     .normalize("NFKC")
-    .replace(/পটু[য়য়]াখালী|পটুয়াখালি|পটুয়াখালি/g, " patuakhali ")
-    .replace(/চর\s*পা[ড়ড়]া|চরপা[ড়ড়]া/g, " charpara ")
+    .replace(/পটু(?:য়|য়|য়)াখালী|পটু(?:য়|য়|য়)াখালি|পটুয়াখালি/g, " patuakhali ")
+    .replace(/চর\s*পা(?:ড়|ড়|ড়)া|চরপা(?:ড়|ড়|ড়)া/g, " charpara ")
     .replace(/কুমির\s*মুখ|কুমিরমুখ/g, " kumirmukh ")
     .replace(/সদর|সাদার/g, " sadar ")
     .replace(/কুমিল্লা|কুমিল্ল/g, " cumilla ")
