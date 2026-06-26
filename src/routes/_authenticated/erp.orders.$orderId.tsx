@@ -11,7 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
-import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectForOrderFn } from "@/lib/erp/pathao.functions";
+import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectForOrderFn, pathaoMatchAddressFn } from "@/lib/erp/pathao.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -357,6 +357,7 @@ function OrderDetailsPage() {
   const navigate = useNavigate();
   const { data, isLoading } = useOrderDetail(orderId);
   const detectFn = useServerFn(pathaoDetectForOrderFn);
+  const matchAddressFn = useServerFn(pathaoMatchAddressFn);
 
   // Kick off Pathao city/zone/area detection the moment the order opens, so
   // the booking dialog (and form below) have instant pre-filled values.
@@ -427,6 +428,14 @@ function OrderDetailsPage() {
   // on the order form so user sees them ready without clicking anything.
   useEffect(() => {
     if (!pathaoDetected || !formReady) return;
+    if (pathaoDetected.city) {
+      setDetection({
+        city: { id: String(pathaoDetected.city.id), name: pathaoDetected.city.name },
+        zone: pathaoDetected.zone ? { id: String(pathaoDetected.zone.id), name: pathaoDetected.zone.name } : undefined,
+        area: pathaoDetected.area ? { id: String(pathaoDetected.area.id), name: pathaoDetected.area.name } : undefined,
+      });
+      setCitySuggestions([]);
+    }
     setForm((f) => {
       const next = { ...f };
       if (!next.city_id && pathaoDetected.city) next.city_id = String(pathaoDetected.city.id);
@@ -577,7 +586,7 @@ function OrderDetailsPage() {
 
   const runDetection = async (address: string, applyResult: boolean) => {
     const trimmed = address.trim();
-    if (trimmed.length < 4 || !cities || cities.length === 0) return;
+    if (trimmed.length < 4) return;
     const cached = detectCacheRef.current.get(trimmed);
     if (cached) {
       setCitySuggestions(cached.suggestions);
@@ -586,71 +595,22 @@ function OrderDetailsPage() {
     }
     setDetecting(true);
     try {
-      const normAddr = normalize(trimmed);
-      const tokens = new Set(tokenize(trimmed));
-
-      // --- Step 1: rank all cities by score ---
-      const cityScores = (cities ?? []).map((c) => ({
-        hit: { id: c.id, name: c.name_en } as Hit,
-        score: scoreCity(c.name_en, normAddr, tokens),
-      })).filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score);
-
-      const best = cityScores[0];
-      if (!best || best.score < 50) {
+      const r: any = await matchAddressFn({ data: { address: trimmed, brandId: order?.brand_id ?? undefined } });
+      if (!r?.found || !r.city) {
         detectCacheRef.current.set(trimmed, { detection: null, suggestions: [] });
         setCitySuggestions([]);
         return;
       }
-      // Below auto-apply threshold → show suggestion chips only
-      if (best.score < 80) {
-        const sugg = cityScores.slice(0, 4).map((x) => x.hit);
-        detectCacheRef.current.set(trimmed, { detection: null, suggestions: sugg });
-        setCitySuggestions(sugg);
-        return;
-      }
-      // Ambiguous tie at 100 → suggestions (e.g. two cities both exactly named)
-      const topTies = cityScores.filter((x) => x.score === best.score);
-      if (topTies.length > 1) {
-        const sugg = topTies.slice(0, 4).map((x) => x.hit);
-        detectCacheRef.current.set(trimmed, { detection: null, suggestions: sugg });
-        setCitySuggestions(sugg);
-        return;
-      }
-      const city = best.hit;
-
-      // --- Step 2: fetch zones for matched city (single round trip) ---
-      const zr = await fetchZones({ data: { cityId: Number(city.id), brandId: order?.brand_id ?? undefined } });
-      const zoneItems = ((zr as { items: { zone_id: number; zone_name: string }[] }).items ?? [])
-        .map((z) => ({ id: String(z.zone_id), name_en: z.zone_name }));
-      // Prime React Query cache so dropdown opens instantly
-      qc.setQueryData(["pathao-zones", city.id, order?.brand_id], zoneItems);
-
-      const zoneScored = zoneItems.map((z) => ({
-        hit: { id: z.id, name: z.name_en } as Hit,
-        score: scoreZoneOrArea(z.name_en, tokens),
-      })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
-      const zone = zoneScored[0]?.score && zoneScored[0].score >= 50 ? zoneScored[0].hit : undefined;
-
-      // --- Step 3: fetch areas for matched zone in parallel (single round trip) ---
-      let area: Hit | undefined;
-      if (zone) {
-        const ar = await fetchAreas({ data: { zoneId: Number(zone.id), brandId: order?.brand_id ?? undefined } });
-        const areaItems = ((ar as { items: { area_id: number; area_name: string }[] }).items ?? [])
-          .map((a) => ({ id: String(a.area_id), name_en: a.area_name }));
-        qc.setQueryData(["pathao-areas", zone.id, order?.brand_id], areaItems);
-
-        const areaScored = areaItems.map((a) => ({
-          hit: { id: a.id, name: a.name_en } as Hit,
-          score: scoreZoneOrArea(a.name_en, tokens),
-        })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
-        if (areaScored[0]?.score && areaScored[0].score >= 50) area = areaScored[0].hit;
-      }
-
-      const detected: Detection = { city, zone, area };
+      const detected: Detection = {
+        city: { id: String(r.city.id), name: r.city.name },
+        zone: r.zone ? { id: String(r.zone.id), name: r.zone.name } : undefined,
+        area: r.area ? { id: String(r.area.id), name: r.area.name } : undefined,
+      };
       detectCacheRef.current.set(trimmed, { detection: detected, suggestions: [] });
       setCitySuggestions([]);
       if (applyResult) applyDetection(detected);
+    } catch (e) {
+      toast.error((e as Error).message || "Pathao location detect failed");
     } finally {
       setDetecting(false);
     }
@@ -674,8 +634,6 @@ function OrderDetailsPage() {
       setCitySuggestions([]);
       return;
     }
-    // Wait for cities to load before attempting detection; effect re-runs when cities arrive
-    if (!cities || cities.length === 0) return;
     const t = setTimeout(() => {
       lastDetectedAddrRef.current = addr;
       // Only auto-apply when user hasn't manually picked a city, or detection is active
@@ -684,13 +642,12 @@ function OrderDetailsPage() {
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.address, cities?.length]);
+  }, [form.address]);
 
   // Auto-detect immediately on order load when address exists but city_id is empty
   useEffect(() => {
     if (!formReady) return;
     if (!order?.shipping_address) return;
-    if (!cities || cities.length === 0) return;
     if (form.city_id) return; // respect saved/manual data
     const addr = order.shipping_address.trim();
     if (addr.length < 4) return;
@@ -702,7 +659,7 @@ function OrderDetailsPage() {
     }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order?.id, cities?.length, formReady]);
+  }, [order?.id, formReady]);
 
   // Clear the "✓ Detected" chip when user changes city manually away from detection
   useEffect(() => {
@@ -1745,7 +1702,7 @@ function OrderDetailsPage() {
       </div>
 
       <PrintableInvoice order={order} items={items as never} />
-      <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
+      <BookPathaoDialog open={bookOpen} onOpenChange={setBookOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} brandId={order.brand_id ?? null} />
       <BookSteadfastDialog open={bookSteadfastOpen} onOpenChange={setBookSteadfastOpen} orderId={orderId} defaultAmount={Number(order.total ?? 0)} />
       <ReturnDialog
         open={returnOpen}

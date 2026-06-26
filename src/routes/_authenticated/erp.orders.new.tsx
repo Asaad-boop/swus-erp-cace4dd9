@@ -165,9 +165,9 @@ function NewOrderPage() {
   const [zoneName, setZoneName] = useState<string>("");
   const [areaName, setAreaName] = useState<string>("");
   const showPathao = deliveryMethod === "pathao";
-  const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities();
-  const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
-  const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
+  const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities(effectiveBrandId);
+  const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null, effectiveBrandId);
+  const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null, effectiveBrandId);
   const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
   const matchAddressFn = useServerFn(pathaoMatchAddressFn);
 
@@ -596,7 +596,7 @@ function NewOrderPage() {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                       Courier Routing
                     </span>
-                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— phone দিলে Pathao API থেকে auto fill</span>
+                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— phone/address দিলে Pathao API থেকে auto fill</span>
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
