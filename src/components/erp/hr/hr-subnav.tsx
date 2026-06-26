@@ -2,30 +2,22 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
-  Building2,
-  BadgeCheck,
   Settings as SettingsIcon,
   CalendarCheck,
   CalendarDays,
-  Clock,
-  Palmtree,
   Wallet,
-  BarChart3,
   UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Slimmed nav — 5 main + Settings (Departments / Designations / Holidays /
+// Shifts / Leave-policy / Reports moved into Settings tabs).
 const items = [
   { to: "/erp/hr", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/erp/hr/employees", label: "Employees", icon: Users },
+  { to: "/erp/hr/employees", label: "People", icon: Users },
   { to: "/erp/hr/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/erp/hr/leave", label: "Leave", icon: CalendarDays },
-  { to: "/erp/hr/shifts", label: "Shifts", icon: Clock },
   { to: "/erp/hr/payroll", label: "Payroll", icon: Wallet },
-  { to: "/erp/hr/holidays", label: "Holidays", icon: Palmtree },
-  { to: "/erp/hr/departments", label: "Departments", icon: Building2 },
-  { to: "/erp/hr/designations", label: "Designations", icon: BadgeCheck },
-  { to: "/erp/hr/reports", label: "Reports", icon: BarChart3 },
   { to: "/erp/hr/settings", label: "Settings", icon: SettingsIcon },
 ];
 
