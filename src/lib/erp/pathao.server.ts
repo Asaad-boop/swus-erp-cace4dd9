@@ -158,6 +158,24 @@ export function createPathaoClient(creds: PathaoCreds) {
     price: (input: Record<string, unknown>) => call("/aladdin/api/v1/merchant/price-plan", { method: "POST", body: JSON.stringify(input) }),
     createOrder: (input: Record<string, unknown>) => call("/aladdin/api/v1/orders", { method: "POST", body: JSON.stringify(input) }),
     track: (consignmentId: string) => call(`/aladdin/api/v1/orders/${consignmentId}/info`),
+    /**
+     * Pathao's own merchant-portal "customer info" lookup. Given a phone
+     * number, returns the last-used recipient name, address, city/zone/area
+     * IDs and the customer's success ratio — exactly what the Pathao
+     * dashboard pre-fills when an operator types a phone in "New Delivery".
+     * Endpoint is officially documented under the Aladdin/Merchant API.
+     */
+    lookupCustomer: async (phone: string) => {
+      try {
+        return await call("/aladdin/api/v1/user/info", {
+          method: "POST",
+          body: JSON.stringify({ phone }),
+        });
+      } catch (e) {
+        // 404 / "customer not found" — perfectly normal for a new buyer.
+        return null;
+      }
+    },
   };
 }
 
