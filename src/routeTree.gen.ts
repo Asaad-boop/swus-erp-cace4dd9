@@ -29,6 +29,7 @@ import { Route as AuthenticatedErpSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedErpReturnsRouteImport } from './routes/_authenticated/erp.returns'
 import { Route as AuthenticatedErpReorderQueueRouteImport } from './routes/_authenticated/erp.reorder-queue'
 import { Route as AuthenticatedErpReconciliationRouteImport } from './routes/_authenticated/erp.reconciliation'
+import { Route as AuthenticatedErpPathaoDebugRouteImport } from './routes/_authenticated/erp.pathao-debug'
 import { Route as AuthenticatedErpOrdersRouteImport } from './routes/_authenticated/erp.orders'
 import { Route as AuthenticatedErpMarketingRouteImport } from './routes/_authenticated/erp.marketing'
 import { Route as AuthenticatedErpInventoryReportsRouteImport } from './routes/_authenticated/erp.inventory-reports'
@@ -228,6 +229,12 @@ const AuthenticatedErpReconciliationRoute =
   AuthenticatedErpReconciliationRouteImport.update({
     id: '/reconciliation',
     path: '/reconciliation',
+    getParentRoute: () => AuthenticatedErpRoute,
+  } as any)
+const AuthenticatedErpPathaoDebugRoute =
+  AuthenticatedErpPathaoDebugRouteImport.update({
+    id: '/pathao-debug',
+    path: '/pathao-debug',
     getParentRoute: () => AuthenticatedErpRoute,
   } as any)
 const AuthenticatedErpOrdersRoute = AuthenticatedErpOrdersRouteImport.update({
@@ -800,6 +807,7 @@ export interface FileRoutesByFullPath {
   '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
+  '/erp/pathao-debug': typeof AuthenticatedErpPathaoDebugRoute
   '/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
   '/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
@@ -907,6 +915,7 @@ export interface FileRoutesByTo {
   '/erp/dispatch': typeof AuthenticatedErpDispatchRoute
   '/erp/inventory': typeof AuthenticatedErpInventoryRoute
   '/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
+  '/erp/pathao-debug': typeof AuthenticatedErpPathaoDebugRoute
   '/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
   '/erp/settings': typeof AuthenticatedErpSettingsRoute
   '/erp/suppliers': typeof AuthenticatedErpSuppliersRoute
@@ -1019,6 +1028,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/inventory-reports': typeof AuthenticatedErpInventoryReportsRoute
   '/_authenticated/erp/marketing': typeof AuthenticatedErpMarketingRouteWithChildren
   '/_authenticated/erp/orders': typeof AuthenticatedErpOrdersRouteWithChildren
+  '/_authenticated/erp/pathao-debug': typeof AuthenticatedErpPathaoDebugRoute
   '/_authenticated/erp/reconciliation': typeof AuthenticatedErpReconciliationRouteWithChildren
   '/_authenticated/erp/reorder-queue': typeof AuthenticatedErpReorderQueueRoute
   '/_authenticated/erp/returns': typeof AuthenticatedErpReturnsRouteWithChildren
@@ -1136,6 +1146,7 @@ export interface FileRouteTypes {
     | '/erp/inventory-reports'
     | '/erp/marketing'
     | '/erp/orders'
+    | '/erp/pathao-debug'
     | '/erp/reconciliation'
     | '/erp/reorder-queue'
     | '/erp/returns'
@@ -1243,6 +1254,7 @@ export interface FileRouteTypes {
     | '/erp/dispatch'
     | '/erp/inventory'
     | '/erp/inventory-reports'
+    | '/erp/pathao-debug'
     | '/erp/reorder-queue'
     | '/erp/settings'
     | '/erp/suppliers'
@@ -1354,6 +1366,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/inventory-reports'
     | '/_authenticated/erp/marketing'
     | '/_authenticated/erp/orders'
+    | '/_authenticated/erp/pathao-debug'
     | '/_authenticated/erp/reconciliation'
     | '/_authenticated/erp/reorder-queue'
     | '/_authenticated/erp/returns'
@@ -1606,6 +1619,13 @@ declare module '@tanstack/react-router' {
       path: '/reconciliation'
       fullPath: '/erp/reconciliation'
       preLoaderRoute: typeof AuthenticatedErpReconciliationRouteImport
+      parentRoute: typeof AuthenticatedErpRoute
+    }
+    '/_authenticated/erp/pathao-debug': {
+      id: '/_authenticated/erp/pathao-debug'
+      path: '/pathao-debug'
+      fullPath: '/erp/pathao-debug'
+      preLoaderRoute: typeof AuthenticatedErpPathaoDebugRouteImport
       parentRoute: typeof AuthenticatedErpRoute
     }
     '/_authenticated/erp/orders': {
@@ -2578,6 +2598,7 @@ interface AuthenticatedErpRouteChildren {
   AuthenticatedErpInventoryReportsRoute: typeof AuthenticatedErpInventoryReportsRoute
   AuthenticatedErpMarketingRoute: typeof AuthenticatedErpMarketingRouteWithChildren
   AuthenticatedErpOrdersRoute: typeof AuthenticatedErpOrdersRouteWithChildren
+  AuthenticatedErpPathaoDebugRoute: typeof AuthenticatedErpPathaoDebugRoute
   AuthenticatedErpReconciliationRoute: typeof AuthenticatedErpReconciliationRouteWithChildren
   AuthenticatedErpReorderQueueRoute: typeof AuthenticatedErpReorderQueueRoute
   AuthenticatedErpReturnsRoute: typeof AuthenticatedErpReturnsRouteWithChildren
@@ -2607,6 +2628,7 @@ const AuthenticatedErpRouteChildren: AuthenticatedErpRouteChildren = {
   AuthenticatedErpInventoryReportsRoute: AuthenticatedErpInventoryReportsRoute,
   AuthenticatedErpMarketingRoute: AuthenticatedErpMarketingRouteWithChildren,
   AuthenticatedErpOrdersRoute: AuthenticatedErpOrdersRouteWithChildren,
+  AuthenticatedErpPathaoDebugRoute: AuthenticatedErpPathaoDebugRoute,
   AuthenticatedErpReconciliationRoute:
     AuthenticatedErpReconciliationRouteWithChildren,
   AuthenticatedErpReorderQueueRoute: AuthenticatedErpReorderQueueRoute,
