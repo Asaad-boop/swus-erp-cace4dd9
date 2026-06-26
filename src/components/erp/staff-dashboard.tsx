@@ -27,7 +27,7 @@ function greeting() {
 export function StaffDashboard() {
   const navigate = useNavigate();
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
-  const { roles, userId } = useCurrentRole();
+  const { roles, userId, isAdmin } = useCurrentRole();
   const enabled = brandIds.length > 0 && !!userId;
 
   // Build a per-staff OR filter so KPIs only count orders this user touches.
@@ -44,8 +44,9 @@ export function StaffDashboard() {
     scopeParts.push(`created_by.eq.${userId}`);
   }
   const staffOr = Array.from(new Set(scopeParts)).join(",");
+  // Admins see everything; staff scoped to their own assignments.
   const scopeOrders = <T,>(q: T): T =>
-    (staffOr ? (q as any).or(staffOr) : q) as T;
+    (!isAdmin && staffOr ? (q as any).or(staffOr) : q) as T;
 
   const { data: me } = useQuery({
     queryKey: ["me-profile-staff"],
@@ -62,13 +63,13 @@ export function StaffDashboard() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["staff-dash", userId, staffOr, brandIds.join(",")],
+    queryKey: ["staff-dash", userId, isAdmin, staffOr, brandIds.join(",")],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
       const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"] as const;
-      const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent] = await Promise.all([
+      const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent, pendingByBrand] = await Promise.all([
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .gte("created_at", todayStart.toISOString()),
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
@@ -87,7 +88,16 @@ export function StaffDashboard() {
           supabase.from("orders").select("id,order_number,status,created_at,customer_name,total"),
           brandIds,
         )).order("created_at", { ascending: false }).limit(8),
+        scopeOrders(applyBrandScope(
+          supabase.from("orders").select("brand_id"),
+          brandIds,
+        )).in("status", pendingStatuses).limit(5000),
       ]);
+      const brandCounts: Record<string, number> = {};
+      for (const r of (pendingByBrand.data ?? []) as { brand_id: string | null }[]) {
+        const k = r.brand_id ?? "—";
+        brandCounts[k] = (brandCounts[k] ?? 0) + 1;
+      }
       return {
         todayOrders: todayOrders.count ?? 0,
         pending: pending.count ?? 0,
@@ -96,6 +106,7 @@ export function StaffDashboard() {
         attention: attention.count ?? 0,
         lowStock: lowStock.count ?? 0,
         recent: (recent.data ?? []) as any[],
+        pendingByBrand: brandCounts,
       };
     },
   });
