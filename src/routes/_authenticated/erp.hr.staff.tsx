@@ -6,7 +6,7 @@ import {
   Plus, Search, Trash2, KeyRound, ShieldCheck, Mail, MoreHorizontal,
   Download, Copy, Ban, CheckCircle2, Link as LinkIcon, UserCog, Users as UsersIcon,
   Activity, ArrowUpDown, RefreshCw, Sparkles, Building2, ChevronLeft, ChevronRight,
-  Phone, User as UserIcon, AtSign, Filter,
+  Phone, User as UserIcon, AtSign, Filter, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
