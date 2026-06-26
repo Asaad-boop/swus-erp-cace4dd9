@@ -718,27 +718,10 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .join(", ");
     if (!phone || address.length < 5) throw new Error("Missing phone or address");
 
-    // Resolve city / zone / area. Pathao phone history can be stale for a
-    // reused customer number, so only trust it when it overlaps the current
-    // order address; otherwise match the current address against Pathao lists.
+    // Pathao now supports auto address mapping in the create-order API when
+    // city/zone/area are omitted, so bulk/fast booking sends the full address
+    // directly and lets Pathao choose the delivery area.
     const client = await clientForBrand(supabase, order.brand_id);
-    const phoneResolved = await resolveByPhone(client, phone);
-    const resolved = phoneRouteMatchesCurrentAddress(phoneResolved, address)
-      ? phoneResolved
-      : await resolveByAddress(client, address);
-    if (!resolved) {
-      throw new Error(
-        "Pathao API thake city/zone pawa jayni. Order kholo, manually city/zone select kore Book Pathao chap.",
-      );
-    }
-    if (!resolved.zone) {
-      throw new Error("Pathao zone pawa jayni. Manually zone select kore Book Pathao chap.");
-    }
-    const cityPick = { id: resolved.city.id, name: resolved.city.name, confidence: 1 };
-    const resolvedZoneId: number = resolved.zone.id;
-    const resolvedZoneName: string = resolved.zone.name;
-    const areaId: number | undefined = resolved.area?.id;
-
 
     const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
     const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
@@ -754,9 +737,6 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       recipient_name: name,
       recipient_phone: phone,
       recipient_address: address,
-      recipient_city: cityPick.id,
-      recipient_zone: resolvedZoneId,
-      recipient_area: areaId,
       delivery_type: data.delivery_type,
       item_type: data.item_type,
       item_quantity: totalQty,
@@ -768,7 +748,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
     const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
-    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, cityPick.id);
+    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, null);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -782,7 +762,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         tracking_code: tracking,
         delivery_fee: fee || null,
         status,
-        request_payload: { auto: true, city: cityPick, zone: { id: resolvedZoneId, name: resolvedZoneName }, area: areaId } as never,
+        request_payload: { auto: true, pathao_auto_address: true, address } as never,
         response_payload: result as never,
         created_by: userId,
       })
@@ -800,11 +780,6 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        pathao_city_id: cityPick.id,
-        pathao_city_name: cityPick.name,
-        pathao_zone_id: resolvedZoneId,
-        pathao_zone_name: resolvedZoneName,
-        pathao_area_id: areaId ?? null,
         ...(actualCost.total > 0 ? {
           actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
@@ -820,8 +795,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       tracking,
       fee: actualCost.total || fee,
       status,
-      city: cityPick.name,
-      zone: resolvedZoneName,
+      city: null,
+      zone: null,
     };
   });
 
