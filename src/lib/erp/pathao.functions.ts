@@ -401,6 +401,55 @@ export const pathaoDetectAddressFn = createServerFn({ method: "POST" })
   });
 
 /**
+ * Pathao customer lookup by phone — same call the Pathao merchant portal
+ * uses to auto-fill "New Delivery" forms. Returns the last-used City,
+ * Zone, Area, recipient name & address. Authoritative for any data-entry
+ * form (Create Order, Web Orders book dialog).
+ */
+export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        phone: z.string().min(6).max(20),
+        brandId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCourierRole(context.supabase, context.userId);
+    const client = await clientForBrand(context.supabase, data.brandId);
+    const phone = data.phone.replace(/\D/g, "").slice(-11);
+    if (phone.length < 11) return { found: false as const };
+    const info: any = await client.lookupCustomer(phone);
+    const dd = info?.data ?? info ?? {};
+    const cityId = Number(dd.city_id || dd.recipient_city || 0);
+    const zoneId = Number(dd.zone_id || dd.recipient_zone || 0);
+    const areaId = Number(dd.area_id || dd.recipient_area || 0);
+    if (!cityId || !zoneId) return { found: false as const };
+    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityName = citiesRaw.find((c) => c.city_id === cityId)?.city_name ?? dd.city_name ?? "";
+    const zonesRaw = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+    const zoneName = zonesRaw.find((z) => z.zone_id === zoneId)?.zone_name ?? dd.zone_name ?? "";
+    let areaName = "";
+    if (areaId) {
+      try {
+        const areasRaw = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+        areaName = areasRaw.find((a) => a.area_id === areaId)?.area_name ?? dd.area_name ?? "";
+      } catch { /* ignore */ }
+    }
+    return {
+      found: true as const,
+      city: { id: cityId, name: cityName },
+      zone: { id: zoneId, name: zoneName },
+      area: areaId ? { id: areaId, name: areaName } : null,
+      recipient_name: (dd.name || dd.recipient_name || "") as string,
+      recipient_address: (dd.address || dd.recipient_address || "") as string,
+      success_ratio: typeof dd.success_ratio === "number" ? dd.success_ratio : null,
+    };
+  });
+
+/**
  * Detect Pathao City/Zone/Area for a given order using the customer-provided
  * structured fields (shipping_district / shipping_thana) FIRST, then falling
  * back to the free-form address via the deterministic hierarchy matcher.
