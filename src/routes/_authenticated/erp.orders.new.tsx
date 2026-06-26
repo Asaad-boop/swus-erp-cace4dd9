@@ -557,9 +557,19 @@ function NewOrderPage() {
                       disabled={detect.isPending || !address.trim()}
                     >
                       {detect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-                      AI Detect
+                      Auto Detect
                     </Button>
                   </div>
+                  {lastDetect && (
+                    <DetectionPreview
+                      address={lastDetect.address}
+                      city={lastDetect.city?.name ?? null}
+                      zone={lastDetect.zone?.name ?? null}
+                      area={lastDetect.area?.name ?? null}
+                      confidence={lastDetect.confidence}
+                      onDismiss={() => setLastDetect(null)}
+                    />
+                  )}
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
                       <LocationCombobox
