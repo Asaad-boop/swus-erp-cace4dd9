@@ -45,10 +45,6 @@ function pickProviderFromName(name: string | null | undefined): CourierProvider 
   return null;
 }
 
-function normalizeText(s: string): string {
-  return s.toLowerCase().replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ").replace(/\s+/g, " ").trim();
-}
-
 async function resolvePathaoRoute(client: any, order: { shipping_address?: string | null; shipping_city?: string | null; shipping_thana?: string | null; shipping_district?: string | null }) {
   const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ");
   if (address.trim().length < 10) return null;
