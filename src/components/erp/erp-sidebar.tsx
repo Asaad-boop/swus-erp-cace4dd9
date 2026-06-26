@@ -142,16 +142,30 @@ const groups: Group[] = [
   },
   {
     kind: "accordion",
-    label: "Workspace",
+    label: "HRM",
     defaultClosed: true,
     sections: [
       {
-        key: "workspace",
-        label: "Workspace",
-        icon: Building2,
+        key: "hrm",
+        label: "HRM",
+        icon: BriefcaseBusiness,
         items: [
           { to: "/erp/hr", label: "HR · People", icon: BriefcaseBusiness },
           { to: "/erp/hr/staff", label: "Staff Logins (advanced)", icon: UserCog },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "accordion",
+    label: "System",
+    defaultClosed: true,
+    sections: [
+      {
+        key: "system",
+        label: "System",
+        icon: Settings,
+        items: [
           { to: "/erp/settings", label: "Settings", icon: Settings },
           { to: "/erp/diagnostics", label: "Diagnostics", icon: Stethoscope },
         ],
