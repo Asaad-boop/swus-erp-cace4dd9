@@ -169,6 +169,13 @@ function NewOrderPage() {
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
   const detectFn = useServerFn(pathaoDetectAddressFn);
+  const [lastDetect, setLastDetect] = useState<{
+    city: { id: number; name: string } | null;
+    zone: { id: number; name: string } | null;
+    area: { id: number; name: string } | null;
+    confidence: number;
+    address: string;
+  } | null>(null);
   const detect = useMutation({
     mutationFn: async () => {
       if (!address.trim()) throw new Error("Address likhun age");
@@ -179,7 +186,18 @@ function NewOrderPage() {
       if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
       if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
       else setAreaId(null);
-      toast.success(r.city ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""}` : "Couldn't match");
+      setLastDetect({
+        city: r.city ?? null,
+        zone: r.zone ?? null,
+        area: r.area ?? null,
+        confidence: r.confidence ?? 0,
+        address: address.trim(),
+      });
+      toast.success(
+        r.city
+          ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""} (${Math.round((r.confidence ?? 0) * 100)}%)`
+          : "Couldn't match",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
