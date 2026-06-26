@@ -141,6 +141,29 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
           </div>
         ) : (
           <div className="grid gap-3">
+            {(detecting || autoFilled) && (
+              <div className={
+                autoFilled
+                  ? "flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300"
+                  : "flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground"
+              }>
+                {detecting ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Detecting City / Zone / Area from customer address…</span>
+                  </>
+                ) : autoFilled ? (
+                  <>
+                    <Sparkles className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>
+                      Auto-filled from {autoFilled.source === "structured" ? "checkout District/Thana" : "shipping address"}:{" "}
+                      <span className="font-semibold">{autoFilled.city}</span> › <span className="font-semibold">{autoFilled.zone}</span>
+                      {autoFilled.area && <> › <span className="font-semibold">{autoFilled.area}</span></>}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">City</Label>
