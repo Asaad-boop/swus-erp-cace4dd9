@@ -48,7 +48,7 @@ function readPathaoString(row: any, keys: string[]) {
 function normalizePathaoCities(rows: any): NormalizedGeo[] {
   return asPathaoList(rows)
     .map((row) => ({
-      id: readPathaoNumber(row, ["city_id", "id", "value"]),
+      id: readPathaoNumber(row, ["city_id", "cityId", "city", "id", "value"]),
       name: readPathaoString(row, ["city_name", "name", "label", "title"]),
       raw: row,
     }))
@@ -58,7 +58,7 @@ function normalizePathaoCities(rows: any): NormalizedGeo[] {
 function normalizePathaoZones(rows: any): NormalizedGeo[] {
   return asPathaoList(rows)
     .map((row) => ({
-      id: readPathaoNumber(row, ["zone_id", "id", "value"]),
+      id: readPathaoNumber(row, ["zone_id", "zoneId", "zone", "id", "value"]),
       name: readPathaoString(row, ["zone_name", "name", "label", "title"]),
       raw: row,
     }))
@@ -68,7 +68,7 @@ function normalizePathaoZones(rows: any): NormalizedGeo[] {
 function normalizePathaoAreas(rows: any): NormalizedGeo[] {
   return asPathaoList(rows)
     .map((row) => ({
-      id: readPathaoNumber(row, ["area_id", "id", "value"]),
+      id: readPathaoNumber(row, ["area_id", "areaId", "area", "id", "value"]),
       name: readPathaoString(row, ["area_name", "name", "label", "title"]),
       raw: row,
     }))
