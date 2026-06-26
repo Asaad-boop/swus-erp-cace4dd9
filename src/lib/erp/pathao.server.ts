@@ -185,22 +185,55 @@ export async function loadPathaoCreds(supabase: any, brandId?: string | null): P
   } catch {
     // fall back to caller's client
   }
-  let q = client
+  // Fetch all active pathao rows; pick brand-specific row first, otherwise
+  // share credentials from any other brand and only swap store_id when the
+  // requested brand has its own row with just a store_id set.
+  const { data: rows, error } = await client
     .from("erp_courier_settings")
     .select("brand_id, base_url, client_id, client_secret, username, password, store_id, is_active")
     .eq("provider", "pathao")
     .eq("is_active", true);
-  if (brandId) q = q.eq("brand_id", brandId);
-  const { data, error } = await q.limit(1).maybeSingle();
   if (error) throw error;
-  if (data && data.client_id && data.client_secret && data.username && data.password && data.store_id) {
+  const list: any[] = Array.isArray(rows) ? rows : [];
+  const isComplete = (r: any) =>
+    r && r.client_id && r.client_secret && r.username && r.password && r.store_id;
+
+  const brandRow = brandId ? list.find((r) => r.brand_id === brandId) : null;
+  const fallback =
+    list.find((r) => isComplete(r) && (!brandId || r.brand_id !== brandId)) ||
+    list.find(isComplete);
+
+  // 1) Brand row has full creds → use it.
+  if (brandRow && isComplete(brandRow)) {
     return {
-      base_url: data.base_url || "https://api-hermes.pathao.com",
-      client_id: data.client_id,
-      client_secret: data.client_secret,
-      username: data.username,
-      password: data.password,
-      store_id: Number(data.store_id),
+      base_url: brandRow.base_url || "https://api-hermes.pathao.com",
+      client_id: brandRow.client_id,
+      client_secret: brandRow.client_secret,
+      username: brandRow.username,
+      password: brandRow.password,
+      store_id: Number(brandRow.store_id),
+    };
+  }
+  // 2) Brand row has only store_id (partial) → borrow creds from fallback, use brand's store_id.
+  if (brandRow && brandRow.store_id && fallback) {
+    return {
+      base_url: brandRow.base_url || fallback.base_url || "https://api-hermes.pathao.com",
+      client_id: fallback.client_id,
+      client_secret: fallback.client_secret,
+      username: fallback.username,
+      password: fallback.password,
+      store_id: Number(brandRow.store_id),
+    };
+  }
+  // 3) No brand row → use any active complete row as-is.
+  if (fallback) {
+    return {
+      base_url: fallback.base_url || "https://api-hermes.pathao.com",
+      client_id: fallback.client_id,
+      client_secret: fallback.client_secret,
+      username: fallback.username,
+      password: fallback.password,
+      store_id: Number(fallback.store_id),
     };
   }
   const env = envCreds();
