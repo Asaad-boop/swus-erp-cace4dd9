@@ -274,7 +274,8 @@ async function resolveByAddress(client: any, address: string) {
   const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
   const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
   const explicitCity = bestScoredMatch(hay, cityItems);
-  const cityHasStrongMatch = !!explicitCity && explicitCity.score >= 95;
+  const strongCity = explicitCity && explicitCity.score >= 95 ? explicitCity : null;
+  const cityHasStrongMatch = !!strongCity;
 
   const commonCityNames = [
     "Dhaka", "Chattogram", "Chittagong", "Gazipur", "Narayanganj", "Savar",
@@ -284,7 +285,7 @@ async function resolveByAddress(client: any, address: string) {
   const cityMap = new Map(cityItems.map((c) => [normalizeAddr(c.name), c]));
   const commonCities = commonCityNames.map((n) => cityMap.get(normalizeAddr(n))).filter(Boolean) as typeof cityItems;
   const candidateCities = cityHasStrongMatch
-    ? [explicitCity]
+    ? [strongCity]
     : [...commonCities, ...cityItems.filter((c) => !commonCities.some((cc) => cc.id === c.id))];
 
   let bestRoute: {
@@ -293,7 +294,7 @@ async function resolveByAddress(client: any, address: string) {
     area: { id: number; name: string } | null;
     score: number;
   } | null = cityHasStrongMatch
-    ? { city: { id: explicitCity.id, name: explicitCity.name }, zone: null, area: null, score: explicitCity.score }
+    ? { city: { id: strongCity.id, name: strongCity.name }, zone: null, area: null, score: strongCity.score }
     : null;
 
   for (const c of candidateCities) {
@@ -318,7 +319,7 @@ async function resolveByAddress(client: any, address: string) {
     );
     if (areaMatch && areaMatch.score >= 55) area = areaMatch;
 
-    const routeScore = zone.score + (area?.score ?? 0) + (cityHasStrongMatch && c.id === explicitCity.id ? 40 : 0);
+    const routeScore = zone.score + (area?.score ?? 0) + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
     if (!bestRoute || routeScore > bestRoute.score) {
       bestRoute = {
         city: { id: c.id, name: c.name },
