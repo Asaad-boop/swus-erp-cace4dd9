@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { canAccessPath, hasAnyBackoffice, moduleForPath, getAllowedModules } from "@/lib/erp/access";
+import { pathAllowedBy } from "@/lib/erp/permissions/page-catalog";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/_authenticated")({
 type Status =
   | { kind: "loading" }
   | { kind: "guest" }
-  | { kind: "authed"; roles: string[] };
+  | { kind: "authed"; roles: string[]; allowedPages: string[] | null };
 
 function AuthGate() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
@@ -30,13 +31,17 @@ function AuthGate() {
         setStatus({ kind: "guest" });
         return;
       }
-      const { data: rows } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", u.user.id);
+      const [rolesRes, permsRes] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", u.user.id),
+        supabase.from("staff_permissions").select("permissions").eq("user_id", u.user.id).maybeSingle(),
+      ]);
       if (!mounted) return;
-      const roles = (rows ?? []).map((r) => r.role as string);
-      setStatus({ kind: "authed", roles });
+      const roles = (rolesRes.data ?? []).map((r) => r.role as string);
+      const permJson = (permsRes.data as any)?.permissions as { allowedPages?: string[] } | null;
+      const allowedPages = Array.isArray(permJson?.allowedPages) && permJson!.allowedPages!.length > 0
+        ? permJson!.allowedPages!
+        : null;
+      setStatus({ kind: "authed", roles, allowedPages });
     };
 
     void load();
@@ -58,7 +63,8 @@ function AuthGate() {
   if (status.kind === "loading") return <div className="min-h-screen bg-background" />;
   if (status.kind === "guest") return <Navigate to="/auth" replace />;
 
-  const { roles } = status;
+  const { roles, allowedPages } = status;
+  const isAdmin = roles.includes("admin");
   const path = location.pathname;
   const isErp = path === "/erp" || path.startsWith("/erp/");
   const isMe = path === "/me" || path.startsWith("/me/");
@@ -91,7 +97,8 @@ function AuthGate() {
 
   // 2. Per-path module check — covers direct URL access
   const allowed = canAccessPath(roles, path);
-  if (!allowed) {
+  const pageAllowed = isAdmin ? true : pathAllowedBy(allowedPages, path);
+  if (!allowed || !pageAllowed) {
     const mod = moduleForPath(path);
     const fallback = hasAnyBackoffice(roles) ? "/erp" : "/me";
     return (
