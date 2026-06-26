@@ -6,13 +6,15 @@ import { toast } from "sonner";
 import {
   Truck, PackageCheck, PackageOpen, PackagePlus, Send, Camera, Printer,
   BarChart3, Loader2, CheckCircle2, AlertCircle, Sparkles, Undo2,
-  Phone, MapPin, Banknote, Package, Clock,
+  Phone, MapPin, Banknote, Package, Clock, Maximize2, Minimize2, X,
+  ChevronRight, ListChecks, Zap,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -22,6 +24,7 @@ import { CameraScanner } from "@/components/erp/dispatch/camera-scanner";
 import { BatchPrintDialog } from "@/components/erp/dispatch/batch-print-dialog";
 import { DispatchSummary } from "@/components/erp/dispatch/dispatch-summary";
 import { beepError, beepShip, beepSuccess } from "@/lib/erp/audio-feedback";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/dispatch")({
   head: () => ({ meta: [{ title: "Dispatch — ERP" }] }),
@@ -103,6 +106,14 @@ function stageFor(status: string): Stage | null {
   return null;
 }
 
+type PrintJob = {
+  id: string;
+  at: number;
+  count: number;
+  mode: string;
+  status: "queued" | "printed" | "failed";
+};
+
 function DispatchPage() {
   const { brandIds } = useBrand();
   const qc = useQueryClient();
@@ -114,7 +125,27 @@ function DispatchPage() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [scanLog, setScanLog] = useState<ScanLogEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [station, setStation] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [printJobs, setPrintJobs] = useState<PrintJob[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem("dispatch-print-jobs");
+      return raw ? (JSON.parse(raw) as PrintJob[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const scanRef = useRef<ScanInputHandle>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("dispatch-print-jobs", JSON.stringify(printJobs.slice(0, 12)));
+    } catch {
+      /* ignore */
+    }
+  }, [printJobs]);
 
   const queryKey = useMemo(() => ["dispatch-orders", brandIds] as const, [brandIds]);
 
@@ -188,6 +219,11 @@ function DispatchPage() {
       else if (e.key === "2") setMode("ready");
       else if (e.key === "3") setMode("ship");
       else if (e.key.toLowerCase() === "p") setPrintOpen(true);
+      else if (e.key.toLowerCase() === "f") setStation((v) => !v);
+      else if (e.key === "Escape") {
+        setSelected(new Set());
+        setStation(false);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -331,6 +367,64 @@ function DispatchPage() {
   const codShippedCount = shipped.filter(isCod).length;
   const canUndo = scanLog.some((e) => e.undoable);
 
+  const allRows = useMemo(() => [...pending, ...packed, ...ready], [pending, packed, ready]);
+  const selectedRows = useMemo(() => allRows.filter((o) => selected.has(o.id)), [allRows, selected]);
+
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function bulkAdvance() {
+    if (selectedRows.length === 0) return;
+    setBulkBusy(true);
+    let ok = 0;
+    let fail = 0;
+    for (const o of selectedRows) {
+      const stage = stageFor(o.status);
+      let next: "packed" | "ready_to_ship" | "shipped" | null = null;
+      if (stage === "pending") next = "packed";
+      else if (stage === "packed") next = "ready_to_ship";
+      else if (stage === "ready") next = "shipped";
+      if (!next) continue;
+      try {
+        if (next === "shipped") {
+          await bookPathao({ data: { orderId: o.id } });
+        }
+        const { error } = await supabase.rpc("transition_order_status", {
+          _order_id: o.id,
+          _new_status: next,
+          _note: "Dispatch bulk advance",
+        });
+        if (error) throw error;
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    if (ok) beepSuccess();
+    if (fail) beepError();
+    toast[fail ? "warning" : "success"](`Bulk advance: ${ok} done${fail ? `, ${fail} failed` : ""}`);
+    qc.invalidateQueries({ queryKey });
+  }
+
+  function logPrintJob(count: number, modeLabel: string) {
+    const job: PrintJob = {
+      id: crypto.randomUUID(),
+      at: Date.now(),
+      count,
+      mode: modeLabel,
+      status: "printed",
+    };
+    setPrintJobs((cur) => [job, ...cur].slice(0, 12));
+  }
+
   const modeHero: Record<Mode, { grad: string; label: string; placeholder: string; icon: React.ReactNode }> = {
     auto: {
       grad: "from-primary/15 via-primary/5 to-transparent",
@@ -359,22 +453,89 @@ function DispatchPage() {
   };
   const hero = modeHero[mode];
 
+  // ============ PACK STATION (fullscreen focus mode) ============
+  if (station) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="flex items-center justify-between px-6 py-3 border-b">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-foreground text-background">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold tracking-tight">Pack Station</div>
+              <div className="text-[11px] text-muted-foreground">{hero.label} · Press F or Esc to exit</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} variant="outline" size="sm">
+              <ToggleGroupItem value="auto">Auto</ToggleGroupItem>
+              <ToggleGroupItem value="pack">Pack</ToggleGroupItem>
+              <ToggleGroupItem value="ready">Ready</ToggleGroupItem>
+              <ToggleGroupItem value="ship">Ship</ToggleGroupItem>
+            </ToggleGroup>
+            <Button variant="ghost" size="icon" onClick={() => setStation(false)}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 grid place-items-center p-6">
+          <div className="w-full max-w-2xl space-y-4">
+            <div className="text-center">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-1">Scan to advance</div>
+              <div className="text-3xl font-bold tracking-tight">{hero.label}</div>
+            </div>
+            <ScanInput
+              ref={scanRef}
+              onScan={handleScan}
+              disabled={busy || brandIds.length === 0}
+              placeholder={hero.placeholder}
+            />
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <StationStat label="Pending" value={pending.length} />
+              <StationStat label="Packed" value={packed.length} />
+              <StationStat label="Shipped" value={shipped.length} highlight />
+            </div>
+            <div className="space-y-1.5">
+              {scanLog.map((entry, i) => (
+                <div key={`${entry.at}-${i}`} className={cn(
+                  "flex items-center gap-2 text-sm px-3 py-2 rounded-lg border",
+                  entry.ok ? "border-emerald-200 bg-emerald-50/60 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100"
+                          : "border-rose-200 bg-rose-50/60 text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-100",
+                  i === 0 ? "font-semibold" : "opacity-60",
+                )}>
+                  {entry.ok ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  <span className="truncate">{entry.msg}</span>
+                  <span className="ml-auto shrink-0 text-[10px] opacity-70">{timeAgo(new Date(entry.at).toISOString())}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
       {/* Top bar */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
-            <Truck className="h-5 w-5 text-primary" />
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-foreground text-background">
+            <Truck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-xl sm:text-2xl font-bold">Dispatch Center</h1>
-            <p className="text-xs text-muted-foreground">
-              0=Auto · 1=Pack · 2=Ready · 3=Ship · P=Print · Esc=Clear
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operations</div>
+            <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight">Dispatch Center</h1>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              0 Auto · 1 Pack · 2 Ready · 3 Ship · P Print · F Station · Esc Clear
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setStation(true)}>
+            <Maximize2 className="h-4 w-4 mr-2" /> Pack Station
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
             <BarChart3 className="h-4 w-4 mr-2" /> Summary
           </Button>
@@ -387,40 +548,41 @@ function DispatchPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
-          tone="amber"
           icon={<PackageOpen className="h-4 w-4" />}
           label="Pending"
           value={pending.length}
           sub={bdt(sum(pending))}
+          dot="bg-amber-500"
         />
         <KpiCard
-          tone="blue"
           icon={<PackageCheck className="h-4 w-4" />}
           label="Packed today"
           value={packed.length}
           sub={bdt(sum(packed))}
+          dot="bg-blue-500"
         />
         <KpiCard
-          tone="violet"
           icon={<PackagePlus className="h-4 w-4" />}
           label="Ready to ship"
           value={ready.length}
           sub={bdt(sum(ready))}
+          dot="bg-violet-500"
         />
         <KpiCard
-          tone="emerald"
           icon={<Send className="h-4 w-4" />}
           label="Shipped today"
           value={shipped.length}
           sub={`${bdt(sum(shipped))} · COD ${codShippedCount}/${bdt(codShippedValue)}`}
+          dot="bg-emerald-500"
         />
       </div>
 
       {/* Scan hero */}
-      <Card className={`p-4 sm:p-5 border-2 bg-gradient-to-br ${hero.grad}`}>
+      <Card className="p-4 sm:p-5 border bg-card/60 backdrop-blur">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between mb-3">
           <div className="flex min-w-0 items-center gap-2">
-            {hero.icon}
+            <span className={cn("h-2 w-2 rounded-full", mode === "auto" ? "bg-foreground" : mode === "pack" ? "bg-amber-500" : mode === "ready" ? "bg-violet-500" : "bg-emerald-500")} />
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mode</span>
             <span className="font-semibold text-sm truncate">{hero.label}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -458,11 +620,13 @@ function DispatchPage() {
             {scanLog.map((entry, i) => (
               <div
                 key={`${entry.at}-${i}`}
-                className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-md ${
+                className={cn(
+                  "flex items-center gap-2 text-xs px-3 py-1.5 rounded-md border",
                   entry.ok
-                    ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-                    : "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200"
-                } ${i === 0 ? "font-semibold" : "opacity-70"}`}
+                    ? "border-emerald-200/70 bg-emerald-50/60 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100"
+                    : "border-rose-200/70 bg-rose-50/60 text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-100",
+                  i === 0 ? "font-semibold" : "opacity-70",
+                )}
               >
                 {entry.ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
                 <span className="truncate">{entry.msg}</span>
@@ -473,51 +637,104 @@ function DispatchPage() {
         )}
       </Card>
 
+      {/* Bulk action bar */}
+      {selectedRows.length > 0 && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl border bg-foreground text-background shadow-lg">
+          <ListChecks className="h-4 w-4" />
+          <span className="text-sm font-semibold">{selectedRows.length} selected</span>
+          <span className="text-xs opacity-70">· {bdt(sum(selectedRows))}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setPrintOpen(true)}>
+              <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
+            </Button>
+            <Button size="sm" variant="secondary" disabled={bulkBusy} onClick={bulkAdvance}>
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5 mr-1.5" />}
+              Advance all
+            </Button>
+            <Button size="sm" variant="ghost" className="text-background hover:bg-background/10" onClick={() => setSelected(new Set())}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Pipeline */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <Column
           title="Pending"
           icon={<PackageOpen className="h-4 w-4" />}
-          tone="amber"
+          dot="bg-amber-500"
           rows={pending}
           loading={isLoading}
           actionLabel="Pack"
           stageKey="pending"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
           actionEnabled={mode === "pack" || mode === "auto"}
+          selected={selected}
+          onToggleSelect={toggleSelect}
         />
         <Column
           title="Packed"
           icon={<PackageCheck className="h-4 w-4" />}
-          tone="blue"
+          dot="bg-blue-500"
           rows={packed}
           loading={isLoading}
           actionLabel="Mark Ready"
           stageKey="packed"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
           actionEnabled={mode === "ready" || mode === "auto"}
+          selected={selected}
+          onToggleSelect={toggleSelect}
         />
         <Column
           title="Ready to Ship"
           icon={<PackagePlus className="h-4 w-4" />}
-          tone="violet"
+          dot="bg-violet-500"
           rows={ready}
           loading={isLoading}
           actionLabel="Ship + Book"
           stageKey="ready"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
           actionEnabled={mode === "ship" || mode === "auto"}
+          selected={selected}
+          onToggleSelect={toggleSelect}
         />
         <Column
           title="Shipped Today"
           icon={<Send className="h-4 w-4" />}
-          tone="emerald"
+          dot="bg-emerald-500"
           rows={shipped}
           loading={isLoading}
           stageKey="shipped"
           showCourier
         />
       </div>
+
+      {/* Print Queue */}
+      {printJobs.length > 0 && (
+        <Card className="p-4 border bg-card/60">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Printer className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Print Queue</span>
+              <span className="text-sm font-semibold">Recent jobs</span>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setPrintJobs([])}>Clear</Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {printJobs.map((j) => (
+              <div key={j.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-background text-xs">
+                <span className={cn(
+                  "h-2 w-2 rounded-full",
+                  j.status === "printed" ? "bg-emerald-500" : j.status === "failed" ? "bg-rose-500" : "bg-amber-500",
+                )} />
+                <span className="font-medium">{j.count} × {j.mode}</span>
+                <span className="ml-auto text-muted-foreground">{timeAgo(new Date(j.at).toISOString())}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <CameraScanner
         open={cameraOpen}
@@ -531,7 +748,8 @@ function DispatchPage() {
       <BatchPrintDialog
         open={printOpen}
         onClose={() => setPrintOpen(false)}
-        orders={[...pending, ...packed, ...ready]}
+        orders={selectedRows.length > 0 ? selectedRows : [...pending, ...packed, ...ready]}
+        onPrinted={(count, mode) => logPrintJob(count, mode)}
       />
 
       <DispatchSummary
@@ -545,35 +763,40 @@ function DispatchPage() {
 }
 
 function KpiCard({
-  tone, icon, label, value, sub,
+  icon, label, value, sub, dot,
 }: {
-  tone: "amber" | "blue" | "violet" | "emerald";
   icon: React.ReactNode;
   label: string;
   value: number | string;
   sub?: string;
+  dot?: string;
 }) {
-  const toneMap = {
-    amber: "from-amber-500/15 to-transparent border-amber-500/30 text-amber-700 dark:text-amber-300",
-    blue: "from-blue-500/15 to-transparent border-blue-500/30 text-blue-700 dark:text-blue-300",
-    violet: "from-violet-500/15 to-transparent border-violet-500/30 text-violet-700 dark:text-violet-300",
-    emerald: "from-emerald-500/15 to-transparent border-emerald-500/30 text-emerald-700 dark:text-emerald-300",
-  };
   return (
-    <Card className={`p-3 bg-gradient-to-br ${toneMap[tone]} border`}>
-      <div className="flex items-center gap-2 text-xs font-medium">
-        {icon} <span className="truncate">{label}</span>
+    <Card className="p-3.5 border bg-card hover:border-foreground/30 transition-colors">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-medium">
+        {dot && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
+        <span className="text-muted-foreground/80">{icon}</span>
+        <span className="truncate">{label}</span>
       </div>
-      <div className="text-2xl font-bold mt-1 text-foreground">{value}</div>
-      {sub && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{sub}</div>}
+      <div className="text-[28px] leading-none font-bold mt-2 tracking-tight tabular-nums">{value}</div>
+      {sub && <div className="text-[11px] text-muted-foreground mt-1.5 truncate">{sub}</div>}
     </Card>
+  );
+}
+
+function StationStat({ label, value, highlight }: { label: string; value: number | string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-xl border p-3 text-center", highlight ? "bg-foreground text-background border-foreground" : "bg-card")}>
+      <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">{label}</div>
+      <div className="text-2xl font-bold tabular-nums mt-1">{value}</div>
+    </div>
   );
 }
 
 function Column({
   title,
   icon,
-  tone,
+  dot,
   rows,
   loading,
   actionLabel,
@@ -581,10 +804,12 @@ function Column({
   actionEnabled,
   showCourier,
   stageKey,
+  selected,
+  onToggleSelect,
 }: {
   title: string;
   icon: React.ReactNode;
-  tone: "amber" | "blue" | "violet" | "emerald";
+  dot: string;
   rows: OrderRow[];
   loading: boolean;
   actionLabel?: string;
@@ -592,13 +817,9 @@ function Column({
   actionEnabled?: boolean;
   showCourier?: boolean;
   stageKey: Stage;
+  selected?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
-  const toneMap = {
-    amber: "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20",
-    blue: "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20",
-    violet: "border-violet-300 bg-violet-50/50 dark:bg-violet-950/20",
-    emerald: "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20",
-  };
   const codCount = rows.filter(isCod).length;
 
   function stageTime(o: OrderRow) {
@@ -608,18 +829,20 @@ function Column({
   }
 
   return (
-    <Card className={`p-3 border-t-4 ${toneMap[tone]}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 font-semibold min-w-0">
-          {icon} {title}
+    <Card className="p-3 border bg-card/60">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2 font-semibold min-w-0 text-sm">
+          <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+          <span className="text-muted-foreground/80">{icon}</span>
+          <span className="truncate tracking-tight">{title}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {codCount > 0 && (
-            <Badge variant="outline" className="text-[10px] gap-1 border-emerald-300 text-emerald-700 dark:text-emerald-300">
+            <Badge variant="outline" className="text-[10px] gap-1 h-5 rounded-full">
               <Banknote className="h-3 w-3" /> {codCount}
             </Badge>
           )}
-          <Badge variant="outline">
+          <Badge variant="outline" className="rounded-full h-5 text-[10px] tabular-nums">
             {rows.length} · {bdt(sum(rows))}
           </Badge>
         </div>
@@ -638,25 +861,36 @@ function Column({
               const area = customerArea(o);
               const items = itemCount(o);
               const cod = isCod(o);
+              const isSelected = selected?.has(o.id) ?? false;
               return (
                 <div
                   key={o.id}
-                  className="border rounded-md p-2 bg-background text-sm hover:border-foreground/30 transition-colors"
+                  className={cn(
+                    "border rounded-lg p-2.5 bg-background text-sm transition-colors group",
+                    isSelected ? "border-foreground ring-1 ring-foreground" : "hover:border-foreground/30",
+                  )}
                 >
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-start">
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-start">
+                    {onToggleSelect ? (
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => onToggleSelect(o.id)}
+                        className="mt-0.5 opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"
+                      />
+                    ) : <span />}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs font-semibold">
+                        <span className="font-mono text-xs font-semibold tracking-tight">
                           {o.invoice_no ?? o.id.slice(0, 8)}
                         </span>
                         {cod ? (
-                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-emerald-400 text-emerald-700 dark:text-emerald-300">COD</Badge>
+                          <span className="inline-flex items-center text-[9px] h-4 px-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60">COD</span>
                         ) : (
-                          <Badge variant="outline" className="text-[9px] h-4 px-1">PAID</Badge>
+                          <span className="inline-flex items-center text-[9px] h-4 px-1.5 rounded-full bg-muted text-muted-foreground border">PAID</span>
                         )}
-                        <Badge variant="secondary" className="text-[9px] h-4 px-1 gap-0.5">
+                        <span className="inline-flex items-center gap-0.5 text-[9px] h-4 px-1.5 rounded-full bg-muted text-muted-foreground">
                           <Package className="h-2.5 w-2.5" />{items}
-                        </Badge>
+                        </span>
                       </div>
                       <div className="truncate text-xs font-medium mt-0.5">
                         {customerName(o)}
@@ -672,13 +906,13 @@ function Column({
                         </div>
                       )}
                       {showCourier && o.courier_name && (
-                        <div className="text-[10px] font-mono mt-0.5 text-emerald-700 dark:text-emerald-300 truncate">
+                        <div className="text-[10px] font-mono mt-1 text-emerald-700 dark:text-emerald-300 truncate">
                           {o.courier_name} · {o.tracking_number ?? "—"}
                         </div>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs font-bold">{bdt(o.total ?? 0)}</div>
+                      <div className="text-xs font-bold tabular-nums">{bdt(o.total ?? 0)}</div>
                       <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
                         <Clock className="h-2.5 w-2.5" />{timeAgo(stageTime(o))}
                       </div>
@@ -686,7 +920,7 @@ function Column({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 text-[10px] mt-1 px-2"
+                          className="h-6 text-[10px] mt-1.5 px-2 rounded-full"
                           disabled={!actionEnabled}
                           onClick={() => onAction(o)}
                         >
