@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/erp/dispatch")({
   component: DispatchPage,
 });
 
-type Mode = "auto" | "pack" | "ready" | "ship";
+type Mode = "pack" | "ready" | "ship";
 type Stage = "pending" | "packed" | "ready" | "shipped";
 
 type OrderRow = {
@@ -123,7 +123,7 @@ function DispatchPage() {
   const qc = useQueryClient();
   const bookPathao = useServerFn(pathaoBookOrderAutoFn);
 
-  const [mode, setMode] = useState<Mode>("auto");
+  const [mode, setMode] = useState<Mode>("pack");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -225,8 +225,7 @@ function DispatchPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA";
       if (inField) return;
-      if (e.key === "0") setMode("auto");
-      else if (e.key === "1") setMode("pack");
+      if (e.key === "1") setMode("pack");
       else if (e.key === "2") setMode("ready");
       else if (e.key === "3") setMode("ship");
       else if (e.key.toLowerCase() === "p") setPrintOpen(true);
