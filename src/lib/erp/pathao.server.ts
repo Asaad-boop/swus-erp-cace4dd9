@@ -117,11 +117,23 @@ export function createPathaoClient(creds: PathaoCreds) {
     let json: any = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
     if (!res.ok) {
-      const msg = json?.message || json?.error || text || `Pathao error ${res.status}`;
+      const baseMsg = json?.message || json?.error || text || `Pathao error ${res.status}`;
+      // Pathao 422 returns { message: "Please fix the given errors", errors: { field: ["..."] } }
+      // Surface those field-level errors so the user can actually fix the order.
+      let detail = "";
+      if (json?.errors && typeof json.errors === "object") {
+        const parts: string[] = [];
+        for (const [k, v] of Object.entries(json.errors)) {
+          const val = Array.isArray(v) ? v.join(", ") : String(v);
+          parts.push(`${k}: ${val}`);
+        }
+        if (parts.length) detail = ` — ${parts.join(" | ")}`;
+      }
+      const msg = `${typeof baseMsg === "string" ? baseMsg : JSON.stringify(baseMsg)}${detail}`;
       if (res.status === 429) {
         throw new Error("Pathao rate limit hoyeche. 1-2 minute pore abar try koro.");
       }
-      throw new Error(`Pathao ${path} failed (${res.status}): ${typeof msg === "string" ? msg : JSON.stringify(msg).slice(0, 240)}`);
+      throw new Error(`Pathao ${path} failed (${res.status}): ${msg.slice(0, 480)}`);
     }
     return (json?.data ?? json) as T;
   }
