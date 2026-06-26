@@ -163,6 +163,33 @@ function pickByCommonAliases(address: string, items: PickItem[], aliases: Record
   return null;
 }
 
+/**
+ * Score every item by token-overlap with the address and return the top-N.
+ * Cuts huge zone/area lists down before sending to the AI – faster + more accurate.
+ */
+function shortlistByOverlap(address: string, items: PickItem[], topN: number): PickItem[] {
+  if (items.length <= topN) return items;
+  const addr = normalizeText(address);
+  const addrTokens = new Set(addr.split(" ").filter((t) => t.length >= 2));
+  const scored = items.map((it) => {
+    const name = normalizeText(it.name);
+    let score = 0;
+    if (name) {
+      if (addr.includes(name)) score += name.length * 4;
+      for (const tok of name.split(" ")) {
+        if (tok.length < 2) continue;
+        if (addrTokens.has(tok)) score += tok.length * 2;
+        else if (addr.includes(tok)) score += tok.length;
+      }
+    }
+    return { it, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, topN).map((s) => s.it);
+  // If nothing scored, fall back to the first N original entries
+  return top.length > 0 ? top : items.slice(0, topN);
+}
+
 async function aiPickFromList(opts: {
   address: string;
   stage: "city" | "zone" | "area";
