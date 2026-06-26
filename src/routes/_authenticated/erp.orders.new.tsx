@@ -169,6 +169,13 @@ function NewOrderPage() {
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
   const detectFn = useServerFn(pathaoDetectAddressFn);
+  const [lastDetect, setLastDetect] = useState<{
+    city: { id: number; name: string | null } | null;
+    zone: { id: number; name: string | null } | null;
+    area: { id: number; name: string | null } | null;
+    confidence: number;
+    address: string;
+  } | null>(null);
   const detect = useMutation({
     mutationFn: async () => {
       if (!address.trim()) throw new Error("Address likhun age");
@@ -179,7 +186,18 @@ function NewOrderPage() {
       if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
       if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
       else setAreaId(null);
-      toast.success(r.city ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""}` : "Couldn't match");
+      setLastDetect({
+        city: r.city ?? null,
+        zone: r.zone ?? null,
+        area: r.area ?? null,
+        confidence: r.confidence ?? 0,
+        address: address.trim(),
+      });
+      toast.success(
+        r.city
+          ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""} (${Math.round((r.confidence ?? 0) * 100)}%)`
+          : "Couldn't match",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -539,9 +557,19 @@ function NewOrderPage() {
                       disabled={detect.isPending || !address.trim()}
                     >
                       {detect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-                      AI Detect
+                      Auto Detect
                     </Button>
                   </div>
+                  {lastDetect && (
+                    <DetectionPreview
+                      address={lastDetect.address}
+                      city={lastDetect.city?.name ?? null}
+                      zone={lastDetect.zone?.name ?? null}
+                      area={lastDetect.area?.name ?? null}
+                      confidence={lastDetect.confidence}
+                      onDismiss={() => setLastDetect(null)}
+                    />
+                  )}
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
                       <LocationCombobox
@@ -952,6 +980,99 @@ function Field({
         {hint && <span className="text-[10px] text-muted-foreground tabular-nums">{hint}</span>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function DetectionPreview({
+  address, city, zone, area, confidence, onDismiss,
+}: {
+  address: string;
+  city: string | null;
+  zone: string | null;
+  area: string | null;
+  confidence: number;
+  onDismiss: () => void;
+}) {
+  const terms = useMemo(
+    () => [city, zone, area].filter((t): t is string => !!t && t.trim().length >= 2),
+    [city, zone, area],
+  );
+  // Build a case-insensitive regex of all terms; longest-first to avoid
+  // a shorter term swallowing part of a longer one.
+  const segments = useMemo(() => {
+    if (terms.length === 0) return [{ text: address, hit: false }];
+    const escaped = terms
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+    const parts: { text: string; hit: boolean }[] = [];
+    let last = 0;
+    for (const m of address.matchAll(re)) {
+      const i = m.index ?? 0;
+      if (i > last) parts.push({ text: address.slice(last, i), hit: false });
+      parts.push({ text: m[0], hit: true });
+      last = i + m[0].length;
+    }
+    if (last < address.length) parts.push({ text: address.slice(last), hit: false });
+    return parts;
+  }, [address, terms]);
+
+  const pct = Math.round(Math.max(0, Math.min(1, confidence)) * 100);
+  const tone =
+    pct >= 85 ? { ring: "ring-emerald-300", bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200", label: "High" }
+    : pct >= 55 ? { ring: "ring-amber-300", bar: "bg-amber-500", chip: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200", label: "Medium" }
+    : { ring: "ring-rose-300", bar: "bg-rose-500", chip: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200", label: "Low" };
+
+  const hitCount = segments.filter((s) => s.hit).length;
+
+  return (
+    <div className={cn("mb-3 rounded-xl border bg-background/80 p-3 shadow-sm ring-1", tone.ring)}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", tone.chip)}>
+          {tone.label} · {pct}%
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          {city && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">City: {city}</span>}
+          {zone && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">Zone: {zone}</span>}
+          {area && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">Area: {area}</span>}
+          {!city && <span className="text-muted-foreground">কোনো match পাওয়া যায়নি</span>}
+        </div>
+        <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+          {hitCount} token{hitCount === 1 ? "" : "s"} matched
+        </span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+          aria-label="Dismiss"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full transition-all", tone.bar)} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="whitespace-pre-wrap break-words rounded-lg bg-muted/40 p-2.5 text-[12px] leading-relaxed">
+        {segments.map((s, i) =>
+          s.hit ? (
+            <mark
+              key={i}
+              className="rounded px-0.5 font-semibold bg-emerald-200/70 text-emerald-950 dark:bg-emerald-500/30 dark:text-emerald-50"
+            >
+              {s.text}
+            </mark>
+          ) : (
+            <span key={i}>{s.text}</span>
+          ),
+        )}
+      </div>
+      {hitCount < terms.length && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          কিছু match address-এ literally নেই (Bangla/English ভিন্নতা) — dropdown verify করে নিন।
+        </p>
+      )}
     </div>
   );
 }
