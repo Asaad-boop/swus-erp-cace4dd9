@@ -380,7 +380,10 @@ const ADDRESS_LOCALITY_ALIASES: Record<string, string[]> = {
 function includesNormalizedPhrase(haystack: string, phrase: string) {
   const normalized = normalizeAddr(phrase);
   if (!normalized) return false;
-  return ` ${haystack} `.includes(` ${normalized} `);
+  if (` ${haystack} `.includes(` ${normalized} `)) return true;
+  // Handles real operator input like "22/20City place" where the house
+  // number and landmark get glued together before OCR/API normalization.
+  return haystack.replace(/\s+/g, "").includes(normalized.replace(/\s+/g, ""));
 }
 
 function expandAddressAliases(haystack: string) {
