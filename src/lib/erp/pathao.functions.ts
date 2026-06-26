@@ -724,6 +724,9 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         "Pathao API thake city/zone pawa jayni. Order kholo, manually city/zone select kore Book Pathao chap.",
       );
     }
+    if (!resolved.zone) {
+      throw new Error("Pathao zone pawa jayni. Manually zone select kore Book Pathao chap.");
+    }
     const cityPick = { id: resolved.city.id, name: resolved.city.name, confidence: 1 };
     const resolvedZoneId: number = resolved.zone.id;
     const resolvedZoneName: string = resolved.zone.name;
