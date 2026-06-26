@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,33 +8,50 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Printer } from "lucide-react";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { PickingListPrint } from "./picking-list-print";
+import { PickupManifestPrint } from "./pickup-manifest-print";
 
 type OrderRow = {
   id: string;
   invoice_no: string | null;
   shipping_name?: string | null;
   guest_name?: string | null;
+  shipping_phone?: string | null;
+  guest_phone?: string | null;
+  shipping_thana?: string | null;
+  shipping_city?: string | null;
+  payment_method?: string | null;
+  courier_name?: string | null;
+  tracking_number?: string | null;
   total?: number | null;
   items?: Array<{ name: string; variant_label?: string | null; quantity: number; sku?: string | null; price?: number; image?: string | null }>;
 };
 
-type Mode = "invoice" | "picking" | "both";
+type Mode = "invoice" | "picking" | "manifest" | "both";
 
 export function BatchPrintDialog({
   open,
   onClose,
   orders,
   onPrinted,
+  initialMode,
 }: {
   open: boolean;
   onClose: () => void;
   orders: OrderRow[];
   onPrinted?: (count: number, mode: Mode) => void;
+  initialMode?: Mode;
 }) {
   const [selected, setSelected] = useState<Record<string, boolean>>(
     () => Object.fromEntries(orders.map((o) => [o.id, true])),
   );
-  const [mode, setMode] = useState<Mode>("both");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "both");
+
+  useEffect(() => {
+    setSelected(Object.fromEntries(orders.map((o) => [o.id, true])));
+  }, [orders]);
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode, open]);
 
   const chosen = orders.filter((o) => selected[o.id]);
 
@@ -63,11 +80,15 @@ export function BatchPrintDialog({
         <div className="space-y-4">
           <div>
             <Label className="mb-2 block">What to print</Label>
-            <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex gap-4">
+            <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2"><RadioGroupItem value="invoice" id="m-inv" /><Label htmlFor="m-inv">Invoices</Label></div>
               <div className="flex items-center gap-2"><RadioGroupItem value="picking" id="m-pk" /><Label htmlFor="m-pk">Picking List</Label></div>
-              <div className="flex items-center gap-2"><RadioGroupItem value="both" id="m-both" /><Label htmlFor="m-both">Both</Label></div>
+              <div className="flex items-center gap-2"><RadioGroupItem value="manifest" id="m-mf" /><Label htmlFor="m-mf">Pickup Manifest</Label></div>
+              <div className="flex items-center gap-2"><RadioGroupItem value="both" id="m-both" /><Label htmlFor="m-both">Invoices + Picking</Label></div>
             </RadioGroup>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Pickup Manifest = single-page handover list for the rider. No pickup-man name, no authority signature.
+            </p>
           </div>
 
           <div className="flex items-center justify-between">
@@ -104,6 +125,11 @@ export function BatchPrintDialog({
           {(mode === "picking" || mode === "both") && chosen.length > 0 && (
             <div className="print-page">
               <PickingListPrint orders={chosen} />
+            </div>
+          )}
+          {mode === "manifest" && chosen.length > 0 && (
+            <div className="print-page">
+              <PickupManifestPrint orders={chosen as any} />
             </div>
           )}
           {(mode === "invoice" || mode === "both") &&

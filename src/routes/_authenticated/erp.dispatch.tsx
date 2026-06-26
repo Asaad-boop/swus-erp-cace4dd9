@@ -7,7 +7,7 @@ import {
   Truck, PackageCheck, PackageOpen, PackagePlus, Send, Camera, Printer,
   BarChart3, Loader2, CheckCircle2, AlertCircle, Sparkles, Undo2,
   Phone, MapPin, Banknote, Package, Clock, Maximize2, Minimize2, X,
-  ChevronRight, ListChecks, Zap,
+  ChevronRight, ListChecks, Zap, FileText,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { ScanInput, type ScanInputHandle } from "@/components/erp/dispatch/scan-
 import { CameraScanner } from "@/components/erp/dispatch/camera-scanner";
 import { BatchPrintDialog } from "@/components/erp/dispatch/batch-print-dialog";
 import { DispatchSummary } from "@/components/erp/dispatch/dispatch-summary";
+import { DispatchReportsDialog } from "@/components/erp/dispatch/dispatch-reports-dialog";
 import { beepError, beepShip, beepSuccess } from "@/lib/erp/audio-feedback";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +127,8 @@ function DispatchPage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [printOverride, setPrintOverride] = useState<{ orders: OrderRow[]; mode: "manifest" | "picking" | "invoice" | "both" } | null>(null);
   const [scanLog, setScanLog] = useState<ScanLogEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [station, setStation] = useState(false);
@@ -573,6 +576,9 @@ function DispatchPage() {
           <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
             <BarChart3 className="h-4 w-4 mr-2" /> Summary
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setReportsOpen(true)}>
+            <FileText className="h-4 w-4 mr-2" /> Reports
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setPrintOpen(true)}>
             <Printer className="h-4 w-4 mr-2" /> Print Batch
           </Button>
@@ -789,8 +795,12 @@ function DispatchPage() {
 
       <BatchPrintDialog
         open={printOpen}
-        onClose={() => setPrintOpen(false)}
-        orders={selectedRows.length > 0 ? selectedRows : [...pending, ...packed, ...ready]}
+        onClose={() => {
+          setPrintOpen(false);
+          setPrintOverride(null);
+        }}
+        orders={printOverride?.orders ?? (selectedRows.length > 0 ? selectedRows : [...pending, ...packed, ...ready])}
+        initialMode={printOverride?.mode}
         onPrinted={(count, mode) => logPrintJob(count, mode)}
       />
 
@@ -799,6 +809,26 @@ function DispatchPage() {
         onClose={() => setSummaryOpen(false)}
         shippedToday={shipped}
         packedToday={packed}
+      />
+
+      <DispatchReportsDialog
+        open={reportsOpen}
+        onClose={() => setReportsOpen(false)}
+        pending={pending}
+        packed={packed}
+        ready={ready}
+        shipped={shipped}
+        brands={brands as any}
+        onPrintManifest={(orders) => {
+          setReportsOpen(false);
+          setPrintOverride({ orders: orders as OrderRow[], mode: "manifest" });
+          setPrintOpen(true);
+        }}
+        onPrintPicking={(orders) => {
+          setReportsOpen(false);
+          setPrintOverride({ orders: orders as OrderRow[], mode: "picking" });
+          setPrintOpen(true);
+        }}
       />
     </div>
   );
