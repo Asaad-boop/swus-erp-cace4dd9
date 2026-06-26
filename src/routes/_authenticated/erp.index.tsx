@@ -29,6 +29,7 @@ import { StaffDashboard } from "@/components/erp/staff-dashboard";
 import {
   TodayCommandPanel, LiveVisitors, ProfitQuality, ProductDangerZone,
 } from "@/components/erp/dashboard-command-center";
+import { AttendancePunchCard } from "@/components/erp/hr/attendance-punch-card";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
@@ -158,6 +159,12 @@ function AdminDashboard() {
             </div>
           </div>
           <TodayCommandPanel brandIds={brandIds} enabled={enabled} />
+        </div>
+
+        {/* Admin self-attendance widget */}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
+          <div className="hidden xl:block" />
+          <AttendancePunchCard />
         </div>
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
