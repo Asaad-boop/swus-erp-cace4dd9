@@ -11,7 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
-import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn } from "@/lib/erp/pathao.functions";
+import { pathaoCitiesFn, pathaoZonesFn, pathaoAreasFn, pathaoDetectForOrderFn } from "@/lib/erp/pathao.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -356,6 +356,23 @@ function OrderDetailsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data, isLoading } = useOrderDetail(orderId);
+  const detectFn = useServerFn(pathaoDetectForOrderFn);
+
+  // Kick off Pathao city/zone/area detection the moment the order opens, so
+  // the booking dialog (and form below) have instant pre-filled values.
+  const { data: pathaoDetected } = useQuery({
+    queryKey: ["pathao-detect", orderId],
+    queryFn: async () =>
+      (await detectFn({ data: { orderId } })) as {
+        city: { id: number; name: string } | null;
+        zone: { id: number; name: string } | null;
+        area: { id: number; name: string } | null;
+        source: string;
+      },
+    enabled: !!data?.order,
+    staleTime: 1000 * 60 * 10,
+    retry: false,
+  });
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -405,6 +422,19 @@ function OrderDetailsPage() {
     setFormReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
+
+  // When Pathao detection comes back, auto-fill empty city/zone/area fields
+  // on the order form so user sees them ready without clicking anything.
+  useEffect(() => {
+    if (!pathaoDetected || !formReady) return;
+    setForm((f) => {
+      const next = { ...f };
+      if (!next.city_id && pathaoDetected.city) next.city_id = String(pathaoDetected.city.id);
+      if (!next.zone_id && pathaoDetected.zone) next.zone_id = String(pathaoDetected.zone.id);
+      if (!next.area_id && pathaoDetected.area) next.area_id = String(pathaoDetected.area.id);
+      return next;
+    });
+  }, [pathaoDetected, formReady]);
 
   /* ------------------------------ Pathao geo cascades ---------------------- */
 

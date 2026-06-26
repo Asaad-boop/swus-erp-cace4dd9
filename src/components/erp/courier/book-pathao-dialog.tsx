@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Truck, Calculator, Sparkles } from "lucide-react";
@@ -29,7 +29,6 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
   const [zoneId, setZoneId] = useState<number | null>(null);
   const [areaId, setAreaId] = useState<number | null>(null);
   const [autoFilled, setAutoFilled] = useState<null | { city: string; zone: string; area: string | null; source: string }>(null);
-  const [detecting, setDetecting] = useState(false);
   const [weight, setWeight] = useState("0.5");
   const [qty, setQty] = useState("1");
   const [amount, setAmount] = useState(String(defaultAmount || 0));
@@ -41,43 +40,36 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
   const { data: zones = [] } = usePathaoZones(cityId);
   const { data: areas = [] } = usePathaoAreas(zoneId);
 
-  // Auto-detect City/Zone/Area from the customer's checkout-provided address
-  // the moment the dialog opens. Pre-fills the selects so the user usually
-  // doesn't have to pick anything manually.
+  // Shared cached detection — also prefetched from the order detail page on
+  // mount, so opening this dialog usually has the answer instantly.
+  const { data: detected, isFetching: detecting } = useQuery({
+    queryKey: ["pathao-detect", orderId],
+    queryFn: async () =>
+      (await detectFn({ data: { orderId } })) as {
+        city: { id: number; name: string } | null;
+        zone: { id: number; name: string } | null;
+        area: { id: number; name: string } | null;
+        source: string;
+      },
+    staleTime: 1000 * 60 * 10,
+    enabled: open,
+  });
+
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setDetecting(true);
-    setAutoFilled(null);
-    (async () => {
-      try {
-        const r = (await detectFn({ data: { orderId } })) as {
-          city: { id: number; name: string } | null;
-          zone: { id: number; name: string } | null;
-          area: { id: number; name: string } | null;
-          source: string;
-        };
-        if (cancelled) return;
-        if (r.city) setCityId(r.city.id);
-        if (r.zone) setZoneId(r.zone.id);
-        if (r.area) setAreaId(r.area.id);
-        if (r.city && r.zone) {
-          setAutoFilled({
-            city: r.city.name,
-            zone: r.zone.name,
-            area: r.area?.name ?? null,
-            source: r.source,
-          });
-        }
-      } catch {
-        /* silent — user can still pick manually */
-      } finally {
-        if (!cancelled) setDetecting(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    if (!open || !detected) return;
+    if (detected.city && cityId == null) setCityId(detected.city.id);
+    if (detected.zone && zoneId == null) setZoneId(detected.zone.id);
+    if (detected.area && areaId == null) setAreaId(detected.area.id);
+    if (detected.city && detected.zone) {
+      setAutoFilled({
+        city: detected.city.name,
+        zone: detected.zone.name,
+        area: detected.area?.name ?? null,
+        source: detected.source,
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, orderId]);
+  }, [open, detected]);
 
   const canSubmit = useMemo(
     () => !!cityId && !!zoneId && Number(weight) > 0 && Number(qty) > 0,
