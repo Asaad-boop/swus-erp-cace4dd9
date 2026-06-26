@@ -194,9 +194,13 @@ export function ErpSidebar() {
   const visibleGroups = useMemo<Group[]>(() => {
     const filterItems = (items: NavItem[]) =>
       items.filter((i) => {
-        if (!canAccessPath(roles, i.to)) return false;
         if (isAdmin) return true;
-        return pathAllowedBy(allowedPages, i.to);
+        // Custom allowedPages set → that list is authoritative.
+        if (allowedPages && allowedPages.length > 0) {
+          return pathAllowedBy(allowedPages, i.to);
+        }
+        // Otherwise fall back to role-based module matrix.
+        return canAccessPath(roles, i.to);
       });
     const out: Group[] = [];
     for (const g of groups) {

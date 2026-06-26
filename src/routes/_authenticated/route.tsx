@@ -95,10 +95,19 @@ function AuthGate() {
     );
   }
 
-  // 2. Per-path module check — covers direct URL access
-  const allowed = canAccessPath(roles, path);
-  const pageAllowed = isAdmin ? true : pathAllowedBy(allowedPages, path);
-  if (!allowed || !pageAllowed) {
+  // 2. Per-path access check.
+  //    - Admin: always allowed.
+  //    - Custom allowedPages set → that list is authoritative (overrides role matrix).
+  //    - Otherwise fall back to role-based module matrix.
+  let allowed: boolean;
+  if (isAdmin) {
+    allowed = true;
+  } else if (allowedPages && allowedPages.length > 0) {
+    allowed = pathAllowedBy(allowedPages, path);
+  } else {
+    allowed = canAccessPath(roles, path);
+  }
+  if (!allowed) {
     const mod = moduleForPath(path);
     const fallback = hasAnyBackoffice(roles) ? "/erp" : "/me";
     return (
