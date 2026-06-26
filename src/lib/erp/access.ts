@@ -100,7 +100,24 @@ export function canAccessPath(roles: string[], pathname: string): boolean {
   if (roles.includes("admin")) return true;
   const mod = moduleForPath(pathname);
   if (!mod) return true; // routes outside the matrix aren't restricted by us
-  return getAllowedModules(roles).has(mod);
+  const allowed = getAllowedModules(roles);
+  if (allowed.has(mod)) return true;
+  // Detail pages: order detail (`/erp/orders/<id>`) is often needed by
+  // staff who don't own the full Orders module — packers, warehouse,
+  // fulfillment, CS often open an order from Dispatch/Courier/CRM/Returns.
+  // Grant detail-view when any operationally adjacent module is allowed.
+  const isOrderDetail = /^\/erp\/orders\/[^/]+$/.test(pathname);
+  if (isOrderDetail) {
+    if (
+      allowed.has("fulfillment") ||
+      allowed.has("crm") ||
+      allowed.has("inventory") ||
+      allowed.has("customer_accounts")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Convenience: does the user have any backoffice (`/erp/*`) module? */
