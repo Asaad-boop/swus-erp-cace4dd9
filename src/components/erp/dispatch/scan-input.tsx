@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type KeyboardEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScanLine } from "lucide-react";
@@ -17,6 +17,8 @@ export const ScanInput = forwardRef<ScanInputHandle, Props>(function ScanInput(
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSubmittedRef = useRef<string>("");
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
@@ -26,10 +28,28 @@ export const ScanInput = forwardRef<ScanInputHandle, Props>(function ScanInput(
   function submit() {
     const v = value.trim();
     if (!v) return;
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    lastSubmittedRef.current = v;
     onScan(v);
     setValue("");
     inputRef.current?.focus();
   }
+
+  // Auto-submit when a complete-looking invoice id is present (scanner paste or fast typing).
+  useEffect(() => {
+    const v = value.trim();
+    if (!v || v === lastSubmittedRef.current) return;
+    const looksComplete = /^[A-Z]{2,5}-?\d{4,}$/i.test(v) || /^\d{6,}$/.test(v);
+    if (!looksComplete) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (value.trim() === v) submit();
+    }, 80);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
