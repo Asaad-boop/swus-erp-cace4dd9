@@ -13,6 +13,8 @@ import { useGlobalSearch } from "@/components/erp/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { canAccessPath } from "@/lib/erp/access";
+import { useMyAllowedPages } from "@/hooks/use-my-allowed-pages";
+import { pathAllowedBy } from "@/lib/erp/permissions/page-catalog";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 type FlatGroup = { kind: "flat"; label: string; items: NavItem[] };
@@ -186,11 +188,16 @@ export function ErpSidebar() {
   const { openSearch } = useGlobalSearch();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
-  const { roles } = useCurrentRole();
+  const { roles, isAdmin } = useCurrentRole();
+  const { allowedPages } = useMyAllowedPages();
 
   const visibleGroups = useMemo<Group[]>(() => {
     const filterItems = (items: NavItem[]) =>
-      items.filter((i) => canAccessPath(roles, i.to));
+      items.filter((i) => {
+        if (!canAccessPath(roles, i.to)) return false;
+        if (isAdmin) return true;
+        return pathAllowedBy(allowedPages, i.to);
+      });
     const out: Group[] = [];
     for (const g of groups) {
       if (g.kind === "flat") {
@@ -204,7 +211,7 @@ export function ErpSidebar() {
       }
     }
     return out;
-  }, [roles]);
+  }, [roles, isAdmin, allowedPages]);
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
