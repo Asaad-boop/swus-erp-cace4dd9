@@ -106,7 +106,7 @@ const SPELLING_ALIASES: Array<[RegExp, string]> = [
   [/\bgazipur\b|\bgazipure\b/g, "gazipur"],
   [/\bnarayanganj\b|\bnarayangonj\b|\bn ganj\b/g, "narayanganj"],
   [/\bchattogram\b|\bchittagong\b|\bctg\b|\bctg\b/g, "chattogram"],
-  [/\bcumilla\b|\bcumila\b|\bcunmilla\b|\bcomilla\b|\bcomila\b|\bkumilla\b|\bkumila\b|\bkumilla\b/g, "cumilla"],
+  [/\bcumilla\b|\bcumila\b|\bcunmilla\b|\bcomilla\b|\bcomila\b|\bkumilla\b|\bkumila\b/g, "cumilla"],
   [/\bsadar\b|\bsodor\b|\bsador\b|\bsader\b|\bsdr\b/g, "sadar"],
   [/\bsylhet\b|\bsylet\b/g, "sylhet"],
   [/\brajshahi\b|\brajsahi\b/g, "rajshahi"],
