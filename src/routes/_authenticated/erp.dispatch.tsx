@@ -37,6 +37,7 @@ type Stage = "pending" | "packed" | "ready" | "shipped";
 type OrderRow = {
   id: string;
   invoice_no: string | null;
+  brand_id: string | null;
   status: string;
   total: number | null;
   payment_method: string | null;
