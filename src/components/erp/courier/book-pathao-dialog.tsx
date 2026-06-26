@@ -59,9 +59,9 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
 
   useEffect(() => {
     if (!open || !detected) return;
-    if (detected.city && cityId == null) setCityId(detected.city.id);
-    if (detected.zone && zoneId == null) setZoneId(detected.zone.id);
-    if (detected.area && areaId == null) setAreaId(detected.area.id);
+    if (!locationManuallySelected && detected.city) setCityId(detected.city.id);
+    if (!locationManuallySelected && detected.zone) setZoneId(detected.zone.id);
+    if (!locationManuallySelected && detected.area) setAreaId(detected.area.id);
     if (detected.city && detected.zone) {
       setAutoFilled({
         city: detected.city.name,
@@ -101,9 +101,9 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
       return bookFn({
         data: {
           orderId,
-          recipient_city: locationManuallySelected ? (cityId ?? undefined) : undefined,
-          recipient_zone: locationManuallySelected ? (zoneId ?? undefined) : undefined,
-          recipient_area: locationManuallySelected && cityId && zoneId ? (areaId ?? undefined) : undefined,
+          recipient_city: cityId ?? undefined,
+          recipient_zone: zoneId ?? undefined,
+          recipient_area: cityId && zoneId ? (areaId ?? undefined) : undefined,
           item_weight: Number(weight),
           item_quantity: Number(qty),
           amount_to_collect: Number(amount),
@@ -160,7 +160,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
             )}
             <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
-              Manual change না করলে booking-এ City/Zone পাঠানো হবে না — Pathao official auto-address mapping address থেকে delivery area নেবে.
+              City/Zone/Area এখানে Pathao live API list থেকে auto-match হয়; booking payload-এ এই exact Pathao IDs যাবে.
             </div>
 
             <div className="grid grid-cols-3 gap-2">
