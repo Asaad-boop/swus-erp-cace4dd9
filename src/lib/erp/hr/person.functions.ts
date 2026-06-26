@@ -129,6 +129,7 @@ export const createPerson = createServerFn({ method: "POST" })
         status: "active",
         currency: "BDT",
         created_by: context.userId,
+        brand_ids: data.access?.brandIds && data.access.brandIds.length ? data.access.brandIds : null,
       };
 
       // If no login was created, try to link an existing auth user by email

@@ -185,7 +185,12 @@ export const listEmployees = createServerFn({ method: "POST" })
     if (data.employmentType && data.employmentType !== "all") q = q.eq("employment_type", data.employmentType);
     if (data.managerId && data.managerId !== "all") q = q.eq("manager_id", data.managerId);
     if (data.tag && data.tag !== "all") q = q.contains("tags", [data.tag]);
-    if (data.brandIds && data.brandIds.length) q = q.overlaps("brand_ids", data.brandIds);
+    if (data.brandIds && data.brandIds.length) {
+      // Include rows scoped to one of these brands OR rows with no brand scoping (visible to all).
+      const list = data.brandIds.map((b) => `"${b}"`).join(",");
+      q = q.or(`brand_ids.ov.{${data.brandIds.join(",")}},brand_ids.is.null,brand_ids.eq.{}`);
+      void list;
+    }
     q = q.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
     const { data: rows, error, count } = await q;
     if (error) throw error;
