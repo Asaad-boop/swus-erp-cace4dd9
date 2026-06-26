@@ -379,6 +379,21 @@ function DispatchPage() {
   );
   const pendingOlder = pending.length - pendingToday.length;
 
+  const pendingByBrand = useMemo(() => {
+    const m = new Map<string, { name: string; count: number; value: number }>();
+    for (const o of pending) {
+      const id = o.brand_id ?? "—";
+      const name = brands.find((b: any) => b.id === id)?.name ?? "Unknown";
+      const prev = m.get(id) ?? { name, count: 0, value: 0 };
+      prev.count += 1;
+      prev.value += o.total ?? 0;
+      m.set(id, prev);
+    }
+    return Array.from(m.entries())
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.count - a.count);
+  }, [pending, brands]);
+
   const allRows = useMemo(() => [...pending, ...packed, ...ready], [pending, packed, ready]);
   const selectedRows = useMemo(() => allRows.filter((o) => selected.has(o.id)), [allRows, selected]);
 
