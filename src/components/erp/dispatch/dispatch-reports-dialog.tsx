@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, ClipboardList, FileText } from "lucide-react";
+import { Printer, Download, ClipboardList, FileText, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
 type Order = {
@@ -92,6 +92,7 @@ export function DispatchReportsDialog({
   brands,
   onPrintManifest,
   onPrintPicking,
+  onFinalizeHandover,
 }: {
   open: boolean;
   onClose: () => void;
@@ -102,11 +103,20 @@ export function DispatchReportsDialog({
   brands: { id: string; name: string }[];
   onPrintManifest: (orders: Order[]) => void;
   onPrintPicking: (orders: Order[]) => void;
+  onFinalizeHandover?: (orders: Order[]) => Promise<void> | void;
 }) {
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "Unknown";
 
   const all = useMemo(() => [...pending, ...packed, ...ready, ...shipped], [pending, packed, ready, shipped]);
-  const todayHandover = useMemo(() => [...packed, ...ready], [packed, ready]);
+  // Only parcels that already have a courier entry (tracking/consignment booked) qualify for the rider handover manifest.
+  const todayHandover = useMemo(
+    () => [...packed, ...ready].filter((o) => !!(o.tracking_number && o.tracking_number.trim())),
+    [packed, ready],
+  );
+  const handoverPending = useMemo(
+    () => [...packed, ...ready].filter((o) => !(o.tracking_number && o.tracking_number.trim())),
+    [packed, ready],
+  );
 
   const byBrand = useMemo(() => groupBy(all, (o) => o.brand_id ?? "—"), [all]);
   const byCourier = useMemo(() => groupBy([...ready, ...shipped], (o) => o.courier_name ?? "Unassigned"), [ready, shipped]);
@@ -164,11 +174,20 @@ export function DispatchReportsDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <ActionTile
               icon={<ClipboardList className="h-4 w-4" />}
-              title="Pickup Manifest (Packed + Ready)"
-              desc={`${todayHandover.length} parcels · no signature`}
+              title="Pickup Manifest (Courier-booked only)"
+              desc={`${todayHandover.length} parcel(s) with consignment${handoverPending.length ? ` · ${handoverPending.length} awaiting courier entry` : ""}`}
               onClick={() => onPrintManifest(todayHandover)}
               disabled={todayHandover.length === 0}
             />
+            {onFinalizeHandover && (
+              <ActionTile
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                title="Finalize handover → Shipped"
+                desc={`Mark ${todayHandover.length} courier-booked parcel(s) as shipped`}
+                onClick={() => onFinalizeHandover(todayHandover)}
+                disabled={todayHandover.length === 0}
+              />
+            )}
             <ActionTile
               icon={<Printer className="h-4 w-4" />}
               title="Picking List (Pending)"
