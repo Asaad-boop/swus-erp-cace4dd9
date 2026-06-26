@@ -597,9 +597,9 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Pathao-only preview detection for a saved order. Phone history is used only
- * when it overlaps the current address; otherwise it matches the saved
- * address/district/thana against Pathao's official City/Zone/Area lists.
+ * Pathao-only preview detection for a saved order. The saved/current address
+ * is matched against Pathao's official City/Zone/Area lists first; phone
+ * history is only a safe fallback when it overlaps the current address.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
