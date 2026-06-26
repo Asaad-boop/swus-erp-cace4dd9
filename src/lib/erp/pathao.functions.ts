@@ -452,8 +452,11 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
 
     const client = await clientForBrand(supabase, order.brand_id);
     const phone = (order.shipping_phone || order.guest_phone || "").toString();
+    const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+      .filter(Boolean)
+      .join(", ");
     const r = await resolveByPhone(client, phone);
-    if (r) {
+    if (r && phoneRouteMatchesCurrentAddress(r, addressText)) {
       return {
         city: r.city,
         zone: r.zone,
@@ -463,9 +466,6 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
       };
     }
 
-    const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
-      .filter(Boolean)
-      .join(", ");
     const route = await resolveByAddress(client, addressText);
     if (route) {
       return {
@@ -711,9 +711,14 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .join(", ");
     if (!phone || address.length < 5) throw new Error("Missing phone or address");
 
-    // Resolve city / zone / area — Pathao phone API only.
+    // Resolve city / zone / area. Pathao phone history can be stale for a
+    // reused customer number, so only trust it when it overlaps the current
+    // order address; otherwise match the current address against Pathao lists.
     const client = await clientForBrand(supabase, order.brand_id);
-    const resolved = await resolveByPhone(client, phone);
+    const phoneResolved = await resolveByPhone(client, phone);
+    const resolved = phoneRouteMatchesCurrentAddress(phoneResolved, address)
+      ? phoneResolved
+      : await resolveByAddress(client, address);
     if (!resolved) {
       throw new Error(
         "Pathao API thake city/zone pawa jayni. Order kholo, manually city/zone select kore Book Pathao chap.",
