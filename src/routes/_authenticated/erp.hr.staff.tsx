@@ -943,7 +943,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
             <TabsTrigger value="roles"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Roles ({roles.length})</TabsTrigger>
             <TabsTrigger value="brands"><Building2 className="h-3.5 w-3.5 mr-1.5" /> Brands ({brandIds.length || "all"})</TabsTrigger>
             <TabsTrigger value="pages">
-              <Settings className="h-3.5 w-3.5 mr-1.5" />
+              <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
               Pages ({pagesMode === "custom" ? allowedPages.length : "default"})
             </TabsTrigger>
           </TabsList>
