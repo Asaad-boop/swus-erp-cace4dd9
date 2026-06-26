@@ -7,7 +7,7 @@ import {
   Truck, PackageCheck, PackageOpen, PackagePlus, Send, Camera, Printer,
   BarChart3, Loader2, CheckCircle2, AlertCircle, Sparkles, Undo2,
   Phone, MapPin, Banknote, Package, Clock, Maximize2, Minimize2, X,
-  ChevronRight, ListChecks, Zap,
+  ChevronRight, ListChecks, Zap, FileText,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { ScanInput, type ScanInputHandle } from "@/components/erp/dispatch/scan-
 import { CameraScanner } from "@/components/erp/dispatch/camera-scanner";
 import { BatchPrintDialog } from "@/components/erp/dispatch/batch-print-dialog";
 import { DispatchSummary } from "@/components/erp/dispatch/dispatch-summary";
+import { DispatchReportsDialog } from "@/components/erp/dispatch/dispatch-reports-dialog";
 import { beepError, beepShip, beepSuccess } from "@/lib/erp/audio-feedback";
 import { cn } from "@/lib/utils";
 
