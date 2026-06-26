@@ -309,12 +309,42 @@ export const pathaoDetectAddressFn = createServerFn({ method: "POST" })
     await assertCourierRole(context.supabase, context.userId);
     const client = await clientForBrand(context.supabase, data.brandId);
 
-    // 1) City
+    // --- 1) Deterministic in-built matcher (no AI, uses Pathao's own list)
+    const { detectHierarchy } = await import("./pathao-address-match");
     const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
+
+    const det = await detectHierarchy({
+      address: data.address,
+      cities: cityItems,
+      lookup: {
+        zones: async (cityId) => {
+          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
+        },
+        areas: async (zoneId) => {
+          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
+        },
+      },
+    });
+
+    // Strong deterministic hit (zone found) — return immediately, no AI call.
+    if (det.zone && det.city) {
+      return {
+        city: det.city,
+        zone: det.zone,
+        area: det.area,
+        confidence: det.confidence,
+      };
+    }
+
+    // --- 2) Fallback: AI per-stage (only when deterministic couldn't find a zone)
+    // 1) City
     const cityPick = await aiPickFromList({
       address: data.address,
       stage: "city",
-      items: citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })),
+      items: cityItems,
     });
     if (!cityPick.id) {
       return { city: null, zone: null, area: null, confidence: cityPick.confidence };
