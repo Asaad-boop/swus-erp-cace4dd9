@@ -275,7 +275,7 @@ async function resolveByAddress(client: any, address: string) {
   const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
   const explicitCity = bestScoredMatch(hay, cityItems);
   const strongCity = explicitCity && explicitCity.score >= 95 ? explicitCity : null;
-  const cityHasStrongMatch = !!strongCity;
+  const cityHasStrongMatch = strongCity != null;
 
   const commonCityNames = [
     "Dhaka", "Chattogram", "Chittagong", "Gazipur", "Narayanganj", "Savar",
@@ -284,7 +284,7 @@ async function resolveByAddress(client: any, address: string) {
   ];
   const cityMap = new Map(cityItems.map((c) => [normalizeAddr(c.name), c]));
   const commonCities = commonCityNames.map((n) => cityMap.get(normalizeAddr(n))).filter(Boolean) as typeof cityItems;
-  const candidateCities = cityHasStrongMatch
+  const candidateCities = strongCity
     ? [strongCity]
     : [...commonCities, ...cityItems.filter((c) => !commonCities.some((cc) => cc.id === c.id))];
 
@@ -293,7 +293,7 @@ async function resolveByAddress(client: any, address: string) {
     zone: { id: number; name: string } | null;
     area: { id: number; name: string } | null;
     score: number;
-  } | null = cityHasStrongMatch
+  } | null = strongCity
     ? { city: { id: strongCity.id, name: strongCity.name }, zone: null, area: null, score: strongCity.score }
     : null;
 
