@@ -49,28 +49,14 @@ function normalizeText(s: string): string {
   return s.toLowerCase().replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function localPick(address: string, items: Array<{ id: number; name: string }>): { id: number; name: string } | null {
-  const addr = ` ${normalizeText(address)} `;
-  let best: { id: number; name: string; score: number } | null = null;
-  for (const item of items) {
-    const name = normalizeText(item.name);
-    if (!name || name.length < 2) continue;
-    const score = addr.includes(` ${name} `) ? name.length * 3 : (addr.includes(name) ? name.length * 2 : 0);
-    if (score >= 6 && (!best || score > best.score)) best = { ...item, score };
-  }
-  return best ? { id: best.id, name: best.name } : null;
-}
-
 async function resolvePathaoRoute(client: any, order: { shipping_address?: string | null; shipping_city?: string | null; shipping_thana?: string | null; shipping_district?: string | null }) {
   const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ");
-  if (!address.trim()) return null;
-  const cities = (await client.cities().catch(() => [])) as Array<{ city_id: number; city_name: string }>;
-  const city = localPick(address, cities.map((c) => ({ id: c.city_id, name: c.city_name })));
-  if (!city) return null;
-  const zones = (await client.zones(city.id).catch(() => [])) as Array<{ zone_id: number; zone_name: string }>;
-  if (zones.length === 0) return null;
-  const zone = localPick(address, zones.map((z) => ({ id: z.zone_id, name: z.zone_name }))) ?? { id: zones[0].zone_id, name: zones[0].zone_name };
-  return { cityId: city.id, zoneId: zone.id };
+  if (address.trim().length < 10) return null;
+  const parsed = await client.parseAddress(address).catch(() => null);
+  const cityId = extractNumber(parsed, ["district_id", "city_id", "recipient_city"]);
+  const zoneId = extractNumber(parsed, ["zone_id", "recipient_zone"]);
+  if (!cityId || !zoneId) return null;
+  return { cityId, zoneId };
 }
 
 function extractPathaoStatus(payload: any): string | null {
