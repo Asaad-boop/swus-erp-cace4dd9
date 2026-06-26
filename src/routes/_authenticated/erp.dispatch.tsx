@@ -367,6 +367,17 @@ function DispatchPage() {
   const codShippedCount = shipped.filter(isCod).length;
   const canUndo = scanLog.some((e) => e.undoable);
 
+  const todayStartMs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const pendingToday = useMemo(
+    () => pending.filter((o) => o.created_at && new Date(o.created_at).getTime() >= todayStartMs),
+    [pending, todayStartMs],
+  );
+  const pendingOlder = pending.length - pendingToday.length;
+
   const allRows = useMemo(() => [...pending, ...packed, ...ready], [pending, packed, ready]);
   const selectedRows = useMemo(() => allRows.filter((o) => selected.has(o.id)), [allRows, selected]);
 
@@ -546,12 +557,19 @@ function DispatchPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard
           icon={<PackageOpen className="h-4 w-4" />}
-          label="Pending"
+          label="Today pending"
+          value={pendingToday.length}
+          sub={bdt(sum(pendingToday))}
+          dot="bg-rose-500"
+        />
+        <KpiCard
+          icon={<PackageOpen className="h-4 w-4" />}
+          label="Total pending"
           value={pending.length}
-          sub={bdt(sum(pending))}
+          sub={`${bdt(sum(pending))}${pendingOlder > 0 ? ` · ${pendingOlder} older` : ""}`}
           dot="bg-amber-500"
         />
         <KpiCard
