@@ -403,14 +403,21 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           expenseId = (exp as { id: string }).id;
         }
 
-        // Update order — only reconciliation flag, keep status manual
-        // so accidental duplicate invoice rows can't silently flip an order
-        // to paid/returned. Operator changes status manually.
+        // Update order — branch by match_type
         const orderUpdate: Record<string, unknown> = {
           reconciliation_status: "reconciled",
         };
-        if (matchType === "partial") {
+        if (matchType === "return") {
+          orderUpdate.status = "returned";
+        } else if (matchType === "partial") {
+          orderUpdate.status = "partial_delivered";
+          orderUpdate.payment_status = "partial";
           orderUpdate.partial_amount = partialAmount > 0 ? partialAmount : Number(r.collected ?? 0);
+          orderUpdate.delivered_at = new Date(txnDate).toISOString();
+        } else {
+          orderUpdate.status = "paid";
+          orderUpdate.payment_status = "paid";
+          orderUpdate.delivered_at = new Date(txnDate).toISOString();
         }
         const { error: oErr } = await supabase
           .from("orders")
