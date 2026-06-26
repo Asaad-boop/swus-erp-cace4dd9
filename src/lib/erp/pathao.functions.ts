@@ -195,82 +195,6 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
 // address-parser endpoint first and strictly. This is the same endpoint their
 // reception/new-delivery form calls when an operator types an address.
 
-async function resolveByPhone(client: any, phone: string) {
-  const p = (phone || "").replace(/\D/g, "").slice(-11);
-  if (p.length < 11) return null;
-  const info: any = await client.lookupCustomer(p);
-  const d = info?.data ?? info ?? {};
-  const cityId = Number(d.city_id || d.recipient_city || 0);
-  const zoneId = Number(d.zone_id || d.recipient_zone || 0);
-  const areaId = Number(d.area_id || d.recipient_area || 0);
-  if (!cityId || !zoneId) return null;
-  const citiesRaw = normalizePathaoCities(await client.cities());
-  const cityName = citiesRaw.find((c) => c.id === cityId)?.name ?? d.city_name ?? "";
-  const zonesRaw = normalizePathaoZones(await client.zones(cityId));
-  const zoneName = zonesRaw.find((z) => z.id === zoneId)?.name ?? d.zone_name ?? "";
-  let area: { id: number; name: string } | null = null;
-  if (areaId) {
-    try {
-      const areasRaw = normalizePathaoAreas(await client.areas(zoneId));
-      const an = areasRaw.find((a) => a.id === areaId)?.name ?? d.area_name ?? "";
-      area = { id: areaId, name: an };
-    } catch { /* ignore */ }
-  }
-  return {
-    city: { id: cityId, name: cityName },
-    zone: { id: zoneId, name: zoneName },
-    area,
-    recipient_name: (d.name || d.recipient_name || "") as string,
-    recipient_address: (d.address || d.recipient_address || "") as string,
-    success_ratio: typeof d.success_ratio === "number" ? d.success_ratio : null,
-  };
-}
-
-const PHONE_ADDRESS_CITY_TOKENS = new Set([
-  "dhaka", "chattogram", "chittagong", "gazipur", "narayanganj", "savar",
-  "cumilla", "comilla", "sylhet", "rajshahi", "khulna", "barishal", "barisal",
-  "rangpur", "mymensingh",
-]);
-
-function meaningfulAddressTokens(raw: string) {
-  return normalizeAddr(raw)
-    .split(" ")
-    .filter((token) => {
-      if (token.length < 3) return false;
-      if (/^\d+$/.test(token)) return false;
-      if (PHONE_ADDRESS_CITY_TOKENS.has(token)) return false;
-      if (GENERIC_LOCATION_TOKENS.has(token)) return false;
-      if (["place", "floor", "flat", "building", "holding", "goli", "gali", "near", "beside", "opposite", "mobile"].includes(token)) return false;
-      return true;
-    });
-}
-
-function hasTokenOverlap(left: string[], right: string[]) {
-  return left.some((a) =>
-    right.some((b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)))),
-  );
-}
-
-function phoneRouteMatchesCurrentAddress(
-  route: Awaited<ReturnType<typeof resolveByPhone>>,
-  currentAddress: string,
-) {
-  if (!route) return false;
-  const addressTokens = meaningfulAddressTokens(currentAddress);
-  // Very short/blank saved addresses can safely use Pathao phone history.
-  if (addressTokens.length === 0) return true;
-
-  const returnedAddressTokens = meaningfulAddressTokens(route.recipient_address || "");
-  if (returnedAddressTokens.length > 0 && hasTokenOverlap(addressTokens, returnedAddressTokens)) return true;
-
-  const returnedLocationTokens = meaningfulAddressTokens([
-    route.zone?.name,
-    route.area?.name,
-  ].filter(Boolean).join(" "));
-  return returnedLocationTokens.length > 0 && hasTokenOverlap(addressTokens, returnedLocationTokens);
-}
-
-
 /**
  * Pathao customer lookup by phone — same call the Pathao merchant portal
  * uses to auto-fill "New Delivery" forms. Returns the last-used City,
@@ -331,90 +255,10 @@ function normalizeAddr(s: string) {
     .normalize("NFKC")
     .replace(/[’']/g, "")
     .replace(/&/g, " and ")
-    .replace(/\b(\d+)\s*(ft|feet|foot|fit|fut)\b/g, "$1 feet")
     .replace(/[।,.;:/|()\-_]+/g, " ")
-    .replace(/\b(\d+)\s*(no|number|num)\b/g, "$1")
-    .replace(/\b(no|number|num)\s*(\d+)\b/g, "$2")
     .replace(/\s+/g, " ")
     .trim();
-  return normalized
-    .split(" ")
-    .map((token) => {
-      if (["sodor", "sodar", "sodhor", "sadr"].includes(token)) return "sadar";
-      if (token === "comilla") return "cumilla";
-      if (token === "ctg") return "chattogram";
-      if (["mipur", "mirpoor", "mirpurr"].includes(token)) return "mirpur";
-      if (["uttora", "uttra"].includes(token)) return "uttara";
-      if (["dhanmondhi", "dhanmundi"].includes(token)) return "dhanmondi";
-      if (["mohammadpur", "mohammodpur", "mohammdpur"].includes(token)) return "mohammedpur";
-      if (["bosundhara", "bashundara", "basundhara"].includes(token)) return "bashundhara";
-      if (["chandgaon"].includes(token)) return "chandgaon";
-      if (["ft", "fit", "fut", "foot"].includes(token)) return "feet";
-      return token;
-    })
-    .join(" ");
-}
-
-const GENERIC_LOCATION_TOKENS = new Set([
-  "sadar", "bazar", "bazaar", "market", "road", "rd", "house", "block", "sector",
-  "area", "para", "pur", "city", "thana", "upazila", "district", "ward", "union",
-  "lane", "goli", "gali", "avenue", "ave", "street", "st", "village", "gram",
-  "feet", "foot", "ft", "fit", "fut", "place", "building", "tower", "complex",
-]);
-
-const ROAD_MEASURE_TOKENS = new Set(["feet", "foot", "ft", "fit", "fut"]);
-
-const ADDRESS_LOCALITY_ALIASES: Record<string, string[]> = {
-  // Pathao merchant portal maps this Mirpur address to Pirerbagh; "60 feet"
-  // is only a road descriptor and must not beat the real delivery locality.
-  "cityplace": ["pirerbagh", "pirerbag", "mirpur"],
-  "city place": ["pirerbagh", "pirerbag", "mirpur"],
-  "city palace": ["pirerbagh", "pirerbag", "mirpur"],
-  "60 feet mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
-  "60 feet road mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
-  "pirer bagh": ["pirerbagh"],
-  "pire bagh": ["pirerbagh"],
-  "pirerbag": ["pirerbagh"],
-  "pirebag": ["pirerbagh"],
-  "pirebagh": ["pirerbagh"],
-};
-
-function includesNormalizedPhrase(haystack: string, phrase: string) {
-  const normalized = normalizeAddr(phrase);
-  if (!normalized) return false;
-  if (` ${haystack} `.includes(` ${normalized} `)) return true;
-  // Handles real operator input like "22/20City place" where the house
-  // number and landmark get glued together before OCR/API normalization.
-  return haystack.replace(/\s+/g, "").includes(normalized.replace(/\s+/g, ""));
-}
-
-function expandAddressAliases(haystack: string) {
-  const additions = new Set<string>();
-  for (const [alias, targets] of Object.entries(ADDRESS_LOCALITY_ALIASES)) {
-    if (includesNormalizedPhrase(haystack, alias)) {
-      targets.forEach((target) => additions.add(normalizeAddr(target)));
-    }
-  }
-  return additions.size > 0 ? `${haystack} ${Array.from(additions).join(" ")}` : haystack;
-}
-
-function addressAliasTargetSet(haystack: string) {
-  const targets = new Set<string>();
-  for (const [alias, values] of Object.entries(ADDRESS_LOCALITY_ALIASES)) {
-    if (includesNormalizedPhrase(haystack, alias)) {
-      values.forEach((value) => targets.add(normalizeAddr(value)));
-    }
-  }
-  return targets;
-}
-
-function looseGeoNameMatch(targets: Set<string>, name: string) {
-  const normalized = normalizeAddr(name);
-  const compact = normalized.replace(/\s+/g, "");
-  for (const target of targets) {
-    if (target === normalized || target.replace(/\s+/g, "") === compact) return true;
-  }
-  return false;
+  return normalized;
 }
 
 function readPathaoStringDeep(payload: any, keys: string[]): string {
@@ -488,135 +332,26 @@ async function normalizeParserRoute(client: any, parsed: any) {
   };
 }
 
+// Small in-process cache so rapid re-typing or repeated detection calls
+// don't keep hitting Pathao's parser + cities/zones/areas endpoints.
+const PARSER_CACHE = new Map<string, { at: number; value: any }>();
+const PARSER_TTL = 5 * 60 * 1000;
+
 async function resolveByPathaoParser(client: any, address: string) {
-  if (address.trim().length < 10) return null;
-  const parsed = await client.parseAddress(address);
+  const trimmed = address.trim();
+  if (trimmed.length < 10) return null;
+  const key = `${client.storeId ?? ""}::${trimmed.toLowerCase()}`;
+  const hit = PARSER_CACHE.get(key);
+  if (hit && Date.now() - hit.at < PARSER_TTL) return hit.value;
+  const parsed = await client.parseAddress(trimmed);
   if (!parsed) return null;
-  return normalizeParserRoute(client, parsed);
-}
-
-type PathaoResolvedRoute = {
-  city: { id: number; name: string };
-  zone: { id: number; name: string } | null;
-  area: { id: number; name: string } | null;
-  score: number;
-  raw?: any;
-};
-
-function isRoadMeasureCandidate(normalizedName: string) {
-  const nameTokens = normalizedName.split(" ").filter(Boolean);
-  return nameTokens.some((token) => ROAD_MEASURE_TOKENS.has(token)) && numericTokens(normalizedName).size > 0;
-}
-
-const CITY_AREA_ALIASES: Record<string, string> = {
-  mirpur: "dhaka",
-  dhanmondi: "dhaka",
-  mohammedpur: "dhaka",
-  mohammadpur: "dhaka",
-  uttara: "dhaka",
-  gulshan: "dhaka",
-  banani: "dhaka",
-  badda: "dhaka",
-  tejgaon: "dhaka",
-  bashundhara: "dhaka",
-  cityplace: "dhaka",
-  pirerbagh: "dhaka",
-  pirerbag: "dhaka",
-  pirebagh: "dhaka",
-  pirebag: "dhaka",
-  rampura: "dhaka",
-  khilgaon: "dhaka",
-  khilkhet: "dhaka",
-  wari: "dhaka",
-  ramna: "dhaka",
-  lalbagh: "dhaka",
-  agargaon: "dhaka",
-  agrabad: "chattogram",
-  halishahar: "chattogram",
-  pahartali: "chattogram",
-  panchlaish: "chattogram",
-  nasirabad: "chattogram",
-};
-
-function tokenSet(s: string) {
-  return new Set(normalizeAddr(s).split(" ").filter((t) => t.length >= 2));
-}
-
-function scoreLocationName(
-  haystack: string,
-  hayTokens: Set<string>,
-  name: string,
-  allowGenericOnly = false,
-  ignoredTokens: Set<string> = new Set(),
-) {
-  const normalized = normalizeAddr(name);
-  if (!normalized) return 0;
-  const paddedHay = ` ${haystack} `;
-  const paddedName = ` ${normalized} `;
-  const roadMeasureCandidate = isRoadMeasureCandidate(normalized);
-  if (paddedHay.includes(paddedName)) return roadMeasureCandidate ? 42 : 120 + normalized.length;
-
-  const nameTokens = normalized.split(" ").filter(Boolean);
-  const withoutIgnored = nameTokens.filter((t) => !ignoredTokens.has(t));
-  const scopedTokens = withoutIgnored.length > 0 ? withoutIgnored : nameTokens;
-  const distinctTokens = scopedTokens.filter((t) => !GENERIC_LOCATION_TOKENS.has(t));
-  const usableTokens = allowGenericOnly ? scopedTokens : distinctTokens;
-  if (usableTokens.length === 0) return 0;
-
-  const matched = usableTokens.filter((t) => hayTokens.has(t));
-  const hayNums = numericTokens(haystack);
-  const nameNums = numericTokens(normalized);
-  const numericBonus = roadMeasureCandidate ? 0 : [...nameNums].filter((n) => hayNums.has(n)).length * 45;
-  const numericPenalty = nameNums.size > 0 && numericBonus === 0 ? 18 : 0;
-  if (matched.length === usableTokens.length) {
-    const score = 95 + normalized.length + numericBonus - numericPenalty;
-    return roadMeasureCandidate ? Math.min(score, 42) : score;
+  const value = await normalizeParserRoute(client, parsed);
+  PARSER_CACHE.set(key, { at: Date.now(), value });
+  if (PARSER_CACHE.size > 500) {
+    const oldestKey = PARSER_CACHE.keys().next().value;
+    if (oldestKey) PARSER_CACHE.delete(oldestKey);
   }
-  if (matched.length > 0) {
-    const ratio = matched.length / usableTokens.length;
-    const score = Math.round(55 + ratio * 25 + matched.join(" ").length + numericBonus - numericPenalty);
-    return roadMeasureCandidate ? Math.min(score, 36) : score;
-  }
-
-  let partial = 0;
-  for (const token of usableTokens) {
-    if (token.length < 4) continue;
-    for (const ht of hayTokens) {
-      if (ht.length >= 4 && (token.startsWith(ht) || ht.startsWith(token))) {
-        const score = 40 + Math.min(token.length, ht.length) + numericBonus - numericPenalty;
-        partial = Math.max(partial, roadMeasureCandidate ? Math.min(score, 32) : score);
-      }
-    }
-  }
-  return partial;
-}
-
-function numericTokens(s: string) {
-  return new Set((normalizeAddr(s).match(/\b\d+\b/g) ?? []).filter((n) => n.length <= 4));
-}
-
-function tokenOverlapScore(left: Set<string>, right: Set<string>, ignoredTokens: Set<string> = new Set()) {
-  let score = 0;
-  for (const token of right) {
-    if (ignoredTokens.has(token) || GENERIC_LOCATION_TOKENS.has(token)) continue;
-    if (left.has(token)) score += token.length >= 5 ? 18 : 12;
-  }
-  return score;
-}
-
-function bestScoredMatch<T extends { name: string }>(
-  haystack: string,
-  items: T[],
-  allowGenericOnly = false,
-  ignoredTokens: Set<string> = new Set(),
-): (T & { score: number }) | null {
-  const hayTokens = tokenSet(haystack);
-  let best: (T & { score: number }) | null = null;
-  for (const it of items) {
-    const score = scoreLocationName(haystack, hayTokens, it.name, allowGenericOnly, ignoredTokens);
-    if (score > 0 && (!best || score > best.score)) best = { ...it, score };
-  }
-  return best;
+  return value;
 }
 
 async function resolveByAddress(client: any, address: string) {
