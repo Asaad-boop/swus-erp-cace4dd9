@@ -220,111 +220,27 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
 
     const { data: order, error } = await supabase
       .from("orders")
-      .select("id, brand_id, shipping_address, shipping_thana, shipping_city, shipping_district, shipping_phone, guest_phone")
+      .select("id, brand_id, shipping_phone, guest_phone")
       .eq("id", data.orderId)
       .maybeSingle();
     if (error) throw error;
     if (!order) throw new Error("Order not found");
 
     const client = await clientForBrand(supabase, order.brand_id);
-    const { detectHierarchy, bestMatch } = await import("./pathao-address-match");
-    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
-
-    const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
-      .filter(Boolean)
-      .join(", ");
-
-    // ── Priority 0: Pathao's own customer lookup by phone ─────────────
-    // The Pathao merchant portal pre-fills city/zone/area from this exact
-    // endpoint. If the buyer has shipped with any Pathao merchant before,
-    // we get a perfect, official match — no heuristics needed.
-    const phone = (order.shipping_phone || order.guest_phone || "").toString().replace(/\D/g, "").slice(-11);
-    if (phone.length >= 11) {
-      try {
-        const info: any = await client.lookupCustomer(phone);
-        const d = info?.data ?? info ?? {};
-        const cityId = Number(d.city_id || d.recipient_city || 0);
-        const zoneId = Number(d.zone_id || d.recipient_zone || 0);
-        const areaId = Number(d.area_id || d.recipient_area || 0);
-        if (cityId && zoneId) {
-          const cityName = cityItems.find((c) => c.id === cityId)?.name ?? d.city_name ?? "";
-          const zonesRaw = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
-          const zoneName = zonesRaw.find((z) => z.zone_id === zoneId)?.zone_name ?? d.zone_name ?? "";
-          let area: { id: number; name: string } | null = null;
-          if (areaId) {
-            try {
-              const areasRaw = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
-              const an = areasRaw.find((a) => a.area_id === areaId)?.area_name ?? d.area_name ?? "";
-              area = { id: areaId, name: an };
-            } catch { /* ignore */ }
-          }
-          return {
-            city: { id: cityId, name: cityName },
-            zone: { id: zoneId, name: zoneName },
-            area,
-            confidence: 1,
-            source: "pathao_phone" as const,
-          };
-        }
-      } catch { /* fall through */ }
-    }
-
-    // Structured-first
-    const cityQuery = (order.shipping_district || order.shipping_city || "").trim();
-    const zoneQuery = (order.shipping_thana || "").trim();
-    if (cityQuery) {
-      const cm = bestMatch(cityQuery, cityItems);
-      if (cm && cm.score >= 2) {
-        const zonesRaw = (await client.zones(cm.id)) as Array<{ zone_id: number; zone_name: string }>;
-        const zoneItems = zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name }));
-        const zm = zoneQuery ? bestMatch(zoneQuery, zoneItems) : null;
-        if (zm && zm.score >= 2) {
-          let area: { id: number; name: string } | null = null;
-          try {
-            const areasRaw = (await client.areas(zm.id)) as Array<{ area_id: number; area_name: string }>;
-            if (areasRaw.length > 0) {
-              const am = bestMatch(address || zoneQuery, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
-              if (am) area = { id: am.id, name: am.name };
-            }
-          } catch { /* area optional */ }
-          return {
-            city: { id: cm.id, name: cm.name },
-            zone: { id: zm.id, name: zm.name },
-            area,
-            confidence: 1,
-            source: "structured" as const,
-          };
-        }
-      }
-    }
-
-    // Fallback: deterministic hierarchy from full address
-    if (address.length < 3) {
+    const phone = (order.shipping_phone || order.guest_phone || "").toString();
+    const r = await resolveByPhone(client, phone);
+    if (!r) {
       return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
     }
-    const det = await detectHierarchy({
-      address,
-      cities: cityItems,
-      lookup: {
-        zones: async (cityId) => {
-          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
-          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
-        },
-        areas: async (zoneId) => {
-          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
-          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
-        },
-      },
-    });
     return {
-      city: det.city,
-      zone: det.zone,
-      area: det.area,
-      confidence: det.confidence,
-      source: "address" as const,
+      city: r.city,
+      zone: r.zone,
+      area: r.area,
+      confidence: 1,
+      source: "pathao_phone" as const,
     };
   });
+
 
 export const pathaoPriceFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
