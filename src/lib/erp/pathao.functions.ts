@@ -695,7 +695,6 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
     if (!order) throw new Error("Order not found");
 
     const client = await clientForBrand(supabase, order.brand_id);
-    const phone = (order.shipping_phone || order.guest_phone || "").toString();
     const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
       .filter(Boolean)
       .join(", ");
@@ -706,7 +705,7 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
         zone: route.zone,
         area: route.area,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+        source: "pathao_address_parser" as const,
         raw: route.raw ?? null,
       };
     }
