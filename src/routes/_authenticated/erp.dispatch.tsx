@@ -798,13 +798,14 @@ function DispatchPage() {
 }
 
 function KpiCard({
-  icon, label, value, sub, dot,
+  icon, label, value, sub, dot, breakdown,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number | string;
   sub?: string;
   dot?: string;
+  breakdown?: { id: string; name: string; count: number }[];
 }) {
   return (
     <Card className="p-3.5 border bg-card hover:border-foreground/30 transition-colors">
@@ -815,6 +816,21 @@ function KpiCard({
       </div>
       <div className="text-[28px] leading-none font-bold mt-2 tracking-tight tabular-nums">{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground mt-1.5 truncate">{sub}</div>}
+      {breakdown && breakdown.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {breakdown.map((b) => (
+            <span
+              key={b.id}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px]"
+              title={`${b.name} · ${b.count}`}
+            >
+              <span className="h-1 w-1 rounded-full bg-foreground/50" />
+              <span className="font-medium text-foreground truncate max-w-[80px]">{b.name}</span>
+              <span className="tabular-nums text-muted-foreground">{b.count}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
