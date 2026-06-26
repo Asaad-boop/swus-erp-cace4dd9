@@ -22,8 +22,6 @@ type Props = {
 
 function pathaoSourceLabel(source?: string) {
   if (source === "pathao_address_parser") return "Pathao merchant address parser";
-  if (source === "pathao_address_live_lists") return "Pathao live location lists";
-  if (source === "pathao_phone") return "Pathao customer API";
   return "Pathao API";
 }
 
@@ -167,7 +165,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
             )}
             <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
-              City/Zone/Area এখানে Pathao merchant address parser থেকে auto-fill হয়; booking payload-এ এই exact Pathao IDs যাবে.
+              City/Zone/Area এখানে customer address থেকে Pathao merchant portal-এর address parser দিয়ে auto-fill হয়; booking payload-এ এই exact Pathao IDs যাবে.
             </div>
 
             <div className="grid grid-cols-3 gap-2">
