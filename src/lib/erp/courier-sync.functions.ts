@@ -551,6 +551,34 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       }
     }
 
+    // Auto-sync orders.status from mapped courier status when they differ.
+    // This is what keeps the ERP order list in sync with the live courier state.
+    {
+      const statusChanges = results.filter(
+        (r) => r.ok && r.mapped_status && r.mapped_status !== r.current_status,
+      );
+      if (statusChanges.length > 0) {
+        await Promise.all(
+          statusChanges.map(async (r) => {
+            const target = r.mapped_status!;
+            // Try the validated RPC first (logs history + enforces transitions)
+            const { error: rpcErr } = await supabase.rpc("transition_order_status", {
+              _order_id: r.order_id,
+              _new_status: target,
+            });
+            if (rpcErr) {
+              // Fall back to a direct update so courier truth still wins
+              await supabase
+                .from("orders")
+                .update({ status: target, updated_at: new Date().toISOString() })
+                .eq("id", r.order_id);
+            }
+            r.current_status = target;
+          }),
+        );
+      }
+    }
+
     return { results };
   });
 
