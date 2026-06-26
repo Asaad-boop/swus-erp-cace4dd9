@@ -948,7 +948,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        {tab === "roles" ? (
+        {tab === "roles" && (
           <div className="space-y-3">
             <div className="flex gap-1 flex-wrap">
               {ROLE_PRESETS.filter(p => p.id !== "custom").map(p => (
@@ -977,7 +977,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
               ))}
             </div>
           </div>
-        ) : (
+        )}
+        {tab === "brands" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Empty selection = all brands access. Specific brand select korle user shudhu oi brand(s) e access pabe.
@@ -1009,6 +1010,86 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
                 </label>
               ))}
             </div>
+          </div>
+        )}
+        {tab === "pages" && (
+          <div className="space-y-3">
+            {isUserAdmin && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                Admin user — page restrictions are bypassed for admins. Setting will save but won't take effect until admin role is removed.
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="flex items-center gap-2 text-xs cursor-pointer rounded-md border px-2.5 py-1.5">
+                <input
+                  type="radio"
+                  checked={pagesMode === "role_default"}
+                  onChange={() => setPagesMode("role_default")}
+                />
+                Role defaults (use role-based access)
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer rounded-md border px-2.5 py-1.5">
+                <input
+                  type="radio"
+                  checked={pagesMode === "custom"}
+                  onChange={() => setPagesMode("custom")}
+                />
+                Custom page list
+              </label>
+            </div>
+            {pagesMode === "custom" && (
+              <>
+                <div className="flex gap-1 flex-wrap">
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
+                    onClick={() => setAllowedPages(ALL_PAGE_PATHS)}>Select all</Button>
+                  <Button type="button" size="sm" variant="ghost" className="h-7 text-xs"
+                    onClick={() => setAllowedPages([])}>Clear</Button>
+                  <span className="text-[11px] text-muted-foreground self-center ml-1">
+                    {allowedPages.length} / {ALL_PAGE_PATHS.length} selected
+                  </span>
+                </div>
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                  {PAGE_GROUPS.map((group) => {
+                    const groupItems = PAGE_CATALOG.filter((p) => p.group === group);
+                    const selectedCount = groupItems.filter((p) => allowedPages.includes(p.path)).length;
+                    const allSelected = selectedCount === groupItems.length;
+                    return (
+                      <div key={group} className="rounded-md border">
+                        <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={allSelected}
+                              onCheckedChange={(v) => toggleGroup(group, !!v)}
+                            />
+                            <span className="text-xs font-semibold uppercase tracking-wider">{group}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {selectedCount}/{groupItems.length}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 p-2">
+                          {groupItems.map((p) => (
+                            <label key={p.path} className={cn(
+                              "flex items-center gap-2 text-xs cursor-pointer rounded px-2 py-1.5 transition hover:bg-accent",
+                              allowedPages.includes(p.path) && "bg-primary/5"
+                            )}>
+                              <Checkbox
+                                checked={allowedPages.includes(p.path)}
+                                onCheckedChange={() => togglePage(p.path)}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium truncate">{p.label}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono truncate">{p.path}</div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
         <DialogFooter>
