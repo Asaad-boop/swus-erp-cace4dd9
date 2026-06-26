@@ -169,17 +169,20 @@ function AuthPage() {
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                className="h-11"
-              />
+              <Label htmlFor="identifier">{mode === "signin" ? "Username or Email" : "Email"}</Label>
+              <div className="relative">
+                <AtSign className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="identifier"
+                  type={mode === "signin" ? "text" : "email"}
+                  required
+                  placeholder={mode === "signin" ? "yourname or you@example.com" : "you@example.com"}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  autoComplete={mode === "signin" ? "username" : "email"}
+                  className="h-11 pl-9"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
