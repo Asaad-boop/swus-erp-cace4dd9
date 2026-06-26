@@ -284,22 +284,35 @@ export function ShipmentPanel({
 export function CustomerHistoryPanel({
   brandId, phone, currentOrderId,
 }: { brandId: string | null; phone: string; currentOrderId: string }) {
+  const { data: brandList } = useQuery({
+    queryKey: ["brands-mini"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("brands").select("id,name");
+      return data ?? [];
+    },
+  });
+  const brandNameById = useMemo(
+    () => new Map((brandList ?? []).map((b: any) => [b.id, b.name] as const)),
+    [brandList],
+  );
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-history-360", brandId, phone],
-    enabled: !!brandId && !!phone && phone.length >= 11,
+    queryKey: ["customer-history-360-all", phone],
+    enabled: !!phone && phone.length >= 11,
     staleTime: 60_000,
     queryFn: async () => {
       const { data: rows } = await supabase
         .from("orders")
-        .select("id, status, web_status, total, created_at, invoice_no")
-        .eq("brand_id", brandId!)
+        .select("id, status, web_status, total, created_at, invoice_no, brand_id")
         .or(`shipping_phone.eq.${phone},guest_phone.eq.${phone}`)
         .order("created_at", { ascending: false })
         .limit(500);
       const list = rows ?? [];
       let total = 0, confirmed = 0, cancelled = 0, delivered = 0, ltv = 0;
+      const brandCounts = new Map<string, number>();
       for (const r of list) {
         total++;
+        if (r.brand_id) brandCounts.set(r.brand_id, (brandCounts.get(r.brand_id) ?? 0) + 1);
         const s = ((r.status ?? "") + " " + (r.web_status ?? "")).toLowerCase();
         if (/cancel|fake/.test(s)) cancelled++;
         else if (/deliver/.test(s)) { delivered++; ltv += Number(r.total ?? 0); }
@@ -312,7 +325,7 @@ export function CustomerHistoryPanel({
         .select("rfm_segment, churn_risk")
         .eq("customer_key", phone)
         .maybeSingle();
-      return { total, confirmed, cancelled, delivered, ltv, avg, previous, meta };
+      return { total, confirmed, cancelled, delivered, ltv, avg, previous, meta, brandCounts: Array.from(brandCounts.entries()) };
     },
   });
 
@@ -335,6 +348,29 @@ export function CustomerHistoryPanel({
           <p className="text-muted-foreground text-center py-2">First time customer</p>
         ) : (
           <>
+            {data.brandCounts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {data.brandCounts.map(([bid, count]) => {
+                  const isCurrent = bid === brandId;
+                  return (
+                    <span
+                      key={bid}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ring-1 ring-inset",
+                        isCurrent
+                          ? "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 ring-fuchsia-500/30"
+                          : "bg-muted/40 text-foreground ring-border",
+                      )}
+                      title={isCurrent ? "Current brand" : "Cross-brand customer"}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+                      <span className="font-medium">{brandNameById.get(bid) ?? "Other"}</span>
+                      <span className="text-muted-foreground">×{count}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md border bg-muted/20 px-2 py-1.5"><div className="text-[10px] text-muted-foreground">Total Orders</div><div className="font-semibold">{data.total}</div></div>
               <div className="rounded-md border bg-emerald-500/5 px-2 py-1.5"><div className="text-[10px] text-muted-foreground">Delivered</div><div className="font-semibold text-emerald-600">{data.delivered}</div></div>
@@ -360,11 +396,23 @@ export function CustomerHistoryPanel({
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Previous Orders</div>
                 {data.previous.map((p) => {
                   const s = ((p.status ?? "") + " " + (p.web_status ?? "")).trim();
+                  const bName = p.brand_id ? brandNameById.get(p.brand_id) : null;
+                  const isOther = p.brand_id && p.brand_id !== brandId;
                   return (
                     <Link key={p.id} to="/erp/orders/$orderId" params={{ orderId: p.id }}
                       className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-muted/40">
                       <div className="min-w-0">
-                        <div className="text-[11px] font-mono truncate">#{p.invoice_no ?? p.id.slice(0, 8)}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-mono truncate">#{p.invoice_no ?? p.id.slice(0, 8)}</span>
+                          {bName && (
+                            <span className={cn(
+                              "inline-flex items-center rounded-full px-1.5 py-px text-[9px] font-medium ring-1 ring-inset",
+                              isOther
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30"
+                                : "bg-muted/40 text-muted-foreground ring-border",
+                            )}>{bName}</span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-muted-foreground">{format(new Date(p.created_at), "dd MMM, hh:mm a")}</div>
                       </div>
                       <div className="text-right">

@@ -682,13 +682,12 @@ function OrderDetailsPage() {
   /* ------------------------------ Courier history -------------------------- */
 
   const { data: ourRecord } = useQuery({
-    queryKey: ["customer-our-record", order?.brand_id, phone, orderId],
-    enabled: !!order?.brand_id && !!phone,
+    queryKey: ["customer-our-record-all", phone, orderId],
+    enabled: !!phone,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id,status,web_status,shipping_phone,guest_phone")
-        .eq("brand_id", order!.brand_id!)
+        .select("id,status,web_status,shipping_phone,guest_phone,brand_id")
         .or(`shipping_phone.eq.${phone},guest_phone.eq.${phone}`)
         .neq("id", orderId)
         .limit(2000);
