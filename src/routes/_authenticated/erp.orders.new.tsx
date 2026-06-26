@@ -553,38 +553,16 @@ function NewOrderPage() {
               {/* Pathao auto-detect rail tucked inside the same card */}
               {showPathao && (
                 <div className="border-t border-emerald-100 bg-emerald-50/50 px-5 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/15">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                      </span>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                        Courier Routing
-                      </span>
-                      <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— ঠিকানা থেকে auto detect</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 gap-1.5 border-emerald-200 bg-background text-[11px] font-bold uppercase tracking-wider text-emerald-700 hover:bg-emerald-50"
-                      onClick={() => detect.mutate()}
-                      disabled={detect.isPending || !address.trim()}
-                    >
-                      {detect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-                      Auto Detect
-                    </Button>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Courier Routing
+                    </span>
+                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— phone দিলে Pathao API থেকে auto fill</span>
                   </div>
-                  {lastDetect && (
-                    <DetectionPreview
-                      address={lastDetect.address}
-                      city={lastDetect.city?.name ?? null}
-                      zone={lastDetect.zone?.name ?? null}
-                      area={lastDetect.area?.name ?? null}
-                      confidence={lastDetect.confidence}
-                      onDismiss={() => setLastDetect(null)}
-                    />
-                  )}
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
                       <LocationCombobox
