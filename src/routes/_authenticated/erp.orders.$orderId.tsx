@@ -424,8 +424,9 @@ function OrderDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
-  // When Pathao detection comes back, auto-fill empty city/zone/area fields
-  // on the order form so user sees them ready without clicking anything.
+  // When Pathao detection comes back, use the live Pathao route for the
+  // current address. Old saved IDs can be stale/wrong, so address detection
+  // intentionally wins until the operator manually changes the dropdowns.
   useEffect(() => {
     if (!pathaoDetected || !formReady) return;
     if (pathaoDetected.city) {
@@ -438,9 +439,11 @@ function OrderDetailsPage() {
     }
     setForm((f) => {
       const next = { ...f };
-      if (!next.city_id && pathaoDetected.city) next.city_id = String(pathaoDetected.city.id);
-      if (!next.zone_id && pathaoDetected.zone) next.zone_id = String(pathaoDetected.zone.id);
-      if (!next.area_id && pathaoDetected.area) next.area_id = String(pathaoDetected.area.id);
+      if (pathaoDetected.city) next.city_id = String(pathaoDetected.city.id);
+      if (pathaoDetected.zone) next.zone_id = String(pathaoDetected.zone.id);
+      else next.zone_id = "";
+      if (pathaoDetected.area) next.area_id = String(pathaoDetected.area.id);
+      else next.area_id = "";
       return next;
     });
   }, [pathaoDetected, formReady]);
