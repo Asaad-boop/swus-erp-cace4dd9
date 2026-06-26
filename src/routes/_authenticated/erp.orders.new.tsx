@@ -544,61 +544,48 @@ function NewOrderPage() {
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
-                      <Select
-                        value={cityId ? String(cityId) : ""}
-                        onValueChange={(v) => {
-                          const c = cities.find((x) => x.city_id === Number(v));
-                          setCityId(Number(v));
-                          setCityName(c?.city_name ?? "");
+                      <LocationCombobox
+                        items={cities.map((c) => ({ id: c.city_id, name: c.city_name }))}
+                        valueId={cityId}
+                        valueName={cityName}
+                        placeholder={cityLoading ? "Loading…" : cityError ? "Pathao config missing" : "Search city…"}
+                        onChange={(id, name) => {
+                          setCityId(id); setCityName(name);
                           setZoneId(null); setZoneName(""); setAreaId(null); setAreaName("");
                         }}
-                      >
-                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background">
-                          <SelectValue placeholder={cityLoading ? "Loading…" : cityError ? "Pathao config missing" : "Select a city"} />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {cities.map((c) => (
-                            <SelectItem key={c.city_id} value={String(c.city_id)}>{c.city_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onClear={() => {
+                          setCityId(null); setCityName("");
+                          setZoneId(null); setZoneName(""); setAreaId(null); setAreaName("");
+                        }}
+                      />
                     </Field>
                     <Field label="Zone">
-                      <Select
-                        value={zoneId ? String(zoneId) : ""}
-                        onValueChange={(v) => {
-                          const z = zones.find((x) => x.zone_id === Number(v));
-                          setZoneId(Number(v));
-                          setZoneName(z?.zone_name ?? "");
+                      <LocationCombobox
+                        items={zones.map((z) => ({ id: z.zone_id, name: z.zone_name }))}
+                        valueId={zoneId}
+                        valueName={zoneName}
+                        placeholder={!cityId ? "Pick a city first" : "Search zone…"}
+                        disabled={!cityId}
+                        onChange={(id, name) => {
+                          setZoneId(id); setZoneName(name);
                           setAreaId(null); setAreaName("");
                         }}
-                        disabled={!cityId}
-                      >
-                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background"><SelectValue placeholder="Select a zone" /></SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {zones.map((z) => (
-                            <SelectItem key={z.zone_id} value={String(z.zone_id)}>{z.zone_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onClear={() => {
+                          setZoneId(null); setZoneName("");
+                          setAreaId(null); setAreaName("");
+                        }}
+                      />
                     </Field>
                     <Field label="Area">
-                      <Select
-                        value={areaId ? String(areaId) : ""}
-                        onValueChange={(v) => {
-                          const a = areas.find((x) => x.area_id === Number(v));
-                          setAreaId(Number(v));
-                          setAreaName(a?.area_name ?? "");
-                        }}
+                      <LocationCombobox
+                        items={areas.map((a) => ({ id: a.area_id, name: a.area_name }))}
+                        valueId={areaId}
+                        valueName={areaName}
+                        placeholder={!zoneId ? "Pick a zone first" : "Search area…"}
                         disabled={!zoneId}
-                      >
-                        <SelectTrigger className="h-9 border-emerald-200/70 bg-background"><SelectValue placeholder="Select an area" /></SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {areas.map((a) => (
-                            <SelectItem key={a.area_id} value={String(a.area_id)}>{a.area_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(id, name) => { setAreaId(id); setAreaName(name); }}
+                        onClear={() => { setAreaId(null); setAreaName(""); }}
+                      />
                     </Field>
                   </div>
                 </div>
