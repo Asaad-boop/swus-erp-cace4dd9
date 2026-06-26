@@ -297,6 +297,7 @@ function EmployeesList() {
         )}
 
         <EmployeeImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+        <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
 
         <Dialog open={moveDeptOpen} onOpenChange={setMoveDeptOpen}>
           <DialogContent>
