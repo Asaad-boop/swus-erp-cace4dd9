@@ -1,214 +1,89 @@
-# World-Class ERP Dashboard — Plan
+# HRM Simplification Plan
 
-Goal: ekta perfect, advance, "command center" style dashboard banano — grey/dark premium KPI tiles, live website visitor, orders/revenue/profit, real-time pulse, ar deep insights. Bloomberg terminal + Linear + Vercel analytics er moto feel.
+## Akhon ki problem
 
-## Layout (Bento Grid, 12-col)
+Tinta alada "people" concept ache, eta confusion toiri korche:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ HERO STRIP — Brand • Live clock • Date range • Compare      │
-├──────────┬──────────┬──────────┬──────────┬──────────┬──────┤
-│ Revenue  │ Profit   │ Orders   │ AOV      │ Conv %   │ ROAS │  ← 6 KPI tiles (grey, sparkline + delta vs prev period)
-├──────────┴──────────┴──────────┼──────────┴──────────┴──────┤
-│ REVENUE vs PROFIT (area, 30d)  │ LIVE VISITORS (pulse)      │
-│  + cost overlay                │  • Active now: 47          │
-│                                │  • Top pages list          │
-│                                │  • Country dots            │
-├────────────────────────────────┼────────────────────────────┤
-│ ORDER FUNNEL                   │ ORDER STATUS DONUT         │
-│ Visit→Cart→Checkout→Paid       │ new/confirmed/packed/...   │
-├────────────────────────────────┼────────────────────────────┤
-│ TOP PRODUCTS (table+thumb)     │ LOW STOCK ALERTS           │
-├────────────────────────────────┼────────────────────────────┤
-│ RECENT ORDERS (live feed)      │ COURIER PERFORMANCE        │
-├────────────────────────────────┴────────────────────────────┤
-│ MARKETING ROAS BY CAMPAIGN (bar) │ CASHFLOW MINI (in/out)   │
-└──────────────────────────────────────────────────────────────┘
+/erp/hr/staff       → App user (auth + role + brand access)        [1110 lines]
+/erp/hr/employees   → HR record (profile, payroll, attendance)     [317 lines]
+/erp/users          → Customer accounts                            [218 lines]
 ```
 
-## KPI Tiles (top row — 6 tiles)
+Ekjon real karmochari add korte gele teen jaygai teen rokom form fill korte hocche. Add Employee, Add Staff, Add User — sob alada flow, alada field, alada dialog. HR module-eo onek sub-pages (departments, designations, shifts, leave policy, holidays, payroll runs, reports) — onek gula khali ache ba use hoy na.
 
-Each tile: uppercase tracked label, hero number (Sora 32px), delta chip (▲ green / ▼ red vs previous period), 40px sparkline at bottom. Grey surface (`--surface-1`), hairline border, hover lift.
+## Ki ki simplification korbo
 
-1. **Revenue** — sum of paid orders
-2. **Net Profit** — revenue − COGS − courier fee − ad spend
-3. **Orders** — confirmed + paid count
-4. **AOV** — revenue / orders
-5. **Conversion %** — paid orders / sessions
-6. **ROAS** — revenue / ad spend
+### 1. "Add Person" — ekta unified wizard
 
-## Live Section (real-time)
+Tinta add flow ke ekta 3-step dialog e merge korbo:
 
-- **Live visitors** — Supabase realtime on `active_sessions` table, pulse animation, top 5 active pages, country flags
-- **Live order feed** — realtime on `orders` insert, slide-in cards last 10
-- **Today's pulse** — orders today vs same hour yesterday (mini bar)
+```text
+Step 1: Basics       → Name, Phone, Email, Photo
+Step 2: Access       → Role (or "No login"), Brand access
+Step 3: Employment   → Department, Designation, Joining date, Salary
+                       (optional — "Skip for now" button)
+```
 
-## Charts (Recharts)
+- Step 3 skip korle shudhu auth user create hobe (light staff)
+- Sob step fill korle full employee record + auth + role ekshathe create hobe
+- Backend e ekta server fn — `createPerson({ basics, access?, employment? })` — internally `createAppUser` + employee insert chain korbe
 
-- Revenue vs Profit area chart, 7/30/90d toggle
-- Order status donut
-- Funnel (Visit → Cart → Checkout → Paid) with drop-off %
-- ROAS by campaign horizontal bar
-- Cashflow mini sparkline (in/out)
+### 2. Navigation collapse
 
-## Tables
+HR sidebar ekhon 12+ entries. 5 e namabo:
 
-- **Top products** — thumbnail, name, units sold, revenue, margin %
-- **Low stock alerts** — product, current, reorder point, days-of-cover
-- **Recent orders** — id, customer, total, status pill, timestamp
-- **Courier performance** — courier, delivered %, avg days, returns %
+```text
+HR Dashboard
+People         (merged staff + employees, ek table, columns toggle)
+Attendance     (muster + history ek page e tabs)
+Leave          (requests + calendar tabs, policy settings e sore)
+Payroll
+─────────────
+Settings       (departments, designations, shifts, holidays, leave policy — sob ekhane)
+```
 
-## Filters / Controls
+`/erp/users` (customer accounts) ke `/erp/customers` e move korbo — HR theke alada, naam-eo clear.
 
-- Date range picker (advanced — presets + custom, already exists)
-- Compare to: previous period / last year / none
-- Brand-scoped (header brand picker)
-- Auto-refresh toggle (30s)
+### 3. People table — ek jaygay shob
 
-## Data Sources
+Single table with smart filters:
+- Filter: `Type` = All / Staff (has login) / Employee (HR record) / Both
+- Filter: Role, Department, Status (active/banned/left)
+- Row click → unified detail drawer (tabs: Profile, Access, Employment, Activity)
+- Bulk actions: change role, assign brand, deactivate
 
+Ekhon-er duita alada page (`erp.hr.staff.tsx` 1110 lines + `erp.hr.employees.index.tsx` 317 lines) ke ekta page e merge korle ~600 lines e nama jabe.
 
-| Section               | Table/Query                                                   |
-| --------------------- | ------------------------------------------------------------- |
-| Revenue/Profit/Orders | `orders` (status in paid, delivered) + `order_items` for COGS |
-| Ad spend              | `mkt_insights_daily`                                          |
-| Live visitors         | `active_sessions` (realtime)                                  |
-| Funnel                | `analytics_events` + `orders`                                 |
-| Stock                 | `products` low_stock view                                     |
-| Courier               | `courier_shipments`                                           |
-| Cashflow              | `erp_transactions`                                            |
+### 4. Ki ki baad/hide korbo
 
+- **Reports page** — jodi data sparse, hide. Numbers thakle dashboard e moove kore daa.
+- **Leave Policy / Holidays / Designations** — alada top-level link na rekhe HR Settings tab e neshte daa
+- **Shifts Assign** — Attendance page er moddhe inline kore daa
+- Roles list (9 ta) review — `moderator` + `customer` baad dile 7 ta thakbe, dropdown choto hobe
+- Memory rule onujayi: jei card/section e data nei, oita auto-hide korbo
 
-## Tech Approach
+## File-level moves
 
-- One `useDashboardData(dateRange, brandId, compare)` hook — parallel server functions, returns all KPIs + chart series
-- Realtime: separate `useLiveVisitors()` + `useLiveOrders()` hooks with Supabase channels (cleanup in useEffect)
-- Skeleton loaders per tile (no blocking)
-- Admin-only — staff dashboard already separate
+```text
+NEW:    src/components/erp/hr/add-person-dialog.tsx       (3-step wizard)
+NEW:    src/routes/_authenticated/erp.hr.people.tsx       (merged table)
+NEW:    src/lib/erp/hr/person.functions.ts                (createPerson, updatePerson)
 
-## Design Tokens
+KEEP:   erp.hr.index, erp.hr.attendance, erp.hr.leave, erp.hr.payroll, erp.hr.settings
+MERGE:  erp.hr.staff + erp.hr.employees.index → erp.hr.people
+MOVE:   erp.hr.departments/designations/holidays/shifts/leave.policy → tabs inside erp.hr.settings
+MOVE:   erp.users → erp.customers (out of HR scope)
+DROP:   erp.hr.employees.new (replaced by dialog)
+```
 
-- Surface: `--surface-1` (graphite), `--surface-2` (slate)
-- Accent: existing primary; positive = emerald, negative = rose
-- Font: Sora display, Manrope body (already set)
-- Spacing: gap-3 grid, p-5 tiles, rounded-2xl
-- Subtle gradient sweep on hero, hairline 1px borders, no heavy shadows
+DB schema change kichu na — shudhu UI + server-fn composition.
 
-## Build Order
+## Rollout
 
-1. Data layer — `dashboard.functions.ts` with `getDashboardMetrics`, `getRevenueProfitSeries`, `getFunnel`, `getTopProducts`, `getCourierPerf`
-2. Realtime hooks — `useLiveVisitors`, `useLiveOrders`
-3. KPI tile component (sparkline + delta)
-4. Bento layout in `erp.index.tsx` (admin branch)
-5. Charts + tables
-6. Polish — animations, skeletons, empty states
+1. People table + Add Person wizard build (alada route, parallel)
+2. Settings page e tabs add kore departments/designations/etc inline
+3. Sidebar navigation update + old routes redirect
+4. Old files delete
 
-## Out of Scope (for now)
-
-- Custom dashboard builder / drag-rearrange
-- Saved views per user
-- Export to PDF  
-Must Add Advanced Blocks
-  **1. Profit Quality Score**
-  - Revenue high but profit low kina
-  - Return loss + ad cost + courier loss include
-  - Green / Yellow / Red score
-  **2. Brand Health**
-  - HobbyShop vs Toyora
-  - Revenue, profit, return rate, stock value, ad spend
-  - Which brand growing faster
-  **3. Cash Risk Alert**
-  - Courier theke koto COD pending
-  - Supplier payment due
-  - Salary/expense upcoming
-  - Available cash runway
-  **4. Product Danger Zone**
-  - High sale but low stock
-  - High order but high return
-  - High ad spend but low profit
-  - Slow moving dead stock
-  **5. Operator Performance**
-  - Staff-wise confirmed orders
-  - Cancel rate
-  - Follow-up pending
-  - Average response time
-  **6. Area Intelligence**
-  - Top cities/areas
-  - High return area
-  - High delivery success area
-  - Courier-wise area performance
-  **7. Today Command Panel**  
-  Right side e ekta action list:
-  ```
-
-  ```
-  ```
-  Need Confirmation: 42
-  Need Packing: 18
-  Low Stock: 9
-  Courier Issue: 6
-  Payment Pending: ৳48,500
-  Losing Campaigns: 3
-  ```
-  ### KPI Tile e aro add kora jay
-  Top 6 thik ase, but hidden expandable KPI rakhba:
-  -   
-  Gross Profit  
-
-  -   
-  Product Cost  
-
-  -   
-  Courier Cost  
-
-  -   
-  Packaging Cost  
-
-  -   
-  Return Loss  
-
-  -   
-  Paid Return Loss  
-
-  -   
-  Net Margin %  
-
-  -   
-  COD Pending  
-
-  -   
-  Stock Value  
-
-  -   
-  Daily Burn  
-
-  ### Dashboard Logic Best Hobe
-  **Default view:** All Brands  
-    
-  **Filter:** HobbyShop / Toyora / Date / Courier / Campaign / Product
-  ### Most Important Formula
-  ```
-
-  ```
-  ```
-  Net Profit =
-  Delivered Revenue
-  - Product Cost
-  - Courier Cost
-  - Packaging Cost
-  - Ad Spend
-  - Return Loss
-  - Refund / Damage / Exchange Loss
-  ```
-  ### Final Recommendation
-  Dashboard ke just “beautiful analytics” banio na. Eta banaba **decision dashboard**:
-  ```
-
-  ```
-  ```
-  What happened?
-  Why happened?
-  Where money stuck?
-  Which product/campaign/courier is losing money?
-  What should I do today?
-  ```
+Plan-e tomar feedback dao — kon part agei dhori, kichu rakhte chao, ba aro ki baad dite chao?
