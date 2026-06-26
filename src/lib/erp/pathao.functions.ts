@@ -121,9 +121,9 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
 /*  Pathao-only address detection — no AI, no heuristics                  */
 /* ---------------------------------------------------------------------- */
 //
-// City / Zone / Area resolution comes entirely from Pathao's official
-// customer-info API (lookup by phone) — the same call the Pathao
-// merchant portal makes when typing a phone in "New Delivery".
+// City / Zone / Area preview uses Pathao phone history plus Pathao's own
+// location lists. Actual booking can omit city/zone/area so Pathao's official
+// create-order auto-address mapping chooses the delivery area from address.
 
 async function resolveByPhone(client: any, phone: string) {
   const p = (phone || "").replace(/\D/g, "").slice(-11);
@@ -431,8 +431,8 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Pathao-only detection for a saved order. It first asks Pathao customer-info
- * by phone; if Pathao has no customer record, it matches the saved checkout
+ * Pathao-only preview detection for a saved order. Phone history is used only
+ * when it overlaps the current address; otherwise it matches the saved
  * address/district/thana against Pathao's official City/Zone/Area lists.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
