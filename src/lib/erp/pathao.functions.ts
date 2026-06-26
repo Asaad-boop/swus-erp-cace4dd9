@@ -121,9 +121,9 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
 /*  Pathao-only address detection — no AI, no heuristics                  */
 /* ---------------------------------------------------------------------- */
 //
-// City / Zone / Area resolution comes entirely from Pathao's official
-// customer-info API (lookup by phone) — the same call the Pathao
-// merchant portal makes when typing a phone in "New Delivery".
+// City / Zone / Area preview uses Pathao phone history plus Pathao's own
+// location lists. Actual booking can omit city/zone/area so Pathao's official
+// create-order auto-address mapping chooses the delivery area from address.
 
 async function resolveByPhone(client: any, phone: string) {
   const p = (phone || "").replace(/\D/g, "").slice(-11);
@@ -154,6 +154,50 @@ async function resolveByPhone(client: any, phone: string) {
     recipient_address: (d.address || d.recipient_address || "") as string,
     success_ratio: typeof d.success_ratio === "number" ? d.success_ratio : null,
   };
+}
+
+const PHONE_ADDRESS_CITY_TOKENS = new Set([
+  "dhaka", "chattogram", "chittagong", "gazipur", "narayanganj", "savar",
+  "cumilla", "comilla", "sylhet", "rajshahi", "khulna", "barishal", "barisal",
+  "rangpur", "mymensingh",
+]);
+
+function meaningfulAddressTokens(raw: string) {
+  return normalizeAddr(raw)
+    .split(" ")
+    .filter((token) => {
+      if (token.length < 3) return false;
+      if (/^\d+$/.test(token)) return false;
+      if (PHONE_ADDRESS_CITY_TOKENS.has(token)) return false;
+      if (GENERIC_LOCATION_TOKENS.has(token)) return false;
+      if (["place", "floor", "flat", "building", "holding", "goli", "gali", "near", "beside", "opposite", "mobile"].includes(token)) return false;
+      return true;
+    });
+}
+
+function hasTokenOverlap(left: string[], right: string[]) {
+  return left.some((a) =>
+    right.some((b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)))),
+  );
+}
+
+function phoneRouteMatchesCurrentAddress(
+  route: Awaited<ReturnType<typeof resolveByPhone>>,
+  currentAddress: string,
+) {
+  if (!route) return false;
+  const addressTokens = meaningfulAddressTokens(currentAddress);
+  // Very short/blank saved addresses can safely use Pathao phone history.
+  if (addressTokens.length === 0) return true;
+
+  const returnedAddressTokens = meaningfulAddressTokens(route.recipient_address || "");
+  if (returnedAddressTokens.length > 0 && hasTokenOverlap(addressTokens, returnedAddressTokens)) return true;
+
+  const returnedLocationTokens = meaningfulAddressTokens([
+    route.zone?.name,
+    route.area?.name,
+  ].filter(Boolean).join(" "));
+  return returnedLocationTokens.length > 0 && hasTokenOverlap(addressTokens, returnedLocationTokens);
 }
 
 
@@ -224,6 +268,7 @@ function normalizeAddr(s: string) {
       if (["sodor", "sodar", "sodhor", "sadr"].includes(token)) return "sadar";
       if (token === "comilla") return "cumilla";
       if (token === "ctg") return "chattogram";
+      if (["mipur", "mirpoor", "mirpurr"].includes(token)) return "mirpur";
       return token;
     })
     .join(" ");
@@ -386,8 +431,8 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Pathao-only detection for a saved order. It first asks Pathao customer-info
- * by phone; if Pathao has no customer record, it matches the saved checkout
+ * Pathao-only preview detection for a saved order. Phone history is used only
+ * when it overlaps the current address; otherwise it matches the saved
  * address/district/thana against Pathao's official City/Zone/Area lists.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
@@ -407,8 +452,11 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
 
     const client = await clientForBrand(supabase, order.brand_id);
     const phone = (order.shipping_phone || order.guest_phone || "").toString();
+    const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+      .filter(Boolean)
+      .join(", ");
     const r = await resolveByPhone(client, phone);
-    if (r) {
+    if (r && phoneRouteMatchesCurrentAddress(r, addressText)) {
       return {
         city: r.city,
         zone: r.zone,
@@ -418,9 +466,6 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
       };
     }
 
-    const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
-      .filter(Boolean)
-      .join(", ");
     const route = await resolveByAddress(client, addressText);
     if (route) {
       return {
@@ -462,8 +507,8 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
     z
       .object({
         orderId: z.string().uuid(),
-        recipient_city: z.number().int().positive(),
-        recipient_zone: z.number().int().positive(),
+        recipient_city: z.number().int().positive().optional(),
+        recipient_zone: z.number().int().positive().optional(),
         recipient_area: z.number().int().positive().optional(),
         item_weight: z.number().positive(),
         item_quantity: z.number().int().positive().default(1),
@@ -496,15 +541,18 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
 
     const client = await clientForBrand(supabase, order.brand_id);
     const merchantId = order.id.slice(0, 8).toUpperCase();
+    const manualLocation = data.recipient_city && data.recipient_zone;
     const result: any = await client.createOrder({
       store_id: client.storeId,
       merchant_order_id: merchantId,
       recipient_name: name,
       recipient_phone: phone,
       recipient_address: address,
-      recipient_city: data.recipient_city,
-      recipient_zone: data.recipient_zone,
-      recipient_area: data.recipient_area,
+      ...(manualLocation ? {
+        recipient_city: data.recipient_city,
+        recipient_zone: data.recipient_zone,
+        recipient_area: data.recipient_area,
+      } : {}),
       delivery_type: data.delivery_type,
       item_type: data.item_type,
       special_instruction: data.special_instruction,
@@ -517,7 +565,7 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
     const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
-    const actualCost = pathaoActualCost(result, fee, data.amount_to_collect, data.recipient_city);
+    const actualCost = pathaoActualCost(result, fee, data.amount_to_collect, data.recipient_city ?? null);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -543,22 +591,26 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
       await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
     }
 
-    await supabase
-      .from("orders")
-      .update({
-        courier_name: "pathao",
-        courier_assigned_at: new Date().toISOString(),
-        tracking_number: consignment ?? undefined,
+    const orderUpdate: Record<string, unknown> = {
+      courier_name: "pathao",
+      courier_assigned_at: new Date().toISOString(),
+      tracking_number: consignment ?? undefined,
+      ...(manualLocation ? {
         pathao_city_id: data.recipient_city,
         pathao_zone_id: data.recipient_zone,
         pathao_area_id: data.recipient_area ?? null,
-        ...(actualCost.total > 0 ? {
-          actual_shipping_cost: actualCost.total,
-          actual_shipping_source: "auto",
-          actual_shipping_recorded_at: new Date().toISOString(),
-          actual_shipping_breakdown: actualCost.breakdown as never,
-        } : {}),
-      })
+      } : {}),
+      ...(actualCost.total > 0 ? {
+        actual_shipping_cost: actualCost.total,
+        actual_shipping_source: "auto",
+        actual_shipping_recorded_at: new Date().toISOString(),
+        actual_shipping_breakdown: actualCost.breakdown as never,
+      } : {}),
+    };
+
+    await supabase
+      .from("orders")
+      .update(orderUpdate as never)
       .eq("id", order.id);
 
     return { shipmentId: shipment.id, consignment, tracking, fee: actualCost.total || fee, status };
@@ -666,19 +718,10 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .join(", ");
     if (!phone || address.length < 5) throw new Error("Missing phone or address");
 
-    // Resolve city / zone / area — Pathao phone API only.
+    // Pathao now supports auto address mapping in the create-order API when
+    // city/zone/area are omitted, so bulk/fast booking sends the full address
+    // directly and lets Pathao choose the delivery area.
     const client = await clientForBrand(supabase, order.brand_id);
-    const resolved = await resolveByPhone(client, phone);
-    if (!resolved) {
-      throw new Error(
-        "Pathao API thake city/zone pawa jayni. Order kholo, manually city/zone select kore Book Pathao chap.",
-      );
-    }
-    const cityPick = { id: resolved.city.id, name: resolved.city.name, confidence: 1 };
-    const resolvedZoneId: number = resolved.zone.id;
-    const resolvedZoneName: string = resolved.zone.name;
-    const areaId: number | undefined = resolved.area?.id;
-
 
     const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
     const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
@@ -694,9 +737,6 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       recipient_name: name,
       recipient_phone: phone,
       recipient_address: address,
-      recipient_city: cityPick.id,
-      recipient_zone: resolvedZoneId,
-      recipient_area: areaId,
       delivery_type: data.delivery_type,
       item_type: data.item_type,
       item_quantity: totalQty,
@@ -708,7 +748,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     const consignment = result?.consignment_id || result?.data?.consignment_id || null;
     const tracking = result?.tracking_code || result?.data?.tracking_code || null;
     const fee = readPositiveNumber(result, ["delivery_fee", "delivery_charge", "normal_delivery", "same_day_delivery"]) ?? 0;
-    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, cityPick.id);
+    const actualCost = pathaoActualCost(result, fee, Number(order.total) || 0, null);
     const status = result?.order_status || result?.data?.order_status || "Pickup_Requested";
 
     const { data: shipment, error: sErr } = await supabase
@@ -722,7 +762,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         tracking_code: tracking,
         delivery_fee: fee || null,
         status,
-        request_payload: { auto: true, city: cityPick, zone: { id: resolvedZoneId, name: resolvedZoneName }, area: areaId } as never,
+        request_payload: { auto: true, pathao_auto_address: true, address } as never,
         response_payload: result as never,
         created_by: userId,
       })
@@ -740,11 +780,6 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
         courier_name: "pathao",
         courier_assigned_at: new Date().toISOString(),
         tracking_number: consignment ?? undefined,
-        pathao_city_id: cityPick.id,
-        pathao_city_name: cityPick.name,
-        pathao_zone_id: resolvedZoneId,
-        pathao_zone_name: resolvedZoneName,
-        pathao_area_id: areaId ?? null,
         ...(actualCost.total > 0 ? {
           actual_shipping_cost: actualCost.total,
           actual_shipping_source: "auto",
@@ -760,8 +795,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       tracking,
       fee: actualCost.total || fee,
       status,
-      city: cityPick.name,
-      zone: resolvedZoneName,
+      city: null,
+      zone: null,
     };
   });
 
