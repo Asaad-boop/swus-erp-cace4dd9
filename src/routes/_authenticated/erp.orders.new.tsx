@@ -168,40 +168,7 @@ function NewOrderPage() {
   const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities();
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
-  const detectFn = useServerFn(pathaoDetectAddressFn);
   const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
-  const [lastDetect, setLastDetect] = useState<{
-    city: { id: number; name: string | null } | null;
-    zone: { id: number; name: string | null } | null;
-    area: { id: number; name: string | null } | null;
-    confidence: number;
-    address: string;
-  } | null>(null);
-  const detect = useMutation({
-    mutationFn: async () => {
-      if (!address.trim()) throw new Error("Address likhun age");
-      return detectFn({ data: { address: address.trim(), brandId: effectiveBrandId ?? undefined } });
-    },
-    onSuccess: (r) => {
-      if (r.city) { setCityId(r.city.id); setCityName(r.city.name ?? ""); }
-      if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
-      if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
-      else { setAreaId(null); setAreaName(""); }
-      setLastDetect({
-        city: r.city ?? null,
-        zone: r.zone ?? null,
-        area: r.area ?? null,
-        confidence: r.confidence ?? 0,
-        address: address.trim(),
-      });
-      toast.success(
-        r.city
-          ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""} (${Math.round((r.confidence ?? 0) * 100)}%)`
-          : "Couldn't match",
-      );
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   // ── Pathao customer phone lookup ─────────────────────────────────────
   // Uses Pathao's official customer-info endpoint (same call their
