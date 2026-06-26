@@ -27,7 +27,7 @@ function greeting() {
 export function StaffDashboard() {
   const navigate = useNavigate();
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
-  const { roles, userId } = useCurrentRole();
+  const { roles, userId, isAdmin } = useCurrentRole();
   const enabled = brandIds.length > 0 && !!userId;
 
   // Build a per-staff OR filter so KPIs only count orders this user touches.
@@ -44,8 +44,9 @@ export function StaffDashboard() {
     scopeParts.push(`created_by.eq.${userId}`);
   }
   const staffOr = Array.from(new Set(scopeParts)).join(",");
+  // Admins see everything; staff scoped to their own assignments.
   const scopeOrders = <T,>(q: T): T =>
-    (staffOr ? (q as any).or(staffOr) : q) as T;
+    (!isAdmin && staffOr ? (q as any).or(staffOr) : q) as T;
 
   const { data: me } = useQuery({
     queryKey: ["me-profile-staff"],
@@ -62,13 +63,13 @@ export function StaffDashboard() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["staff-dash", userId, staffOr, brandIds.join(",")],
+    queryKey: ["staff-dash", userId, isAdmin, staffOr, brandIds.join(",")],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
       const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"] as const;
-      const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent] = await Promise.all([
+      const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent, pendingByBrand] = await Promise.all([
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .gte("created_at", todayStart.toISOString()),
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
@@ -87,7 +88,16 @@ export function StaffDashboard() {
           supabase.from("orders").select("id,order_number,status,created_at,customer_name,total"),
           brandIds,
         )).order("created_at", { ascending: false }).limit(8),
+        scopeOrders(applyBrandScope(
+          supabase.from("orders").select("brand_id"),
+          brandIds,
+        )).in("status", pendingStatuses).limit(5000),
       ]);
+      const brandCounts: Record<string, number> = {};
+      for (const r of (pendingByBrand.data ?? []) as { brand_id: string | null }[]) {
+        const k = r.brand_id ?? "—";
+        brandCounts[k] = (brandCounts[k] ?? 0) + 1;
+      }
       return {
         todayOrders: todayOrders.count ?? 0,
         pending: pending.count ?? 0,
@@ -96,6 +106,7 @@ export function StaffDashboard() {
         attention: attention.count ?? 0,
         lowStock: lowStock.count ?? 0,
         recent: (recent.data ?? []) as any[],
+        pendingByBrand: brandCounts,
       };
     },
   });
@@ -178,6 +189,21 @@ export function StaffDashboard() {
                 </div>
                 {isLoading ? <Skeleton className="h-9 w-20" /> : (
                   <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
+                )}
+                {c.label === "Total pending" && !isLoading && data?.pendingByBrand && Object.keys(data.pendingByBrand).length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {Object.entries(data.pendingByBrand)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([bid, n]) => {
+                        const b = brands.find((x: any) => x.id === bid);
+                        return (
+                          <span key={bid} className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="font-medium text-foreground">{b?.name ?? "—"}</span>
+                            <span className="tabular-nums">{n}</span>
+                          </span>
+                        );
+                      })}
+                  </div>
                 )}
               </button>
             ))}
