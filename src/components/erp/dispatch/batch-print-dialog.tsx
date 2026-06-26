@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +45,13 @@ export function BatchPrintDialog({
     () => Object.fromEntries(orders.map((o) => [o.id, true])),
   );
   const [mode, setMode] = useState<Mode>(initialMode ?? "both");
+
+  useEffect(() => {
+    setSelected(Object.fromEntries(orders.map((o) => [o.id, true])));
+  }, [orders]);
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode, open]);
 
   const chosen = orders.filter((o) => selected[o.id]);
 
