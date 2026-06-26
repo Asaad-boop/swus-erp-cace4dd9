@@ -73,8 +73,8 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
   }, [open, detected]);
 
   const canSubmit = useMemo(
-    () => !!cityId && !!zoneId && Number(weight) > 0 && Number(qty) > 0,
-    [cityId, zoneId, weight, qty],
+    () => Number(weight) > 0 && Number(qty) > 0,
+    [weight, qty],
   );
 
   const calc = useMutation({
@@ -100,9 +100,9 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
       return bookFn({
         data: {
           orderId,
-          recipient_city: cityId!,
-          recipient_zone: zoneId!,
-          recipient_area: areaId ?? undefined,
+          recipient_city: cityId ?? undefined,
+          recipient_zone: zoneId ?? undefined,
+          recipient_area: cityId && zoneId ? (areaId ?? undefined) : undefined,
           item_weight: Number(weight),
           item_quantity: Number(qty),
           amount_to_collect: Number(amount),
@@ -158,6 +158,10 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
                 ) : null}
               </div>
             )}
+            <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
+              City/Zone blank রাখলে Pathao official auto-address mapping দিয়ে address থেকে delivery area নেবে.
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">City</Label>
