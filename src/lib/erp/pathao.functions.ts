@@ -691,10 +691,12 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
 const SettingsSchema = z.object({
   brand_id: z.string().uuid(),
   base_url: z.string().url().optional().or(z.literal("")),
-  client_id: z.string().min(1).max(200),
-  client_secret: z.string().min(1).max(500),
-  username: z.string().min(1).max(200),
-  password: z.string().min(1).max(200),
+  // Credentials optional — if a brand only needs its own store_id and wants to
+  // reuse another brand's API credentials, leave these blank.
+  client_id: z.string().max(200).optional().or(z.literal("")),
+  client_secret: z.string().max(500).optional().or(z.literal("")),
+  username: z.string().max(200).optional().or(z.literal("")),
+  password: z.string().max(200).optional().or(z.literal("")),
   store_id: z.string().min(1).max(50),
   is_active: z.boolean().default(true),
 });
@@ -730,10 +732,10 @@ export const pathaoSaveSettingsFn = createServerFn({ method: "POST" })
       brand_id: data.brand_id,
       provider: "pathao",
       base_url: data.base_url && data.base_url.length > 0 ? data.base_url : "https://api-hermes.pathao.com",
-      client_id: data.client_id,
-      client_secret: data.client_secret,
-      username: data.username,
-      password: data.password,
+      client_id: data.client_id || null,
+      client_secret: data.client_secret || null,
+      username: data.username || null,
+      password: data.password || null,
       store_id: data.store_id,
       is_active: data.is_active,
       wallet_id: data.wallet_id ?? null,
