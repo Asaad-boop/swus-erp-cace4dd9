@@ -87,7 +87,7 @@ export function BatchPrintDialog({
               <div className="flex items-center gap-2"><RadioGroupItem value="both" id="m-both" /><Label htmlFor="m-both">Invoices + Picking</Label></div>
             </RadioGroup>
             <p className="text-[11px] text-muted-foreground mt-1.5">
-              Pickup Manifest = single-page handover list for the rider. No pickup-man name, no authority signature.
+              Pickup Manifest = brand-wise rider handover sheet with signature blocks for warehouse &amp; rider.
             </p>
           </div>
 
