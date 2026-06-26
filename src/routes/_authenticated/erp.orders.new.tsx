@@ -214,8 +214,8 @@ function NewOrderPage() {
 
   // ── Address-based City/Zone/Area auto-fill ───────────────────────────
   // When the user types/pastes a shipping address, match it against
-  // Pathao's own cities/zones/areas lists and fill any empty location
-  // fields. Phone lookup wins; this only fills what's still blank.
+  // Pathao's live cities/zones/areas API lists. Address wins over stale
+  // phone-history because the current delivery address is the source of truth.
   const [debouncedAddress, setDebouncedAddress] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setDebouncedAddress(address.trim()), 500);
@@ -229,16 +229,22 @@ function NewOrderPage() {
         const r: any = await matchAddressFn({ data: { address: debouncedAddress, brandId: effectiveBrandId ?? undefined } });
         if (cancelled || !r?.found) return;
         if (r.city) {
-          setCityId((cur) => cur ?? r.city.id);
-          setCityName((cur) => cur || r.city.name);
+          setCityId(r.city.id);
+          setCityName(r.city.name);
         }
         if (r.zone) {
-          setZoneId((cur) => cur ?? r.zone.id);
-          setZoneName((cur) => cur || r.zone.name);
+          setZoneId(r.zone.id);
+          setZoneName(r.zone.name);
+        } else {
+          setZoneId(null);
+          setZoneName("");
         }
         if (r.area) {
-          setAreaId((cur) => cur ?? r.area.id);
-          setAreaName((cur) => cur || r.area.name);
+          setAreaId(r.area.id);
+          setAreaName(r.area.name);
+        } else {
+          setAreaId(null);
+          setAreaName("");
         }
       } catch { /* silent */ }
     })();
