@@ -587,6 +587,7 @@ function DispatchPage() {
           value={pending.length}
           sub={`${bdt(sum(pending))}${pendingOlder > 0 ? ` · ${pendingOlder} older` : ""}`}
           dot="bg-amber-500"
+          breakdown={pendingByBrand}
         />
         <KpiCard
           icon={<PackageCheck className="h-4 w-4" />}
