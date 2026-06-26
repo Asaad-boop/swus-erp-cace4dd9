@@ -188,11 +188,12 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
   });
 
 /* ---------------------------------------------------------------------- */
-/*  Pathao-only address detection — no AI, no local DB                    */
+/*  Pathao merchant address-parser detection — no AI, no local guessing   */
 /* ---------------------------------------------------------------------- */
 //
-// City / Zone / Area preview and booking both use Pathao's own live location
-// lists first, so our saved IDs match the exact Pathao API data.
+// City / Zone / Area preview and booking both use Pathao's own merchant
+// address-parser endpoint first and strictly. This is the same endpoint their
+// reception/new-delivery form calls when an operator types an address.
 
 async function resolveByPhone(client: any, phone: string) {
   const p = (phone || "").replace(/\D/g, "").slice(-11);
@@ -320,8 +321,9 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Address-based City / Zone / Area matcher. No AI/local DB — every candidate
- * comes from Pathao's own cities / zones / areas API lists.
+ * Address-based City / Zone / Area detection. The authoritative result comes
+ * from Pathao's merchant-panel address parser only; Aladdin city/zone/area
+ * lists are used only to verify/normalize names/IDs from that parser response.
  */
 function normalizeAddr(s: string) {
   const normalized = (s || "")
@@ -414,6 +416,92 @@ function looseGeoNameMatch(targets: Set<string>, name: string) {
   }
   return false;
 }
+
+function readPathaoStringDeep(payload: any, keys: string[]): string {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const visit = (node: any): string => {
+    if (!node || typeof node !== "object" || seen.has(node)) return "";
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && String(value).trim()) {
+        return String(value).trim();
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found) return found;
+    }
+    return "";
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function findByPathaoName(items: NormalizedGeo[], name: string) {
+  const normalized = normalizeAddr(name);
+  const compact = normalized.replace(/\s+/g, "");
+  if (!normalized) return null;
+  return items.find((item) => {
+    const itemName = normalizeAddr(item.name);
+    const itemCompact = itemName.replace(/\s+/g, "");
+    return itemName === normalized || itemCompact === compact;
+  }) ?? null;
+}
+
+async function normalizeParserRoute(client: any, parsed: any) {
+  const cityNameRaw = readPathaoStringDeep(parsed, [
+    "district_name", "city_name", "recipient_city_name", "name",
+  ]);
+  const zoneNameRaw = readPathaoStringDeep(parsed, [
+    "zone_name", "recipient_zone_name",
+  ]);
+  const areaNameRaw = readPathaoStringDeep(parsed, [
+    "area_name", "recipient_area_name",
+  ]);
+  let cityId = readPositiveNumber(parsed, ["district_id", "city_id", "recipient_city"]);
+  let zoneId = readPositiveNumber(parsed, ["zone_id", "recipient_zone"]);
+  let areaId = readPositiveNumber(parsed, ["area_id", "recipient_area"]);
+
+  const cities = normalizePathaoCities(await client.cities());
+  let city = cityId ? cities.find((c) => c.id === cityId) ?? null : null;
+  if (!city && cityNameRaw) city = findByPathaoName(cities, cityNameRaw);
+  cityId = city?.id ?? cityId;
+  if (!cityId) return null;
+
+  const zones = normalizePathaoZones(await client.zones(cityId).catch(() => []));
+  let zone = zoneId ? zones.find((z) => z.id === zoneId) ?? null : null;
+  if (!zone && zoneNameRaw) zone = findByPathaoName(zones, zoneNameRaw);
+  zoneId = zone?.id ?? zoneId;
+  if (!zoneId) return null;
+
+  const areas = normalizePathaoAreas(await client.areas(zoneId).catch(() => []));
+  let area = areaId ? areas.find((a) => a.id === areaId) ?? null : null;
+  if (!area && areaNameRaw) area = findByPathaoName(areas, areaNameRaw);
+  areaId = area?.id ?? areaId;
+
+  return {
+    city: { id: cityId, name: city?.name || cityNameRaw || "" },
+    zone: { id: zoneId, name: zone?.name || zoneNameRaw || "" },
+    area: areaId ? { id: areaId, name: area?.name || areaNameRaw || "" } : null,
+    raw: parsed,
+    score: 240,
+  };
+}
+
+async function resolveByPathaoParser(client: any, address: string) {
+  if (address.trim().length < 10) return null;
+  const parsed = await client.parseAddress(address);
+  if (!parsed) return null;
+  return normalizeParserRoute(client, parsed);
+}
+
+type PathaoResolvedRoute = {
+  city: { id: number; name: string };
+  zone: { id: number; name: string } | null;
+  area: { id: number; name: string } | null;
+  score: number;
+  raw?: any;
+};
 
 function isRoadMeasureCandidate(normalizedName: string) {
   const nameTokens = normalizedName.split(" ").filter(Boolean);
@@ -532,103 +620,13 @@ function bestScoredMatch<T extends { name: string }>(
 }
 
 async function resolveByAddress(client: any, address: string) {
-  const baseHay = normalizeAddr(address);
-  if (!baseHay) return null;
-  const hay = expandAddressAliases(baseHay);
-  const aliasTargets = addressAliasTargetSet(baseHay);
-
-  const citiesRaw = normalizePathaoCities(await client.cities());
-  const cityItems = citiesRaw.map((c) => ({ id: c.id, name: c.name }));
-  const explicitCity = bestScoredMatch(hay, cityItems);
-  const hayTokens = tokenSet(hay);
-  const aliasCityNames = Array.from(hayTokens)
-    .map((token) => CITY_AREA_ALIASES[token])
-    .filter((target): target is string => Boolean(target));
-  const aliasCities = aliasCityNames
-    .map((target) => cityItems.find((c) => normalizeAddr(c.name) === target || normalizeAddr(c.name).includes(target)))
-    .filter(Boolean) as typeof cityItems;
-  const aliasedCity = aliasCities[0] ? { ...aliasCities[0], score: 115 } : null;
-  const strongCity = explicitCity && explicitCity.score >= 95
-    ? explicitCity
-    : aliasedCity;
-  const cityHasStrongMatch = strongCity != null;
-
-  const commonCityNames = [
-    "Dhaka", "Chattogram", "Chittagong", "Gazipur", "Narayanganj", "Savar",
-    "Cumilla", "Comilla", "Sylhet", "Rajshahi", "Khulna", "Barishal", "Barisal",
-    "Rangpur", "Mymensingh",
-  ];
-  const cityMap = new Map(cityItems.map((c) => [normalizeAddr(c.name), c]));
-  const commonCities = commonCityNames.map((n) => cityMap.get(normalizeAddr(n))).filter(Boolean) as typeof cityItems;
-  const candidateCityMap = new Map<number, { id: number; name: string; score?: number }>();
-  if (strongCity) candidateCityMap.set(strongCity.id, strongCity);
-  for (const c of aliasCities) candidateCityMap.set(c.id, c);
-  for (const c of commonCities) candidateCityMap.set(c.id, c);
-  for (const c of cityItems) candidateCityMap.set(c.id, c);
-  const candidateCities = strongCity
-    ? [strongCity]
-    : Array.from(candidateCityMap.values());
-
-  let bestRoute: {
-    city: { id: number; name: string };
-    zone: { id: number; name: string } | null;
-    area: { id: number; name: string } | null;
-    score: number;
-  } | null = strongCity
-    ? { city: { id: strongCity.id, name: strongCity.name }, zone: null, area: null, score: strongCity.score }
-    : null;
-
-  for (const c of candidateCities) {
-    const zonesRaw = normalizePathaoZones(await client.zones(c.id).catch(() => []));
-    const cityTokens = tokenSet(c.name);
-    const zoneItems = zonesRaw.map((z) => ({ id: z.id, name: z.name }));
-    const minZoneScore = cityHasStrongMatch ? 40 : 55;
-    let cityBestRoute: typeof bestRoute = null;
-
-    for (const z of zoneItems) {
-      const zoneScore = scoreLocationName(hay, hayTokens, z.name, cityHasStrongMatch, cityTokens);
-      if (!cityHasStrongMatch && zoneScore < minZoneScore) continue;
-
-      let area: { id: number; name: string; score: number } | null = null;
-      const areasRaw = normalizePathaoAreas(await client.areas(z.id).catch(() => []));
-      const areaMatch = bestScoredMatch(
-        hay,
-        areasRaw.map((a) => ({ id: a.id, name: a.name })),
-        false,
-      );
-      if (areaMatch && areaMatch.score >= 55) area = areaMatch;
-
-      if (zoneScore < minZoneScore && (!area || area.score < 75)) continue;
-
-      const routeScore = Math.max(zoneScore, 0)
-        + (area?.score ?? 0)
-        + tokenOverlapScore(hayTokens, tokenSet(z.name), cityTokens)
-        + (area ? tokenOverlapScore(hayTokens, tokenSet(area.name), cityTokens) : 0)
-        + (looseGeoNameMatch(aliasTargets, z.name) ? 90 : 0)
-        + (area && looseGeoNameMatch(aliasTargets, area.name) ? 60 : 0)
-        + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
-      if (!cityBestRoute || routeScore > cityBestRoute.score) {
-        cityBestRoute = {
-          city: { id: c.id, name: c.name },
-          zone: { id: z.id, name: z.name },
-          area: area ? { id: area.id, name: area.name } : null,
-          score: routeScore,
-        };
-      }
-      if (routeScore >= 220) break;
-    }
-
-    if (!cityBestRoute) {
-      if (cityHasStrongMatch) break;
-      continue;
-    }
-    if (!bestRoute || cityBestRoute.score > bestRoute.score) bestRoute = cityBestRoute;
-    if (cityBestRoute.score >= 220) break;
-  }
-
-  if (!bestRoute?.city) return null;
-  if (!bestRoute.zone && !cityHasStrongMatch) return null;
-  return bestRoute;
+  const parserRoute = await resolveByPathaoParser(client, address).catch(() => null);
+  // Important: no local scoring fallback here. The user expectation is 100%
+  // parity with what Pathao shows after typing the same recipient address in
+  // their merchant portal. If Pathao cannot parse it, we show "not detected"
+  // instead of inventing a different City / Zone / Area locally.
+  if (parserRoute?.city && parserRoute.zone) return parserRoute;
+  return null;
 }
 
 async function resolveExplicitLocation(client: any, cityId: number, zoneId: number, areaId?: number | null) {
@@ -671,14 +669,15 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
       zone: route.zone,
       area: route.area,
       confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-      source: "pathao_address" as const,
+      source: "pathao_address_parser" as const,
+      raw: route.raw ?? null,
     };
   });
 
 /**
  * Pathao-only preview detection for a saved order. The saved/current address
- * is matched against Pathao's official City/Zone/Area lists first; phone
- * history is only a safe fallback when it overlaps the current address.
+ * is sent directly to Pathao's merchant address parser; phone history and
+ * local list scoring are intentionally not used for route selection.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -696,7 +695,6 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
     if (!order) throw new Error("Order not found");
 
     const client = await clientForBrand(supabase, order.brand_id);
-    const phone = (order.shipping_phone || order.guest_phone || "").toString();
     const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
       .filter(Boolean)
       .join(", ");
@@ -707,18 +705,8 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
         zone: route.zone,
         area: route.area,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: "pathao_address" as const,
-      };
-    }
-
-    const r = await resolveByPhone(client, phone);
-    if (r && phoneRouteMatchesCurrentAddress(r, addressText)) {
-      return {
-        city: r.city,
-        zone: r.zone,
-        area: r.area,
-        confidence: 1,
-        source: "pathao_phone" as const,
+        source: "pathao_address_parser" as const,
+        raw: route.raw ?? null,
       };
     }
 
@@ -728,10 +716,11 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
         zone: null,
         area: null,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: "pathao_address" as const,
+        source: "pathao_address_parser" as const,
+        raw: route.raw ?? null,
       };
     }
-    return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
+    return { city: null, zone: null, area: null, confidence: 0, source: "none" as const, raw: null };
   });
 
 
