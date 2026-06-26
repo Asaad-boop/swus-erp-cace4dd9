@@ -1,89 +1,113 @@
-# HRM Simplification Plan
+# ERP Login + Role-Based Dashboard Plan
 
-## Akhon ki problem
+## Idea review (short answer)
 
-Tinta alada "people" concept ache, eta confusion toiri korche:
+Bro, idea ta solid — **practical and standard ERP pattern**. Two jinis ektu refine kortesi:
 
-```text
-/erp/hr/staff       → App user (auth + role + brand access)        [1110 lines]
-/erp/hr/employees   → HR record (profile, payroll, attendance)     [317 lines]
-/erp/users          → Customer accounts                            [218 lines]
-```
+1. **Username diye login** — Supabase Auth shudhu email/phone support kore, raw username na. Solution: ekta `username` column profiles e rakhi, login form e user "username or email" type korle frontend e username → email resolve kore tarpor Supabase signIn call hobe. Clean, no hack.
+2. **My Workspace (`/me`) admin der jonno off** — agree, but **fully remove na kore** admin der jonno hide kori (sidebar/redirect level e). Karon kichu admin nijer payslip/leave dekhte chaibe future e. Just default landing `/erp` rakhbo, `/me` link hide.
 
-Ekjon real karmochari add korte gele teen jaygai teen rokom form fill korte hocche. Add Employee, Add Staff, Add User — sob alada flow, alada field, alada dialog. HR module-eo onek sub-pages (departments, designations, shifts, leave policy, holidays, payroll runs, reports) — onek gula khali ache ba use hoy na.
+Baki sob — admin dashboard e side check-in/out widget, staff der dedicated operational dashboard (packed today, pending orders, attendance, live performance) — exactly right direction.
 
-## Ki ki simplification korbo
+---
 
-### 1. "Add Person" — ekta unified wizard
+## Scope
 
-Tinta add flow ke ekta 3-step dialog e merge korbo:
+### 1. Login UX upgrade (`/auth`)
 
-```text
-Step 1: Basics       → Name, Phone, Email, Photo
-Step 2: Access       → Role (or "No login"), Brand access
-Step 3: Employment   → Department, Designation, Joining date, Salary
-                       (optional — "Skip for now" button)
-```
+- Single field: **"Username or Email"** + Password.
+- Resolver: if input contains `@` → use as email; else lookup `profiles.username` → fetch email → `signInWithPassword`.
+- Add `username` column to `profiles` (unique, nullable for legacy). Settings → Profile e edit option.
+- "Remember me" + better error messages (Banglish).
+- Forgot password link intact.
 
-- Step 3 skip korle shudhu auth user create hobe (light staff)
-- Sob step fill korle full employee record + auth + role ekshathe create hobe
-- Backend e ekta server fn — `createPerson({ basics, access?, employment? })` — internally `createAppUser` + employee insert chain korbe
+### 2. Role detection & routing
 
-### 2. Navigation collapse
+- Already exists: `useCurrentRole` + `user_roles` table. Reuse.
+- Post-login redirect logic:
+  - `admin` / `hr_admin` / `operations` → `/erp` (admin command center)
+  - `employee` / `warehouse_staff` / `packer` / `customer_service` → `/erp` but renders **Staff Dashboard** (already built: `staff-dashboard.tsx`)
+  - `/me` route — sidebar link only for non-admins.
 
-HR sidebar ekhon 12+ entries. 5 e namabo:
+### 3. Admin Dashboard — Attendance Side Widget
 
-```text
-HR Dashboard
-People         (merged staff + employees, ek table, columns toggle)
-Attendance     (muster + history ek page e tabs)
-Leave          (requests + calendar tabs, policy settings e sore)
-Payroll
-─────────────
-Settings       (departments, designations, shifts, holidays, leave policy — sob ekhane)
-```
+Add a compact **AttendancePunchCard** component on `/erp` (admin view), top-right column:
 
-`/erp/users` (customer accounts) ke `/erp/customers` e move korbo — HR theke alada, naam-eo clear.
+- Shows: today's status (Not punched / Working since 9:42 AM / On break / Done — 8h 12m).
+- Buttons: **Check In** → **Start Break / End Break** → **Check Out**.
+- Uses existing `punchIn`, `punchBreak`, `punchOut` server fns from `src/lib/erp/hr/punch.functions.ts`.
+- Auto-resolves employee_id from current user (`hr_employees.user_id = auth.uid()`).
+- Live timer (mm:ss ticking), late warning if past shift start.
+- Geolocation optional (browser prompt, skippable).
 
-### 3. People table — ek jaygay shob
+### 4. Staff Dashboard upgrade (`staff-dashboard.tsx`)
 
-Single table with smart filters:
-- Filter: `Type` = All / Staff (has login) / Employee (HR record) / Both
-- Filter: Role, Department, Status (active/banned/left)
-- Row click → unified detail drawer (tabs: Profile, Access, Employment, Activity)
-- Bulk actions: change role, assign brand, deactivate
+Already exists with scoped KPIs. Add:
 
-Ekhon-er duita alada page (`erp.hr.staff.tsx` 1110 lines + `erp.hr.employees.index.tsx` 317 lines) ke ekta page e merge korle ~600 lines e nama jabe.
+- **Attendance card** (same `AttendancePunchCard` component, reused).
+- **Today's Packing**: count from `orders` where `packaged_by = me AND DATE(packaged_at) = today`.
+- **My Pending Queue**: orders `assigned_to = me AND status IN ('new','confirmed')`.
+- **Live Performance** strip: today vs 7-day avg (packs/hr, orders handled).
+- Quick actions: "Start Packing", "Mark Dispatched", "Request Leave".
+- Hide all financial/profit cards (already done).
 
-### 4. Ki ki baad/hide korbo
+### 5. Sidebar & shell adjustments
 
-- **Reports page** — jodi data sparse, hide. Numbers thakle dashboard e moove kore daa.
-- **Leave Policy / Holidays / Designations** — alada top-level link na rekhe HR Settings tab e neshte daa
-- **Shifts Assign** — Attendance page er moddhe inline kore daa
-- Roles list (9 ta) review — `moderator` + `customer` baad dile 7 ta thakbe, dropdown choto hobe
-- Memory rule onujayi: jei card/section e data nei, oita auto-hide korbo
+- `erp-sidebar.tsx`: hide "My Workspace" link for admins; show prominently for staff at top.
+- Header: show punch status pill (green dot "Checked in 2h 14m") — click opens widget.
 
-## File-level moves
+### 6. First-login onboarding
 
-```text
-NEW:    src/components/erp/hr/add-person-dialog.tsx       (3-step wizard)
-NEW:    src/routes/_authenticated/erp.hr.people.tsx       (merged table)
-NEW:    src/lib/erp/hr/person.functions.ts                (createPerson, updatePerson)
+- If user has no `hr_employees` row linked → admin sees a banner "Link your employee profile to enable attendance". Staff sees a friendly setup screen instead of error.
 
-KEEP:   erp.hr.index, erp.hr.attendance, erp.hr.leave, erp.hr.payroll, erp.hr.settings
-MERGE:  erp.hr.staff + erp.hr.employees.index → erp.hr.people
-MOVE:   erp.hr.departments/designations/holidays/shifts/leave.policy → tabs inside erp.hr.settings
-MOVE:   erp.users → erp.customers (out of HR scope)
-DROP:   erp.hr.employees.new (replaced by dialog)
-```
+---
 
-DB schema change kichu na — shudhu UI + server-fn composition.
+## Technical details
 
-## Rollout
+**Files to create:**
 
-1. People table + Add Person wizard build (alada route, parallel)
-2. Settings page e tabs add kore departments/designations/etc inline
-3. Sidebar navigation update + old routes redirect
-4. Old files delete
+- `src/components/erp/hr/attendance-punch-card.tsx` — reusable widget (admin + staff).
+- `src/lib/erp/hr/me-punch.functions.ts` — `getMyPunchToday()` server fn returning today's row + active shift for current user (wraps existing punch fns).
 
-Plan-e tomar feedback dao — kon part agei dhori, kichu rakhte chao, ba aro ki baad dite chao?
+**Files to modify:**
+
+- `src/routes/auth.tsx` — username-or-email resolver, polish UI.
+- `src/routes/_authenticated/erp.index.tsx` — mount `AttendancePunchCard` in sidebar column (admin) + route staff to staff dashboard (already partly done).
+- `src/components/erp/staff-dashboard.tsx` — add punch card + packing/perf cards.
+- `src/components/erp/erp-sidebar.tsx` — conditional "My Workspace" visibility.
+- `src/components/erp/header-quick-actions.tsx` — add punch status pill.
+
+**DB migration:**
+
+- `ALTER TABLE profiles ADD COLUMN username text UNIQUE;`
+- Index + grant (existing pattern).
+- RPC `resolve_login_email(p_identifier text) RETURNS text` — security definer, returns email for given username (used by login form via anon-allowed RPC; rate-limit aware).
+
+**Reused (no changes):**
+
+- `punchIn` / `punchBreak` / `punchOut` / `getTodayPunchStatus` server fns.
+- `useCurrentRole` hook.
+- `hr_employees`, `hr_attendance`, `hr_shifts` tables.
+
+---
+
+## Out of scope (ask before adding)
+
+- Face recognition / selfie mandatory.
+- IP/geo-fence enforcement (only soft capture).
+- Mobile app / PWA install prompt.
+- 2FA on login.
+
+---
+
+## Rollout order
+
+1. DB migration (username + RPC).
+2. Login form upgrade.
+3. AttendancePunchCard component.
+4. Mount on admin dashboard + staff dashboard.
+5. Sidebar/header polish.
+6. Test with one admin + one staff account.
+
+Idea ta approve korle ami order anusare implement shuru korbo. Kichu change/add korte chaile bolun.  
+alada me lagbe na 
