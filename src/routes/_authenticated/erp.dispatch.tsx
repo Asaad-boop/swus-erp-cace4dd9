@@ -367,6 +367,17 @@ function DispatchPage() {
   const codShippedCount = shipped.filter(isCod).length;
   const canUndo = scanLog.some((e) => e.undoable);
 
+  const todayStartMs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const pendingToday = useMemo(
+    () => pending.filter((o) => new Date(o.created_at).getTime() >= todayStartMs),
+    [pending, todayStartMs],
+  );
+  const pendingOlder = pending.length - pendingToday.length;
+
   const allRows = useMemo(() => [...pending, ...packed, ...ready], [pending, packed, ready]);
   const selectedRows = useMemo(() => allRows.filter((o) => selected.has(o.id)), [allRows, selected]);
 
