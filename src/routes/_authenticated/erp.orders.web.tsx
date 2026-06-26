@@ -970,7 +970,7 @@ function _WebOrdersPageBody() {
   return (
     <div className="px-5 md:px-8 py-6 md:py-8 max-w-[1600px] mx-auto">
       {/* Header — refined, minimal */}
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
         <div className="min-w-0">
           <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
             Orders
@@ -985,24 +985,25 @@ function _WebOrdersPageBody() {
             )}
           </p>
         </div>
-        <div className="relative w-full sm:w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
+        <div className="relative w-full sm:w-[420px] justify-self-center">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/80 pointer-events-none transition-colors" />
           <Input
             placeholder="Search invoice, name, phone…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="h-9 pl-9 pr-8 rounded-full border-transparent bg-muted/40 hover:bg-muted/60 focus:bg-background text-[13px] shadow-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:border-border/60"
+            className="h-10 pl-11 pr-9 rounded-full border-transparent bg-muted/50 hover:bg-muted/70 focus:bg-background text-[14px] font-semibold tracking-tight placeholder:font-medium placeholder:text-muted-foreground/60 shadow-none transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:border-border/60 focus-visible:shadow-sm"
           />
           {searchInput && (
             <button
               onClick={() => setSearchInput("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-muted"
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Clear search"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
+        <div aria-hidden className="hidden sm:block" />
       </header>
 
       {/* Tabs — segmented underline, Linear/Notion-style */}
