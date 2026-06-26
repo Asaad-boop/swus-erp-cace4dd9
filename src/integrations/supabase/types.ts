@@ -6960,6 +6960,7 @@ export type Database = {
           total_orders: number | null
           total_spent: number | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           address?: string | null
@@ -6977,6 +6978,7 @@ export type Database = {
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           address?: string | null
@@ -6994,6 +6996,7 @@ export type Database = {
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -8681,6 +8684,7 @@ export type Database = {
       reserve_stock:
         | { Args: { _order_id: string }; Returns: undefined }
         | { Args: { _items: Json; _order_id: string }; Returns: undefined }
+      resolve_login_email: { Args: { p_identifier: string }; Returns: string }
       run_recurring_rules: { Args: { _brand_id?: string }; Returns: Json }
       seed_default_coa: { Args: { _brand_id: string }; Returns: number }
       set_product_stock: {
