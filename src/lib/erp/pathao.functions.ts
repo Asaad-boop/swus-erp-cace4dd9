@@ -403,7 +403,7 @@ function scoreLocationName(
   const withoutIgnored = nameTokens.filter((t) => !ignoredTokens.has(t));
   const scopedTokens = withoutIgnored.length > 0 ? withoutIgnored : nameTokens;
   const distinctTokens = scopedTokens.filter((t) => !GENERIC_LOCATION_TOKENS.has(t));
-  const usableTokens = distinctTokens.length > 0 || allowGenericOnly ? scopedTokens : distinctTokens;
+  const usableTokens = allowGenericOnly ? scopedTokens : distinctTokens;
   if (usableTokens.length === 0) return 0;
 
   const matched = usableTokens.filter((t) => hayTokens.has(t));
