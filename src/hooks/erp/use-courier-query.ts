@@ -41,31 +41,31 @@ export function useShipments() {
   });
 }
 
-export function usePathaoCities() {
+export function usePathaoCities(brandId?: string | null) {
   const fn = useServerFn(pathaoCitiesFn);
   return useQuery({
-    queryKey: ["pathao-cities"],
-    queryFn: async () => ((await fn({ data: {} })).items as PathaoCity[]),
+    queryKey: ["pathao-cities-raw", brandId ?? null],
+    queryFn: async () => ((await fn({ data: brandId ? { brandId } : {} })).items as PathaoCity[]),
     staleTime: 1000 * 60 * 60,
   });
 }
 
-export function usePathaoZones(cityId: number | null) {
+export function usePathaoZones(cityId: number | null, brandId?: string | null) {
   const fn = useServerFn(pathaoZonesFn);
   return useQuery({
-    queryKey: ["pathao-zones", cityId],
+    queryKey: ["pathao-zones-raw", cityId, brandId ?? null],
     enabled: !!cityId,
-    queryFn: async () => ((await fn({ data: { cityId: cityId! } })).items as PathaoZone[]),
+    queryFn: async () => ((await fn({ data: { cityId: cityId!, brandId: brandId ?? undefined } })).items as PathaoZone[]),
     staleTime: 1000 * 60 * 60,
   });
 }
 
-export function usePathaoAreas(zoneId: number | null) {
+export function usePathaoAreas(zoneId: number | null, brandId?: string | null) {
   const fn = useServerFn(pathaoAreasFn);
   return useQuery({
-    queryKey: ["pathao-areas", zoneId],
+    queryKey: ["pathao-areas-raw", zoneId, brandId ?? null],
     enabled: !!zoneId,
-    queryFn: async () => ((await fn({ data: { zoneId: zoneId! } })).items as PathaoArea[]),
+    queryFn: async () => ((await fn({ data: { zoneId: zoneId!, brandId: brandId ?? undefined } })).items as PathaoArea[]),
     staleTime: 1000 * 60 * 60,
   });
 }

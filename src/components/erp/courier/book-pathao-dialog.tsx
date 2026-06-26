@@ -17,9 +17,10 @@ type Props = {
   onOpenChange: (o: boolean) => void;
   orderId: string;
   defaultAmount: number;
+  brandId?: string | null;
 };
 
-export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }: Props) {
+export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, brandId }: Props) {
   const qc = useQueryClient();
   const bookFn = useServerFn(pathaoBookOrderFn);
   const priceFn = useServerFn(pathaoPriceFn);
@@ -36,9 +37,9 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
   const [instruction, setInstruction] = useState("");
   const [estimated, setEstimated] = useState<number | null>(null);
 
-  const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities();
-  const { data: zones = [] } = usePathaoZones(cityId);
-  const { data: areas = [] } = usePathaoAreas(zoneId);
+  const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities(brandId);
+  const { data: zones = [] } = usePathaoZones(cityId, brandId);
+  const { data: areas = [] } = usePathaoAreas(zoneId, brandId);
 
   // Shared cached detection — also prefetched from the order detail page on
   // mount, so opening this dialog usually has the answer instantly.
@@ -83,6 +84,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
           item_weight: Number(weight),
           recipient_city: cityId!,
           recipient_zone: zoneId!,
+          brandId: brandId ?? undefined,
         },
       });
       const p = r?.price;
@@ -148,7 +150,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
                   <>
                     <Sparkles className="h-3 w-3 mt-0.5 shrink-0" />
                     <span>
-                      Auto-filled from {autoFilled.source === "structured" ? "checkout District/Thana" : "shipping address"}:{" "}
+                      Auto-filled from {autoFilled.source === "pathao_phone" ? "Pathao customer API" : "Pathao address API"}:{" "}
                       <span className="font-semibold">{autoFilled.city}</span> › <span className="font-semibold">{autoFilled.zone}</span>
                       {autoFilled.area && <> › <span className="font-semibold">{autoFilled.area}</span></>}
                     </span>

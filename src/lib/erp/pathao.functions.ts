@@ -3,11 +3,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertCourierRole(supabase: any, userId: string) {
-  const [{ data: admin }, { data: ops }] = await Promise.all([
+  const [{ data: admin }, { data: ops }, { data: cs }] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "operations" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "customer_service" }),
   ]);
-  if (!admin && !ops) throw new Error("Not authorized");
+  if (!admin && !ops && !cs) throw new Error("Not authorized");
 }
 
 async function clientForBrand(supabase: any, brandId?: string | null) {
@@ -213,22 +214,125 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
 function normalizeAddr(s: string) {
   return (s || "")
     .toLowerCase()
+    .normalize("NFKC")
     .replace(/[।,.;:/|()\-_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function bestMatch<T extends { name: string }>(haystack: string, items: T[]): T | null {
-  let best: { item: T; score: number } | null = null;
-  for (const it of items) {
-    const n = normalizeAddr(it.name);
-    if (!n) continue;
-    if (haystack.includes(n)) {
-      const score = n.length;
-      if (!best || score > best.score) best = { item: it, score };
+const GENERIC_LOCATION_TOKENS = new Set([
+  "sadar", "bazar", "bazaar", "market", "road", "rd", "house", "block", "sector",
+  "area", "para", "pur", "city", "thana", "upazila", "district", "ward", "union",
+]);
+
+function tokenSet(s: string) {
+  return new Set(normalizeAddr(s).split(" ").filter((t) => t.length >= 2));
+}
+
+function scoreLocationName(haystack: string, hayTokens: Set<string>, name: string, allowGenericOnly = false) {
+  const normalized = normalizeAddr(name);
+  if (!normalized) return 0;
+  const paddedHay = ` ${haystack} `;
+  const paddedName = ` ${normalized} `;
+  if (paddedHay.includes(paddedName)) return 120 + normalized.length;
+
+  const nameTokens = normalized.split(" ").filter(Boolean);
+  const distinctTokens = nameTokens.filter((t) => !GENERIC_LOCATION_TOKENS.has(t));
+  const usableTokens = distinctTokens.length > 0 || allowGenericOnly ? nameTokens : distinctTokens;
+  if (usableTokens.length === 0) return 0;
+
+  const matched = usableTokens.filter((t) => hayTokens.has(t));
+  if (matched.length === usableTokens.length) return 95 + normalized.length;
+  if (matched.length > 0) return 55 + matched.join(" ").length;
+
+  let partial = 0;
+  for (const token of usableTokens) {
+    if (token.length < 4) continue;
+    for (const ht of hayTokens) {
+      if (ht.length >= 4 && (token.startsWith(ht) || ht.startsWith(token))) {
+        partial = Math.max(partial, 40 + Math.min(token.length, ht.length));
+      }
     }
   }
-  return best?.item ?? null;
+  return partial;
+}
+
+function bestScoredMatch<T extends { name: string }>(haystack: string, items: T[], allowGenericOnly = false): (T & { score: number }) | null {
+  const hayTokens = tokenSet(haystack);
+  let best: (T & { score: number }) | null = null;
+  for (const it of items) {
+    const score = scoreLocationName(haystack, hayTokens, it.name, allowGenericOnly);
+    if (score > 0 && (!best || score > best.score)) best = { ...it, score };
+  }
+  return best;
+}
+
+async function resolveByAddress(client: any, address: string) {
+  const hay = normalizeAddr(address);
+  if (!hay) return null;
+
+  const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+  const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
+  const explicitCity = bestScoredMatch(hay, cityItems);
+  const cityHasStrongMatch = !!explicitCity && explicitCity.score >= 95;
+
+  const commonCityNames = [
+    "Dhaka", "Chattogram", "Chittagong", "Gazipur", "Narayanganj", "Savar",
+    "Cumilla", "Comilla", "Sylhet", "Rajshahi", "Khulna", "Barishal", "Barisal",
+    "Rangpur", "Mymensingh",
+  ];
+  const cityMap = new Map(cityItems.map((c) => [normalizeAddr(c.name), c]));
+  const commonCities = commonCityNames.map((n) => cityMap.get(normalizeAddr(n))).filter(Boolean) as typeof cityItems;
+  const candidateCities = cityHasStrongMatch
+    ? [explicitCity]
+    : [...commonCities, ...cityItems.filter((c) => !commonCities.some((cc) => cc.id === c.id))];
+
+  let bestRoute: {
+    city: { id: number; name: string };
+    zone: { id: number; name: string } | null;
+    area: { id: number; name: string } | null;
+    score: number;
+  } | null = cityHasStrongMatch
+    ? { city: { id: explicitCity.id, name: explicitCity.name }, zone: null, area: null, score: explicitCity.score }
+    : null;
+
+  for (const c of candidateCities) {
+    const zonesRaw = (await client.zones(c.id).catch(() => [])) as Array<{ zone_id: number; zone_name: string }>;
+    const zone = bestScoredMatch(
+      hay,
+      zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
+      cityHasStrongMatch,
+    );
+    const minZoneScore = cityHasStrongMatch ? 40 : 55;
+    if (!zone || zone.score < minZoneScore) {
+      if (cityHasStrongMatch) break;
+      continue;
+    }
+
+    let area: { id: number; name: string; score: number } | null = null;
+    const areasRaw = (await client.areas(zone.id).catch(() => [])) as Array<{ area_id: number; area_name: string }>;
+    const areaMatch = bestScoredMatch(
+      hay,
+      areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
+      false,
+    );
+    if (areaMatch && areaMatch.score >= 55) area = areaMatch;
+
+    const routeScore = zone.score + (area?.score ?? 0) + (cityHasStrongMatch && c.id === explicitCity.id ? 40 : 0);
+    if (!bestRoute || routeScore > bestRoute.score) {
+      bestRoute = {
+        city: { id: c.id, name: c.name },
+        zone: { id: zone.id, name: zone.name },
+        area: area ? { id: area.id, name: area.name } : null,
+        score: routeScore,
+      };
+    }
+    if (routeScore >= 170) break;
+  }
+
+  if (!bestRoute?.city) return null;
+  if (!bestRoute.zone && !cityHasStrongMatch) return null;
+  return bestRoute;
 }
 
 export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
@@ -244,65 +348,22 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCourierRole(context.supabase, context.userId);
     const client = await clientForBrand(context.supabase, data.brandId);
-    const hay = normalizeAddr(data.address);
-    if (!hay) return { found: false as const };
-
-    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    let cityMatch = bestMatch(hay, citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })));
-    // If city not explicit in address, default to Dhaka (most BD ecom orders),
-    // then verify by finding a zone within it. If zone not found there, try
-    // Chattogram as a secondary fallback.
-    const fallbackCities: typeof citiesRaw = [];
-    if (!cityMatch) {
-      for (const nm of ["Dhaka", "Chattogram", "Chittagong"]) {
-        const c = citiesRaw.find((x) => normalizeAddr(x.city_name) === normalizeAddr(nm));
-        if (c) fallbackCities.push(c);
-      }
-      if (!fallbackCities.length) return { found: false as const };
-    }
-
-    const tryCities = cityMatch
-      ? [{ id: cityMatch.id, name: cityMatch.name }]
-      : fallbackCities.map((c) => ({ id: c.city_id, name: c.city_name }));
-
-    let zoneMatch: { id: number; name: string } | null = null;
-    let chosenCity: { id: number; name: string } | null = cityMatch ?? null;
-    for (const c of tryCities) {
-      const zonesRaw = (await client.zones(c.id)) as Array<{ zone_id: number; zone_name: string }>;
-      const zm = bestMatch(hay, zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })));
-      if (zm) { zoneMatch = zm; chosenCity = c; break; }
-    }
-    if (!chosenCity) return { found: false as const };
-    cityMatch = chosenCity;
-    if (!zoneMatch) {
-      return {
-        found: true as const,
-        city: { id: cityMatch.id, name: cityMatch.name },
-        zone: null,
-        area: null,
-      };
-    }
-
-    let area: { id: number; name: string } | null = null;
-    try {
-      const areasRaw = (await client.areas(zoneMatch.id)) as Array<{ area_id: number; area_name: string }>;
-      const am = bestMatch(hay, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
-      if (am) area = am;
-    } catch { /* ignore */ }
-
+    const route = await resolveByAddress(client, data.address);
+    if (!route) return { found: false as const };
     return {
       found: true as const,
-      city: { id: cityMatch.id, name: cityMatch.name },
-      zone: { id: zoneMatch.id, name: zoneMatch.name },
-      area,
+      city: route.city,
+      zone: route.zone,
+      area: route.area,
+      confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
+      source: "pathao_address" as const,
     };
   });
 
 /**
- * Detect Pathao City/Zone/Area for a given order using the customer-provided
- * structured fields (shipping_district / shipping_thana) FIRST, then falling
- * back to the free-form address via the deterministic hierarchy matcher.
- * No AI calls — fast enough to run on every order-open.
+ * Pathao-only detection for a saved order. It first asks Pathao customer-info
+ * by phone; if Pathao has no customer record, it matches the saved checkout
+ * address/district/thana against Pathao's official City/Zone/Area lists.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -313,7 +374,7 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
 
     const { data: order, error } = await supabase
       .from("orders")
-      .select("id, brand_id, shipping_phone, guest_phone")
+      .select("id, brand_id, shipping_phone, guest_phone, shipping_address, shipping_city, shipping_thana, shipping_district")
       .eq("id", data.orderId)
       .maybeSingle();
     if (error) throw error;
@@ -322,16 +383,30 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
     const client = await clientForBrand(supabase, order.brand_id);
     const phone = (order.shipping_phone || order.guest_phone || "").toString();
     const r = await resolveByPhone(client, phone);
-    if (!r) {
-      return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
+    if (r) {
+      return {
+        city: r.city,
+        zone: r.zone,
+        area: r.area,
+        confidence: 1,
+        source: "pathao_phone" as const,
+      };
     }
-    return {
-      city: r.city,
-      zone: r.zone,
-      area: r.area,
-      confidence: 1,
-      source: "pathao_phone" as const,
-    };
+
+    const addressText = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+      .filter(Boolean)
+      .join(", ");
+    const route = await resolveByAddress(client, addressText);
+    if (route) {
+      return {
+        city: route.city,
+        zone: route.zone,
+        area: route.area,
+        confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
+        source: "pathao_address" as const,
+      };
+    }
+    return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
   });
 
 
