@@ -206,6 +206,78 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
   });
 
 /**
+ * Address-based City / Zone / Area matcher. No AI — pure substring matching
+ * against Pathao's own cities / zones / areas lists. Used to auto-fill the
+ * dropdowns the moment a recipient address is typed.
+ */
+function normalizeAddr(s: string) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[।,.;:/|()\-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function bestMatch<T extends { name: string }>(haystack: string, items: T[]): T | null {
+  let best: { item: T; score: number } | null = null;
+  for (const it of items) {
+    const n = normalizeAddr(it.name);
+    if (!n) continue;
+    if (haystack.includes(n)) {
+      const score = n.length;
+      if (!best || score > best.score) best = { item: it, score };
+    }
+  }
+  return best?.item ?? null;
+}
+
+export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        address: z.string().min(2).max(500),
+        brandId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCourierRole(context.supabase, context.userId);
+    const client = await clientForBrand(context.supabase, data.brandId);
+    const hay = normalizeAddr(data.address);
+    if (!hay) return { found: false as const };
+
+    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityMatch = bestMatch(hay, citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })));
+    if (!cityMatch) return { found: false as const };
+
+    const zonesRaw = (await client.zones(cityMatch.id)) as Array<{ zone_id: number; zone_name: string }>;
+    const zoneMatch = bestMatch(hay, zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })));
+    if (!zoneMatch) {
+      return {
+        found: true as const,
+        city: { id: cityMatch.id, name: cityMatch.name },
+        zone: null,
+        area: null,
+      };
+    }
+
+    let area: { id: number; name: string } | null = null;
+    try {
+      const areasRaw = (await client.areas(zoneMatch.id)) as Array<{ area_id: number; area_name: string }>;
+      const am = bestMatch(hay, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
+      if (am) area = am;
+    } catch { /* ignore */ }
+
+    return {
+      found: true as const,
+      city: { id: cityMatch.id, name: cityMatch.name },
+      zone: { id: zoneMatch.id, name: zoneMatch.name },
+      area,
+    };
+  });
+
+/**
  * Detect Pathao City/Zone/Area for a given order using the customer-provided
  * structured fields (shipping_district / shipping_thana) FIRST, then falling
  * back to the free-form address via the deterministic hierarchy matcher.
