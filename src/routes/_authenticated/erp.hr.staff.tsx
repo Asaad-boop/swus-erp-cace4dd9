@@ -6,7 +6,7 @@ import {
   Plus, Search, Trash2, KeyRound, ShieldCheck, Mail, MoreHorizontal,
   Download, Copy, Ban, CheckCircle2, Link as LinkIcon, UserCog, Users as UsersIcon,
   Activity, ArrowUpDown, RefreshCw, Sparkles, Building2, ChevronLeft, ChevronRight,
-  Phone, User as UserIcon, AtSign, Filter,
+  Phone, User as UserIcon, AtSign, Filter, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,8 @@ import {
   toggleUserBan, updateUserProfile, generateAuthLink, bulkDeleteUsers, bulkSetRole,
 } from "@/lib/erp/users.functions";
 import { listUserBrandAccess, setUserBrandAccess } from "@/lib/erp/settings/user-brand-access.functions";
+import { listAllowedPages, setUserAllowedPages } from "@/lib/erp/permissions/page-perms.functions";
+import { PAGE_CATALOG, PAGE_GROUPS, ALL_PAGE_PATHS } from "@/lib/erp/permissions/page-catalog";
 import { useBrand } from "@/contexts/brand-context";
 
 export const Route = createFileRoute("/_authenticated/erp/hr/staff")({
@@ -867,25 +869,51 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
   const rolesFn = useServerFn(updateUserRoles);
   const listBrandsFn = useServerFn(listUserBrandAccess);
   const setBrandsFn = useServerFn(setUserBrandAccess);
+  const listPagesFn = useServerFn(listAllowedPages);
+  const setPagesFn = useServerFn(setUserAllowedPages);
   const { brands } = useBrand();
 
   const [roles, setRoles] = useState<AppRole[]>(user.roles);
   const [brandIds, setBrandIds] = useState<string[]>([]);
-  const [tab, setTab] = useState<"roles" | "brands">("roles");
+  const [allowedPages, setAllowedPages] = useState<string[]>([]);
+  const [pagesMode, setPagesMode] = useState<"role_default" | "custom">("role_default");
+  const [tab, setTab] = useState<"roles" | "brands" | "pages">("roles");
+  const isUserAdmin = roles.includes("admin");
 
   const { data: allAccess } = useQuery({
     queryKey: ["user-brand-access"],
     queryFn: () => listBrandsFn({ data: undefined as any }),
   });
+  const { data: allPages } = useQuery({
+    queryKey: ["user-allowed-pages"],
+    queryFn: () => listPagesFn({ data: undefined as any }),
+  });
 
   useEffect(() => {
     if (allAccess) setBrandIds(allAccess[user.id] ?? []);
   }, [allAccess, user.id]);
+  useEffect(() => {
+    if (!allPages) return;
+    const existing = allPages[user.id];
+    if (existing && existing.length > 0) {
+      setAllowedPages(existing);
+      setPagesMode("custom");
+    } else {
+      setAllowedPages([]);
+      setPagesMode("role_default");
+    }
+  }, [allPages, user.id]);
 
   const mut = useMutation({
     mutationFn: async () => {
       await rolesFn({ data: { userId: user.id, roles } });
       await setBrandsFn({ data: { userId: user.id, brandIds } });
+      await setPagesFn({
+        data: {
+          userId: user.id,
+          allowedPages: pagesMode === "custom" ? allowedPages : [],
+        },
+      });
     },
     onSuccess: () => { toast.success("Saved"); onSaved(); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
@@ -893,21 +921,34 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
 
   const toggleRole = (r: AppRole) => setRoles(c => c.includes(r) ? c.filter(x => x !== r) : [...c, r]);
   const toggleBrand = (b: string) => setBrandIds(c => c.includes(b) ? c.filter(x => x !== b) : [...c, b]);
+  const togglePage = (p: string) =>
+    setAllowedPages((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]));
+  const toggleGroup = (group: string, on: boolean) => {
+    const groupPaths = PAGE_CATALOG.filter((p) => p.group === group).map((p) => p.path);
+    setAllowedPages((c) => {
+      const without = c.filter((x) => !groupPaths.includes(x));
+      return on ? [...without, ...groupPaths] : without;
+    });
+  };
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit permissions</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 mb-3">
+          <TabsList className="grid grid-cols-3 mb-3">
             <TabsTrigger value="roles"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Roles ({roles.length})</TabsTrigger>
             <TabsTrigger value="brands"><Building2 className="h-3.5 w-3.5 mr-1.5" /> Brands ({brandIds.length || "all"})</TabsTrigger>
+            <TabsTrigger value="pages">
+              <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+              Pages ({pagesMode === "custom" ? allowedPages.length : "default"})
+            </TabsTrigger>
           </TabsList>
         </Tabs>
-        {tab === "roles" ? (
+        {tab === "roles" && (
           <div className="space-y-3">
             <div className="flex gap-1 flex-wrap">
               {ROLE_PRESETS.filter(p => p.id !== "custom").map(p => (
@@ -936,7 +977,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
               ))}
             </div>
           </div>
-        ) : (
+        )}
+        {tab === "brands" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Empty selection = all brands access. Specific brand select korle user shudhu oi brand(s) e access pabe.
@@ -968,6 +1010,86 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
                 </label>
               ))}
             </div>
+          </div>
+        )}
+        {tab === "pages" && (
+          <div className="space-y-3">
+            {isUserAdmin && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                Admin user — page restrictions are bypassed for admins. Setting will save but won't take effect until admin role is removed.
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="flex items-center gap-2 text-xs cursor-pointer rounded-md border px-2.5 py-1.5">
+                <input
+                  type="radio"
+                  checked={pagesMode === "role_default"}
+                  onChange={() => setPagesMode("role_default")}
+                />
+                Role defaults (use role-based access)
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer rounded-md border px-2.5 py-1.5">
+                <input
+                  type="radio"
+                  checked={pagesMode === "custom"}
+                  onChange={() => setPagesMode("custom")}
+                />
+                Custom page list
+              </label>
+            </div>
+            {pagesMode === "custom" && (
+              <>
+                <div className="flex gap-1 flex-wrap">
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
+                    onClick={() => setAllowedPages(ALL_PAGE_PATHS)}>Select all</Button>
+                  <Button type="button" size="sm" variant="ghost" className="h-7 text-xs"
+                    onClick={() => setAllowedPages([])}>Clear</Button>
+                  <span className="text-[11px] text-muted-foreground self-center ml-1">
+                    {allowedPages.length} / {ALL_PAGE_PATHS.length} selected
+                  </span>
+                </div>
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                  {PAGE_GROUPS.map((group) => {
+                    const groupItems = PAGE_CATALOG.filter((p) => p.group === group);
+                    const selectedCount = groupItems.filter((p) => allowedPages.includes(p.path)).length;
+                    const allSelected = selectedCount === groupItems.length;
+                    return (
+                      <div key={group} className="rounded-md border">
+                        <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={allSelected}
+                              onCheckedChange={(v) => toggleGroup(group, !!v)}
+                            />
+                            <span className="text-xs font-semibold uppercase tracking-wider">{group}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {selectedCount}/{groupItems.length}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 p-2">
+                          {groupItems.map((p) => (
+                            <label key={p.path} className={cn(
+                              "flex items-center gap-2 text-xs cursor-pointer rounded px-2 py-1.5 transition hover:bg-accent",
+                              allowedPages.includes(p.path) && "bg-primary/5"
+                            )}>
+                              <Checkbox
+                                checked={allowedPages.includes(p.path)}
+                                onCheckedChange={() => togglePage(p.path)}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium truncate">{p.label}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono truncate">{p.path}</div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
         <DialogFooter>
