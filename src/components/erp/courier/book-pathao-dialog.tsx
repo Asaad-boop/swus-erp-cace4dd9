@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Truck, Calculator } from "lucide-react";
+import { Loader2, Truck, Calculator, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
-import { pathaoBookOrderFn, pathaoPriceFn } from "@/lib/erp/pathao.functions";
+import { pathaoBookOrderFn, pathaoPriceFn, pathaoDetectForOrderFn } from "@/lib/erp/pathao.functions";
 
 type Props = {
   open: boolean;
@@ -23,10 +23,13 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
   const qc = useQueryClient();
   const bookFn = useServerFn(pathaoBookOrderFn);
   const priceFn = useServerFn(pathaoPriceFn);
+  const detectFn = useServerFn(pathaoDetectForOrderFn);
 
   const [cityId, setCityId] = useState<number | null>(null);
   const [zoneId, setZoneId] = useState<number | null>(null);
   const [areaId, setAreaId] = useState<number | null>(null);
+  const [autoFilled, setAutoFilled] = useState<null | { city: string; zone: string; area: string | null; source: string }>(null);
+  const [detecting, setDetecting] = useState(false);
   const [weight, setWeight] = useState("0.5");
   const [qty, setQty] = useState("1");
   const [amount, setAmount] = useState(String(defaultAmount || 0));
@@ -37,6 +40,44 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
   const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities();
   const { data: zones = [] } = usePathaoZones(cityId);
   const { data: areas = [] } = usePathaoAreas(zoneId);
+
+  // Auto-detect City/Zone/Area from the customer's checkout-provided address
+  // the moment the dialog opens. Pre-fills the selects so the user usually
+  // doesn't have to pick anything manually.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setDetecting(true);
+    setAutoFilled(null);
+    (async () => {
+      try {
+        const r = (await detectFn({ data: { orderId } })) as {
+          city: { id: number; name: string } | null;
+          zone: { id: number; name: string } | null;
+          area: { id: number; name: string } | null;
+          source: string;
+        };
+        if (cancelled) return;
+        if (r.city) setCityId(r.city.id);
+        if (r.zone) setZoneId(r.zone.id);
+        if (r.area) setAreaId(r.area.id);
+        if (r.city && r.zone) {
+          setAutoFilled({
+            city: r.city.name,
+            zone: r.zone.name,
+            area: r.area?.name ?? null,
+            source: r.source,
+          });
+        }
+      } catch {
+        /* silent — user can still pick manually */
+      } finally {
+        if (!cancelled) setDetecting(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, orderId]);
 
   const canSubmit = useMemo(
     () => !!cityId && !!zoneId && Number(weight) > 0 && Number(qty) > 0,
@@ -100,6 +141,29 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount }:
           </div>
         ) : (
           <div className="grid gap-3">
+            {(detecting || autoFilled) && (
+              <div className={
+                autoFilled
+                  ? "flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300"
+                  : "flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground"
+              }>
+                {detecting ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Detecting City / Zone / Area from customer address…</span>
+                  </>
+                ) : autoFilled ? (
+                  <>
+                    <Sparkles className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>
+                      Auto-filled from {autoFilled.source === "structured" ? "checkout District/Thana" : "shipping address"}:{" "}
+                      <span className="font-semibold">{autoFilled.city}</span> › <span className="font-semibold">{autoFilled.zone}</span>
+                      {autoFilled.area && <> › <span className="font-semibold">{autoFilled.area}</span></>}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">City</Label>

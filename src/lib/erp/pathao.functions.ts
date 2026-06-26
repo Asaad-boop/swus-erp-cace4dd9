@@ -400,6 +400,92 @@ export const pathaoDetectAddressFn = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Detect Pathao City/Zone/Area for a given order using the customer-provided
+ * structured fields (shipping_district / shipping_thana) FIRST, then falling
+ * back to the free-form address via the deterministic hierarchy matcher.
+ * No AI calls — fast enough to run on every order-open.
+ */
+export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ orderId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertCourierRole(context.supabase, context.userId);
+    const { supabase } = context;
+
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("id, brand_id, shipping_address, shipping_thana, shipping_city, shipping_district")
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!order) throw new Error("Order not found");
+
+    const client = await clientForBrand(supabase, order.brand_id);
+    const { detectHierarchy, bestMatch } = await import("./pathao-address-match");
+    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
+
+    const address = [order.shipping_address, order.shipping_thana, order.shipping_city, order.shipping_district]
+      .filter(Boolean)
+      .join(", ");
+
+    // Structured-first
+    const cityQuery = (order.shipping_district || order.shipping_city || "").trim();
+    const zoneQuery = (order.shipping_thana || "").trim();
+    if (cityQuery) {
+      const cm = bestMatch(cityQuery, cityItems);
+      if (cm && cm.score >= 2) {
+        const zonesRaw = (await client.zones(cm.id)) as Array<{ zone_id: number; zone_name: string }>;
+        const zoneItems = zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name }));
+        const zm = zoneQuery ? bestMatch(zoneQuery, zoneItems) : null;
+        if (zm && zm.score >= 2) {
+          let area: { id: number; name: string } | null = null;
+          try {
+            const areasRaw = (await client.areas(zm.id)) as Array<{ area_id: number; area_name: string }>;
+            if (areasRaw.length > 0) {
+              const am = bestMatch(address || zoneQuery, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
+              if (am) area = { id: am.id, name: am.name };
+            }
+          } catch { /* area optional */ }
+          return {
+            city: { id: cm.id, name: cm.name },
+            zone: { id: zm.id, name: zm.name },
+            area,
+            confidence: 1,
+            source: "structured" as const,
+          };
+        }
+      }
+    }
+
+    // Fallback: deterministic hierarchy from full address
+    if (address.length < 3) {
+      return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
+    }
+    const det = await detectHierarchy({
+      address,
+      cities: cityItems,
+      lookup: {
+        zones: async (cityId) => {
+          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
+        },
+        areas: async (zoneId) => {
+          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
+        },
+      },
+    });
+    return {
+      city: det.city,
+      zone: det.zone,
+      area: det.area,
+      confidence: det.confidence,
+      source: "address" as const,
+    };
+  });
+
 export const pathaoPriceFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
