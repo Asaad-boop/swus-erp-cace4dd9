@@ -635,17 +635,35 @@ function DispatchPage() {
             <span className="font-semibold text-sm truncate">{hero.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            <ToggleGroup
-              type="single"
-              value={mode}
-              onValueChange={(v) => v && setMode(v as Mode)}
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="pack" className="gap-1"><PackageOpen className="h-3.5 w-3.5" /> Pack</ToggleGroupItem>
-              <ToggleGroupItem value="ready" className="gap-1"><PackagePlus className="h-3.5 w-3.5" /> Ready</ToggleGroupItem>
-              <ToggleGroupItem value="ship" className="gap-1"><Send className="h-3.5 w-3.5" /> Ship</ToggleGroupItem>
-            </ToggleGroup>
+            <div className="inline-flex items-center gap-1 rounded-full border bg-muted/40 p-1 shadow-inner">
+              {([
+                { k: "pack", label: "Pack", sub: "Pending → Packed", icon: <PackageOpen className="h-3.5 w-3.5" />, active: "bg-amber-500 text-white shadow-sm shadow-amber-500/30" },
+                { k: "ready", label: "Ready", sub: "Packed → RTS", icon: <PackagePlus className="h-3.5 w-3.5" />, active: "bg-violet-500 text-white shadow-sm shadow-violet-500/30" },
+                { k: "ship", label: "Ship", sub: "RTS → Shipped", icon: <Send className="h-3.5 w-3.5" />, active: "bg-emerald-500 text-white shadow-sm shadow-emerald-500/30" },
+              ] as const).map((m) => {
+                const on = mode === m.k;
+                return (
+                  <button
+                    key={m.k}
+                    type="button"
+                    onClick={() => setMode(m.k as Mode)}
+                    title={m.sub}
+                    className={cn(
+                      "group inline-flex items-center gap-1.5 rounded-full px-3 h-8 text-xs font-semibold transition-all",
+                      on
+                        ? m.active
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+                    )}
+                  >
+                    {m.icon}
+                    <span>{m.label}</span>
+                    <span className={cn("hidden md:inline text-[10px] font-medium tracking-wide", on ? "opacity-80" : "opacity-50")}>
+                      · {m.sub}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             <Button variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
               <Camera className="h-4 w-4" />
             </Button>
