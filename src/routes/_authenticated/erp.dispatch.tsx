@@ -557,12 +557,19 @@ function DispatchPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard
           icon={<PackageOpen className="h-4 w-4" />}
-          label="Pending"
+          label="Today pending"
+          value={pendingToday.length}
+          sub={bdt(sum(pendingToday))}
+          dot="bg-rose-500"
+        />
+        <KpiCard
+          icon={<PackageOpen className="h-4 w-4" />}
+          label="Total pending"
           value={pending.length}
-          sub={bdt(sum(pending))}
+          sub={`${bdt(sum(pending))}${pendingOlder > 0 ? ` · ${pendingOlder} older` : ""}`}
           dot="bg-amber-500"
         />
         <KpiCard
