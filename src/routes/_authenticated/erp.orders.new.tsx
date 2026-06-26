@@ -66,8 +66,6 @@ type PathaoAddressResult =
 
 function pathaoSourceLabel(source?: string) {
   if (source === "pathao_address_parser") return "Pathao merchant address parser";
-  if (source === "pathao_address_live_lists") return "Pathao live location lists";
-  if (source === "pathao_phone") return "Pathao customer API";
   return "Pathao API";
 }
 
@@ -217,15 +215,9 @@ function NewOrderPage() {
           city: r.city, zone: r.zone, area: r.area,
           success_ratio: r.success_ratio ?? null,
         });
-        // Auto-apply city/zone/area only if user hasn't set them yet.
-        setCityId((cur) => cur ?? r.city?.id ?? null);
-        setCityName((cur) => cur || r.city?.name || "");
-        setZoneId((cur) => cur ?? r.zone?.id ?? null);
-        setZoneName((cur) => cur || r.zone?.name || "");
-        if (r.area) {
-          setAreaId((cur) => cur ?? r.area.id);
-          setAreaName((cur) => cur || r.area.name || "");
-        }
+        // Phone history is shown only as customer context. City/Zone/Area must
+        // come from the typed address via Pathao's merchant address parser, so
+        // stale phone history can never override the reception-address result.
       } catch { /* silent */ }
     })();
     return () => { cancelled = true; };
@@ -665,9 +657,9 @@ function NewOrderPage() {
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                     </span>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                      Courier Routing
+                      Pathao Reception Address Parser
                     </span>
-                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— address দিলে Pathao merchant parser থেকে same City / Zone / Area</span>
+                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— customer address দিলে Pathao portal-এর exact City / Zone / Area আসবে</span>
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
