@@ -68,14 +68,16 @@ export const getMyPunchToday = createServerFn({ method: "POST" })
                 display_name: prof?.display_name ?? fullName,
                 email: prof?.email ?? email ?? null,
                 phone: prof?.phone ?? null,
-                employment_status: "active",
+                status: "active",
+                joining_date: new Date().toISOString().slice(0, 10),
               })
               .select("id, full_name, display_name, photo_url, user_id, email")
               .single();
+            if (cErr) console.error("[me-punch] auto-provision failed", cErr);
             if (!cErr && created) emp = created as any;
           }
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.error("[me-punch] self-heal error", e); }
     }
     if (!emp) return { employee: null, attendance: null, shift: null, today };
 
