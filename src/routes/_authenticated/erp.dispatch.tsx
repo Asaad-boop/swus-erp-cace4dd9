@@ -115,7 +115,7 @@ type PrintJob = {
 };
 
 function DispatchPage() {
-  const { brandIds } = useBrand();
+  const { brandIds, brands } = useBrand();
   const qc = useQueryClient();
   const bookPathao = useServerFn(pathaoBookOrderAutoFn);
 
@@ -159,7 +159,7 @@ function DispatchPage() {
       const todayIso = today.toISOString();
 
       const select =
-        "id, invoice_no, status, total, payment_method, courier_name, shipping_name, guest_name, shipping_phone, guest_phone, shipping_thana, shipping_city, tracking_number, updated_at, created_at, packaged_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
+        "id, invoice_no, brand_id, status, total, payment_method, courier_name, shipping_name, guest_name, shipping_phone, guest_phone, shipping_thana, shipping_city, tracking_number, updated_at, created_at, packaged_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
 
       const pending = await applyBrandScope(
         supabase.from("orders").select(select).in("status", PENDING_STATUSES as unknown as never[]),
