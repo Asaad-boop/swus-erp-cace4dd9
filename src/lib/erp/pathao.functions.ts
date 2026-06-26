@@ -339,14 +339,6 @@ async function resolveByPathaoParser(client: any, address: string) {
   return normalizeParserRoute(client, parsed);
 }
 
-type PathaoResolvedRoute = {
-  city: { id: number; name: string };
-  zone: { id: number; name: string } | null;
-  area: { id: number; name: string } | null;
-  score: number;
-  raw?: any;
-};
-
 async function resolveByAddress(client: any, address: string) {
   const parserRoute = await resolveByPathaoParser(client, address).catch(() => null);
   // Important: no local scoring fallback here. The user expectation is 100%
