@@ -467,7 +467,7 @@ async function resolveByAddress(client: any, address: string) {
   const hayTokens = tokenSet(hay);
   const aliasCityNames = Array.from(hayTokens)
     .map((token) => CITY_AREA_ALIASES[token])
-    .filter(Boolean);
+    .filter((target): target is string => Boolean(target));
   const aliasCities = aliasCityNames
     .map((target) => cityItems.find((c) => normalizeAddr(c.name) === target || normalizeAddr(c.name).includes(target)))
     .filter(Boolean) as typeof cityItems;
