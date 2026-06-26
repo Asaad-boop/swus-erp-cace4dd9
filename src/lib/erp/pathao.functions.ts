@@ -505,41 +505,47 @@ async function resolveByAddress(client: any, address: string) {
   for (const c of candidateCities) {
     const zonesRaw = normalizePathaoZones(await client.zones(c.id).catch(() => []));
     const cityTokens = tokenSet(c.name);
-    const zone = bestScoredMatch(
-      hay,
-      zonesRaw.map((z) => ({ id: z.id, name: z.name })),
-      cityHasStrongMatch,
-      cityTokens,
-    );
+    const zoneItems = zonesRaw.map((z) => ({ id: z.id, name: z.name }));
     const minZoneScore = cityHasStrongMatch ? 40 : 55;
-    if (!zone || zone.score < minZoneScore) {
+    let cityBestRoute: typeof bestRoute = null;
+
+    for (const z of zoneItems) {
+      const zoneScore = scoreLocationName(hay, hayTokens, z.name, cityHasStrongMatch, cityTokens);
+      if (!cityHasStrongMatch && zoneScore < minZoneScore) continue;
+
+      let area: { id: number; name: string; score: number } | null = null;
+      const areasRaw = normalizePathaoAreas(await client.areas(z.id).catch(() => []));
+      const areaMatch = bestScoredMatch(
+        hay,
+        areasRaw.map((a) => ({ id: a.id, name: a.name })),
+        false,
+      );
+      if (areaMatch && areaMatch.score >= 55) area = areaMatch;
+
+      if (zoneScore < minZoneScore && (!area || area.score < 75)) continue;
+
+      const routeScore = Math.max(zoneScore, 0)
+        + (area?.score ?? 0)
+        + tokenOverlapScore(hayTokens, tokenSet(z.name), cityTokens)
+        + (area ? tokenOverlapScore(hayTokens, tokenSet(area.name), cityTokens) : 0)
+        + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
+      if (!cityBestRoute || routeScore > cityBestRoute.score) {
+        cityBestRoute = {
+          city: { id: c.id, name: c.name },
+          zone: { id: z.id, name: z.name },
+          area: area ? { id: area.id, name: area.name } : null,
+          score: routeScore,
+        };
+      }
+      if (routeScore >= 220) break;
+    }
+
+    if (!cityBestRoute) {
       if (cityHasStrongMatch) break;
       continue;
     }
-
-    let area: { id: number; name: string; score: number } | null = null;
-    const areasRaw = normalizePathaoAreas(await client.areas(zone.id).catch(() => []));
-    const areaMatch = bestScoredMatch(
-      hay,
-      areasRaw.map((a) => ({ id: a.id, name: a.name })),
-      false,
-    );
-    if (areaMatch && areaMatch.score >= 55) area = areaMatch;
-
-    const routeScore = zone.score
-      + (area?.score ?? 0)
-      + tokenOverlapScore(hayTokens, tokenSet(zone.name), cityTokens)
-      + (area ? tokenOverlapScore(hayTokens, tokenSet(area.name), cityTokens) : 0)
-      + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
-    if (!bestRoute || routeScore > bestRoute.score) {
-      bestRoute = {
-        city: { id: c.id, name: c.name },
-        zone: { id: zone.id, name: zone.name },
-        area: area ? { id: area.id, name: area.name } : null,
-        score: routeScore,
-      };
-    }
-    if (routeScore >= 170) break;
+    if (!bestRoute || cityBestRoute.score > bestRoute.score) bestRoute = cityBestRoute;
+    if (cityBestRoute.score >= 220) break;
   }
 
   if (!bestRoute?.city) return null;
