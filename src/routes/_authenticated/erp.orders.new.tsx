@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
-import { pathaoLookupByPhoneFn } from "@/lib/erp/pathao.functions";
+import { pathaoLookupByPhoneFn, pathaoMatchAddressFn } from "@/lib/erp/pathao.functions";
 import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
@@ -169,6 +169,7 @@ function NewOrderPage() {
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
   const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
+  const matchAddressFn = useServerFn(pathaoMatchAddressFn);
 
   // ── Pathao customer phone lookup ─────────────────────────────────────
   // Uses Pathao's official customer-info endpoint (same call their
@@ -210,6 +211,40 @@ function NewOrderPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedPhone, showPathao, effectiveBrandId]);
+
+  // ── Address-based City/Zone/Area auto-fill ───────────────────────────
+  // When the user types/pastes a shipping address, match it against
+  // Pathao's own cities/zones/areas lists and fill any empty location
+  // fields. Phone lookup wins; this only fills what's still blank.
+  const [debouncedAddress, setDebouncedAddress] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedAddress(address.trim()), 500);
+    return () => clearTimeout(t);
+  }, [address]);
+  useEffect(() => {
+    if (!showPathao || debouncedAddress.length < 4) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r: any = await matchAddressFn({ data: { address: debouncedAddress, brandId: effectiveBrandId ?? undefined } });
+        if (cancelled || !r?.found) return;
+        if (r.city) {
+          setCityId((cur) => cur ?? r.city.id);
+          setCityName((cur) => cur || r.city.name);
+        }
+        if (r.zone) {
+          setZoneId((cur) => cur ?? r.zone.id);
+          setZoneName((cur) => cur || r.zone.name);
+        }
+        if (r.area) {
+          setAreaId((cur) => cur ?? r.area.id);
+          setAreaName((cur) => cur || r.area.name);
+        }
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedAddress, showPathao, effectiveBrandId]);
 
   // ── autofill suggestion from latest past order for this phone ────────
   const [dismissedAutofillPhone, setDismissedAutofillPhone] = useState<string>("");
