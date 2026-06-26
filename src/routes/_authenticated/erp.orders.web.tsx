@@ -1318,15 +1318,13 @@ function _WebOrdersPageBody() {
                           return (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset max-w-[150px]",
+                                "inline-flex items-center gap-1.5 px-2 h-[20px] rounded-full text-[10.5px] font-medium tracking-tight ring-1 ring-inset max-w-[150px]",
                                 site.pillClass,
                               )}
                               title={r.source_website ?? site.label}
                             >
-                              <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", site.dotClass)}>
-                                {site.initial}
-                              </span>
-                              <span className="truncate tracking-tight">{site.label}</span>
+                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", site.dotClass)} />
+                              <span className="truncate">{site.label}</span>
                             </span>
                           );
                         })()}
