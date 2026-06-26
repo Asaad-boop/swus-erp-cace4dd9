@@ -869,25 +869,51 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
   const rolesFn = useServerFn(updateUserRoles);
   const listBrandsFn = useServerFn(listUserBrandAccess);
   const setBrandsFn = useServerFn(setUserBrandAccess);
+  const listPagesFn = useServerFn(listAllowedPages);
+  const setPagesFn = useServerFn(setUserAllowedPages);
   const { brands } = useBrand();
 
   const [roles, setRoles] = useState<AppRole[]>(user.roles);
   const [brandIds, setBrandIds] = useState<string[]>([]);
-  const [tab, setTab] = useState<"roles" | "brands">("roles");
+  const [allowedPages, setAllowedPages] = useState<string[]>([]);
+  const [pagesMode, setPagesMode] = useState<"role_default" | "custom">("role_default");
+  const [tab, setTab] = useState<"roles" | "brands" | "pages">("roles");
+  const isUserAdmin = roles.includes("admin");
 
   const { data: allAccess } = useQuery({
     queryKey: ["user-brand-access"],
     queryFn: () => listBrandsFn({ data: undefined as any }),
   });
+  const { data: allPages } = useQuery({
+    queryKey: ["user-allowed-pages"],
+    queryFn: () => listPagesFn({ data: undefined as any }),
+  });
 
   useEffect(() => {
     if (allAccess) setBrandIds(allAccess[user.id] ?? []);
   }, [allAccess, user.id]);
+  useEffect(() => {
+    if (!allPages) return;
+    const existing = allPages[user.id];
+    if (existing && existing.length > 0) {
+      setAllowedPages(existing);
+      setPagesMode("custom");
+    } else {
+      setAllowedPages([]);
+      setPagesMode("role_default");
+    }
+  }, [allPages, user.id]);
 
   const mut = useMutation({
     mutationFn: async () => {
       await rolesFn({ data: { userId: user.id, roles } });
       await setBrandsFn({ data: { userId: user.id, brandIds } });
+      await setPagesFn({
+        data: {
+          userId: user.id,
+          allowedPages: pagesMode === "custom" ? allowedPages : [],
+        },
+      });
     },
     onSuccess: () => { toast.success("Saved"); onSaved(); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
@@ -895,18 +921,31 @@ function EditUserDialog({ user, onClose, onSaved }: { user: any; onClose: () => 
 
   const toggleRole = (r: AppRole) => setRoles(c => c.includes(r) ? c.filter(x => x !== r) : [...c, r]);
   const toggleBrand = (b: string) => setBrandIds(c => c.includes(b) ? c.filter(x => x !== b) : [...c, b]);
+  const togglePage = (p: string) =>
+    setAllowedPages((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]));
+  const toggleGroup = (group: string, on: boolean) => {
+    const groupPaths = PAGE_CATALOG.filter((p) => p.group === group).map((p) => p.path);
+    setAllowedPages((c) => {
+      const without = c.filter((x) => !groupPaths.includes(x));
+      return on ? [...without, ...groupPaths] : without;
+    });
+  };
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit permissions</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 mb-3">
+          <TabsList className="grid grid-cols-3 mb-3">
             <TabsTrigger value="roles"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Roles ({roles.length})</TabsTrigger>
             <TabsTrigger value="brands"><Building2 className="h-3.5 w-3.5 mr-1.5" /> Brands ({brandIds.length || "all"})</TabsTrigger>
+            <TabsTrigger value="pages">
+              <Settings className="h-3.5 w-3.5 mr-1.5" />
+              Pages ({pagesMode === "custom" ? allowedPages.length : "default"})
+            </TabsTrigger>
           </TabsList>
         </Tabs>
         {tab === "roles" ? (
