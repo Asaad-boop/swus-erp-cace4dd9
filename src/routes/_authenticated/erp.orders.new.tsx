@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useBrand } from "@/contexts/brand-context";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/erp/use-courier-query";
-import { pathaoDetectAddressFn, pathaoLookupByPhoneFn } from "@/lib/erp/pathao.functions";
+import { pathaoLookupByPhoneFn } from "@/lib/erp/pathao.functions";
 import { parseCustomerTextFn } from "@/lib/erp/parse-customer.functions";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { cn } from "@/lib/utils";
@@ -168,40 +168,7 @@ function NewOrderPage() {
   const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities();
   const { data: zones = [] } = usePathaoZones(showPathao ? cityId : null);
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null);
-  const detectFn = useServerFn(pathaoDetectAddressFn);
   const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
-  const [lastDetect, setLastDetect] = useState<{
-    city: { id: number; name: string | null } | null;
-    zone: { id: number; name: string | null } | null;
-    area: { id: number; name: string | null } | null;
-    confidence: number;
-    address: string;
-  } | null>(null);
-  const detect = useMutation({
-    mutationFn: async () => {
-      if (!address.trim()) throw new Error("Address likhun age");
-      return detectFn({ data: { address: address.trim(), brandId: effectiveBrandId ?? undefined } });
-    },
-    onSuccess: (r) => {
-      if (r.city) { setCityId(r.city.id); setCityName(r.city.name ?? ""); }
-      if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
-      if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
-      else { setAreaId(null); setAreaName(""); }
-      setLastDetect({
-        city: r.city ?? null,
-        zone: r.zone ?? null,
-        area: r.area ?? null,
-        confidence: r.confidence ?? 0,
-        address: address.trim(),
-      });
-      toast.success(
-        r.city
-          ? `Detected: ${r.city.name}${r.zone ? " · " + r.zone.name : ""} (${Math.round((r.confidence ?? 0) * 100)}%)`
-          : "Couldn't match",
-      );
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   // ── Pathao customer phone lookup ─────────────────────────────────────
   // Uses Pathao's official customer-info endpoint (same call their
@@ -586,38 +553,16 @@ function NewOrderPage() {
               {/* Pathao auto-detect rail tucked inside the same card */}
               {showPathao && (
                 <div className="border-t border-emerald-100 bg-emerald-50/50 px-5 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/15">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                      </span>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                        Courier Routing
-                      </span>
-                      <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— ঠিকানা থেকে auto detect</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 gap-1.5 border-emerald-200 bg-background text-[11px] font-bold uppercase tracking-wider text-emerald-700 hover:bg-emerald-50"
-                      onClick={() => detect.mutate()}
-                      disabled={detect.isPending || !address.trim()}
-                    >
-                      {detect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-                      Auto Detect
-                    </Button>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Courier Routing
+                    </span>
+                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— phone দিলে Pathao API থেকে auto fill</span>
                   </div>
-                  {lastDetect && (
-                    <DetectionPreview
-                      address={lastDetect.address}
-                      city={lastDetect.city?.name ?? null}
-                      zone={lastDetect.zone?.name ?? null}
-                      area={lastDetect.area?.name ?? null}
-                      confidence={lastDetect.confidence}
-                      onDismiss={() => setLastDetect(null)}
-                    />
-                  )}
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">
                       <LocationCombobox
@@ -1028,99 +973,6 @@ function Field({
         {hint && <span className="text-[10px] text-muted-foreground tabular-nums">{hint}</span>}
       </div>
       {children}
-    </div>
-  );
-}
-
-function DetectionPreview({
-  address, city, zone, area, confidence, onDismiss,
-}: {
-  address: string;
-  city: string | null;
-  zone: string | null;
-  area: string | null;
-  confidence: number;
-  onDismiss: () => void;
-}) {
-  const terms = useMemo(
-    () => [city, zone, area].filter((t): t is string => !!t && t.trim().length >= 2),
-    [city, zone, area],
-  );
-  // Build a case-insensitive regex of all terms; longest-first to avoid
-  // a shorter term swallowing part of a longer one.
-  const segments = useMemo(() => {
-    if (terms.length === 0) return [{ text: address, hit: false }];
-    const escaped = terms
-      .slice()
-      .sort((a, b) => b.length - a.length)
-      .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    const re = new RegExp(`(${escaped.join("|")})`, "gi");
-    const parts: { text: string; hit: boolean }[] = [];
-    let last = 0;
-    for (const m of address.matchAll(re)) {
-      const i = m.index ?? 0;
-      if (i > last) parts.push({ text: address.slice(last, i), hit: false });
-      parts.push({ text: m[0], hit: true });
-      last = i + m[0].length;
-    }
-    if (last < address.length) parts.push({ text: address.slice(last), hit: false });
-    return parts;
-  }, [address, terms]);
-
-  const pct = Math.round(Math.max(0, Math.min(1, confidence)) * 100);
-  const tone =
-    pct >= 85 ? { ring: "ring-emerald-300", bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200", label: "High" }
-    : pct >= 55 ? { ring: "ring-amber-300", bar: "bg-amber-500", chip: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200", label: "Medium" }
-    : { ring: "ring-rose-300", bar: "bg-rose-500", chip: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200", label: "Low" };
-
-  const hitCount = segments.filter((s) => s.hit).length;
-
-  return (
-    <div className={cn("mb-3 rounded-xl border bg-background/80 p-3 shadow-sm ring-1", tone.ring)}>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", tone.chip)}>
-          {tone.label} · {pct}%
-        </span>
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          {city && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">City: {city}</span>}
-          {zone && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">Zone: {zone}</span>}
-          {area && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold">Area: {area}</span>}
-          {!city && <span className="text-muted-foreground">কোনো match পাওয়া যায়নি</span>}
-        </div>
-        <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
-          {hitCount} token{hitCount === 1 ? "" : "s"} matched
-        </span>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-          aria-label="Dismiss"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full transition-all", tone.bar)} style={{ width: `${pct}%` }} />
-      </div>
-      <div className="whitespace-pre-wrap break-words rounded-lg bg-muted/40 p-2.5 text-[12px] leading-relaxed">
-        {segments.map((s, i) =>
-          s.hit ? (
-            <mark
-              key={i}
-              className="rounded px-0.5 font-semibold bg-emerald-200/70 text-emerald-950 dark:bg-emerald-500/30 dark:text-emerald-50"
-            >
-              {s.text}
-            </mark>
-          ) : (
-            <span key={i}>{s.text}</span>
-          ),
-        )}
-      </div>
-      {hitCount < terms.length && (
-        <p className="mt-1.5 text-[10px] text-muted-foreground">
-          কিছু match address-এ literally নেই (Bangla/English ভিন্নতা) — dropdown verify করে নিন।
-        </p>
-      )}
     </div>
   );
 }
