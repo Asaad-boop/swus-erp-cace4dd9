@@ -636,8 +636,46 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     const client = await clientForBrand(supabase, order.brand_id);
     const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
     const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
-    const { detectHierarchy } = await import("./pathao-address-match");
-    const det = await detectHierarchy({
+    const { detectHierarchy, bestMatch } = await import("./pathao-address-match");
+
+    // ── Customer-provided structured fields take priority ─────────────────
+    // Website checkout already collects District (= Pathao city) and
+    // Thana/Upazila (= Pathao zone). Trust those first — only fall back to
+    // free-form address detection if they don't resolve.
+    let cityPickStruct: { id: number; name: string | null; confidence: number } | null = null;
+    let zonePickStruct: { id: number; name: string | null } | null = null;
+    let areaPickStruct: { id: number; name: string | null } | undefined;
+
+    const cityQuery = (order.shipping_district || order.shipping_city || "").trim();
+    const zoneQuery = (order.shipping_thana || "").trim();
+    if (cityQuery) {
+      const cm = bestMatch(cityQuery, cityItems);
+      if (cm && cm.score >= 2) {
+        const zonesRaw = (await client.zones(cm.id)) as Array<{ zone_id: number; zone_name: string }>;
+        const zoneItems = zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name }));
+        const zm = zoneQuery ? bestMatch(zoneQuery, zoneItems) : null;
+        if (zm && zm.score >= 2) {
+          cityPickStruct = { id: cm.id, name: cm.name, confidence: 1 };
+          zonePickStruct = { id: zm.id, name: zm.name };
+          try {
+            const areasRaw = (await client.areas(zm.id)) as Array<{ area_id: number; area_name: string }>;
+            if (areasRaw.length > 0) {
+              const am = bestMatch(address, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
+              if (am) areaPickStruct = { id: am.id, name: am.name };
+            }
+          } catch { /* area optional */ }
+        }
+      }
+    }
+
+    const det = cityPickStruct && zonePickStruct
+      ? {
+          city: { id: cityPickStruct.id, name: cityPickStruct.name ?? "" },
+          zone: { id: zonePickStruct.id, name: zonePickStruct.name ?? "" },
+          area: areaPickStruct ? { id: areaPickStruct.id, name: areaPickStruct.name ?? "" } : null,
+          confidence: 1,
+        }
+      : await detectHierarchy({
       address,
       cities: cityItems,
       lookup: {
