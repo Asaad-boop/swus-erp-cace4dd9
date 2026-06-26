@@ -332,11 +332,26 @@ async function normalizeParserRoute(client: any, parsed: any) {
   };
 }
 
+// Small in-process cache so rapid re-typing or repeated detection calls
+// don't keep hitting Pathao's parser + cities/zones/areas endpoints.
+const PARSER_CACHE = new Map<string, { at: number; value: any }>();
+const PARSER_TTL = 5 * 60 * 1000;
+
 async function resolveByPathaoParser(client: any, address: string) {
-  if (address.trim().length < 10) return null;
-  const parsed = await client.parseAddress(address);
+  const trimmed = address.trim();
+  if (trimmed.length < 10) return null;
+  const key = `${client.storeId ?? ""}::${trimmed.toLowerCase()}`;
+  const hit = PARSER_CACHE.get(key);
+  if (hit && Date.now() - hit.at < PARSER_TTL) return hit.value;
+  const parsed = await client.parseAddress(trimmed);
   if (!parsed) return null;
-  return normalizeParserRoute(client, parsed);
+  const value = await normalizeParserRoute(client, parsed);
+  PARSER_CACHE.set(key, { at: Date.now(), value });
+  if (PARSER_CACHE.size > 500) {
+    const oldestKey = PARSER_CACHE.keys().next().value;
+    if (oldestKey) PARSER_CACHE.delete(oldestKey);
+  }
+  return value;
 }
 
 async function resolveByAddress(client: any, address: string) {
