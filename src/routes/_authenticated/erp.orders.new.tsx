@@ -53,6 +53,24 @@ type ProductHit = {
 
 type DeliveryMethod = "pathao" | "steadfast" | "manual";
 
+type PathaoAddressResult =
+  | {
+      found: true;
+      city: { id: number; name: string };
+      zone: { id: number; name: string } | null;
+      area: { id: number; name: string } | null;
+      source: string;
+      confidence?: number;
+    }
+  | { found: false; message: string };
+
+function pathaoSourceLabel(source?: string) {
+  if (source === "pathao_address_parser") return "Pathao merchant address parser";
+  if (source === "pathao_address_live_lists") return "Pathao live location lists";
+  if (source === "pathao_phone") return "Pathao customer API";
+  return "Pathao API";
+}
+
 function NewOrderPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -170,6 +188,8 @@ function NewOrderPage() {
   const { data: areas = [] } = usePathaoAreas(showPathao ? zoneId : null, effectiveBrandId);
   const lookupPhoneFn = useServerFn(pathaoLookupByPhoneFn);
   const matchAddressFn = useServerFn(pathaoMatchAddressFn);
+  const [pathaoAddressResult, setPathaoAddressResult] = useState<PathaoAddressResult | null>(null);
+  const [pathaoAddressDetecting, setPathaoAddressDetecting] = useState(false);
 
   // ── Pathao customer phone lookup ─────────────────────────────────────
   // Uses Pathao's official customer-info endpoint (same call their
@@ -212,22 +232,31 @@ function NewOrderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedPhone, showPathao, effectiveBrandId]);
 
-  // ── Address-based City/Zone/Area auto-fill ───────────────────────────
-  // When the user types/pastes a shipping address, match it against
-  // Pathao's live cities/zones/areas API lists. Address wins over stale
-  // phone-history because the current delivery address is the source of truth.
+  // ── Pathao Merchant address parser auto-fill ─────────────────────────
+  // Same flow as Pathao New Delivery: typed recipient address goes to
+  // Pathao's address-parser API first, then we display/apply the exact
+  // City/Zone/Area Pathao returns. Local list matching is only backend fallback.
   const [debouncedAddress, setDebouncedAddress] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedAddress(address.trim()), 500);
+    const t = setTimeout(() => setDebouncedAddress(address.trim()), 700);
     return () => clearTimeout(t);
   }, [address]);
   useEffect(() => {
-    if (!showPathao || debouncedAddress.length < 4) return;
+    if (!showPathao) { setPathaoAddressResult(null); setPathaoAddressDetecting(false); return; }
+    if (debouncedAddress.length < 10) { setPathaoAddressResult(null); setPathaoAddressDetecting(false); return; }
     let cancelled = false;
+    setPathaoAddressDetecting(true);
     (async () => {
       try {
         const r: any = await matchAddressFn({ data: { address: debouncedAddress, brandId: effectiveBrandId ?? undefined } });
-        if (cancelled || !r?.found) return;
+        if (cancelled) return;
+        if (!r?.found || !r.city) {
+          setCityId(null); setCityName("");
+          setZoneId(null); setZoneName("");
+          setAreaId(null); setAreaName("");
+          setPathaoAddressResult({ found: false, message: "Pathao এই address থেকে city/zone/area detect করতে পারেনি" });
+          return;
+        }
         if (r.city) {
           setCityId(r.city.id);
           setCityName(r.city.name);
@@ -246,7 +275,19 @@ function NewOrderPage() {
           setAreaId(null);
           setAreaName("");
         }
-      } catch { /* silent */ }
+        setPathaoAddressResult({
+          found: true,
+          city: r.city,
+          zone: r.zone ?? null,
+          area: r.area ?? null,
+          source: r.source,
+          confidence: r.confidence,
+        });
+      } catch (e) {
+        if (!cancelled) setPathaoAddressResult({ found: false, message: (e as Error).message || "Pathao address parser failed" });
+      } finally {
+        if (!cancelled) setPathaoAddressDetecting(false);
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -587,6 +628,30 @@ function NewOrderPage() {
                       onChange={(e) => setAddress(e.target.value)}
                       className="bg-muted/30 focus-visible:bg-background"
                     />
+                    {showPathao && (
+                      <div className="mt-2 min-h-6">
+                        {pathaoAddressDetecting ? (
+                          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Pathao address parser checking…
+                          </div>
+                        ) : pathaoAddressResult?.found ? (
+                          <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">
+                              {pathaoSourceLabel(pathaoAddressResult.source)}: {pathaoAddressResult.city.name}
+                              {pathaoAddressResult.zone && ` → ${pathaoAddressResult.zone.name}`}
+                              {pathaoAddressResult.area && ` → ${pathaoAddressResult.area.name}`}
+                            </span>
+                          </div>
+                        ) : pathaoAddressResult ? (
+                          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {pathaoAddressResult.message}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </Field>
                 </div>
               </CardContent>
@@ -602,7 +667,7 @@ function NewOrderPage() {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                       Courier Routing
                     </span>
-                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— phone/address দিলে Pathao API থেকে auto fill</span>
+                    <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70">— address দিলে Pathao merchant parser থেকে same City / Zone / Area</span>
                   </div>
                   <div className="grid gap-3 md:grid-cols-3">
                     <Field label="City">

@@ -415,6 +415,92 @@ function looseGeoNameMatch(targets: Set<string>, name: string) {
   return false;
 }
 
+function readPathaoStringDeep(payload: any, keys: string[]): string {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const visit = (node: any): string => {
+    if (!node || typeof node !== "object" || seen.has(node)) return "";
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (wanted.has(key.toLowerCase()) && value !== undefined && value !== null && String(value).trim()) {
+        return String(value).trim();
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = visit(value);
+      if (found) return found;
+    }
+    return "";
+  };
+  return visit(payload?.data ?? payload);
+}
+
+function findByPathaoName(items: NormalizedGeo[], name: string) {
+  const normalized = normalizeAddr(name);
+  const compact = normalized.replace(/\s+/g, "");
+  if (!normalized) return null;
+  return items.find((item) => {
+    const itemName = normalizeAddr(item.name);
+    const itemCompact = itemName.replace(/\s+/g, "");
+    return itemName === normalized || itemCompact === compact;
+  }) ?? null;
+}
+
+async function normalizeParserRoute(client: any, parsed: any) {
+  const cityNameRaw = readPathaoStringDeep(parsed, [
+    "district_name", "city_name", "recipient_city_name", "name",
+  ]);
+  const zoneNameRaw = readPathaoStringDeep(parsed, [
+    "zone_name", "recipient_zone_name",
+  ]);
+  const areaNameRaw = readPathaoStringDeep(parsed, [
+    "area_name", "recipient_area_name",
+  ]);
+  let cityId = readPositiveNumber(parsed, ["district_id", "city_id", "recipient_city"]);
+  let zoneId = readPositiveNumber(parsed, ["zone_id", "recipient_zone"]);
+  let areaId = readPositiveNumber(parsed, ["area_id", "recipient_area"]);
+
+  const cities = normalizePathaoCities(await client.cities());
+  let city = cityId ? cities.find((c) => c.id === cityId) ?? null : null;
+  if (!city && cityNameRaw) city = findByPathaoName(cities, cityNameRaw);
+  cityId = city?.id ?? cityId;
+  if (!cityId) return null;
+
+  const zones = normalizePathaoZones(await client.zones(cityId).catch(() => []));
+  let zone = zoneId ? zones.find((z) => z.id === zoneId) ?? null : null;
+  if (!zone && zoneNameRaw) zone = findByPathaoName(zones, zoneNameRaw);
+  zoneId = zone?.id ?? zoneId;
+  if (!zoneId) return null;
+
+  const areas = normalizePathaoAreas(await client.areas(zoneId).catch(() => []));
+  let area = areaId ? areas.find((a) => a.id === areaId) ?? null : null;
+  if (!area && areaNameRaw) area = findByPathaoName(areas, areaNameRaw);
+  areaId = area?.id ?? areaId;
+
+  return {
+    city: { id: cityId, name: city?.name || cityNameRaw || "" },
+    zone: { id: zoneId, name: zone?.name || zoneNameRaw || "" },
+    area: areaId ? { id: areaId, name: area?.name || areaNameRaw || "" } : null,
+    raw: parsed,
+    score: 240,
+  };
+}
+
+async function resolveByPathaoParser(client: any, address: string) {
+  if (address.trim().length < 10) return null;
+  const parsed = await client.parseAddress(address);
+  if (!parsed) return null;
+  return normalizeParserRoute(client, parsed);
+}
+
+type PathaoResolvedRoute = {
+  city: { id: number; name: string };
+  zone: { id: number; name: string } | null;
+  area: { id: number; name: string } | null;
+  score: number;
+  raw?: any;
+};
+
 function isRoadMeasureCandidate(normalizedName: string) {
   const nameTokens = normalizedName.split(" ").filter(Boolean);
   return nameTokens.some((token) => ROAD_MEASURE_TOKENS.has(token)) && numericTokens(normalizedName).size > 0;
@@ -532,6 +618,9 @@ function bestScoredMatch<T extends { name: string }>(
 }
 
 async function resolveByAddress(client: any, address: string) {
+  const parserRoute = await resolveByPathaoParser(client, address).catch(() => null);
+  if (parserRoute?.city && parserRoute.zone) return parserRoute;
+
   const baseHay = normalizeAddr(address);
   if (!baseHay) return null;
   const hay = expandAddressAliases(baseHay);
@@ -569,12 +658,7 @@ async function resolveByAddress(client: any, address: string) {
     ? [strongCity]
     : Array.from(candidateCityMap.values());
 
-  let bestRoute: {
-    city: { id: number; name: string };
-    zone: { id: number; name: string } | null;
-    area: { id: number; name: string } | null;
-    score: number;
-  } | null = strongCity
+  let bestRoute: PathaoResolvedRoute | null = strongCity
     ? { city: { id: strongCity.id, name: strongCity.name }, zone: null, area: null, score: strongCity.score }
     : null;
 
@@ -671,7 +755,8 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
       zone: route.zone,
       area: route.area,
       confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-      source: "pathao_address" as const,
+      source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+      raw: route.raw ?? null,
     };
   });
 
@@ -707,7 +792,8 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
         zone: route.zone,
         area: route.area,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: "pathao_address" as const,
+        source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+        raw: route.raw ?? null,
       };
     }
 
@@ -728,10 +814,11 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
         zone: null,
         area: null,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: "pathao_address" as const,
+        source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+        raw: route.raw ?? null,
       };
     }
-    return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
+    return { city: null, zone: null, area: null, confidence: 0, source: "none" as const, raw: null };
   });
 
 

@@ -20,6 +20,13 @@ type Props = {
   brandId?: string | null;
 };
 
+function pathaoSourceLabel(source?: string) {
+  if (source === "pathao_address_parser") return "Pathao merchant address parser";
+  if (source === "pathao_address_live_lists") return "Pathao live location lists";
+  if (source === "pathao_phone") return "Pathao customer API";
+  return "Pathao API";
+}
+
 export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, brandId }: Props) {
   const qc = useQueryClient();
   const bookFn = useServerFn(pathaoBookOrderFn);
@@ -151,7 +158,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
                   <>
                     <Sparkles className="h-3 w-3 mt-0.5 shrink-0" />
                     <span>
-                      Auto-filled from {autoFilled.source === "pathao_phone" ? "Pathao customer API" : "Pathao address API"}:{" "}
+                      Auto-filled from {pathaoSourceLabel(autoFilled.source)}:{" "}
                       <span className="font-semibold">{autoFilled.city}</span> › <span className="font-semibold">{autoFilled.zone}</span>
                       {autoFilled.area && <> › <span className="font-semibold">{autoFilled.area}</span></>}
                     </span>
@@ -160,7 +167,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
             )}
             <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
-              City/Zone/Area এখানে Pathao live API list থেকে auto-match হয়; booking payload-এ এই exact Pathao IDs যাবে.
+              City/Zone/Area এখানে Pathao merchant address parser থেকে auto-fill হয়; booking payload-এ এই exact Pathao IDs যাবে.
             </div>
 
             <div className="grid grid-cols-3 gap-2">

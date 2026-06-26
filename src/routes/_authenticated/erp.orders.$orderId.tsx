@@ -51,6 +51,13 @@ function bdtCompact(n: number) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n || 0);
 }
 
+function pathaoSourceLabel(source?: string) {
+  if (source === "pathao_address_parser") return "Pathao merchant address parser";
+  if (source === "pathao_address_live_lists") return "Pathao live location lists";
+  if (source === "pathao_phone") return "Pathao customer API";
+  return "Pathao API";
+}
+
 function CopyChip({ value, className, children }: { value: string; className?: string; children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -369,6 +376,7 @@ function OrderDetailsPage() {
         zone: { id: number; name: string } | null;
         area: { id: number; name: string } | null;
         source: string;
+        confidence?: number;
       },
     enabled: !!data?.order,
     staleTime: 1000 * 60 * 10,
@@ -434,6 +442,8 @@ function OrderDetailsPage() {
         city: { id: String(pathaoDetected.city.id), name: pathaoDetected.city.name },
         zone: pathaoDetected.zone ? { id: String(pathaoDetected.zone.id), name: pathaoDetected.zone.name } : undefined,
         area: pathaoDetected.area ? { id: String(pathaoDetected.area.id), name: pathaoDetected.area.name } : undefined,
+        source: pathaoDetected.source,
+        confidence: pathaoDetected.confidence,
       });
       setCitySuggestions([]);
     }
@@ -494,7 +504,7 @@ function OrderDetailsPage() {
   /* ----------------------- Smart address auto-detection -------------------- */
 
   type Hit = { id: string; name: string };
-  type Detection = { city: Hit; zone?: Hit; area?: Hit };
+  type Detection = { city: Hit; zone?: Hit; area?: Hit; source?: string; confidence?: number };
   const [detection, setDetection] = useState<Detection | null>(null);
   const [citySuggestions, setCitySuggestions] = useState<Hit[]>([]);
   const [detecting, setDetecting] = useState(false);
@@ -608,6 +618,8 @@ function OrderDetailsPage() {
         city: { id: String(r.city.id), name: r.city.name },
         zone: r.zone ? { id: String(r.zone.id), name: r.zone.name } : undefined,
         area: r.area ? { id: String(r.area.id), name: r.area.name } : undefined,
+        source: r.source,
+        confidence: r.confidence,
       };
       detectCacheRef.current.set(trimmed, { detection: detected, suggestions: [] });
       setCitySuggestions([]);
@@ -639,19 +651,16 @@ function OrderDetailsPage() {
     }
     const t = setTimeout(() => {
       lastDetectedAddrRef.current = addr;
-      // Only auto-apply when user hasn't manually picked a city, or detection is active
-      const canAutoApply = !form.city_id || (detection?.city.id === form.city_id);
-      void runDetection(addr, canAutoApply);
+      void runDetection(addr, true);
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.address]);
 
-  // Auto-detect immediately on order load when address exists but city_id is empty
+  // Auto-detect immediately on order load; current address wins over stale saved Pathao IDs.
   useEffect(() => {
     if (!formReady) return;
     if (!order?.shipping_address) return;
-    if (form.city_id) return; // respect saved/manual data
     const addr = order.shipping_address.trim();
     if (addr.length < 4) return;
     if (lastDetectedAddrRef.current === addr) return;
@@ -1211,7 +1220,7 @@ function OrderDetailsPage() {
                     <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                       <Check className="h-3 w-3" />
                       <span>
-                        Detected: {detection.city.name}
+                        {pathaoSourceLabel(detection.source)}: {detection.city.name}
                         {detection.zone && ` → ${detection.zone.name}`}
                         {detection.area && ` → ${detection.area.name}`}
                       </span>

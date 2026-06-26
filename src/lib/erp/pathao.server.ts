@@ -97,9 +97,10 @@ async function getToken(creds: PathaoCreds): Promise<string> {
 }
 
 export function createPathaoClient(creds: PathaoCreds) {
-  async function call<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+  async function callBase<T = any>(baseUrl: string, path: string, init: RequestInit = {}): Promise<T> {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
     const doFetch = async (tok: string) =>
-      fetchWithTimeout(`${creds.base_url}${path}`, {
+      fetchWithTimeout(`${baseUrl}${normalizedPath}`, {
         ...init,
         headers: {
           Accept: "application/json",
@@ -138,6 +139,14 @@ export function createPathaoClient(creds: PathaoCreds) {
     return (json?.data ?? json) as T;
   }
 
+  async function call<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+    return callBase<T>(creds.base_url, path, init);
+  }
+
+  async function merchantCall<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+    return callBase<T>("https://merchant.pathao.com", path, init);
+  }
+
   return {
     storeId: creds.store_id,
     cities: async () =>
@@ -174,6 +183,29 @@ export function createPathaoClient(creds: PathaoCreds) {
       } catch (e) {
         // 404 / "customer not found" — perfectly normal for a new buyer.
         return null;
+      }
+    },
+    /**
+     * Same address parser used by the Pathao Merchant "New Delivery" form.
+     * It is different from our local city/zone/area list matching: Pathao's
+     * backend returns district/city, zone and area for the typed recipient
+     * address, so our preview mirrors what Pathao itself would show.
+     */
+    parseAddress: async (address: string) => {
+      const trimmed = address.trim();
+      if (trimmed.length < 10) return null;
+      const qs = new URLSearchParams({ address: trimmed }).toString();
+      try {
+        return await merchantCall(`/api/v1/address-parser?${qs}`, { method: "GET" });
+      } catch (firstError) {
+        try {
+          return await merchantCall("/api/v1/address-parser", {
+            method: "POST",
+            body: JSON.stringify({ address: trimmed }),
+          });
+        } catch {
+          throw firstError;
+        }
       }
     },
   };
