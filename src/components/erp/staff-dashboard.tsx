@@ -190,6 +190,21 @@ export function StaffDashboard() {
                 {isLoading ? <Skeleton className="h-9 w-20" /> : (
                   <div className="text-3xl font-bold tracking-tight tabular-nums leading-none">{c.value}</div>
                 )}
+                {c.label === "Total pending" && !isLoading && data?.pendingByBrand && Object.keys(data.pendingByBrand).length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {Object.entries(data.pendingByBrand)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([bid, n]) => {
+                        const b = brands.find((x: any) => x.id === bid);
+                        return (
+                          <span key={bid} className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="font-medium text-foreground">{b?.name ?? "—"}</span>
+                            <span className="tabular-nums">{n}</span>
+                          </span>
+                        );
+                      })}
+                  </div>
+                )}
               </button>
             ))}
           </div>
