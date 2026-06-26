@@ -114,7 +114,8 @@ export function PathaoSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><PlugZap className="h-4 w-4" /> Pathao integration</CardTitle>
         <CardDescription>
-          Credentials are stored per brand. Find them in the Pathao Merchant Portal → API.
+          Credentials per brand. <b>Tip:</b> ekta brand-e full credentials dao,
+          onno brand-e shudhu <b>Store ID</b> dile-o cholbe — credentials auto-share hobe.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -146,19 +147,19 @@ export function PathaoSettings() {
           <Field label="Base URL" hint="Use sandbox URL for testing">
             <Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://api-hermes.pathao.com" />
           </Field>
-          <Field label="Store ID">
+          <Field label="Store ID" hint="Required. Each brand has its own store ID.">
             <Input value={form.store_id} onChange={(e) => setForm({ ...form, store_id: e.target.value })} placeholder="e.g. 131516" />
           </Field>
-          <Field label="Client ID">
+          <Field label="Client ID" hint="Optional — leave blank to reuse another brand's credentials">
             <Input value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} />
           </Field>
-          <Field label="Client Secret">
+          <Field label="Client Secret" hint="Optional">
             <Input type={showSecrets ? "text" : "password"} value={form.client_secret} onChange={(e) => setForm({ ...form, client_secret: e.target.value })} />
           </Field>
-          <Field label="Merchant Username (email)">
+          <Field label="Merchant Username (email)" hint="Optional">
             <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </Field>
-          <Field label="Merchant Password">
+          <Field label="Merchant Password" hint="Optional">
             <Input type={showSecrets ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </Field>
           <Field label="COD wallet" hint="Delivered order er taka ei wallet e auto credit hobe (courier charge bad)">
@@ -180,11 +181,7 @@ export function PathaoSettings() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => save.mutate()}
-            disabled={
-              !brandId ||
-              save.isPending ||
-              !form.client_id || !form.client_secret || !form.username || !form.password || !form.store_id
-            }
+            disabled={!brandId || save.isPending || !form.store_id}
           >
             {save.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
             Save
