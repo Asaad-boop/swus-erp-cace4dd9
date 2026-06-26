@@ -1191,18 +1191,10 @@ function _WebOrdersPageBody() {
                     {/* Note */}
                     <TableCell className="py-3">
                       {note ? (
-                        <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-amber-50/40 dark:bg-amber-950/15 border border-amber-200/50 dark:border-amber-900/30 hover:border-amber-300/70 dark:hover:border-amber-800/60 transition-colors">
-                          <div className="mt-0.5 shrink-0 flex items-center justify-center w-4 h-4 rounded-md bg-amber-100/70 dark:bg-amber-900/40">
-                            <MessageSquare className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
-                          </div>
-                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                            <span className="text-[8.5px] font-semibold uppercase tracking-[0.08em] text-amber-700/60 dark:text-amber-400/60 leading-none">
-                              Note
-                            </span>
-                            <p className="text-[11.5px] leading-snug text-foreground/90 font-medium line-clamp-3">
-                              {note}
-                            </p>
-                          </div>
+                        <div className="w-[210px] pl-2.5 border-l-2 border-amber-400/60 dark:border-amber-500/50">
+                          <p className="text-[11.5px] leading-snug text-foreground/85 line-clamp-3" title={note}>
+                            {note}
+                          </p>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground/60">—</span>
