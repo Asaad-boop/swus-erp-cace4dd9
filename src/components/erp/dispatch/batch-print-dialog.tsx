@@ -33,16 +33,18 @@ export function BatchPrintDialog({
   onClose,
   orders,
   onPrinted,
+  initialMode,
 }: {
   open: boolean;
   onClose: () => void;
   orders: OrderRow[];
   onPrinted?: (count: number, mode: Mode) => void;
+  initialMode?: Mode;
 }) {
   const [selected, setSelected] = useState<Record<string, boolean>>(
     () => Object.fromEntries(orders.map((o) => [o.id, true])),
   );
-  const [mode, setMode] = useState<Mode>("both");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "both");
 
   const chosen = orders.filter((o) => selected[o.id]);
 
