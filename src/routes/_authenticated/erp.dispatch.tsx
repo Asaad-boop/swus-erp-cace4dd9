@@ -65,7 +65,7 @@ type ScanLogEntry = {
   at: number;
 };
 
-const PENDING_STATUSES = ["confirmed", "processing", "packaging", "ready_to_pack"] as const;
+const PENDING_STATUSES = ["new", "confirmed", "processing", "packaging", "ready_to_pack"] as const;
 
 function bdt(n: number) {
   return `৳${n.toLocaleString("en-BD", { maximumFractionDigits: 0 })}`;
