@@ -185,7 +185,7 @@ function NewOrderPage() {
       if (r.city) { setCityId(r.city.id); setCityName(r.city.name ?? ""); }
       if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
       if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
-      else setAreaId(null);
+      else { setAreaId(null); setAreaName(""); }
       setLastDetect({
         city: r.city ?? null,
         zone: r.zone ?? null,
