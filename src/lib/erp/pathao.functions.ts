@@ -255,90 +255,10 @@ function normalizeAddr(s: string) {
     .normalize("NFKC")
     .replace(/[’']/g, "")
     .replace(/&/g, " and ")
-    .replace(/\b(\d+)\s*(ft|feet|foot|fit|fut)\b/g, "$1 feet")
     .replace(/[।,.;:/|()\-_]+/g, " ")
-    .replace(/\b(\d+)\s*(no|number|num)\b/g, "$1")
-    .replace(/\b(no|number|num)\s*(\d+)\b/g, "$2")
     .replace(/\s+/g, " ")
     .trim();
-  return normalized
-    .split(" ")
-    .map((token) => {
-      if (["sodor", "sodar", "sodhor", "sadr"].includes(token)) return "sadar";
-      if (token === "comilla") return "cumilla";
-      if (token === "ctg") return "chattogram";
-      if (["mipur", "mirpoor", "mirpurr"].includes(token)) return "mirpur";
-      if (["uttora", "uttra"].includes(token)) return "uttara";
-      if (["dhanmondhi", "dhanmundi"].includes(token)) return "dhanmondi";
-      if (["mohammadpur", "mohammodpur", "mohammdpur"].includes(token)) return "mohammedpur";
-      if (["bosundhara", "bashundara", "basundhara"].includes(token)) return "bashundhara";
-      if (["chandgaon"].includes(token)) return "chandgaon";
-      if (["ft", "fit", "fut", "foot"].includes(token)) return "feet";
-      return token;
-    })
-    .join(" ");
-}
-
-const GENERIC_LOCATION_TOKENS = new Set([
-  "sadar", "bazar", "bazaar", "market", "road", "rd", "house", "block", "sector",
-  "area", "para", "pur", "city", "thana", "upazila", "district", "ward", "union",
-  "lane", "goli", "gali", "avenue", "ave", "street", "st", "village", "gram",
-  "feet", "foot", "ft", "fit", "fut", "place", "building", "tower", "complex",
-]);
-
-const ROAD_MEASURE_TOKENS = new Set(["feet", "foot", "ft", "fit", "fut"]);
-
-const ADDRESS_LOCALITY_ALIASES: Record<string, string[]> = {
-  // Pathao merchant portal maps this Mirpur address to Pirerbagh; "60 feet"
-  // is only a road descriptor and must not beat the real delivery locality.
-  "cityplace": ["pirerbagh", "pirerbag", "mirpur"],
-  "city place": ["pirerbagh", "pirerbag", "mirpur"],
-  "city palace": ["pirerbagh", "pirerbag", "mirpur"],
-  "60 feet mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
-  "60 feet road mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
-  "pirer bagh": ["pirerbagh"],
-  "pire bagh": ["pirerbagh"],
-  "pirerbag": ["pirerbagh"],
-  "pirebag": ["pirerbagh"],
-  "pirebagh": ["pirerbagh"],
-};
-
-function includesNormalizedPhrase(haystack: string, phrase: string) {
-  const normalized = normalizeAddr(phrase);
-  if (!normalized) return false;
-  if (` ${haystack} `.includes(` ${normalized} `)) return true;
-  // Handles real operator input like "22/20City place" where the house
-  // number and landmark get glued together before OCR/API normalization.
-  return haystack.replace(/\s+/g, "").includes(normalized.replace(/\s+/g, ""));
-}
-
-function expandAddressAliases(haystack: string) {
-  const additions = new Set<string>();
-  for (const [alias, targets] of Object.entries(ADDRESS_LOCALITY_ALIASES)) {
-    if (includesNormalizedPhrase(haystack, alias)) {
-      targets.forEach((target) => additions.add(normalizeAddr(target)));
-    }
-  }
-  return additions.size > 0 ? `${haystack} ${Array.from(additions).join(" ")}` : haystack;
-}
-
-function addressAliasTargetSet(haystack: string) {
-  const targets = new Set<string>();
-  for (const [alias, values] of Object.entries(ADDRESS_LOCALITY_ALIASES)) {
-    if (includesNormalizedPhrase(haystack, alias)) {
-      values.forEach((value) => targets.add(normalizeAddr(value)));
-    }
-  }
-  return targets;
-}
-
-function looseGeoNameMatch(targets: Set<string>, name: string) {
-  const normalized = normalizeAddr(name);
-  const compact = normalized.replace(/\s+/g, "");
-  for (const target of targets) {
-    if (target === normalized || target.replace(/\s+/g, "") === compact) return true;
-  }
-  return false;
+  return normalized;
 }
 
 function readPathaoStringDeep(payload: any, keys: string[]): string {
