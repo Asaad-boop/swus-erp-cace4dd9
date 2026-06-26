@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { customerName, customerPhone, invoiceDisplay, statusAccent, statusBadge, STATUS_GROUPS, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, settlementBadge, statusAccent, statusBadge, STATUS_GROUPS, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { useCustomerHistory, useCourierHistory, type CourierProviderStat } from "@/hooks/erp/use-orders-query";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -207,11 +207,19 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       cell: ({ row }) => {
         const b = statusBadge(row.original.status);
         const accent = statusAccent(row.original.status);
+        const settle = settlementBadge(row.original);
         return (
-          <span className={cn("inline-flex items-center gap-1.5 pl-1.5 pr-2.5 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
-            {b.label}
-          </span>
+          <div className="flex flex-col gap-1 items-start">
+            <span className={cn("inline-flex items-center gap-1.5 pl-1.5 pr-2.5 h-6 rounded-full text-[11px] font-semibold whitespace-nowrap", b.className)}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
+              {b.label}
+            </span>
+            {settle && (
+              <span className={cn("inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-bold tracking-wide uppercase", settle.className)}>
+                {settle.label}
+              </span>
+            )}
+          </div>
         );
       },
     },
