@@ -124,10 +124,23 @@ type PickItem = { id: number; name: string };
 
 function normalizeText(s: string): string {
   return s
+    .normalize("NFKC")
+    .replace(/পটু(?:য়|য়|য়)াখালী|পটু(?:য়|য়|য়)াখালি|পটুয়াখালি/g, " patuakhali ")
+    .replace(/চর\s*পা(?:ড়|ড়|ড়)া|চরপা(?:ড়|ড়|ড়)া/g, " charpara ")
+    .replace(/কুমির\s*মুখ|কুমিরমুখ/g, " kumirmukh ")
+    .replace(/সদর|সাদার/g, " sadar ")
+    .replace(/কুমিল্লা|কুমিল্ল/g, " cumilla ")
+    .replace(/ঢাকা/g, " dhaka ")
+    .replace(/চট্টগ্রাম|চট্রগ্রাম|চিটাগাং/g, " chattogram ")
+    .replace(/বরিশাল/g, " barishal ")
     .toLowerCase()
     .replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .replace(/\bpatuakhali\b|\bpotuakhali\b|\bpatua khali\b|\bpotua khali\b/g, "patuakhali")
+    .replace(/\bchar para\b|\bchor para\b|\bchorpara\b/g, "charpara")
+    .replace(/\bkumir mukh\b/g, "kumirmukh")
+    .replace(/\bsodor\b|\bsador\b|\bsader\b/g, "sadar");
 }
 
 /**
