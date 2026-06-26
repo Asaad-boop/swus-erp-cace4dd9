@@ -170,7 +170,8 @@ export function rankItems(addressRaw: string, items: MatchItem[], topN: number):
 
 export function bestMatch(addressRaw: string, items: MatchItem[]): MatchPick {
   const top = rankItems(addressRaw, items, 1);
-  return top[0] ?? null;
+  if (!top[0]) return null;
+  return { id: top[0].item.id, name: top[0].item.name, score: top[0].score };
 }
 
 /* -------- Hierarchical joint search -------- */
