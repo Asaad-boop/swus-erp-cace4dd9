@@ -511,93 +511,9 @@ function OrderDetailsPage() {
   const detectCacheRef = useRef<Map<string, { detection: Detection | null; suggestions: Hit[] }>>(new Map());
   const lastDetectedAddrRef = useRef<string>("");
 
-  const ADDR_STOPWORDS = useMemo(() => new Set([
-    "road","rd","house","hse","flat","floor","block","sector","lane","gali",
-    "near","beside","opposite","main","village","district","upazila","union","ward",
-    "please","plz","kindly","contact","mobile","phone","number","mr","mrs","md",
-    "bangladesh","bd","dhaka-",
-  ]), []);
-
-  // Common BD city keyword map (en + bn + alias). Lowercased.
-  // Values are matched case-insensitively against the city's English name.
-  const CITY_KEYWORDS: Record<string, string> = useMemo(() => ({
-    "dhaka": "dhaka", "ঢাকা": "dhaka",
-    // Area→city aliases (instant city inference)
-    "mirpur": "dhaka", "dhanmondi": "dhaka", "gulshan": "dhaka", "uttara": "dhaka",
-    "mohammadpur": "dhaka", "banani": "dhaka", "motijheel": "dhaka", "badda": "dhaka",
-    "bashundhara": "dhaka", "tejgaon": "dhaka", "wari": "dhaka", "ramna": "dhaka",
-    "agrabad": "chittagong", "nasirabad": "chittagong", "pahartali": "chittagong",
-    "halishahar": "chittagong", "panchlaish": "chittagong",
-    "chittagong": "chittagong", "chattogram": "chittagong", "ctg": "chittagong", "চট্টগ্রাম": "chittagong",
-    "sylhet": "sylhet", "সিলেট": "sylhet",
-    "rajshahi": "rajshahi", "রাজশাহী": "rajshahi",
-    "rangpur": "rangpur", "রংপুর": "rangpur",
-    "khulna": "khulna", "খুলনা": "khulna",
-    "barisal": "barisal", "barishal": "barisal", "বরিশাল": "barisal",
-    "comilla": "comilla", "cumilla": "comilla", "কুমিল্লা": "comilla",
-    "narayanganj": "narayanganj", "নারায়ণগঞ্জ": "narayanganj",
-    "gazipur": "gazipur", "গাজীপুর": "gazipur",
-    "mymensingh": "mymensingh", "ময়মনসিংহ": "mymensingh",
-  }), []);
-
-  // Generic words alone are not enough to identify a city/area
-  const GENERIC_WORDS = useMemo(() => new Set([
-    "cantonment","cantt","sadar","bazar","bazaar","terminal","station","stand",
-    "chowrasta","mor","more","point","gate","circle",
-  ]), []);
-
-  const normalize = (s: string) =>
-    s.toLowerCase().replace(/[0-9#.,/\-()|:;]/g, " ").replace(/\s+/g, " ").trim();
-
-  const tokenize = (raw: string): string[] => {
-    const tokens = normalize(raw).split(" ")
-      .filter((t) => t.length >= 3 && !ADDR_STOPWORDS.has(t));
-    return Array.from(new Set(tokens));
-  };
-
-  /**
-   * Score a candidate name against the normalized address text + token set.
-   * Returns: 100 exact/full-phrase, 80 area→parent, 50 partial, 0 generic-only.
-   */
-  const scoreCity = (cityName: string, normAddr: string, tokens: Set<string>): number => {
-    const name = cityName.toLowerCase().trim();
-    if (!name) return 0;
-    // Generic word alone — skip
-    if (GENERIC_WORDS.has(name)) return 0;
-    // Keyword map exact match
-    for (const [kw, target] of Object.entries(CITY_KEYWORDS)) {
-      if (target === name && (tokens.has(kw) || normAddr.includes(` ${kw} `) || normAddr.startsWith(`${kw} `) || normAddr.endsWith(` ${kw}`) || normAddr === kw)) {
-        return 100;
-      }
-    }
-    // Exact full-name phrase in address (handles "Dhaka Cantonment" too)
-    const padded = ` ${normAddr} `;
-    if (padded.includes(` ${name} `)) return 100;
-    // Token equality
-    for (const t of tokens) if (t === name) return 100;
-    // Partial: token startsWith / includes
-    for (const t of tokens) {
-      if (t.length >= 4 && (name.startsWith(t) || t.startsWith(name))) return 50;
-    }
-    return 0;
-  };
-
-  const scoreZoneOrArea = (n: string, tokens: Set<string>): number => {
-    const name = n.toLowerCase().trim();
-    if (!name || GENERIC_WORDS.has(name)) return 0;
-    if (tokens.has(name)) return 100;
-    // Multi-word zone like "Mirpur 10" → check first word
-    const first = name.split(/\s+/)[0];
-    if (first && first.length >= 4 && tokens.has(first)) return 80;
-    for (const t of tokens) {
-      if (t.length >= 4 && (name.startsWith(t) || t.startsWith(name))) return 50;
-    }
-    return 0;
-  };
-
   const runDetection = async (address: string, applyResult: boolean) => {
     const trimmed = address.trim();
-    if (trimmed.length < 4) return;
+    if (trimmed.length < 10) return;
     const cached = detectCacheRef.current.get(trimmed);
     if (cached) {
       setCitySuggestions(cached.suggestions);
@@ -643,14 +559,14 @@ function OrderDetailsPage() {
   useEffect(() => {
     const addr = form.address.trim();
     if (addr === lastDetectedAddrRef.current) return;
-    if (addr.length < 4) {
+    if (addr.length < 10) {
       setCitySuggestions([]);
       return;
     }
     const t = setTimeout(() => {
       lastDetectedAddrRef.current = addr;
       void runDetection(addr, true);
-    }, 500);
+    }, 700);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.address]);
@@ -660,7 +576,7 @@ function OrderDetailsPage() {
     if (!formReady) return;
     if (!order?.shipping_address) return;
     const addr = order.shipping_address.trim();
-    if (addr.length < 4) return;
+    if (addr.length < 10) return;
     if (lastDetectedAddrRef.current === addr) return;
     const timer = setTimeout(() => {
       lastDetectedAddrRef.current = addr;
