@@ -248,11 +248,32 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
     if (!hay) return { found: false as const };
 
     const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    const cityMatch = bestMatch(hay, citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })));
-    if (!cityMatch) return { found: false as const };
+    let cityMatch = bestMatch(hay, citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })));
+    // If city not explicit in address, default to Dhaka (most BD ecom orders),
+    // then verify by finding a zone within it. If zone not found there, try
+    // Chattogram as a secondary fallback.
+    const fallbackCities: typeof citiesRaw = [];
+    if (!cityMatch) {
+      for (const nm of ["Dhaka", "Chattogram", "Chittagong"]) {
+        const c = citiesRaw.find((x) => normalizeAddr(x.city_name) === normalizeAddr(nm));
+        if (c) fallbackCities.push(c);
+      }
+      if (!fallbackCities.length) return { found: false as const };
+    }
 
-    const zonesRaw = (await client.zones(cityMatch.id)) as Array<{ zone_id: number; zone_name: string }>;
-    const zoneMatch = bestMatch(hay, zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })));
+    const tryCities = cityMatch
+      ? [{ id: cityMatch.id, name: cityMatch.name }]
+      : fallbackCities.map((c) => ({ id: c.city_id, name: c.city_name }));
+
+    let zoneMatch: { id: number; name: string } | null = null;
+    let chosenCity: { id: number; name: string } | null = cityMatch ?? null;
+    for (const c of tryCities) {
+      const zonesRaw = (await client.zones(c.id)) as Array<{ zone_id: number; zone_name: string }>;
+      const zm = bestMatch(hay, zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })));
+      if (zm) { zoneMatch = zm; chosenCity = c; break; }
+    }
+    if (!chosenCity) return { found: false as const };
+    cityMatch = chosenCity;
     if (!zoneMatch) {
       return {
         found: true as const,
