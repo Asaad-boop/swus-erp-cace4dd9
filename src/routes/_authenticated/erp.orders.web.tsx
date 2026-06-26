@@ -1072,14 +1072,14 @@ function _WebOrdersPageBody() {
                   <TableRow
                     key={r.id}
                     className={cn(
-                      "group/row cursor-pointer hover:bg-muted/30 border-b last:border-0 align-top transition-colors",
-                      isSelected && "bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/40",
-                      flash && "animate-in slide-in-from-top-2 bg-emerald-50 dark:bg-emerald-950/40",
+                      "group/row cursor-pointer hover:bg-muted/40 border-b border-border/40 last:border-0 align-top transition-colors",
+                      isSelected && "bg-primary/[0.04] hover:bg-primary/[0.06] dark:bg-primary/10",
+                      flash && "animate-in slide-in-from-top-2 bg-emerald-50/70 dark:bg-emerald-950/30",
                     )}
                     onClick={() => setOpenId(r.id)}
                   >
                     {/* Select */}
-                    <TableCell className="py-2 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-3 pl-3 w-[36px]" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(r.id)}
@@ -1087,13 +1087,13 @@ function _WebOrdersPageBody() {
                       />
                     </TableCell>
                     {/* Created */}
-                    <TableCell className="py-2">
-                      <div className="flex gap-2">
-                        <div className={cn("w-1 rounded-full self-stretch", accent)} />
-                        <div className="text-xs">
-                          <div className="font-semibold text-foreground">{format(new Date(r.created_at), "dd MMM, yy")}</div>
-                          <div className="text-muted-foreground">{format(new Date(r.created_at), "hh:mm a")}</div>
-                          <div className="text-[10px] text-muted-foreground/80 mt-1">
+                    <TableCell className="py-3">
+                      <div className="flex gap-2.5">
+                        <div className={cn("w-[3px] rounded-full self-stretch opacity-80", accent)} />
+                        <div className="text-xs leading-tight">
+                          <div className="font-semibold text-foreground tracking-tight">{format(new Date(r.created_at), "dd MMM")}</div>
+                          <div className="text-[11px] text-muted-foreground tabular-nums">{format(new Date(r.created_at), "hh:mm a")}</div>
+                          <div className="text-[10px] text-muted-foreground/70 mt-1">
                             {formatDistanceToNowStrict(new Date(r.created_at), { addSuffix: true })}
                           </div>
                         </div>
@@ -1101,17 +1101,17 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Customer */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       <div className="max-w-[220px]">
-                        <div className="min-w-0 text-xs space-y-0.5">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="font-semibold text-foreground truncate" title={name}>{name}</span>
-                            {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0" />}
+                        <div className="min-w-0 text-xs space-y-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[13px] font-semibold text-foreground truncate tracking-tight" title={name}>{name}</span>
+                            {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity" />}
                             <CustomerBadges total={b.total} confirmRate={confirmRate} delivered={b.delivered} />
                           </div>
                           {phone && (
                             <div className="flex items-center gap-1 min-w-0">
-                              <span className="text-muted-foreground truncate font-mono">{phone}</span>
+                              <span className="text-[11.5px] text-muted-foreground truncate font-mono tabular-nums">{phone}</span>
                               <PhoneActions phone={phone} className="shrink-0" />
                               <CallLogPopover
                                 orderId={r.id}
@@ -1123,12 +1123,12 @@ function _WebOrdersPageBody() {
                           {address && (
                             <div className="flex items-center gap-1 min-w-0">
                               <span
-                                className="text-xs text-muted-foreground truncate leading-tight flex-1 max-w-[180px]"
+                                className="text-[11px] text-muted-foreground/80 truncate leading-tight flex-1 max-w-[180px]"
                                 title={address}
                               >
                                 {address}
                               </span>
-                              <CopyIconBtn value={address} label="Address" className="shrink-0" />
+                              <CopyIconBtn value={address} label="Address" className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity" />
                             </div>
                           )}
                         </div>
@@ -1136,17 +1136,17 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Note */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       {note ? (
-                        <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-card border border-amber-200/70 dark:border-amber-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_-1px_0_rgba(0,0,0,0.02)] hover:border-amber-300 dark:hover:border-amber-800 hover:shadow-md transition-all">
-                          <div className="mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 shadow-inner">
-                            <MessageSquare className="h-3 w-3 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+                        <div className="group/note w-[210px] flex items-start gap-2 p-2 rounded-lg bg-amber-50/40 dark:bg-amber-950/15 border border-amber-200/50 dark:border-amber-900/30 hover:border-amber-300/70 dark:hover:border-amber-800/60 transition-colors">
+                          <div className="mt-0.5 shrink-0 flex items-center justify-center w-4 h-4 rounded-md bg-amber-100/70 dark:bg-amber-900/40">
+                            <MessageSquare className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
                           </div>
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-400/70 leading-none">
-                              Customer Note
+                            <span className="text-[8.5px] font-semibold uppercase tracking-[0.08em] text-amber-700/60 dark:text-amber-400/60 leading-none">
+                              Note
                             </span>
-                            <p className="text-xs leading-snug text-foreground font-bold line-clamp-3">
+                            <p className="text-[11.5px] leading-snug text-foreground/90 font-medium line-clamp-3">
                               {note}
                             </p>
                           </div>
@@ -1157,16 +1157,16 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Order Items */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       <div className="flex items-start gap-2">
-                        <div className="flex -space-x-2">
+                        <div className="flex -space-x-1.5">
                           {items.slice(0, 3).map((it, i) => (
                             <Popover key={i}>
                               <PopoverTrigger asChild>
                                 <button
                                   type="button"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="h-10 w-10 rounded-md border-2 border-card bg-muted overflow-hidden shrink-0 hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                  className="h-10 w-10 rounded-lg ring-2 ring-card bg-muted overflow-hidden shrink-0 hover:z-10 hover:scale-110 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-primary/50"
                                   title={it.name}
                                 >
                                   <ProductThumb src={it.image} alt={it.name} />
@@ -1209,7 +1209,7 @@ function _WebOrdersPageBody() {
                                 <button
                                   type="button"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="h-10 w-10 rounded-md border-2 border-card bg-muted hover:bg-muted/70 flex items-center justify-center text-[10px] font-semibold text-muted-foreground hover:z-10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                  className="h-10 w-10 rounded-lg ring-2 ring-card bg-muted hover:bg-muted/70 flex items-center justify-center text-[10px] font-semibold text-muted-foreground hover:z-10 hover:scale-110 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 >
                                   +{items.length - 3}
                                 </button>
@@ -1223,10 +1223,10 @@ function _WebOrdersPageBody() {
                             <button
                               type="button"
                               onClick={(e) => e.stopPropagation()}
-                              className="text-xs space-y-0.5 min-w-0 text-left rounded-md px-1.5 py-1 hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors"
+                              className="text-xs space-y-0.5 min-w-0 text-left rounded-md px-2 py-1 hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors"
                             >
-                              <div className="font-semibold text-foreground">৳ {Number(r.total).toLocaleString()}</div>
-                              <div className="text-muted-foreground">
+                              <div className="text-[13px] font-semibold text-foreground tabular-nums tracking-tight">৳{Number(r.total).toLocaleString()}</div>
+                              <div className="text-[11px] text-muted-foreground">
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
                               <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
@@ -1238,7 +1238,7 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Success Rate */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       <SuccessBlock
                         total={courier.pathao.total + courier.steadfast.total || b.total}
                         success={courier.pathao.success + courier.steadfast.success || b.confirmed}
@@ -1246,20 +1246,20 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Tags */}
-                    <TableCell className="py-2 w-[90px]">
+                    <TableCell className="py-3 w-[90px]">
                       <AutoTagChips autoTags={autoTags} manualTags={r.tags} max={3} compact />
                     </TableCell>
 
                     {/* Site */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       <div className="flex flex-col gap-1 items-start">
                         {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
-                          <span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-[11px] font-semibold ring-1 ring-primary/30">
+                          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset ring-primary/20">
                             {isAllBrands ? brandNameById.get(r.brand_id ?? "") : activeBrand?.name}
                           </span>
                         )}
                         {siteLabel ? (
-                          <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                          <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground truncate max-w-[140px]">
                             {siteLabel}
                           </span>
                         ) : (
@@ -1269,14 +1269,14 @@ function _WebOrdersPageBody() {
                     </TableCell>
 
                     {/* Source */}
-                    <TableCell className="py-2">
+                    <TableCell className="py-3">
                       <SourcePill attribution={r.attribution} siteLabel={siteLabel} />
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="py-2 text-right">
+                    <TableCell className="py-3 text-right">
                       <div onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 justify-end">
-                        <Button asChild size="sm" variant="default" className="h-8">
+                        <Button asChild size="sm" variant="ghost" className="h-8 px-3 text-xs font-semibold opacity-60 group-hover/row:opacity-100 group-hover/row:bg-foreground group-hover/row:text-background transition-all">
                           <Link
                             to="/erp/orders/$orderId"
                             params={{ orderId: r.id }}
