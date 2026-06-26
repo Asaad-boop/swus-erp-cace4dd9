@@ -368,8 +368,8 @@ const ADDRESS_LOCALITY_ALIASES: Record<string, string[]> = {
   "cityplace": ["pirerbagh", "pirerbag", "mirpur"],
   "city place": ["pirerbagh", "pirerbag", "mirpur"],
   "city palace": ["pirerbagh", "pirerbag", "mirpur"],
-  "60 feet mirpur 2": ["pirerbagh", "pirerbag", "mirpur 2"],
-  "60 feet road mirpur 2": ["pirerbagh", "pirerbag", "mirpur 2"],
+  "60 feet mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
+  "60 feet road mirpur 2": ["pirerbagh", "pirerbag", "mirpur"],
   "pirer bagh": ["pirerbagh"],
   "pire bagh": ["pirerbagh"],
   "pirerbag": ["pirerbagh"],
@@ -394,6 +394,16 @@ function expandAddressAliases(haystack: string) {
     }
   }
   return additions.size > 0 ? `${haystack} ${Array.from(additions).join(" ")}` : haystack;
+}
+
+function addressAliasTargetSet(haystack: string) {
+  const targets = new Set<string>();
+  for (const [alias, values] of Object.entries(ADDRESS_LOCALITY_ALIASES)) {
+    if (includesNormalizedPhrase(haystack, alias)) {
+      values.forEach((value) => targets.add(normalizeAddr(value)));
+    }
+  }
+  return targets;
 }
 
 function isRoadMeasureCandidate(normalizedName: string) {
@@ -516,6 +526,7 @@ async function resolveByAddress(client: any, address: string) {
   const baseHay = normalizeAddr(address);
   if (!baseHay) return null;
   const hay = expandAddressAliases(baseHay);
+  const aliasTargets = addressAliasTargetSet(baseHay);
 
   const citiesRaw = normalizePathaoCities(await client.cities());
   const cityItems = citiesRaw.map((c) => ({ id: c.id, name: c.name }));
@@ -584,6 +595,8 @@ async function resolveByAddress(client: any, address: string) {
         + (area?.score ?? 0)
         + tokenOverlapScore(hayTokens, tokenSet(z.name), cityTokens)
         + (area ? tokenOverlapScore(hayTokens, tokenSet(area.name), cityTokens) : 0)
+        + (aliasTargets.has(normalizeAddr(z.name)) ? 90 : 0)
+        + (area && aliasTargets.has(normalizeAddr(area.name)) ? 60 : 0)
         + (cityHasStrongMatch && strongCity && c.id === strongCity.id ? 40 : 0);
       if (!cityBestRoute || routeScore > cityBestRoute.score) {
         cityBestRoute = {
