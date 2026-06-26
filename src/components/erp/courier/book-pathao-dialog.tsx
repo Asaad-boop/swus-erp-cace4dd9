@@ -36,6 +36,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
   const [desc, setDesc] = useState("");
   const [instruction, setInstruction] = useState("");
   const [estimated, setEstimated] = useState<number | null>(null);
+  const [locationManuallySelected, setLocationManuallySelected] = useState(false);
 
   const { data: cities = [], isLoading: cityLoading, error: cityError } = usePathaoCities(brandId);
   const { data: zones = [] } = usePathaoZones(cityId, brandId);
@@ -100,9 +101,9 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
       return bookFn({
         data: {
           orderId,
-          recipient_city: cityId ?? undefined,
-          recipient_zone: zoneId ?? undefined,
-          recipient_area: cityId && zoneId ? (areaId ?? undefined) : undefined,
+          recipient_city: locationManuallySelected ? (cityId ?? undefined) : undefined,
+          recipient_zone: locationManuallySelected ? (zoneId ?? undefined) : undefined,
+          recipient_area: locationManuallySelected && cityId && zoneId ? (areaId ?? undefined) : undefined,
           item_weight: Number(weight),
           item_quantity: Number(qty),
           amount_to_collect: Number(amount),
@@ -159,7 +160,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
             )}
             <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
-              City/Zone blank রাখলে Pathao official auto-address mapping দিয়ে address থেকে delivery area নেবে.
+              Manual change না করলে booking-এ City/Zone পাঠানো হবে না — Pathao official auto-address mapping address থেকে delivery area নেবে.
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -167,7 +168,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
                 <Label className="text-xs">City</Label>
                 <Select
                   value={cityId ? String(cityId) : ""}
-                  onValueChange={(v) => { setCityId(Number(v)); setZoneId(null); setAreaId(null); }}
+                  onValueChange={(v) => { setLocationManuallySelected(true); setCityId(Number(v)); setZoneId(null); setAreaId(null); }}
                   disabled={cityLoading}
                 >
                   <SelectTrigger><SelectValue placeholder={cityLoading ? "Loading…" : "Select"} /></SelectTrigger>
@@ -178,7 +179,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
               <div>
                 <Label className="text-xs">Zone</Label>
-                <Select value={zoneId ? String(zoneId) : ""} onValueChange={(v) => { setZoneId(Number(v)); setAreaId(null); }} disabled={!cityId}>
+                <Select value={zoneId ? String(zoneId) : ""} onValueChange={(v) => { setLocationManuallySelected(true); setZoneId(Number(v)); setAreaId(null); }} disabled={!cityId}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {zones.map((z) => <SelectItem key={z.zone_id} value={String(z.zone_id)}>{z.zone_name}</SelectItem>)}
@@ -187,7 +188,7 @@ export function BookPathaoDialog({ open, onOpenChange, orderId, defaultAmount, b
               </div>
               <div>
                 <Label className="text-xs">Area (optional)</Label>
-                <Select value={areaId ? String(areaId) : ""} onValueChange={(v) => setAreaId(Number(v))} disabled={!zoneId}>
+                <Select value={areaId ? String(areaId) : ""} onValueChange={(v) => { setLocationManuallySelected(true); setAreaId(Number(v)); }} disabled={!zoneId}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {areas.map((a) => <SelectItem key={a.area_id} value={String(a.area_id)}>{a.area_name}</SelectItem>)}
