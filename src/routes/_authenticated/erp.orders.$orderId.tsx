@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useOrderDetail } from "@/hooks/erp/use-orders-query";
-import { customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, settlementBadge, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
@@ -1030,6 +1030,12 @@ function OrderDetailsPage() {
                 <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
               </CopyChip>
               <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] hidden sm:inline-flex", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
+              {(() => {
+                const s = settlementBadge(order);
+                return s ? (
+                  <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-bold uppercase tracking-wide hidden sm:inline-flex", s.className)}>{s.label}</Badge>
+                ) : null;
+              })()}
             </div>
             {neighbors.total > 0 && (
               <div className="flex items-center gap-1 ml-2">
@@ -1463,7 +1469,15 @@ function OrderDetailsPage() {
             </header>
             <div className="p-4 space-y-2 text-xs">
               <Row label="Date" value={format(new Date(order.created_at), "dd MMM yyyy, hh:mm a")} />
-              <Row label="Status" value={<Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>} />
+              <Row label="Status" value={
+                <div className="flex items-center gap-1.5">
+                  <Badge className={statusBadge(order.status).className}>{statusBadge(order.status).label}</Badge>
+                  {(() => {
+                    const s = settlementBadge(order);
+                    return s ? <Badge variant="outline" className={cn("font-bold uppercase tracking-wide", s.className)}>{s.label}</Badge> : null;
+                  })()}
+                </div>
+              } />
               <Row label="Payment" value={order.payment_method ?? "—"} />
               <Row label="Source" value={order.source ?? "—"} />
               <div className="h-px bg-border my-2" />
