@@ -417,6 +417,68 @@ function SourcePill({ attribution, siteLabel }: { attribution: { utm_source: str
   );
 }
 
+type SiteIdentity = {
+  key: "toyora" | "hobbyshop" | "main" | "other";
+  label: string;
+  initial: string;
+  dotClass: string;
+  pillClass: string;
+};
+
+function resolveSite(raw: string | null | undefined): SiteIdentity | null {
+  if (!raw) return null;
+  const s = raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+  if (!s) return null;
+  if (s.includes("toyora")) {
+    return {
+      key: "toyora", label: "Toyora", initial: "T",
+      dotClass: "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-[0_2px_6px_-2px_rgba(244,63,94,0.6)]",
+      pillClass: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-orange-900/60",
+    };
+  }
+  if (s.includes("hobby")) {
+    return {
+      key: "hobbyshop", label: "HobbyShop", initial: "H",
+      dotClass: "bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-[0_2px_6px_-2px_rgba(79,70,229,0.6)]",
+      pillClass: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900/60",
+    };
+  }
+  if (s === "main" || s.includes("swus")) {
+    return {
+      key: "main", label: "Main", initial: "M",
+      dotClass: "bg-gradient-to-br from-zinc-700 to-zinc-900 text-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.5)]",
+      pillClass: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-900/60 dark:text-zinc-300 dark:ring-zinc-800",
+    };
+  }
+  return {
+    key: "other", label: s.length > 18 ? s.slice(0, 18) + "…" : s, initial: s[0]?.toUpperCase() ?? "·",
+    dotClass: "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white",
+    pillClass: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900/60",
+  };
+}
+
+function BrandChip({ name }: { name: string }) {
+  const n = name.toLowerCase();
+  let cls = "bg-gradient-to-r from-primary/10 to-primary/5 text-primary ring-primary/20";
+  let initial = name[0]?.toUpperCase() ?? "·";
+  let dot = "bg-primary text-primary-foreground";
+  if (n.includes("toyora")) {
+    cls = "bg-gradient-to-r from-orange-50 to-rose-50 text-rose-700 ring-rose-200 dark:from-orange-950/30 dark:to-rose-950/30 dark:text-rose-300 dark:ring-rose-900/50";
+    dot = "bg-gradient-to-br from-orange-500 to-rose-500 text-white";
+    initial = "T";
+  } else if (n.includes("hobby")) {
+    cls = "bg-gradient-to-r from-sky-50 to-indigo-50 text-indigo-700 ring-indigo-200 dark:from-sky-950/30 dark:to-indigo-950/30 dark:text-indigo-300 dark:ring-indigo-900/50";
+    dot = "bg-gradient-to-br from-sky-500 to-indigo-600 text-white";
+    initial = "H";
+  }
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset", cls)}>
+      <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", dot)}>{initial}</span>
+      <span className="tracking-tight">{name}</span>
+    </span>
+  );
+}
+
 function _WebOrdersPageBody() {
   const { activeBrand, brandIds, isAllBrands, brands } = useBrand();
   const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
@@ -1253,18 +1315,30 @@ function _WebOrdersPageBody() {
                     {/* Site */}
                     <TableCell className="py-3">
                       <div className="flex flex-col gap-1 items-start">
-                        {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
-                          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset ring-primary/20">
-                            {isAllBrands ? brandNameById.get(r.brand_id ?? "") : activeBrand?.name}
-                          </span>
-                        )}
-                        {siteLabel ? (
-                          <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground truncate max-w-[140px]">
-                            {siteLabel}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/60">—</span>
-                        )}
+                        {(() => {
+                          const brandName = isAllBrands
+                            ? (r.brand_id ? brandNameById.get(r.brand_id) : null)
+                            : activeBrand?.name;
+                          return brandName ? <BrandChip name={brandName} /> : null;
+                        })()}
+                        {(() => {
+                          const site = resolveSite(r.source_website);
+                          if (!site) return <span className="text-xs text-muted-foreground/60">—</span>;
+                          return (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset max-w-[150px]",
+                                site.pillClass,
+                              )}
+                              title={r.source_website ?? site.label}
+                            >
+                              <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", site.dotClass)}>
+                                {site.initial}
+                              </span>
+                              <span className="truncate tracking-tight">{site.label}</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
 
