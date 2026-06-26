@@ -1315,18 +1315,30 @@ function _WebOrdersPageBody() {
                     {/* Site */}
                     <TableCell className="py-3">
                       <div className="flex flex-col gap-1 items-start">
-                        {(isAllBrands ? r.brand_id && brandNameById.get(r.brand_id) : activeBrand?.name) && (
-                          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset ring-primary/20">
-                            {isAllBrands ? brandNameById.get(r.brand_id ?? "") : activeBrand?.name}
-                          </span>
-                        )}
-                        {siteLabel ? (
-                          <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground truncate max-w-[140px]">
-                            {siteLabel}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/60">—</span>
-                        )}
+                        {(() => {
+                          const brandName = isAllBrands
+                            ? (r.brand_id ? brandNameById.get(r.brand_id) : null)
+                            : activeBrand?.name;
+                          return brandName ? <BrandChip name={brandName} /> : null;
+                        })()}
+                        {(() => {
+                          const site = resolveSite(r.source_website);
+                          if (!site) return <span className="text-xs text-muted-foreground/60">—</span>;
+                          return (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full text-[10.5px] font-semibold ring-1 ring-inset max-w-[150px]",
+                                site.pillClass,
+                              )}
+                              title={r.source_website ?? site.label}
+                            >
+                              <span className={cn("inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold", site.dotClass)}>
+                                {site.initial}
+                              </span>
+                              <span className="truncate tracking-tight">{site.label}</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
 
