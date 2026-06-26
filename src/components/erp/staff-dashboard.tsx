@@ -67,7 +67,7 @@ export function StaffDashboard() {
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
-      const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"];
+      const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"] as const;
       const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent] = await Promise.all([
         scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .gte("created_at", todayStart.toISOString()),
