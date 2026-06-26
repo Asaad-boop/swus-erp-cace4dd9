@@ -124,7 +124,10 @@ const groups: Group[] = [
         key: "crm",
         label: "CRM",
         icon: Heart,
-        items: [{ to: "/erp/crm", label: "Customers", icon: Users }],
+        items: [
+          { to: "/erp/crm", label: "Customers", icon: Users },
+          { to: "/erp/users", label: "Registered Accounts", icon: Users },
+        ],
       },
       {
         key: "analytics",
@@ -149,7 +152,6 @@ const groups: Group[] = [
         items: [
           { to: "/erp/hr", label: "HR · People", icon: BriefcaseBusiness },
           { to: "/erp/hr/staff", label: "Staff Logins (advanced)", icon: UserCog },
-          { to: "/erp/users", label: "Customer Accounts", icon: Users },
           { to: "/erp/settings", label: "Settings", icon: Settings },
           { to: "/erp/diagnostics", label: "Diagnostics", icon: Stethoscope },
         ],
