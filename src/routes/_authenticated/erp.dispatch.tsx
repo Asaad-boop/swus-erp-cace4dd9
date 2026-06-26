@@ -37,6 +37,7 @@ type Stage = "pending" | "packed" | "ready" | "shipped";
 type OrderRow = {
   id: string;
   invoice_no: string | null;
+  brand_id: string | null;
   status: string;
   total: number | null;
   payment_method: string | null;
@@ -65,7 +66,7 @@ type ScanLogEntry = {
   at: number;
 };
 
-const PENDING_STATUSES = ["confirmed", "processing", "packaging", "ready_to_pack"] as const;
+const PENDING_STATUSES = ["new", "confirmed", "processing", "packaging", "ready_to_pack"] as const;
 
 function bdt(n: number) {
   return `৳${n.toLocaleString("en-BD", { maximumFractionDigits: 0 })}`;
@@ -115,7 +116,7 @@ type PrintJob = {
 };
 
 function DispatchPage() {
-  const { brandIds } = useBrand();
+  const { brandIds, brands } = useBrand();
   const qc = useQueryClient();
   const bookPathao = useServerFn(pathaoBookOrderAutoFn);
 
@@ -159,7 +160,7 @@ function DispatchPage() {
       const todayIso = today.toISOString();
 
       const select =
-        "id, invoice_no, status, total, payment_method, courier_name, shipping_name, guest_name, shipping_phone, guest_phone, shipping_thana, shipping_city, tracking_number, updated_at, created_at, packaged_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
+        "id, invoice_no, brand_id, status, total, payment_method, courier_name, shipping_name, guest_name, shipping_phone, guest_phone, shipping_thana, shipping_city, tracking_number, updated_at, created_at, packaged_at, items:order_items(name, variant_label, quantity, sku:product_id, price, image)";
 
       const pending = await applyBrandScope(
         supabase.from("orders").select(select).in("status", PENDING_STATUSES as unknown as never[]),
@@ -378,6 +379,21 @@ function DispatchPage() {
   );
   const pendingOlder = pending.length - pendingToday.length;
 
+  const pendingByBrand = useMemo(() => {
+    const m = new Map<string, { name: string; count: number; value: number }>();
+    for (const o of pending) {
+      const id = o.brand_id ?? "—";
+      const name = brands.find((b: any) => b.id === id)?.name ?? "Unknown";
+      const prev = m.get(id) ?? { name, count: 0, value: 0 };
+      prev.count += 1;
+      prev.value += o.total ?? 0;
+      m.set(id, prev);
+    }
+    return Array.from(m.entries())
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.count - a.count);
+  }, [pending, brands]);
+
   const allRows = useMemo(() => [...pending, ...packed, ...ready], [pending, packed, ready]);
   const selectedRows = useMemo(() => allRows.filter((o) => selected.has(o.id)), [allRows, selected]);
 
@@ -571,6 +587,7 @@ function DispatchPage() {
           value={pending.length}
           sub={`${bdt(sum(pending))}${pendingOlder > 0 ? ` · ${pendingOlder} older` : ""}`}
           dot="bg-amber-500"
+          breakdown={pendingByBrand}
         />
         <KpiCard
           icon={<PackageCheck className="h-4 w-4" />}
@@ -781,13 +798,14 @@ function DispatchPage() {
 }
 
 function KpiCard({
-  icon, label, value, sub, dot,
+  icon, label, value, sub, dot, breakdown,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number | string;
   sub?: string;
   dot?: string;
+  breakdown?: { id: string; name: string; count: number }[];
 }) {
   return (
     <Card className="p-3.5 border bg-card hover:border-foreground/30 transition-colors">
@@ -798,6 +816,21 @@ function KpiCard({
       </div>
       <div className="text-[28px] leading-none font-bold mt-2 tracking-tight tabular-nums">{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground mt-1.5 truncate">{sub}</div>}
+      {breakdown && breakdown.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {breakdown.map((b) => (
+            <span
+              key={b.id}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px]"
+              title={`${b.name} · ${b.count}`}
+            >
+              <span className="h-1 w-1 rounded-full bg-foreground/50" />
+              <span className="font-medium text-foreground truncate max-w-[80px]">{b.name}</span>
+              <span className="tabular-nums text-muted-foreground">{b.count}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
