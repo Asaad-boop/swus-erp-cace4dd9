@@ -8433,6 +8433,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      map_courier_status_to_order: {
+        Args: { _raw: string }
+        Returns: Database["public"]["Enums"]["order_status"]
+      }
       mark_abandoned_cart_converted: {
         Args: { _id: string; _order_id: string }
         Returns: undefined
