@@ -199,7 +199,9 @@ async function aiPickFromList(opts: {
       ? `Pathao zone (delivery sub-area inside ${opts.parentLabel ?? "the selected city"})`
       : `Pathao area (specific neighbourhood inside ${opts.parentLabel ?? "the selected zone"})`;
 
-  const list = opts.items.map((i) => `${i.id}\t${i.name}`).join("\n");
+  // Shortlist large lists before sending to the AI – faster + more accurate.
+  const shortlist = shortlistByOverlap(opts.address, opts.items, 60);
+  const list = shortlist.map((i) => `${i.id}\t${i.name}`).join("\n");
 
   const system =
     "You are an expert Bangladeshi address parser for Pathao courier. " +
@@ -219,7 +221,7 @@ async function aiPickFromList(opts: {
     : "https://ai.gateway.lovable.dev/v1/chat/completions";
   const modelChain = useGemini
     ? ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
-    : ["google/gemini-3.1-flash-lite-preview"];
+    : ["google/gemini-3-flash-preview", "google/gemini-3.1-flash-lite"];
   let res: Response | null = null;
   let lastErrTxt = "";
   for (const model of modelChain) {
