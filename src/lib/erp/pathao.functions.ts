@@ -117,288 +117,44 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
   });
 
 /* ---------------------------------------------------------------------- */
-/*  AI-powered address → Pathao city/zone/area detection                  */
+/*  Pathao-only address detection — no AI, no heuristics                  */
 /* ---------------------------------------------------------------------- */
+//
+// City / Zone / Area resolution comes entirely from Pathao's official
+// customer-info API (lookup by phone) — the same call the Pathao
+// merchant portal makes when typing a phone in "New Delivery".
 
-type PickItem = { id: number; name: string };
-
-function normalizeText(s: string): string {
-  return s
-    .normalize("NFKC")
-    .replace(/পটু(?:য়|য়|য়)াখালী|পটু(?:য়|য়|য়)াখালি|পটুয়াখালি/g, " patuakhali ")
-    .replace(/চর\s*পা(?:ড়|ড়|ড়)া|চরপা(?:ড়|ড়|ড়)া/g, " charpara ")
-    .replace(/কুমির\s*মুখ|কুমিরমুখ/g, " kumirmukh ")
-    .replace(/সদর|সাদার/g, " sadar ")
-    .replace(/কুমিল্লা|কুমিল্ল/g, " cumilla ")
-    .replace(/ঢাকা/g, " dhaka ")
-    .replace(/চট্টগ্রাম|চট্রগ্রাম|চিটাগাং/g, " chattogram ")
-    .replace(/বরিশাল/g, " barishal ")
-    .toLowerCase()
-    .replace(/[।,.\-_/\\()[\]{}'"`!?:;]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\bpatuakhali\b|\bpotuakhali\b|\bpatua khali\b|\bpotua khali\b/g, "patuakhali")
-    .replace(/\bchar para\b|\bchor para\b|\bchorpara\b/g, "charpara")
-    .replace(/\bkumir mukh\b/g, "kumirmukh")
-    .replace(/\bsodor\b|\bsador\b|\bsader\b/g, "sadar");
-}
-
-/**
- * Fast local fuzzy match. Returns a high-confidence pick when the address
- * clearly contains an item name (substring / word match). Avoids a network
- * round-trip to the AI gateway in the common case.
- */
-function localPick(address: string, items: PickItem[]): { id: number; name: string } | null {
-  const addr = " " + normalizeText(address) + " ";
-  let best: { id: number; name: string; score: number } | null = null;
-  for (const it of items) {
-    const name = normalizeText(it.name);
-    if (!name || name.length < 2) continue;
-    const padded = " " + name + " ";
-    let score = 0;
-    if (addr.includes(padded)) score = name.length * 3; // whole-word match
-    else if (addr.includes(name)) score = name.length * 2; // substring
-    if (score > 0 && (!best || score > best.score)) {
-      best = { id: it.id, name: it.name, score };
-    }
+async function resolveByPhone(client: any, phone: string) {
+  const p = (phone || "").replace(/\D/g, "").slice(-11);
+  if (p.length < 11) return null;
+  const info: any = await client.lookupCustomer(p);
+  const d = info?.data ?? info ?? {};
+  const cityId = Number(d.city_id || d.recipient_city || 0);
+  const zoneId = Number(d.zone_id || d.recipient_zone || 0);
+  const areaId = Number(d.area_id || d.recipient_area || 0);
+  if (!cityId || !zoneId) return null;
+  const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
+  const cityName = citiesRaw.find((c) => c.city_id === cityId)?.city_name ?? d.city_name ?? "";
+  const zonesRaw = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+  const zoneName = zonesRaw.find((z) => z.zone_id === zoneId)?.zone_name ?? d.zone_name ?? "";
+  let area: { id: number; name: string } | null = null;
+  if (areaId) {
+    try {
+      const areasRaw = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+      const an = areasRaw.find((a) => a.area_id === areaId)?.area_name ?? d.area_name ?? "";
+      area = { id: areaId, name: an };
+    } catch { /* ignore */ }
   }
-  // Require a reasonably specific match (avoid 2-char accidental hits)
-  return best && best.score >= 6 ? { id: best.id, name: best.name } : null;
-}
-
-function pickByCommonAliases(address: string, items: PickItem[], aliases: Record<string, string[]>) {
-  const addr = " " + normalizeText(address) + " ";
-  for (const [canonical, terms] of Object.entries(aliases)) {
-    if (!terms.some((term) => addr.includes(` ${normalizeText(term)} `) || addr.includes(normalizeText(term)))) continue;
-    const found = items.find((item) => normalizeText(item.name) === normalizeText(canonical));
-    if (found) return { id: found.id, name: found.name };
-  }
-  return null;
-}
-
-/**
- * Score every item by token-overlap with the address and return the top-N.
- * Cuts huge zone/area lists down before sending to the AI – faster + more accurate.
- */
-function shortlistByOverlap(address: string, items: PickItem[], topN: number): PickItem[] {
-  if (items.length <= topN) return items;
-  const addr = normalizeText(address);
-  const addrTokens = new Set(addr.split(" ").filter((t) => t.length >= 2));
-  const scored = items.map((it) => {
-    const name = normalizeText(it.name);
-    let score = 0;
-    if (name) {
-      if (addr.includes(name)) score += name.length * 4;
-      for (const tok of name.split(" ")) {
-        if (tok.length < 2) continue;
-        if (addrTokens.has(tok)) score += tok.length * 2;
-        else if (addr.includes(tok)) score += tok.length;
-      }
-    }
-    return { it, score };
-  });
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, topN).map((s) => s.it);
-  // If nothing scored, fall back to the first N original entries
-  return top.length > 0 ? top : items.slice(0, topN);
-}
-
-async function aiPickFromList(opts: {
-  address: string;
-  stage: "city" | "zone" | "area";
-  parentLabel?: string;
-  items: PickItem[];
-}): Promise<{ id: number | null; name: string | null; confidence: number }> {
-  // 1) Try ultra-fast local match first
-  const local =
-    localPick(opts.address, opts.items) ??
-    (opts.stage === "city"
-      ? pickByCommonAliases(opts.address, opts.items, {
-          Dhaka: ["dhaka", "ঢাকা", "dacca"],
-          Chattogram: ["chattogram", "chittagong", "ctg", "চট্টগ্রাম"],
-          Cumilla: ["cumilla", "comilla", "কুমিল্লা"],
-          Gazipur: ["gazipur", "গাজীপুর"],
-          Narayanganj: ["narayanganj", "নারায়ণগঞ্জ", "নারায়ণগঞ্জ"],
-          Sylhet: ["sylhet", "সিলেট"],
-          Rajshahi: ["rajshahi", "রাজশাহী"],
-          Khulna: ["khulna", "খুলনা"],
-          Barishal: ["barishal", "barisal", "বরিশাল"],
-          Rangpur: ["rangpur", "রংপুর"],
-          Mymensingh: ["mymensingh", "ময়মনসিংহ", "ময়মনসিংহ"],
-        })
-      : null);
-  if (local) return { id: local.id, name: local.name, confidence: 0.95 };
-
-  const apiKey = process.env.GEMINI_API_KEY || process.env.LOVABLE_API_KEY;
-  if (!apiKey) return { id: null, name: null, confidence: 0 };
-  const useGemini = !!process.env.GEMINI_API_KEY;
-
-  const stageLabel = opts.stage === "city"
-    ? "Pathao city/district"
-    : opts.stage === "zone"
-      ? `Pathao zone (delivery sub-area inside ${opts.parentLabel ?? "the selected city"})`
-      : `Pathao area (specific neighbourhood inside ${opts.parentLabel ?? "the selected zone"})`;
-
-  // Shortlist large lists before sending to the AI – faster + more accurate.
-  const shortlist = shortlistByOverlap(opts.address, opts.items, 60);
-  const list = shortlist.map((i) => `${i.id}\t${i.name}`).join("\n");
-
-  const system =
-    "You are an expert Bangladeshi address parser for Pathao courier. " +
-    "Given a customer-written shipping address (often mixed Bangla/English, with informal spellings), " +
-    "select the SINGLE best matching entry from a provided list. " +
-    "Always prefer an exact or near-exact name match. If the address mentions a well-known landmark, " +
-    "infer the correct administrative location. Never invent an id that is not in the list. " +
-    'Respond ONLY as JSON: {"id": <number or null>, "name": <string or null>, "confidence": <0..1>}. ' +
-    "If nothing in the list reasonably matches, return id=null.";
-
-  const user =
-    `Customer address:\n"""${opts.address}"""\n\n` +
-    `Pick the best ${stageLabel} from this list (format: <id>\\t<name>):\n${list}`;
-
-  const url = useGemini
-    ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-    : "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const modelChain = useGemini
-    ? ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
-    : ["google/gemini-3-flash-preview", "google/gemini-3.1-flash-lite"];
-  let res: Response | null = null;
-  let lastErrTxt = "";
-  for (const model of modelChain) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0,
-        }),
-      });
-      if (res.ok || res.status === 429 || res.status === 402) break;
-      lastErrTxt = await res.text();
-      if (res.status !== 503 && res.status !== 500 && res.status !== 502) break;
-      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-    }
-    if (res && (res.ok || res.status === 429 || res.status === 402)) break;
-  }
-  if (!res) throw new Error("AI request failed");
-
-  if (res.status === 429 || res.status === 402) return { id: null, name: null, confidence: 0 };
-  if (!res.ok) {
-    return { id: null, name: null, confidence: 0 };
-  }
-
-  const json = await res.json();
-  const content: string = json?.choices?.[0]?.message?.content ?? "{}";
-  let parsed: { id?: number | null; name?: string | null; confidence?: number } = {};
-  try { parsed = JSON.parse(content); } catch { parsed = {}; }
-
-  const id = typeof parsed.id === "number" ? parsed.id : null;
-  // Verify the id actually exists in our list (no hallucinations)
-  const match = id != null ? opts.items.find((i) => i.id === id) ?? null : null;
   return {
-    id: match?.id ?? null,
-    name: match?.name ?? null,
-    confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
+    city: { id: cityId, name: cityName },
+    zone: { id: zoneId, name: zoneName },
+    area,
+    recipient_name: (d.name || d.recipient_name || "") as string,
+    recipient_address: (d.address || d.recipient_address || "") as string,
+    success_ratio: typeof d.success_ratio === "number" ? d.success_ratio : null,
   };
 }
 
-export const pathaoDetectAddressFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        address: z.string().min(3).max(2000),
-        brandId: z.string().uuid().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await assertCourierRole(context.supabase, context.userId);
-    const client = await clientForBrand(context.supabase, data.brandId);
-
-    // --- 1) Deterministic in-built matcher (no AI, uses Pathao's own list)
-    const { detectHierarchy } = await import("./pathao-address-match");
-    const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
-
-    const det = await detectHierarchy({
-      address: data.address,
-      cities: cityItems,
-      lookup: {
-        zones: async (cityId) => {
-          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
-          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
-        },
-        areas: async (zoneId) => {
-          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
-          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
-        },
-      },
-    });
-
-    // Strong deterministic hit (zone found) — return immediately, no AI call.
-    if (det.zone && det.city) {
-      return {
-        city: det.city,
-        zone: det.zone,
-        area: det.area,
-        confidence: det.confidence,
-      };
-    }
-
-    // --- 2) Fallback: AI per-stage (only when deterministic couldn't find a zone)
-    // 1) City
-    const cityPick = await aiPickFromList({
-      address: data.address,
-      stage: "city",
-      items: cityItems,
-    });
-    if (!cityPick.id) {
-      return { city: null, zone: null, area: null, confidence: cityPick.confidence };
-    }
-
-    // 2) Zone
-    const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
-    const zonePick = await aiPickFromList({
-      address: data.address,
-      stage: "zone",
-      parentLabel: cityPick.name ?? undefined,
-      items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
-    });
-    if (!zonePick.id) {
-      return {
-        city: { id: cityPick.id, name: cityPick.name },
-        zone: null,
-        area: null,
-        confidence: cityPick.confidence,
-      };
-    }
-
-    // 3) Area (optional — many zones have a large list; still try)
-    const areasRaw = (await client.areas(zonePick.id)) as Array<{ area_id: number; area_name: string }>;
-    let areaPick: { id: number | null; name: string | null; confidence: number } = { id: null, name: null, confidence: 0 };
-    if (areasRaw.length > 0) {
-      areaPick = await aiPickFromList({
-        address: data.address,
-        stage: "area",
-        parentLabel: zonePick.name ?? undefined,
-        items: areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
-      });
-    }
-
-    return {
-      city: { id: cityPick.id, name: cityPick.name },
-      zone: { id: zonePick.id, name: zonePick.name },
-      area: areaPick.id ? { id: areaPick.id, name: areaPick.name } : null,
-      confidence: Math.min(cityPick.confidence, zonePick.confidence, areaPick.confidence || 1),
-    };
-  });
 
 /**
  * Pathao customer lookup by phone — same call the Pathao merchant portal
