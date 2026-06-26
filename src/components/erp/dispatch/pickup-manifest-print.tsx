@@ -118,6 +118,7 @@ export function PickupManifestPrint({ orders }: { orders: Order[] }) {
                 <tr className="border-b border-neutral-400">
                   <th className="text-left py-1 pr-2 w-6">#</th>
                   <th className="text-left py-1 pr-2">Invoice / Tracking</th>
+                  <th className="text-left py-1 pr-2">Courier / Consignment</th>
                   <th className="text-left py-1 pr-2">Customer</th>
                   <th className="text-left py-1 pr-2">Phone</th>
                   <th className="text-left py-1 pr-2">Area</th>
@@ -137,6 +138,14 @@ export function PickupManifestPrint({ orders }: { orders: Order[] }) {
                         {o.tracking_number && (
                           <div className="text-[10px] text-neutral-600">{o.tracking_number}</div>
                         )}
+                      </td>
+                      <td className="py-1 pr-2">
+                        <div className="font-semibold uppercase text-[10px] tracking-wider">
+                          {o.courier_name ?? "—"}
+                        </div>
+                        <div className="font-mono text-[10px] text-neutral-700">
+                          {o.tracking_number ?? "—"}
+                        </div>
                       </td>
                       <td className="py-1 pr-2">{o.shipping_name ?? o.guest_name ?? "—"}</td>
                       <td className="py-1 pr-2 font-mono">{o.shipping_phone ?? o.guest_phone ?? "—"}</td>
