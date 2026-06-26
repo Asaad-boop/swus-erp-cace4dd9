@@ -185,7 +185,7 @@ function NewOrderPage() {
       if (r.city) { setCityId(r.city.id); setCityName(r.city.name ?? ""); }
       if (r.zone) { setZoneId(r.zone.id); setZoneName(r.zone.name ?? ""); }
       if (r.area) { setAreaId(r.area.id); setAreaName(r.area.name ?? ""); }
-      else setAreaId(null);
+      else { setAreaId(null); setAreaName(""); }
       setLastDetect({
         city: r.city ?? null,
         zone: r.zone ?? null,
@@ -348,6 +348,12 @@ function NewOrderPage() {
           shipping_city: cityName || null,
           shipping_thana: zoneName || null,
           shipping_district: areaName || null,
+          pathao_city_id: cityId,
+          pathao_city_name: cityName || null,
+          pathao_zone_id: zoneId,
+          pathao_zone_name: zoneName || null,
+          pathao_area_id: areaId,
+          pathao_area_name: areaName || null,
           payment_method: paymentMethod,
           subtotal,
           shipping_fee: Number(shippingFee || 0),

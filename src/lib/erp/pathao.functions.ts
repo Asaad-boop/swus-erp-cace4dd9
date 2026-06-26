@@ -618,47 +618,65 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .join(", ");
     if (!phone || address.length < 5) throw new Error("Missing phone or address");
 
-    // Resolve city / zone / area
+    // Resolve city / zone / area. Use the same deterministic Pathao-supported
+    // hierarchy matcher as the new-order form first; AI is only a fallback.
     const client = await clientForBrand(supabase, order.brand_id);
     const citiesRaw = (await client.cities()) as Array<{ city_id: number; city_name: string }>;
-    const cityPick = await aiPickFromList({
+    const cityItems = citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name }));
+    const { detectHierarchy } = await import("./pathao-address-match");
+    const det = await detectHierarchy({
       address,
-      stage: "city",
-      items: citiesRaw.map((c) => ({ id: c.city_id, name: c.city_name })),
+      cities: cityItems,
+      lookup: {
+        zones: async (cityId) => {
+          const z = (await client.zones(cityId)) as Array<{ zone_id: number; zone_name: string }>;
+          return z.map((x) => ({ id: x.zone_id, name: x.zone_name }));
+        },
+        areas: async (zoneId) => {
+          const a = (await client.areas(zoneId)) as Array<{ area_id: number; area_name: string }>;
+          return a.map((x) => ({ id: x.area_id, name: x.area_name }));
+        },
+      },
     });
-    if (!cityPick.id) throw new Error("Could not detect city from address");
 
-    const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
-    const zonePick = await aiPickFromList({
-      address,
-      stage: "zone",
-      parentLabel: cityPick.name ?? undefined,
-      items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
-    });
-    // Fallback: if AI could not match a zone, pick the first available zone
-    // in the detected city so the consignment still goes through. The rider
-    // re-routes by phone/address anyway — the zone is just for routing fee.
-    let resolvedZoneId = zonePick.id;
-    let resolvedZoneName = zonePick.name;
-    if (!resolvedZoneId) {
-      if (zonesRaw.length === 0) throw new Error("No Pathao zones available for detected city");
-      resolvedZoneId = zonesRaw[0].zone_id;
-      resolvedZoneName = zonesRaw[0].zone_name + " (fallback)";
-    }
-
+    let cityPick: { id: number; name: string | null; confidence: number };
+    let resolvedZoneId: number | null;
+    let resolvedZoneName: string | null;
     let areaId: number | undefined;
-    try {
-      const areasRaw = (await client.areas(resolvedZoneId)) as Array<{ area_id: number; area_name: string }>;
-      if (areasRaw.length > 0) {
-        // Try ultra-fast local match only; skip AI for area to save latency.
-        // Area is optional — Pathao routes by phone/address regardless.
-        const local = localPick(
-          address,
-          areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })),
-        );
-        areaId = local?.id ?? areasRaw[0].area_id;
-      }
-    } catch { /* area is optional */ }
+
+    if (det.city && det.zone) {
+      cityPick = { id: det.city.id, name: det.city.name, confidence: det.confidence };
+      resolvedZoneId = det.zone.id;
+      resolvedZoneName = det.zone.name;
+      areaId = det.area?.id;
+    } else {
+      const aiCityPick = await aiPickFromList({
+        address,
+        stage: "city",
+        items: cityItems,
+      });
+      if (!aiCityPick.id) throw new Error("Could not detect city from address");
+      cityPick = { id: aiCityPick.id, name: aiCityPick.name, confidence: aiCityPick.confidence };
+
+      const zonesRaw = (await client.zones(cityPick.id)) as Array<{ zone_id: number; zone_name: string }>;
+      const zonePick = await aiPickFromList({
+        address,
+        stage: "zone",
+        parentLabel: cityPick.name ?? undefined,
+        items: zonesRaw.map((z) => ({ id: z.zone_id, name: z.zone_name })),
+      });
+      if (!zonePick.id) throw new Error("Could not detect Pathao zone from address");
+      resolvedZoneId = zonePick.id;
+      resolvedZoneName = zonePick.name;
+
+      try {
+        const areasRaw = (await client.areas(resolvedZoneId)) as Array<{ area_id: number; area_name: string }>;
+        if (areasRaw.length > 0) {
+          const local = localPick(address, areasRaw.map((a) => ({ id: a.area_id, name: a.area_name })));
+          areaId = local?.id;
+        }
+      } catch { /* area is optional */ }
+    }
 
     const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
     const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
