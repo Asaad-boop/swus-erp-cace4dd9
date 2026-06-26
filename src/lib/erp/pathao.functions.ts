@@ -156,6 +156,50 @@ async function resolveByPhone(client: any, phone: string) {
   };
 }
 
+const PHONE_ADDRESS_CITY_TOKENS = new Set([
+  "dhaka", "chattogram", "chittagong", "gazipur", "narayanganj", "savar",
+  "cumilla", "comilla", "sylhet", "rajshahi", "khulna", "barishal", "barisal",
+  "rangpur", "mymensingh",
+]);
+
+function meaningfulAddressTokens(raw: string) {
+  return normalizeAddr(raw)
+    .split(" ")
+    .filter((token) => {
+      if (token.length < 3) return false;
+      if (/^\d+$/.test(token)) return false;
+      if (PHONE_ADDRESS_CITY_TOKENS.has(token)) return false;
+      if (GENERIC_LOCATION_TOKENS.has(token)) return false;
+      if (["place", "floor", "flat", "building", "holding", "goli", "gali", "near", "beside", "opposite", "mobile"].includes(token)) return false;
+      return true;
+    });
+}
+
+function hasTokenOverlap(left: string[], right: string[]) {
+  return left.some((a) =>
+    right.some((b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)))),
+  );
+}
+
+function phoneRouteMatchesCurrentAddress(
+  route: Awaited<ReturnType<typeof resolveByPhone>>,
+  currentAddress: string,
+) {
+  if (!route) return false;
+  const addressTokens = meaningfulAddressTokens(currentAddress);
+  // Very short/blank saved addresses can safely use Pathao phone history.
+  if (addressTokens.length === 0) return true;
+
+  const returnedAddressTokens = meaningfulAddressTokens(route.recipient_address || "");
+  if (returnedAddressTokens.length > 0 && hasTokenOverlap(addressTokens, returnedAddressTokens)) return true;
+
+  const returnedLocationTokens = meaningfulAddressTokens([
+    route.zone?.name,
+    route.area?.name,
+  ].filter(Boolean).join(" "));
+  return returnedLocationTokens.length > 0 && hasTokenOverlap(addressTokens, returnedLocationTokens);
+}
+
 
 /**
  * Pathao customer lookup by phone — same call the Pathao merchant portal
@@ -224,6 +268,7 @@ function normalizeAddr(s: string) {
       if (["sodor", "sodar", "sodhor", "sadr"].includes(token)) return "sadar";
       if (token === "comilla") return "cumilla";
       if (token === "ctg") return "chattogram";
+      if (["mipur", "mirpoor", "mirpurr"].includes(token)) return "mirpur";
       return token;
     })
     .join(" ");
