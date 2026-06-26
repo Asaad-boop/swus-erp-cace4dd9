@@ -281,19 +281,9 @@ function DispatchPage() {
         const inv = order.invoice_no ?? order.id.slice(0, 8);
         const stage = stageFor(order.status);
 
-        // Resolve effective action
-        let action: "pack" | "ready" | "ship" | null = null;
-        if (mode === "auto") {
-          if (stage === "pending") action = "pack";
-          else if (stage === "packed") action = "ready";
-          else if (stage === "ready") action = "ship";
-        } else action = mode;
-
-        if (!action) {
-          beepError();
-          pushLog({ ok: false, msg: `#${inv} status "${order.status}" — no next stage`, invoice: inv });
-          return;
-        }
+        // Manual: action is exactly the current mode. No auto-detect to avoid
+        // accidental double-clicks advancing stages by mistake.
+        const action: "pack" | "ready" | "ship" = mode;
 
         if (action === "pack") {
           if (stage !== "pending") {
@@ -317,6 +307,25 @@ function DispatchPage() {
           if (stage !== "ready") {
             beepError();
             pushLog({ ok: false, msg: `#${inv} is "${order.status}", must be READY first`, invoice: inv });
+            return;
+          }
+          // Hard guard against double courier entry
+          const { data: existingShip } = await supabase
+            .from("courier_shipments")
+            .select("consignment_id, status")
+            .eq("order_id", order.id)
+            .maybeSingle();
+          const cancelled = /cancel/i.test(existingShip?.status ?? "");
+          if (existingShip?.consignment_id && !cancelled) {
+            beepError();
+            pushLog({
+              ok: false,
+              msg: `#${inv} already entered to courier · ${existingShip.consignment_id}`,
+              invoice: inv,
+            });
+            toast.error(`#${inv} already booked`, {
+              description: `Consignment ${existingShip.consignment_id} exists. Cancel it first to re-book.`,
+            });
             return;
           }
           try {
@@ -462,12 +471,6 @@ function DispatchPage() {
   }
 
   const modeHero: Record<Mode, { grad: string; label: string; placeholder: string; icon: React.ReactNode }> = {
-    auto: {
-      grad: "from-primary/15 via-primary/5 to-transparent",
-      label: "AUTO — detects next stage",
-      placeholder: "Scan invoice — auto advance to next stage…",
-      icon: <Sparkles className="h-5 w-5" />,
-    },
     pack: {
       grad: "from-amber-500/20 via-amber-500/5 to-transparent",
       label: "PACK — pending → packed",
@@ -505,7 +508,6 @@ function DispatchPage() {
           </div>
           <div className="flex items-center gap-2">
             <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} variant="outline" size="sm">
-              <ToggleGroupItem value="auto">Auto</ToggleGroupItem>
               <ToggleGroupItem value="pack">Pack</ToggleGroupItem>
               <ToggleGroupItem value="ready">Ready</ToggleGroupItem>
               <ToggleGroupItem value="ship">Ship</ToggleGroupItem>
@@ -628,7 +630,7 @@ function DispatchPage() {
       <Card className="p-4 sm:p-5 border bg-card/60 backdrop-blur">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between mb-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span className={cn("h-2 w-2 rounded-full", mode === "auto" ? "bg-foreground" : mode === "pack" ? "bg-amber-500" : mode === "ready" ? "bg-violet-500" : "bg-emerald-500")} />
+            <span className={cn("h-2 w-2 rounded-full", mode === "pack" ? "bg-amber-500" : mode === "ready" ? "bg-violet-500" : "bg-emerald-500")} />
             <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mode</span>
             <span className="font-semibold text-sm truncate">{hero.label}</span>
           </div>
@@ -640,7 +642,6 @@ function DispatchPage() {
               variant="outline"
               size="sm"
             >
-              <ToggleGroupItem value="auto" className="gap-1"><Sparkles className="h-3.5 w-3.5" /> Auto</ToggleGroupItem>
               <ToggleGroupItem value="pack" className="gap-1"><PackageOpen className="h-3.5 w-3.5" /> Pack</ToggleGroupItem>
               <ToggleGroupItem value="ready" className="gap-1"><PackagePlus className="h-3.5 w-3.5" /> Ready</ToggleGroupItem>
               <ToggleGroupItem value="ship" className="gap-1"><Send className="h-3.5 w-3.5" /> Ship</ToggleGroupItem>
@@ -716,7 +717,7 @@ function DispatchPage() {
           actionLabel="Pack"
           stageKey="pending"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "pack" || mode === "auto"}
+          actionEnabled={mode === "pack"}
           selected={selected}
           onToggleSelect={toggleSelect}
         />
@@ -729,7 +730,7 @@ function DispatchPage() {
           actionLabel="Mark Ready"
           stageKey="packed"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "ready" || mode === "auto"}
+          actionEnabled={mode === "ready"}
           selected={selected}
           onToggleSelect={toggleSelect}
         />
@@ -742,7 +743,7 @@ function DispatchPage() {
           actionLabel="Ship + Book"
           stageKey="ready"
           onAction={(o) => handleScan(o.invoice_no ?? o.id)}
-          actionEnabled={mode === "ship" || mode === "auto"}
+          actionEnabled={mode === "ship"}
           selected={selected}
           onToggleSelect={toggleSelect}
         />
