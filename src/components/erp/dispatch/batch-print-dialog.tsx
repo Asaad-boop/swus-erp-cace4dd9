@@ -24,10 +24,12 @@ export function BatchPrintDialog({
   open,
   onClose,
   orders,
+  onPrinted,
 }: {
   open: boolean;
   onClose: () => void;
   orders: OrderRow[];
+  onPrinted?: (count: number, mode: Mode) => void;
 }) {
   const [selected, setSelected] = useState<Record<string, boolean>>(
     () => Object.fromEntries(orders.map((o) => [o.id, true])),
@@ -45,7 +47,10 @@ export function BatchPrintDialog({
 
   function doPrint() {
     // Render hidden .print-area then trigger window.print
-    setTimeout(() => window.print(), 50);
+    setTimeout(() => {
+      window.print();
+      onPrinted?.(chosen.length, mode);
+    }, 50);
   }
 
   return (
