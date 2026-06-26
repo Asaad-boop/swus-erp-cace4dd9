@@ -188,11 +188,12 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
   });
 
 /* ---------------------------------------------------------------------- */
-/*  Pathao-only address detection — no AI, no local DB                    */
+/*  Pathao merchant address-parser detection — no AI, no local guessing   */
 /* ---------------------------------------------------------------------- */
 //
-// City / Zone / Area preview and booking both use Pathao's own live location
-// lists first, so our saved IDs match the exact Pathao API data.
+// City / Zone / Area preview and booking both use Pathao's own merchant
+// address-parser endpoint first and strictly. This is the same endpoint their
+// reception/new-delivery form calls when an operator types an address.
 
 async function resolveByPhone(client: any, phone: string) {
   const p = (phone || "").replace(/\D/g, "").slice(-11);
@@ -320,8 +321,9 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Address-based City / Zone / Area matcher. No AI/local DB — every candidate
- * comes from Pathao's own cities / zones / areas API lists.
+ * Address-based City / Zone / Area detection. The authoritative result comes
+ * from Pathao's merchant-panel address parser only; Aladdin city/zone/area
+ * lists are used only to verify/normalize names/IDs from that parser response.
  */
 function normalizeAddr(s: string) {
   const normalized = (s || "")
@@ -619,7 +621,12 @@ function bestScoredMatch<T extends { name: string }>(
 
 async function resolveByAddress(client: any, address: string) {
   const parserRoute = await resolveByPathaoParser(client, address).catch(() => null);
+  // Important: no local scoring fallback here. The user expectation is 100%
+  // parity with what Pathao shows after typing the same recipient address in
+  // their merchant portal. If Pathao cannot parse it, we show "not detected"
+  // instead of inventing a different City / Zone / Area locally.
   if (parserRoute?.city && parserRoute.zone) return parserRoute;
+  return null;
 
   const baseHay = normalizeAddr(address);
   if (!baseHay) return null;
@@ -755,15 +762,15 @@ export const pathaoMatchAddressFn = createServerFn({ method: "POST" })
       zone: route.zone,
       area: route.area,
       confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-      source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+      source: "pathao_address_parser" as const,
       raw: route.raw ?? null,
     };
   });
 
 /**
  * Pathao-only preview detection for a saved order. The saved/current address
- * is matched against Pathao's official City/Zone/Area lists first; phone
- * history is only a safe fallback when it overlaps the current address.
+ * is sent directly to Pathao's merchant address parser; phone history and
+ * local list scoring are intentionally not used for route selection.
  */
 export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -797,24 +804,13 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
       };
     }
 
-    const r = await resolveByPhone(client, phone);
-    if (r && phoneRouteMatchesCurrentAddress(r, addressText)) {
-      return {
-        city: r.city,
-        zone: r.zone,
-        area: r.area,
-        confidence: 1,
-        source: "pathao_phone" as const,
-      };
-    }
-
     if (route) {
       return {
         city: route.city,
         zone: null,
         area: null,
         confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
-        source: route.raw ? "pathao_address_parser" as const : "pathao_address_live_lists" as const,
+        source: "pathao_address_parser" as const,
         raw: route.raw ?? null,
       };
     }
