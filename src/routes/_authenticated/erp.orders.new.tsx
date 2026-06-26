@@ -956,6 +956,68 @@ function Field({
   );
 }
 
+function LocationCombobox({
+  items, valueId, valueName, placeholder, disabled, onChange, onClear,
+}: {
+  items: { id: number; name: string }[];
+  valueId: number | null;
+  valueName: string;
+  placeholder: string;
+  disabled?: boolean;
+  onChange: (id: number, name: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = valueId ? (items.find((i) => i.id === valueId)?.name ?? valueName) : "";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          disabled={disabled}
+          className={cn(
+            "h-9 w-full justify-between border-emerald-200/70 bg-background px-3 font-normal",
+            !label && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{label || placeholder}</span>
+          <span className="ml-2 flex items-center gap-1">
+            {valueId ? (
+              <X
+                className="h-3.5 w-3.5 opacity-60 hover:opacity-100"
+                onClick={(e) => { e.stopPropagation(); onClear(); }}
+              />
+            ) : null}
+            <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Type to search…" />
+          <CommandList className="max-h-72">
+            <CommandEmpty>No match</CommandEmpty>
+            <CommandGroup>
+              {items.map((it) => (
+                <CommandItem
+                  key={it.id}
+                  value={`${it.name} ${it.id}`}
+                  onSelect={() => { onChange(it.id, it.name); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-3.5 w-3.5", valueId === it.id ? "opacity-100" : "opacity-0")} />
+                  {it.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ToggleRow({
   label, checked, onChange,
 }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
