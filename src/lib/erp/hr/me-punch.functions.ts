@@ -37,6 +37,44 @@ export const getMyPunchToday = createServerFn({ method: "POST" })
             emp = { ...match, user_id: context.userId } as any;
           }
         }
+
+        // Auto-provision: admin/staff users without an HR record get one created
+        // automatically so they can punch attendance like anyone else.
+        if (!emp) {
+          const { data: roles } = await supabaseAdmin
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", context.userId);
+          const roleSet = new Set((roles ?? []).map((r: any) => r.role));
+          const isStaffish = roleSet.has("admin") || roleSet.has("staff") || roleSet.has("moderator") || roleSet.has("manager");
+          if (isStaffish) {
+            const { data: prof } = await supabaseAdmin
+              .from("profiles")
+              .select("display_name, email, phone")
+              .eq("id", context.userId)
+              .maybeSingle();
+            const fullName =
+              prof?.display_name?.trim() ||
+              au?.user?.user_metadata?.full_name ||
+              email?.split("@")[0] ||
+              "Admin User";
+            const code = `ADM-${context.userId.slice(0, 8).toUpperCase()}`;
+            const { data: created, error: cErr } = await supabaseAdmin
+              .from("hr_employees")
+              .insert({
+                user_id: context.userId,
+                employee_code: code,
+                full_name: fullName,
+                display_name: prof?.display_name ?? fullName,
+                email: prof?.email ?? email ?? null,
+                phone: prof?.phone ?? null,
+                employment_status: "active",
+              })
+              .select("id, full_name, display_name, photo_url, user_id, email")
+              .single();
+            if (!cErr && created) emp = created as any;
+          }
+        }
       } catch { /* ignore */ }
     }
     if (!emp) return { employee: null, attendance: null, shift: null, today };
