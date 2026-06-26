@@ -622,7 +622,7 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join(", ");
     const route = await resolveByAddress(client, addressText);
-    if (route) {
+    if (route?.zone) {
       return {
         city: route.city,
         zone: route.zone,
@@ -643,6 +643,15 @@ export const pathaoDetectForOrderFn = createServerFn({ method: "POST" })
       };
     }
 
+    if (route) {
+      return {
+        city: route.city,
+        zone: null,
+        area: null,
+        confidence: Math.min(1, Math.round((route.score / 200) * 100) / 100),
+        source: "pathao_address" as const,
+      };
+    }
     return { city: null, zone: null, area: null, confidence: 0, source: "none" as const };
   });
 
