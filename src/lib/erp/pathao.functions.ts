@@ -188,7 +188,7 @@ export const pathaoAreasFn = createServerFn({ method: "POST" })
   });
 
 /* ---------------------------------------------------------------------- */
-/*  Pathao-only address detection — no AI, no heuristics                  */
+/*  Pathao-only address detection — no AI, no local DB                    */
 /* ---------------------------------------------------------------------- */
 //
 // City / Zone / Area preview and booking both use Pathao's own live location
@@ -320,9 +320,8 @@ export const pathaoLookupByPhoneFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Address-based City / Zone / Area matcher. No AI — pure substring matching
- * against Pathao's own cities / zones / areas lists. Used to auto-fill the
- * dropdowns the moment a recipient address is typed.
+ * Address-based City / Zone / Area matcher. No AI/local DB — every candidate
+ * comes from Pathao's own cities / zones / areas API lists.
  */
 function normalizeAddr(s: string) {
   const normalized = (s || "")
