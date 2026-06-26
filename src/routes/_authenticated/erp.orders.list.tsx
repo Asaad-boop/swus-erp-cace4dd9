@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Download, RefreshCw, Inbox, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -81,10 +81,16 @@ function OrdersPage() {
   }, [rows, shipmentsMap, courierStatusFilter]);
 
   // Realtime: subscribe to courier_shipments UPDATE/INSERT
+  const idsKey = useMemo(() => [...pageOrderIds].sort().join(","), [pageOrderIds]);
+  const orderIdSetRef = useRef<Set<string>>(new Set());
+  useEffect(() => { orderIdSetRef.current = new Set(pageOrderIds); }, [pageOrderIds]);
+  const flashTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => () => {
+    flashTimersRef.current.forEach((t) => clearTimeout(t));
+    flashTimersRef.current.clear();
+  }, []);
   useEffect(() => {
-    if (pageOrderIds.length === 0) return;
-    const orderIdSet = new Set(pageOrderIds);
-    const idsKey = [...pageOrderIds].sort().join(",");
+    if (!idsKey) return;
     const queryKey = ["courier-shipments", idsKey] as const;
     const channel = supabase
       .channel(`courier-status-live-${idsKey.slice(0, 32)}`)
@@ -93,7 +99,7 @@ function OrdersPage() {
         { event: "*", schema: "public", table: "courier_shipments" },
         (payload) => {
           const row = (payload.new ?? payload.old) as CourierShipmentRow | undefined;
-          if (!row?.order_id || !orderIdSet.has(row.order_id)) return;
+          if (!row?.order_id || !orderIdSetRef.current.has(row.order_id)) return;
           if (payload.eventType === "DELETE") {
             qc.setQueryData<Record<string, CourierShipmentRow>>(queryKey, (old) => {
               if (!old) return old;
@@ -114,16 +120,39 @@ function OrdersPage() {
           });
           // Flash row briefly
           setFlashIds((s) => { const n = new Set(s); n.add(newRow.order_id); return n; });
-          setTimeout(() => {
+          const timer = setTimeout(() => {
+            flashTimersRef.current.delete(timer);
             setFlashIds((s) => { const n = new Set(s); n.delete(newRow.order_id); return n; });
           }, 2500);
+          flashTimersRef.current.add(timer);
+        },
+      )
+      .subscribe();
+    // Also listen to orders UPDATE so status/payment_status changes reflect live
+    const ordersChannel = supabase
+      .channel(`orders-live-${idsKey.slice(0, 32)}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const row = payload.new as { id?: string } | undefined;
+          if (!row?.id || !orderIdSetRef.current.has(row.id)) return;
+          qc.invalidateQueries({ queryKey: ["orders"] });
+          qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
+          setFlashIds((s) => { const n = new Set(s); n.add(row.id!); return n; });
+          const timer = setTimeout(() => {
+            flashTimersRef.current.delete(timer);
+            setFlashIds((s) => { const n = new Set(s); n.delete(row.id!); return n; });
+          }, 2500);
+          flashTimersRef.current.add(timer);
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(ordersChannel);
     };
-  }, [pageOrderIds, qc]);
+  }, [idsKey, qc]);
 
   const courierFilterActive = courierStatusFilter !== "all";
   const courierCounts = useMemo(() => {
