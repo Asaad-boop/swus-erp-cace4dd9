@@ -186,6 +186,91 @@ export const getCapiRecentLogs = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+/** Daily health snapshot: per-brand pixel + CAPI status for the last 24h. */
+export const getTrackingHealth = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const [{ data: brands }, { data: cfgs }, { data: pxEvents }, { data: capiLogs }, { data: recentOrders }] = await Promise.all([
+      supabase.from("brands").select("id,name,slug").order("name"),
+      supabase.from("meta_tracking_config").select("*"),
+      supabase.from("mkt_tracking_events").select("brand_id,event_type,fbclid,created_at").gte("created_at", since).limit(5000),
+      supabase.from("meta_capi_log").select("brand_id,event_name,status,created_at").gte("created_at", since).limit(5000),
+      supabase.from("orders").select("brand_id,attribution,created_at").gte("created_at", since).limit(2000),
+    ]);
+
+    const cfgByBrand = new Map<string, any>();
+    (cfgs ?? []).forEach((c: any) => cfgByBrand.set(c.brand_id, c));
+
+    return (brands ?? []).map((b: any) => {
+      const cfg = cfgByBrand.get(b.id);
+      const dbToken = cfg?.capi_access_token;
+      const envToken = cfg?.token_secret_name ? process.env[cfg.token_secret_name] : undefined;
+      const tokenPresent = Boolean(dbToken || envToken);
+
+      const px = (pxEvents ?? []).filter((e: any) => e.brand_id === b.id);
+      const capi = (capiLogs ?? []).filter((l: any) => l.brand_id === b.id);
+      const ords = (recentOrders ?? []).filter((o: any) => o.brand_id === b.id);
+
+      const pxByEvent: Record<string, number> = {};
+      px.forEach((e: any) => { pxByEvent[e.event_type] = (pxByEvent[e.event_type] ?? 0) + 1; });
+      const capiByEvent: Record<string, number> = {};
+      const capiErrByEvent: Record<string, number> = {};
+      capi.forEach((l: any) => {
+        capiByEvent[l.event_name] = (capiByEvent[l.event_name] ?? 0) + 1;
+        if (l.status !== "ok") capiErrByEvent[l.event_name] = (capiErrByEvent[l.event_name] ?? 0) + 1;
+      });
+
+      const pxTotal = px.length;
+      const capiTotal = capi.length;
+      const capiErrors = capi.filter((l: any) => l.status !== "ok").length;
+      const fbclidCount = px.filter((e: any) => e.fbclid).length;
+      const ordWithUtm = ords.filter((o: any) => o.attribution && (o.attribution.utm_source || o.attribution.fbclid)).length;
+
+      const lastPx = px.reduce((m: string | null, e: any) => (!m || e.created_at > m) ? e.created_at : m, null as string | null);
+      const lastCapi = capi.reduce((m: string | null, e: any) => (!m || e.created_at > m) ? e.created_at : m, null as string | null);
+
+      // Checks for health verdict
+      const checks = [
+        { id: "pixel_id", label: "Pixel ID configured", ok: Boolean(cfg?.pixel_id), critical: true },
+        { id: "capi_enabled", label: "CAPI enabled", ok: Boolean(cfg?.capi_enabled), critical: false },
+        { id: "token", label: "CAPI access token set", ok: tokenPresent, critical: Boolean(cfg?.capi_enabled) },
+        { id: "pixel_fire", label: "Browser pixel firing (24h)", ok: pxTotal > 0, critical: true, detail: `${pxTotal} events` },
+        { id: "capi_fire", label: "Server CAPI firing (24h)", ok: capiTotal > 0, critical: Boolean(cfg?.capi_enabled), detail: `${capiTotal} sends` },
+        { id: "capi_errors", label: "CAPI error rate < 20%", ok: capiTotal === 0 || capiErrors / capiTotal < 0.2, critical: false, detail: `${capiErrors}/${capiTotal} errors` },
+        { id: "fbclid", label: "fbclid captured on traffic", ok: pxTotal === 0 || fbclidCount > 0, critical: false, detail: `${fbclidCount} hits` },
+        { id: "order_attr", label: "Orders carry attribution", ok: ords.length === 0 || ordWithUtm > 0, critical: false, detail: `${ordWithUtm}/${ords.length} orders` },
+      ];
+      const criticalFail = checks.some((c) => c.critical && !c.ok);
+      const anyFail = checks.some((c) => !c.ok);
+      const verdict: "healthy" | "warning" | "down" = criticalFail ? "down" : anyFail ? "warning" : "healthy";
+
+      return {
+        brand: { id: b.id, name: b.name, slug: b.slug },
+        verdict,
+        pixel_id: cfg?.pixel_id ?? null,
+        capi_enabled: Boolean(cfg?.capi_enabled),
+        token_present: tokenPresent,
+        counts: {
+          px_total: pxTotal,
+          capi_total: capiTotal,
+          capi_errors: capiErrors,
+          fbclid: fbclidCount,
+          orders: ords.length,
+          orders_with_attribution: ordWithUtm,
+        },
+        px_by_event: pxByEvent,
+        capi_by_event: capiByEvent,
+        capi_err_by_event: capiErrByEvent,
+        last_px_at: lastPx,
+        last_capi_at: lastCapi,
+        checks,
+      };
+    });
+  });
+
 /** UTM/source breakdown for orders (per brand, time window). */
 export const getUtmBreakdown = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
