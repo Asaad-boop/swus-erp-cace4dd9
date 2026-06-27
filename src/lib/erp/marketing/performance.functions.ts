@@ -166,7 +166,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
     const { data: insights } = await supabase
       .from("mkt_insights_daily")
       .select(
-        "campaign_id, spend, impressions, clicks, meta_purchases, meta_purchase_value, meta_leads",
+        "campaign_id, spend, impressions, clicks, meta_purchases, meta_purchase_value, meta_leads, spend_bdt_fifo, conversion_source, estimated_bdt_cost",
       )
       .in("campaign_id", campIds)
       .gte("date", from)
@@ -178,6 +178,10 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       clicks: number;
       meta_purchases: number;
       meta_purchase_value: number;
+      spend_bdt_fifo: number;
+      fifo_rows: number;
+      fallback_rows: number;
+      total_rows: number;
     };
     const insMap = new Map<string, Ins>();
     for (const r of insights ?? []) {
@@ -188,12 +192,20 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         clicks: 0,
         meta_purchases: 0,
         meta_purchase_value: 0,
+        spend_bdt_fifo: 0,
+        fifo_rows: 0,
+        fallback_rows: 0,
+        total_rows: 0,
       };
       cur.spend += Number(r.spend) || 0;
       cur.impressions += Number(r.impressions) || 0;
       cur.clicks += Number(r.clicks) || 0;
       cur.meta_purchases += Number(r.meta_purchases) || 0;
       cur.meta_purchase_value += Number(r.meta_purchase_value) || 0;
+      cur.spend_bdt_fifo += Number((r as any).spend_bdt_fifo) || 0;
+      cur.total_rows += 1;
+      if ((r as any).conversion_source === "fifo") cur.fifo_rows += 1;
+      if ((r as any).conversion_source === "fx_fallback" || (r as any).estimated_bdt_cost) cur.fallback_rows += 1;
       insMap.set(r.campaign_id, cur);
     }
 
@@ -289,6 +301,10 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         clicks: 0,
         meta_purchases: 0,
         meta_purchase_value: 0,
+        spend_bdt_fifo: 0,
+        fifo_rows: 0,
+        fallback_rows: 0,
+        total_rows: 0,
       };
       const agg =
         aggMap.get(c.id) ?? {
@@ -299,8 +315,18 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
           operating_cost: 0,
         };
       const manual = manualMap.get(c.id) ?? 0;
-      const spend_bdt = ins.spend * fx;
+      // Prefer FIFO-computed BDT cost when present, else fall back to FX-rate conversion.
+      const hasFifo = ins.spend_bdt_fifo > 0;
+      const spend_bdt = hasFifo ? ins.spend_bdt_fifo : ins.spend * fx;
       const total_spend_bdt = spend_bdt + manual;
+      const cost_source: PerfRow["cost_source"] = !hasFifo
+        ? "fx_fallback"
+        : ins.fallback_rows > 0 && ins.fifo_rows > 0
+        ? "mixed"
+        : ins.fallback_rows > 0
+        ? "fx_fallback"
+        : "fifo";
+      const estimated_bdt_cost = cost_source !== "fifo";
       const ctr = ins.impressions > 0 ? (ins.clicks / ins.impressions) * 100 : null;
       const cpc = ins.clicks > 0 ? ins.spend / ins.clicks : null;
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
@@ -339,6 +365,9 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         spend_bdt,
         manual_spend_bdt: manual,
         total_spend_bdt,
+        spend_bdt_fifo: ins.spend_bdt_fifo,
+        cost_source,
+        estimated_bdt_cost,
         confirmed_orders: agg.confirmed_orders,
         delivered_orders: agg.delivered_orders,
         delivered_revenue_bdt: agg.delivered_revenue,
