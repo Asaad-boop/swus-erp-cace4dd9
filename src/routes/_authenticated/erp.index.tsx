@@ -927,11 +927,11 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            {receivablePayable.map(({ label, Icon, value, hint, tint }) => (
-              <div key={label} className={cn("flex items-center justify-between rounded-xl ring-1 p-3", tint)}>
+            {receivablePayable.map(({ label, Icon, value, hint }) => (
+              <div key={label} className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={cn("size-9 rounded-lg flex items-center justify-center bg-background/60", tint)}>
-                    <Icon className="size-4" />
+                  <div className="size-9 rounded-lg flex items-center justify-center bg-muted">
+                    <Icon className="size-4 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-foreground">{label}</div>
