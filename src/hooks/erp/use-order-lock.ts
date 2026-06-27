@@ -24,6 +24,7 @@ export type OrderLockState = {
   isMine: boolean;
   isStale: boolean;
   heldByOther: boolean;
+  error: string | null;
   takeOver: () => Promise<void>;
   release: () => Promise<void>;
 };
@@ -33,6 +34,7 @@ export function useOrderLock(orderId: string | null): OrderLockState {
   const [loading, setLoading] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myName, setMyName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const ownedRef = useRef(false);
 
   // Load identity once.
@@ -55,16 +57,21 @@ export function useOrderLock(orderId: string | null): OrderLockState {
   }, []);
 
   const fetchLock = useCallback(async (oid: string) => {
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("order_locks")
       .select("*")
       .eq("order_id", oid)
       .maybeSingle();
+    if (fetchError) {
+      setError(fetchError.message);
+      return null;
+    }
     return (data ?? null) as OrderLockRow | null;
   }, []);
 
   const acquire = useCallback(async (oid: string) => {
     if (!myUserId) return;
+    setError(null);
     const existing = await fetchLock(oid);
     const stale = existing && Date.now() - new Date(existing.last_heartbeat_at).getTime() > STALE_MS;
     if (existing && existing.user_id !== myUserId && !stale) {
@@ -73,17 +80,32 @@ export function useOrderLock(orderId: string | null): OrderLockState {
       return;
     }
     const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("order_locks")
-      .upsert(
-        { order_id: oid, user_id: myUserId, user_name: myName, acquired_at: now, last_heartbeat_at: now },
-        { onConflict: "order_id" },
-      )
+    const query = existing && (existing.user_id === myUserId || stale)
+      ? supabase
+        .from("order_locks")
+        .upsert(
+          { order_id: oid, user_id: myUserId, user_name: myName, acquired_at: now, last_heartbeat_at: now },
+          { onConflict: "order_id" },
+        )
+      : supabase
+        .from("order_locks")
+        .insert({ order_id: oid, user_id: myUserId, user_name: myName, acquired_at: now, last_heartbeat_at: now });
+
+    const { data, error: acquireError } = await query
       .select()
       .single();
-    if (!error && data) {
+    if (!acquireError && data) {
       setLock(data as OrderLockRow);
       ownedRef.current = (data as OrderLockRow).user_id === myUserId;
+      return;
+    }
+
+    const latest = await fetchLock(oid);
+    if (latest) {
+      setLock(latest);
+      ownedRef.current = latest.user_id === myUserId;
+    } else if (acquireError) {
+      setError(acquireError.message);
     }
   }, [myUserId, myName, fetchLock]);
 
@@ -154,6 +176,8 @@ export function useOrderLock(orderId: string | null): OrderLockState {
     if (!error && data) {
       setLock(data as OrderLockRow);
       ownedRef.current = true;
+    } else if (error) {
+      setError(error.message);
     }
   }, [orderId, myUserId, myName]);
 
@@ -168,5 +192,5 @@ export function useOrderLock(orderId: string | null): OrderLockState {
   const isStale = !!lock && Date.now() - new Date(lock.last_heartbeat_at).getTime() > STALE_MS;
   const heldByOther = !!lock && !isMine && !isStale;
 
-  return { loading, lock, isMine, isStale, heldByOther, takeOver, release };
+  return { loading, lock, isMine, isStale, heldByOther, error, takeOver, release };
 }
