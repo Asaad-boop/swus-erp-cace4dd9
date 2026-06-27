@@ -93,21 +93,13 @@ import { Route as AuthenticatedErpHrDepartmentsRouteImport } from './routes/_aut
 import { Route as AuthenticatedErpHrAttendanceRouteImport } from './routes/_authenticated/erp.hr.attendance'
 import { Route as AuthenticatedErpFinanceWalletsRouteImport } from './routes/_authenticated/erp.finance.wallets'
 import { Route as AuthenticatedErpFinanceTaxesRouteImport } from './routes/_authenticated/erp.finance.taxes'
-import { Route as AuthenticatedErpFinanceSimpleRouteImport } from './routes/_authenticated/erp.finance.simple'
 import { Route as AuthenticatedErpFinanceSettingsRouteImport } from './routes/_authenticated/erp.finance.settings'
 import { Route as AuthenticatedErpFinanceReportsRouteImport } from './routes/_authenticated/erp.finance.reports'
-import { Route as AuthenticatedErpFinanceRecurringRouteImport } from './routes/_authenticated/erp.finance.recurring'
-import { Route as AuthenticatedErpFinanceReconciliationRouteImport } from './routes/_authenticated/erp.finance.reconciliation'
 import { Route as AuthenticatedErpFinanceReceivablesRouteImport } from './routes/_authenticated/erp.finance.receivables'
 import { Route as AuthenticatedErpFinanceProductProfitabilityRouteImport } from './routes/_authenticated/erp.finance.product-profitability'
-import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
-import { Route as AuthenticatedErpFinanceFxRouteImport } from './routes/_authenticated/erp.finance.fx'
 import { Route as AuthenticatedErpFinanceDollarPurchaseRouteImport } from './routes/_authenticated/erp.finance.dollar-purchase'
-import { Route as AuthenticatedErpFinanceCodRemittanceRouteImport } from './routes/_authenticated/erp.finance.cod-remittance'
 import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
-import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from './routes/_authenticated/erp.finance.brand-profitability'
-import { Route as AuthenticatedErpFinanceAuditRouteImport } from './routes/_authenticated/erp.finance.audit'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpCrmCustomerIdRouteImport } from './routes/_authenticated/erp.crm.$customerId'
 import { Route as AuthenticatedErpAnalyticsLiveRouteImport } from './routes/_authenticated/erp.analytics.live'
@@ -607,12 +599,6 @@ const AuthenticatedErpFinanceTaxesRoute =
     path: '/taxes',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AuthenticatedErpFinanceSimpleRoute =
-  AuthenticatedErpFinanceSimpleRouteImport.update({
-    id: '/simple',
-    path: '/simple',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
 const AuthenticatedErpFinanceSettingsRoute =
   AuthenticatedErpFinanceSettingsRouteImport.update({
     id: '/settings',
@@ -623,18 +609,6 @@ const AuthenticatedErpFinanceReportsRoute =
   AuthenticatedErpFinanceReportsRouteImport.update({
     id: '/reports',
     path: '/reports',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
-const AuthenticatedErpFinanceRecurringRoute =
-  AuthenticatedErpFinanceRecurringRouteImport.update({
-    id: '/recurring',
-    path: '/recurring',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
-const AuthenticatedErpFinanceReconciliationRoute =
-  AuthenticatedErpFinanceReconciliationRouteImport.update({
-    id: '/reconciliation',
-    path: '/reconciliation',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
 const AuthenticatedErpFinanceReceivablesRoute =
@@ -649,22 +623,10 @@ const AuthenticatedErpFinanceProductProfitabilityRoute =
     path: '/product-profitability',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AuthenticatedErpFinancePayablesRoute =
-  AuthenticatedErpFinancePayablesRouteImport.update({
-    id: '/payables',
-    path: '/payables',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
 const AuthenticatedErpFinanceJournalRoute =
   AuthenticatedErpFinanceJournalRouteImport.update({
     id: '/journal',
     path: '/journal',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
-const AuthenticatedErpFinanceFxRoute =
-  AuthenticatedErpFinanceFxRouteImport.update({
-    id: '/fx',
-    path: '/fx',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
 const AuthenticatedErpFinanceDollarPurchaseRoute =
@@ -673,28 +635,10 @@ const AuthenticatedErpFinanceDollarPurchaseRoute =
     path: '/dollar-purchase',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
-const AuthenticatedErpFinanceCodRemittanceRoute =
-  AuthenticatedErpFinanceCodRemittanceRouteImport.update({
-    id: '/cod-remittance',
-    path: '/cod-remittance',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
 const AuthenticatedErpFinanceBudgetsRoute =
   AuthenticatedErpFinanceBudgetsRouteImport.update({
     id: '/budgets',
     path: '/budgets',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
-const AuthenticatedErpFinanceBrandProfitabilityRoute =
-  AuthenticatedErpFinanceBrandProfitabilityRouteImport.update({
-    id: '/brand-profitability',
-    path: '/brand-profitability',
-    getParentRoute: () => AuthenticatedErpFinanceRoute,
-  } as any)
-const AuthenticatedErpFinanceAuditRoute =
-  AuthenticatedErpFinanceAuditRouteImport.update({
-    id: '/audit',
-    path: '/audit',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
 const AuthenticatedErpFinanceAccountsRoute =
@@ -847,21 +791,13 @@ export interface FileRoutesByFullPath {
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
-  '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
-  '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
-  '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
-  '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
-  '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
-  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
-  '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
-  '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
@@ -956,21 +892,13 @@ export interface FileRoutesByTo {
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
-  '/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
-  '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
-  '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
-  '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
-  '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
   '/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
-  '/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
-  '/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
-  '/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/erp/hr/departments': typeof AuthenticatedErpHrDepartmentsRoute
@@ -1074,21 +1002,13 @@ export interface FileRoutesById {
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
-  '/_authenticated/erp/finance/audit': typeof AuthenticatedErpFinanceAuditRoute
-  '/_authenticated/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
-  '/_authenticated/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
   '/_authenticated/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
-  '/_authenticated/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
-  '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
   '/_authenticated/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
   '/_authenticated/erp/finance/receivables': typeof AuthenticatedErpFinanceReceivablesRoute
-  '/_authenticated/erp/finance/reconciliation': typeof AuthenticatedErpFinanceReconciliationRoute
-  '/_authenticated/erp/finance/recurring': typeof AuthenticatedErpFinanceRecurringRoute
   '/_authenticated/erp/finance/reports': typeof AuthenticatedErpFinanceReportsRoute
   '/_authenticated/erp/finance/settings': typeof AuthenticatedErpFinanceSettingsRoute
-  '/_authenticated/erp/finance/simple': typeof AuthenticatedErpFinanceSimpleRoute
   '/_authenticated/erp/finance/taxes': typeof AuthenticatedErpFinanceTaxesRoute
   '/_authenticated/erp/finance/wallets': typeof AuthenticatedErpFinanceWalletsRoute
   '/_authenticated/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceRouteWithChildren
@@ -1195,21 +1115,13 @@ export interface FileRouteTypes {
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
-    | '/erp/finance/audit'
-    | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
-    | '/erp/finance/cod-remittance'
     | '/erp/finance/dollar-purchase'
-    | '/erp/finance/fx'
     | '/erp/finance/journal'
-    | '/erp/finance/payables'
     | '/erp/finance/product-profitability'
     | '/erp/finance/receivables'
-    | '/erp/finance/reconciliation'
-    | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
-    | '/erp/finance/simple'
     | '/erp/finance/taxes'
     | '/erp/finance/wallets'
     | '/erp/hr/attendance'
@@ -1304,21 +1216,13 @@ export interface FileRouteTypes {
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
-    | '/erp/finance/audit'
-    | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
-    | '/erp/finance/cod-remittance'
     | '/erp/finance/dollar-purchase'
-    | '/erp/finance/fx'
     | '/erp/finance/journal'
-    | '/erp/finance/payables'
     | '/erp/finance/product-profitability'
     | '/erp/finance/receivables'
-    | '/erp/finance/reconciliation'
-    | '/erp/finance/recurring'
     | '/erp/finance/reports'
     | '/erp/finance/settings'
-    | '/erp/finance/simple'
     | '/erp/finance/taxes'
     | '/erp/finance/wallets'
     | '/erp/hr/departments'
@@ -1421,21 +1325,13 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
-    | '/_authenticated/erp/finance/audit'
-    | '/_authenticated/erp/finance/brand-profitability'
     | '/_authenticated/erp/finance/budgets'
-    | '/_authenticated/erp/finance/cod-remittance'
     | '/_authenticated/erp/finance/dollar-purchase'
-    | '/_authenticated/erp/finance/fx'
     | '/_authenticated/erp/finance/journal'
-    | '/_authenticated/erp/finance/payables'
     | '/_authenticated/erp/finance/product-profitability'
     | '/_authenticated/erp/finance/receivables'
-    | '/_authenticated/erp/finance/reconciliation'
-    | '/_authenticated/erp/finance/recurring'
     | '/_authenticated/erp/finance/reports'
     | '/_authenticated/erp/finance/settings'
-    | '/_authenticated/erp/finance/simple'
     | '/_authenticated/erp/finance/taxes'
     | '/_authenticated/erp/finance/wallets'
     | '/_authenticated/erp/hr/attendance'
@@ -2108,13 +2004,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceTaxesRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
-    '/_authenticated/erp/finance/simple': {
-      id: '/_authenticated/erp/finance/simple'
-      path: '/simple'
-      fullPath: '/erp/finance/simple'
-      preLoaderRoute: typeof AuthenticatedErpFinanceSimpleRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
     '/_authenticated/erp/finance/settings': {
       id: '/_authenticated/erp/finance/settings'
       path: '/settings'
@@ -2127,20 +2016,6 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/erp/finance/reports'
       preLoaderRoute: typeof AuthenticatedErpFinanceReportsRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_authenticated/erp/finance/recurring': {
-      id: '/_authenticated/erp/finance/recurring'
-      path: '/recurring'
-      fullPath: '/erp/finance/recurring'
-      preLoaderRoute: typeof AuthenticatedErpFinanceRecurringRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_authenticated/erp/finance/reconciliation': {
-      id: '/_authenticated/erp/finance/reconciliation'
-      path: '/reconciliation'
-      fullPath: '/erp/finance/reconciliation'
-      preLoaderRoute: typeof AuthenticatedErpFinanceReconciliationRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
     '/_authenticated/erp/finance/receivables': {
@@ -2157,25 +2032,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceProductProfitabilityRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
-    '/_authenticated/erp/finance/payables': {
-      id: '/_authenticated/erp/finance/payables'
-      path: '/payables'
-      fullPath: '/erp/finance/payables'
-      preLoaderRoute: typeof AuthenticatedErpFinancePayablesRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
     '/_authenticated/erp/finance/journal': {
       id: '/_authenticated/erp/finance/journal'
       path: '/journal'
       fullPath: '/erp/finance/journal'
       preLoaderRoute: typeof AuthenticatedErpFinanceJournalRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_authenticated/erp/finance/fx': {
-      id: '/_authenticated/erp/finance/fx'
-      path: '/fx'
-      fullPath: '/erp/finance/fx'
-      preLoaderRoute: typeof AuthenticatedErpFinanceFxRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
     '/_authenticated/erp/finance/dollar-purchase': {
@@ -2185,32 +2046,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceDollarPurchaseRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
-    '/_authenticated/erp/finance/cod-remittance': {
-      id: '/_authenticated/erp/finance/cod-remittance'
-      path: '/cod-remittance'
-      fullPath: '/erp/finance/cod-remittance'
-      preLoaderRoute: typeof AuthenticatedErpFinanceCodRemittanceRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
     '/_authenticated/erp/finance/budgets': {
       id: '/_authenticated/erp/finance/budgets'
       path: '/budgets'
       fullPath: '/erp/finance/budgets'
       preLoaderRoute: typeof AuthenticatedErpFinanceBudgetsRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_authenticated/erp/finance/brand-profitability': {
-      id: '/_authenticated/erp/finance/brand-profitability'
-      path: '/brand-profitability'
-      fullPath: '/erp/finance/brand-profitability'
-      preLoaderRoute: typeof AuthenticatedErpFinanceBrandProfitabilityRouteImport
-      parentRoute: typeof AuthenticatedErpFinanceRoute
-    }
-    '/_authenticated/erp/finance/audit': {
-      id: '/_authenticated/erp/finance/audit'
-      path: '/audit'
-      fullPath: '/erp/finance/audit'
-      preLoaderRoute: typeof AuthenticatedErpFinanceAuditRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
     '/_authenticated/erp/finance/accounts': {
@@ -2364,21 +2204,13 @@ const AuthenticatedErpCrmRouteWithChildren =
 
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
-  AuthenticatedErpFinanceAuditRoute: typeof AuthenticatedErpFinanceAuditRoute
-  AuthenticatedErpFinanceBrandProfitabilityRoute: typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
-  AuthenticatedErpFinanceCodRemittanceRoute: typeof AuthenticatedErpFinanceCodRemittanceRoute
   AuthenticatedErpFinanceDollarPurchaseRoute: typeof AuthenticatedErpFinanceDollarPurchaseRoute
-  AuthenticatedErpFinanceFxRoute: typeof AuthenticatedErpFinanceFxRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
-  AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
   AuthenticatedErpFinanceProductProfitabilityRoute: typeof AuthenticatedErpFinanceProductProfitabilityRoute
   AuthenticatedErpFinanceReceivablesRoute: typeof AuthenticatedErpFinanceReceivablesRoute
-  AuthenticatedErpFinanceReconciliationRoute: typeof AuthenticatedErpFinanceReconciliationRoute
-  AuthenticatedErpFinanceRecurringRoute: typeof AuthenticatedErpFinanceRecurringRoute
   AuthenticatedErpFinanceReportsRoute: typeof AuthenticatedErpFinanceReportsRoute
   AuthenticatedErpFinanceSettingsRoute: typeof AuthenticatedErpFinanceSettingsRoute
-  AuthenticatedErpFinanceSimpleRoute: typeof AuthenticatedErpFinanceSimpleRoute
   AuthenticatedErpFinanceTaxesRoute: typeof AuthenticatedErpFinanceTaxesRoute
   AuthenticatedErpFinanceWalletsRoute: typeof AuthenticatedErpFinanceWalletsRoute
   AuthenticatedErpFinanceIndexRoute: typeof AuthenticatedErpFinanceIndexRoute
@@ -2387,28 +2219,16 @@ interface AuthenticatedErpFinanceRouteChildren {
 const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren =
   {
     AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
-    AuthenticatedErpFinanceAuditRoute: AuthenticatedErpFinanceAuditRoute,
-    AuthenticatedErpFinanceBrandProfitabilityRoute:
-      AuthenticatedErpFinanceBrandProfitabilityRoute,
     AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
-    AuthenticatedErpFinanceCodRemittanceRoute:
-      AuthenticatedErpFinanceCodRemittanceRoute,
     AuthenticatedErpFinanceDollarPurchaseRoute:
       AuthenticatedErpFinanceDollarPurchaseRoute,
-    AuthenticatedErpFinanceFxRoute: AuthenticatedErpFinanceFxRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
-    AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
     AuthenticatedErpFinanceProductProfitabilityRoute:
       AuthenticatedErpFinanceProductProfitabilityRoute,
     AuthenticatedErpFinanceReceivablesRoute:
       AuthenticatedErpFinanceReceivablesRoute,
-    AuthenticatedErpFinanceReconciliationRoute:
-      AuthenticatedErpFinanceReconciliationRoute,
-    AuthenticatedErpFinanceRecurringRoute:
-      AuthenticatedErpFinanceRecurringRoute,
     AuthenticatedErpFinanceReportsRoute: AuthenticatedErpFinanceReportsRoute,
     AuthenticatedErpFinanceSettingsRoute: AuthenticatedErpFinanceSettingsRoute,
-    AuthenticatedErpFinanceSimpleRoute: AuthenticatedErpFinanceSimpleRoute,
     AuthenticatedErpFinanceTaxesRoute: AuthenticatedErpFinanceTaxesRoute,
     AuthenticatedErpFinanceWalletsRoute: AuthenticatedErpFinanceWalletsRoute,
     AuthenticatedErpFinanceIndexRoute: AuthenticatedErpFinanceIndexRoute,
