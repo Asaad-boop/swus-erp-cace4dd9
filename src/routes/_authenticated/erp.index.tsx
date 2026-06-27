@@ -7,6 +7,7 @@ import {
   Package, Boxes, Megaphone, Activity, Users, Sparkles,
   ChevronDown, ChevronUp,
 } from "lucide-react";
+import { Landmark, Smartphone, Coins, ArrowDownLeft, ArrowUpRight as ArrowOut } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   Line, ComposedChart, PieChart, Pie, Cell, BarChart, Bar, LineChart,
@@ -833,7 +834,7 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
       const toISO = range.to.toISOString();
       const fromDate = fromISO.slice(0, 10);
       const toDate = toISO.slice(0, 10);
-      const [accounts, rev, items, txns] = await Promise.all([
+      const [accounts, rev, items, txns, bills, arOrders] = await Promise.all([
         applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds).eq("is_active", true),
         applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered")
           .gte("created_at", fromISO).lte("created_at", toISO),
@@ -842,48 +843,110 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
           .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
         applyBrandScope(supabase.from("erp_transactions").select("amount, type, account_id"), brandIds)
           .gte("transaction_date", fromDate).lte("transaction_date", toDate),
+        applyBrandScope(supabase.from("erp_bills").select("amount, paid_amount, status"), brandIds).neq("status", "paid"),
+        applyBrandScope(supabase.from("orders").select("total, advance_amount"), brandIds)
+          .in("status", ["shipped", "delivered"]).eq("payment_method", "cod"),
       ]);
       const accs = (accounts.data ?? []) as any[];
-      const byType = (sub: string) => accs.filter(a => (a.account_subtype || a.account_type) === sub)
-        .reduce((s, a) => s + Number(a.current_balance ?? 0), 0);
-      const cash = accs.filter(a => a.account_type === "cash" && !a.account_subtype).reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
-      const bkash = accs.filter(a => (a.account_subtype === "bkash") || /bkash/i.test(a.name)).reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
-      const nagad = accs.filter(a => (a.account_subtype === "nagad") || /nagad/i.test(a.name)).reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
-      const bank = accs.filter(a => a.account_type === "bank").reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
-      const ar = byType("accounts_receivable") + accs.filter(a => /receivable/i.test(a.name)).reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
-      const ap = byType("accounts_payable") + accs.filter(a => /payable/i.test(a.name)).reduce((s,a)=>s+Number(a.current_balance ?? 0),0);
+      const sumBy = (pred: (a: any) => boolean) =>
+        accs.filter(pred).reduce((s, a) => s + Number(a.current_balance ?? 0), 0);
+      const isBkash = (a: any) => a.account_type === "bkash" || a.account_subtype === "bkash" || /bkash/i.test(a.name);
+      const isNagad = (a: any) => a.account_type === "nagad" || a.account_subtype === "nagad" || /nagad/i.test(a.name);
+      const isBank = (a: any) => a.account_type === "bank";
+      const isCash = (a: any) => a.account_type === "cash" && !isBkash(a) && !isNagad(a);
+      const cash = sumBy(isCash);
+      const bkash = sumBy(isBkash);
+      const nagad = sumBy(isNagad);
+      const bank = sumBy(isBank);
+      const ar = (arOrders.data ?? []).reduce((s: number, r: any) =>
+        s + Math.max(0, Number(r.total ?? 0) - Number(r.advance_amount ?? 0)), 0);
+      const ap = (bills.data ?? []).reduce((s: number, r: any) =>
+        s + Math.max(0, Number(r.amount ?? 0) - Number(r.paid_amount ?? 0)), 0);
+      const totalAssets = cash + bkash + nagad + bank;
+      const netPosition = totalAssets + ar - ap;
       const revenue = (rev.data ?? []).reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
       const cogs = (items.data ?? []).reduce((s: number, r: any) => s + Number(r.cost_price ?? 0) * Number(r.quantity ?? 0), 0);
       const expenses = (txns.data ?? []).filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
       const gross = revenue - cogs;
       const net = gross - expenses;
-      return { cash, bkash, nagad, bank, ar, ap, revenue, cogs, gross, expenses, net };
+      return { cash, bkash, nagad, bank, ar, ap, totalAssets, netPosition, revenue, cogs, gross, expenses, net };
     },
   });
 
-  const balances = [
-    { label: "Cash", icon: "💵", value: data?.cash ?? 0 },
-    { label: "bKash", icon: "📱", value: data?.bkash ?? 0 },
-    { label: "Nagad", icon: "📱", value: data?.nagad ?? 0 },
-    { label: "Bank", icon: "🏦", value: data?.bank ?? 0 },
-    { label: "Receivable", icon: "📤", value: data?.ar ?? 0 },
-    { label: "Payable", icon: "📥", value: data?.ap ?? 0 },
+  const wallets = [
+    { label: "Cash", Icon: Coins, value: data?.cash ?? 0, tint: "from-amber-500/15 to-amber-500/0 text-amber-600 ring-amber-500/20" },
+    { label: "bKash", Icon: Smartphone, value: data?.bkash ?? 0, tint: "from-pink-500/15 to-pink-500/0 text-pink-600 ring-pink-500/20" },
+    { label: "Nagad", Icon: Smartphone, value: data?.nagad ?? 0, tint: "from-orange-500/15 to-orange-500/0 text-orange-600 ring-orange-500/20" },
+    { label: "Bank", Icon: Landmark, value: data?.bank ?? 0, tint: "from-sky-500/15 to-sky-500/0 text-sky-600 ring-sky-500/20" },
+  ];
+  const receivablePayable = [
+    { label: "Receivable", Icon: ArrowDownLeft, value: data?.ar ?? 0, hint: "COD pending", tint: "text-emerald-600 ring-emerald-500/20 bg-emerald-500/5" },
+    { label: "Payable", Icon: ArrowOut, value: data?.ap ?? 0, hint: "Bills unpaid", tint: "text-rose-600 ring-rose-500/20 bg-rose-500/5" },
   ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <Card className="lg:col-span-2">
-        <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Wallet className="size-5 text-emerald-600" /> Finance Snapshot</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {balances.map(b => (
-              <div key={b.label} className="rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
-                <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><span className="text-base">{b.icon}</span>{b.label}</div>
-                {isLoading ? <Skeleton className="h-5 w-20 mt-1" /> :
-                  <div className={cn("text-lg font-bold tabular-nums mt-1", moneyTier(b.value))}>{BDT(b.value)}</div>}
+      <Card className="lg:col-span-2 overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Wallet className="size-5 text-emerald-600" /> Finance Snapshot
+            </CardTitle>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Position</div>
+              {isLoading ? <Skeleton className="h-6 w-24 mt-0.5 ml-auto" /> : (
+                <div className={cn("text-xl font-bold tabular-nums", moneyTier(data?.netPosition ?? 0))}>
+                  {BDT(data?.netPosition ?? 0)}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Wallets</span>
+              {isLoading ? <Skeleton className="h-3 w-16" /> : (
+                <span className="text-xs text-muted-foreground tabular-nums">Total · <span className="font-semibold text-foreground">{BDT(data?.totalAssets ?? 0)}</span></span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+              {wallets.map(({ label, Icon, value, tint }) => (
+                <div key={label} className={cn("group relative rounded-xl ring-1 bg-gradient-to-br p-3 transition-all hover:scale-[1.02] hover:shadow-sm", tint)}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Icon className="size-4 opacity-80" />
+                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-70">{label}</span>
+                  </div>
+                  {isLoading ? <Skeleton className="h-5 w-16" /> : (
+                    <div className={cn("text-base font-bold tabular-nums text-foreground", value < 0 && "text-rose-600")}>
+                      {BDT(value)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {receivablePayable.map(({ label, Icon, value, hint, tint }) => (
+              <div key={label} className={cn("flex items-center justify-between rounded-xl ring-1 p-3", tint)}>
+                <div className="flex items-center gap-2.5">
+                  <div className={cn("size-9 rounded-lg flex items-center justify-center bg-background/60", tint)}>
+                    <Icon className="size-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">{label}</div>
+                    <div className="text-[10px] text-muted-foreground">{hint}</div>
+                  </div>
+                </div>
+                {isLoading ? <Skeleton className="h-5 w-16" /> : (
+                  <div className="text-base font-bold tabular-nums text-foreground">{BDT(value)}</div>
+                )}
               </div>
             ))}
           </div>
+          <Link to="/erp/finance" className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+            Open Finance <ArrowUpRight className="size-3" />
+          </Link>
         </CardContent>
       </Card>
       <Card>
