@@ -285,6 +285,8 @@ function CategoriesTab({ brandId, brands, isAllBrands }: { brandId: string | nul
   const [name, setName] = useState("");
   const [kind, setKind] = useState("expense");
   const [newBrandId, setNewBrandId] = useState<string>(brandId ?? (brands.length === 1 ? brands[0].id : ""));
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "expense" | "income">("all");
 
   useEffect(() => {
     if (!isAllBrands && brandId) setNewBrandId(brandId);
@@ -315,9 +317,66 @@ function CategoriesTab({ brandId, brands, isAllBrands }: { brandId: string | nul
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const targetBrandId = isAllBrands ? newBrandId : brandId;
+  const existingNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of cats) {
+      if (!targetBrandId || c.brand_id === targetBrandId) set.add(c.name.trim().toLowerCase());
+    }
+    return set;
+  }, [cats, targetBrandId]);
+
+  const addPreset = useMutation({
+    mutationFn: async (p: CategoryPreset) => {
+      if (!targetBrandId) throw new Error("Select a brand first");
+      const { error } = await supabase.from("erp_expense_categories").insert({
+        brand_id: targetBrandId, name: p.name, kind: p.kind, is_active: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["erp_categories"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAddGroup = useMutation({
+    mutationFn: async (group: string) => {
+      if (!targetBrandId) throw new Error("Select a brand first");
+      const items = CATEGORY_PRESETS.filter((p) => p.group === group && !existingNames.has(p.name.toLowerCase()));
+      if (items.length === 0) return 0;
+      const { error } = await supabase.from("erp_expense_categories").insert(
+        items.map((p) => ({ brand_id: targetBrandId, name: p.name, kind: p.kind, is_active: true })),
+      );
+      if (error) throw error;
+      return items.length;
+    },
+    onSuccess: (n) => { if (n) toast.success(`${n} categories added`); qc.invalidateQueries({ queryKey: ["erp_categories"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const presetGroups = useMemo(() => {
+    const groups = new Map<string, CategoryPreset[]>();
+    for (const p of CATEGORY_PRESETS) {
+      if (kindFilter !== "all" && p.kind !== kindFilter) continue;
+      const list = groups.get(p.group) ?? [];
+      list.push(p);
+      groups.set(p.group, list);
+    }
+    return Array.from(groups.entries());
+  }, [kindFilter]);
+
+  const filteredCats = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return cats.filter((c) => {
+      if (kindFilter !== "all" && c.kind !== kindFilter) return false;
+      if (q && !c.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [cats, search, kindFilter]);
+
   return (
-    <div className="space-y-3 max-w-2xl">
-      <div className="flex gap-2 items-end">
+    <div className="space-y-5 max-w-4xl">
+      {/* Add new row */}
+      <div className="flex gap-2 items-end flex-wrap rounded-xl border bg-card p-3">
         {isAllBrands && (
           <div className="min-w-[160px]">
             <Label className="text-xs">Brand</Label>
@@ -327,7 +386,7 @@ function CategoriesTab({ brandId, brands, isAllBrands }: { brandId: string | nul
             </Select>
           </div>
         )}
-        <div className="flex-1"><Label className="text-xs">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marketing" /></div>
+        <div className="flex-1 min-w-[200px]"><Label className="text-xs">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marketing" onKeyDown={(e) => e.key === "Enter" && add.mutate()} /></div>
         <div className="min-w-[140px]">
           <Label className="text-xs">Kind</Label>
           <Select value={kind} onValueChange={setKind}>
@@ -341,24 +400,101 @@ function CategoriesTab({ brandId, brands, isAllBrands }: { brandId: string | nul
         <Button onClick={() => add.mutate()} disabled={add.isPending}><Plus className="h-4 w-4 mr-1" />Add</Button>
       </div>
 
-      <div className="rounded-md border bg-card">
+      {/* Quick add presets */}
+      <div className="rounded-xl border bg-gradient-to-br from-muted/40 to-transparent p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <div>
+              <h3 className="text-sm font-semibold">Quick add common categories</h3>
+              <p className="text-xs text-muted-foreground">Click any chip to add it to {targetBrandId ? "this brand" : "(select a brand first)"}.</p>
+            </div>
+          </div>
+          <Tabs value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="all" className="text-xs h-7">All</TabsTrigger>
+              <TabsTrigger value="expense" className="text-xs h-7">Expense</TabsTrigger>
+              <TabsTrigger value="income" className="text-xs h-7">Income</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="space-y-3">
+          {presetGroups.map(([group, items]) => {
+            const remaining = items.filter((p) => !existingNames.has(p.name.toLowerCase())).length;
+            return (
+              <div key={group}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</span>
+                  {remaining > 0 && targetBrandId && (
+                    <button type="button" onClick={() => bulkAddGroup.mutate(group)} disabled={bulkAddGroup.isPending}
+                      className="text-[11px] text-primary hover:underline disabled:opacity-50">
+                      + Add all ({remaining})
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {items.map((p) => {
+                    const added = existingNames.has(p.name.toLowerCase());
+                    return (
+                      <button key={`${p.group}-${p.name}`} type="button"
+                        disabled={added || addPreset.isPending || !targetBrandId}
+                        onClick={() => addPreset.mutate(p)}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                          added
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 cursor-default"
+                            : p.kind === "income"
+                              ? "bg-card hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                              : "bg-card hover:bg-rose-500/10 hover:border-rose-500/40",
+                          !targetBrandId && !added && "opacity-50 cursor-not-allowed",
+                        )}>
+                        {added ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Existing categories list with search */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 justify-between flex-wrap">
+          <h3 className="text-sm font-semibold">Your categories <span className="text-xs text-muted-foreground font-normal">({filteredCats.length})</span></h3>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search categories…" className="pl-8 h-9" />
+          </div>
+        </div>
+        <div className="rounded-md border bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead>{isAllBrands && <TableHead>Brand</TableHead>}<TableHead>Kind</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={isAllBrands ? 4 : 3} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>}
-            {!isLoading && cats.length === 0 && <TableRow><TableCell colSpan={isAllBrands ? 4 : 3} className="text-center py-6 text-muted-foreground">No categories</TableCell></TableRow>}
-            {cats.map((c) => (
+            {!isLoading && filteredCats.length === 0 && <TableRow><TableCell colSpan={isAllBrands ? 4 : 3} className="text-center py-6 text-muted-foreground">{cats.length === 0 ? "No categories yet — use quick add above" : "No match"}</TableCell></TableRow>}
+            {filteredCats.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 {isAllBrands && <TableCell className="text-xs text-muted-foreground">{brandMap.get(c.brand_id) ?? "—"}</TableCell>}
-                <TableCell className="text-xs uppercase tracking-wider text-muted-foreground">{c.kind}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={cn(
+                    "text-[10px] uppercase tracking-wider",
+                    c.kind === "income" ? "border-emerald-500/40 text-emerald-600" : "border-rose-500/40 text-rose-600",
+                  )}>{c.kind}</Badge>
+                </TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)} disabled={remove.isPending}>Delete</Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)} disabled={remove.isPending}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );
