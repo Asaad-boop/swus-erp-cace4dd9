@@ -5557,6 +5557,56 @@ export type Database = {
           },
         ]
       }
+      meta_capi_log: {
+        Row: {
+          brand_id: string | null
+          created_at: string
+          error: string | null
+          event_id: string | null
+          event_name: string
+          events_received: number | null
+          fbtrace_id: string | null
+          id: string
+          response: Json | null
+          source: string | null
+          status: string
+        }
+        Insert: {
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_id?: string | null
+          event_name: string
+          events_received?: number | null
+          fbtrace_id?: string | null
+          id?: string
+          response?: Json | null
+          source?: string | null
+          status: string
+        }
+        Update: {
+          brand_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_id?: string | null
+          event_name?: string
+          events_received?: number | null
+          fbtrace_id?: string | null
+          id?: string
+          response?: Json | null
+          source?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_capi_log_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_dollar_purchases: {
         Row: {
           ad_account_id: string
@@ -5788,6 +5838,47 @@ export type Database = {
             columns: ["insight_id"]
             isOneToOne: false
             referencedRelation: "mkt_insights_daily"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_tracking_config: {
+        Row: {
+          brand_id: string
+          capi_enabled: boolean
+          created_at: string
+          enabled_events: Json
+          pixel_id: string | null
+          test_event_code: string | null
+          token_secret_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          capi_enabled?: boolean
+          created_at?: string
+          enabled_events?: Json
+          pixel_id?: string | null
+          test_event_code?: string | null
+          token_secret_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          capi_enabled?: boolean
+          created_at?: string
+          enabled_events?: Json
+          pixel_id?: string | null
+          test_event_code?: string | null
+          token_secret_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_tracking_config_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
         ]

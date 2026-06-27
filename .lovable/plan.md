@@ -1,61 +1,78 @@
-# Finance Module — Cleanup & Simplification Plan
 
-## Current State (audit)
+## Recommendation: Hybrid CAPI (best of both)
 
-Finance e onek route ache, kintu onek age theke already redirect stub hoye gache (7 line):
-- `finance/audit` → dollar-purchase (redirect)
-- `finance/fx` → settings?tab=fx (redirect)
-- `finance/brand-profitability`, `finance/cod-remittance`, `finance/payables`, `finance/reconciliation`, `finance/recurring`, `finance/simple` — sob already redirect stub.
+Website browser pixel theke PageView/ViewContent/AddToCart fire korbe (real-time, user behavior). **Purchase event ERP server theke CAPI te pathabe** — karon:
+- ERP e order confirmed/paid status authoritative (refund/return handle hoy)
+- Browser blocked (adblock, iOS) hole o Purchase event miss hobe na
+- `event_id` diye dedup — same event browser pixel o server CAPI duitai pathale Meta automatic merge kore
+- Result: ROAS data 30-40% beshi accurate
 
-Active heavy pages:
-- `finance/index` (632 lines) — Overview/Dashboard
-- `finance/reports` (745) — Reports
-- `finance/dollar-purchase` (518), `accounts` (301), `taxes` (324), `budgets` (170)
-- Layouts: `journal`, `receivables` (AR/AP), `wallets`, `settings`, `product-profitability`
+## Scope (4 items confirmed)
 
-Nav tabs (current): Overview, Chart of Accounts, Wallets, Journal, AR/AP, Dollar Purchase, Budgets, Taxes, Profitability, Reports, Settings → **11 tabs**, scroll lage.
+### 1. Per-brand Pixel + CAPI config
+**New page**: `/erp/settings/tracking` (brand-scoped)
+- Per brand (Hobbyshop / Toyora) alada row:
+  - Meta Pixel ID
+  - CAPI Access Token (secret, masked input)
+  - Test Event Code (optional, for debugging)
+  - Domain verification status
+  - Enable/Disable toggle per event type (PageView, ViewContent, AddToCart, InitiateCheckout, Purchase)
+- Save via `setBrandTrackingConfig` server fn → `app_settings` key `tracking:meta:{brand_id}`
+- Tokens stored in secrets (`META_CAPI_TOKEN_HOBBYSHOP`, `META_CAPI_TOKEN_TOYORA`)
 
-## Problems
-1. 11 top tabs — beshi, cognitive load high.
-2. 8+ orphan redirect route files clutter create kortece (codebase noise, route tree size).
-3. Overview + Reports overlap — duplicate KPI/charts likely.
-4. Wallets + Chart of Accounts conceptually overlap (account list).
-5. Dollar Purchase Finance-er moddhe ase, kintu Marketing-eo Ad Funding ache — link mismatch.
+### 2. Live status / health dashboard
+Top of same page:
+- Per brand KPI cards: Last event time, Events today, Match quality score, Error count (24h)
+- Pulled from new `meta_capi_log` table (server fn logs every send)
+- Color: green (<5min ago), amber (<1h), red (>1h or errors)
 
-## Proposed Simplification
+### 3. UTM capture & attribution view
+- Web orders e already `attribution` jsonb ache — verify utm_source/medium/campaign/content/term + fbclid/fbc/fbp capture hocche kina
+- New tab in `/erp/marketing/attribution`: brand filter + UTM breakdown table (source/medium → orders, revenue, AOV)
+- Top campaigns by brand (last 7/30 days)
 
-### 1. Delete dead redirect files (8 files)
-Already nav theke unreachable, just clutter:
-- `erp.finance.audit.tsx`, `erp.finance.fx.tsx`, `erp.finance.brand-profitability.tsx`, `erp.finance.cod-remittance.tsx`, `erp.finance.payables.tsx`, `erp.finance.reconciliation.tsx`, `erp.finance.recurring.tsx`, `erp.finance.simple.tsx`
+### 4. Test event sender + CAPI ping
+- "Send Test Event" button per brand → server fn `sendCapiTestEvent`
+- Fires `TestEvent` to Meta CAPI with current config + test_event_code
+- Shows response: ✅ events_received:1 or ❌ error message + invalid params
+- "Verify Pixel" button → opens Meta's Pixel Helper docs link with brand pixel id pre-filled
 
-Old links jodi kothao thake (sidebar/menu), update kore proper destination e pathabo.
+## Server-side Purchase CAPI (the firing part)
 
-### 2. Consolidate nav from 11 → 7 tabs
-```text
-Overview │ Accounts │ Journal │ AR/AP │ Dollar Purchase │ Reports │ Settings
-```
-- **Merge "Wallets" into "Accounts"** — wallets = cash/bank accounts subset. Accounts page e ekta "Wallets" filter chip.
-- **Move "Budgets" + "Taxes" + "Profitability" into Reports** as sub-tabs — egulo reporting/planning views, alada top-level dorker nai.
-- **Settings** unchanged.
+- New server fn `sendOrderPurchaseToCapi(orderId)` 
+- Auto-trigger: when order transitions to `paid`/`delivered` status (hook into existing `transition_order_status` flow via DB trigger calling pg_net, OR via existing order update mutation in ERP)
+- Payload includes: hashed email/phone, fbp/fbc from `attribution`, order value (BDT→USD via existing fx rate), event_id = order_id (for dedup with browser pixel)
+- Logs to `meta_capi_log` table for status dashboard
 
-### 3. Overview page trim
-632 lines → target ~300. Duplicate cards (already Reports e ache) remove, keep:
-- Cash position (per wallet)
-- This month: Revenue, Expense, Net
-- AR/AP outstanding
-- Recent transactions (10)
-- Quick actions (New transaction, New bill, Transfer)
+## Database
 
-### 4. Keep as-is (useful, not bloated)
-- Journal, AR/AP, Dollar Purchase, Settings — already clean layouts.
-- Components in `src/components/erp/finance/` — sob actively used (verify on apply).
+New tables:
+- `meta_tracking_config` (brand_id, pixel_id, capi_enabled, test_event_code, enabled_events jsonb, updated_at) — token in secrets
+- `meta_capi_log` (id, brand_id, event_name, event_id, status, response jsonb, error, created_at) + index on (brand_id, created_at DESC)
 
-## Out of scope
-- Backend tables/RPC change na — pure UI/nav restructure.
-- Dollar Purchase FIFO logic untouched.
-- Reports tab er internal sub-pages restructure korbo na (just budgets/taxes/profitability accommodate).
+## Files to create/modify
 
-## Risk
-Low. Redirect files delete korle direct URL hit korle 404 dekhabe — acceptable, ora already nav theke hidden.
+**New:**
+- `supabase/migrations/*_meta_tracking.sql` (2 tables + RLS + GRANT)
+- `src/lib/erp/tracking/meta-capi.functions.ts` — `getBrandTrackingConfig`, `saveBrandTrackingConfig`, `sendCapiTestEvent`, `sendOrderPurchaseToCapi`, `getCapiStatus`, `getUtmBreakdown`
+- `src/lib/erp/tracking/meta-capi.server.ts` — actual fetch to `graph.facebook.com/v21.0/{pixel}/events`, SHA-256 hashing helpers
+- `src/routes/_authenticated/erp.settings.tracking.tsx` — main UI (config + status + test)
+- `src/components/erp/settings/tracking/` — brand-config-card, status-strip, test-event-button, utm-breakdown-table
 
-Approve korle implement kori.
+**Modify:**
+- `src/components/erp/erp-sidebar.tsx` — Settings sub-link "Tracking & Pixels"
+- `src/routes/_authenticated/erp.marketing.attribution.tsx` — add brand filter + UTM breakdown tab
+- Order paid transition handler — call `sendOrderPurchaseToCapi` async
+
+## Secrets needed
+
+- `META_CAPI_TOKEN_HOBBYSHOP`
+- `META_CAPI_TOKEN_TOYORA`
+
+(User add korbe via add_secret tool when ready)
+
+## Out of scope (ask later if needed)
+
+- GA4 server-side / Measurement Protocol
+- TikTok Events API (separate phase)
+- Browser pixel snippet injection in Hobbyshop/Toyora websites (already there ba alada repo te — ekhane shudhu ERP side)
