@@ -4,7 +4,7 @@ import * as React from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package, ChevronLeft, ChevronRight, Search, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -35,6 +35,7 @@ import { WebOrdersFilterBar, computeDateRange, type SortKey, type DatePreset } f
 import { WebBulkActionBar, type WebStatusKey } from "@/components/erp/orders/web-bulk-action-bar";
 import { BulkPrintDialog } from "@/components/erp/orders/bulk-print-dialog";
 import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-upload-dialog";
+import { useOrderLocks } from "@/hooks/erp/use-order-locks";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
 const DEFAULT_PAGE_SIZE = 25;
@@ -961,6 +962,7 @@ function _WebOrdersPageBody() {
 
   // selection helpers — operate on currently visible filteredRows
   const visibleIds = useMemo(() => filteredRows.map(({ row }) => row.id), [filteredRows]);
+  const orderLocks = useOrderLocks(visibleIds);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
   const toggleSelect = (id: string) => setSelectedIds((prev) => {
@@ -1143,6 +1145,7 @@ function _WebOrdersPageBody() {
                 const flash = flashIds.has(r.id);
                 const confirmRate = b.total > 0 ? Math.round((b.confirmed / b.total) * 100) : 0;
                 const isSelected = selectedIds.has(r.id);
+                const lock = orderLocks.get(r.id);
                 return (
                   <TableRow
                     key={r.id}
@@ -1150,6 +1153,7 @@ function _WebOrdersPageBody() {
                       "group/row cursor-pointer hover:bg-muted/40 border-b border-border/40 last:border-0 align-top transition-colors",
                       isSelected && "bg-primary/[0.04] hover:bg-primary/[0.06] dark:bg-primary/10",
                       flash && "animate-in slide-in-from-top-2 bg-emerald-50/70 dark:bg-emerald-950/30",
+                      lock && "ring-1 ring-inset ring-amber-500/30 bg-amber-50/40 dark:bg-amber-950/15",
                     )}
                     onClick={() => setOpenId(r.id)}
                   >
@@ -1184,6 +1188,21 @@ function _WebOrdersPageBody() {
                             {name !== "—" && <CopyIconBtn value={name} label="Name" className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity" />}
                             <CustomerBadges total={b.total} confirmRate={confirmRate} delivered={b.delivered} />
                           </div>
+                          {lock && (
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/40 max-w-[200px]">
+                                    <Lock className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">Opened by {lock.user_name ?? "another user"}</span>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                  Currently being edited — click to view / takeover
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {phone && (
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-[11.5px] text-muted-foreground truncate font-mono tabular-nums">{phone}</span>
