@@ -989,6 +989,14 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       const { data: rows } = await applyBrandScope(
         supabase.from("mkt_insights_daily").select("date, spend, meta_purchases, meta_purchase_value"), brandIds
       ).gte("date", fromDate).lte("date", toDate);
+      // Live USD→BDT rate (latest per brand scope); fallback 110.
+      let fx = 110;
+      const fxQ = brandIds.length
+        ? await supabase.from("erp_fx_rates").select("rate, rate_date").in("brand_id", brandIds)
+            .eq("from_ccy", "USD").eq("to_ccy", "BDT").order("rate_date", { ascending: false }).limit(1)
+        : await supabase.from("erp_fx_rates").select("rate, rate_date")
+            .eq("from_ccy", "USD").eq("to_ccy", "BDT").order("rate_date", { ascending: false }).limit(1);
+      if (fxQ.data?.[0]?.rate) fx = Number(fxQ.data[0].rate) || 110;
       let spendTotal = 0, purchTotal = 0, valTotal = 0;
       const series = new Map<string, { date: string; spend: number; revenue: number }>();
       const days = Math.min(range.days, 60);
@@ -1003,9 +1011,9 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
         valTotal += Number(r.meta_purchase_value ?? 0);
         const s = series.get(r.date); if (s) { s.spend += Number(r.spend ?? 0); s.revenue += Number(r.meta_purchase_value ?? 0); }
       }
-      const roas = spendTotal > 0 ? valTotal / (spendTotal * 110) : 0; // assume $1 ~ 110 BDT
-      const cpo = purchTotal > 0 ? (spendTotal * 110) / purchTotal : 0;
-      return { spendToday: spendTotal, spendTodayBdt: spendTotal * 110, roas, purchToday: purchTotal, cpo, series: Array.from(series.values()) };
+      const roas = spendTotal > 0 ? valTotal / (spendTotal * fx) : 0;
+      const cpo = purchTotal > 0 ? (spendTotal * fx) / purchTotal : 0;
+      return { spendToday: spendTotal, spendTodayBdt: spendTotal * fx, roas, purchToday: purchTotal, cpo, fx, series: Array.from(series.values()) };
     },
   });
   return (
