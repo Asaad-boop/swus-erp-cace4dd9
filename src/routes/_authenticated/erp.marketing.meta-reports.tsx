@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,6 +19,9 @@ import { CostSourceBadge, EstimatedWarning } from "@/components/erp/marketing/_u
 import { getMetaReports, type MetaReportData } from "@/lib/erp/marketing/meta-reports.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/meta-reports")({
+  beforeLoad: () => {
+    throw redirect({ to: "/erp/marketing/ad-account-funding" });
+  },
   head: () => ({ meta: [{ title: "Meta Reports — Marketing" }] }),
   component: MetaReportsPage,
 });
