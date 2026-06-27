@@ -9,6 +9,7 @@ export type TrackingConfig = {
   enabled_events: Record<string, boolean>;
   token_secret_name: string | null;
   token_present: boolean;
+  token_last4: string | null;
   updated_at: string | null;
 };
 
@@ -61,7 +62,11 @@ export const getBrandTrackingConfigs = createServerFn({ method: "GET" })
     return (brands ?? []).map((b: any) => {
       const c = byBrand.get(b.id);
       const tokenName = c?.token_secret_name ?? null;
-      const tokenPresent = tokenName ? Boolean(process.env[tokenName]) : false;
+      const dbToken: string | null = c?.capi_access_token ?? null;
+      const envToken = tokenName ? process.env[tokenName] : undefined;
+      const effective = dbToken || envToken || "";
+      const tokenPresent = Boolean(effective);
+      const token_last4 = effective ? effective.slice(-4) : null;
       const st = status.get(b.id) ?? { total: 0, ok: 0, error: 0, last_at: null, last_event: null };
       return {
         brand: { id: b.id, name: b.name, slug: b.slug },
@@ -73,6 +78,7 @@ export const getBrandTrackingConfigs = createServerFn({ method: "GET" })
           enabled_events: c?.enabled_events ?? DEFAULT_EVENTS,
           token_secret_name: tokenName,
           token_present: tokenPresent,
+          token_last4,
           updated_at: c?.updated_at ?? null,
         } as TrackingConfig,
         status: st,
@@ -89,18 +95,26 @@ export const saveBrandTrackingConfig = createServerFn({ method: "POST" })
     test_event_code: string | null;
     enabled_events: Record<string, boolean>;
     token_secret_name: string | null;
+    capi_access_token?: string | null;
   }) => d)
   .handler(async ({ data, context }) => {
+    const payload: Record<string, unknown> = {
+      brand_id: data.brand_id,
+      pixel_id: data.pixel_id?.trim() || null,
+      capi_enabled: data.capi_enabled,
+      test_event_code: data.test_event_code?.trim() || null,
+      enabled_events: data.enabled_events,
+      token_secret_name: data.token_secret_name?.trim() || null,
+    };
+    // Only update token when caller explicitly supplied a non-empty value.
+    // Empty string === clear; undefined === keep existing.
+    if (data.capi_access_token !== undefined) {
+      const t = (data.capi_access_token ?? "").trim();
+      payload.capi_access_token = t.length ? t : null;
+    }
     const { error } = await context.supabase
       .from("meta_tracking_config")
-      .upsert({
-        brand_id: data.brand_id,
-        pixel_id: data.pixel_id?.trim() || null,
-        capi_enabled: data.capi_enabled,
-        test_event_code: data.test_event_code?.trim() || null,
-        enabled_events: data.enabled_events,
-        token_secret_name: data.token_secret_name?.trim() || null,
-      }, { onConflict: "brand_id" });
+      .upsert(payload, { onConflict: "brand_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -117,11 +131,12 @@ export const sendCapiTestEvent = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!cfg?.pixel_id) throw new Error("Pixel ID not set for this brand");
-    if (!cfg.token_secret_name) throw new Error("CAPI token secret name not set");
 
     const { sendCapi, resolveCapiToken, sha256Lower } = await import("./meta-capi.server");
-    const token = resolveCapiToken(cfg.token_secret_name);
-    if (!token) throw new Error(`Secret "${cfg.token_secret_name}" not configured`);
+    const token =
+      (cfg.capi_access_token as string | null) ||
+      (cfg.token_secret_name ? resolveCapiToken(cfg.token_secret_name) : null);
+    if (!token) throw new Error("CAPI token not set. Paste it in the Token field or add a secret.");
 
     const eventId = `test-${data.brand_id}-${Date.now()}`;
     const res = await sendCapi({
