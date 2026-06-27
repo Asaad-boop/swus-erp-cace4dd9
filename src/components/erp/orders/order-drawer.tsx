@@ -245,6 +245,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                         <div className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
                           Same order ekhane edit korle conflict hote pare. Takeover korle oder access bondho hoye jabe.
                         </div>
+                        <div className="text-[11px] font-medium mt-0.5">
+                          <LockCountdown lastHeartbeatAt={lockState.lock.last_heartbeat_at} tone="amber" />
+                        </div>
                       </div>
                     </div>
                     <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5" onClick={() => lockState.takeOver()}>
@@ -258,6 +261,12 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                   <div className="inline-flex items-center gap-2 rounded-md border border-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     You are editing this order
+                    {lockState.lock && (
+                      <span className="mx-1 text-emerald-400">·</span>
+                    )}
+                    {lockState.lock && (
+                      <LockCountdown lastHeartbeatAt={lockState.lock.last_heartbeat_at} tone="emerald" />
+                    )}
                   </div>
                 </div>
               )}
