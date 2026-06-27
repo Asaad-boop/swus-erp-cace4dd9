@@ -262,7 +262,10 @@ function CampaignCard({ row: r }: { row: CampaignRollupRow }) {
 
           {/* Spend */}
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Spend</div>
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Spend</div>
+              <CostSourceBadge source={r.cost_source} estimated={r.estimated_bdt_cost} />
+            </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-xl font-bold tabular-nums text-foreground">{fmtBDT(r.spend_bdt)}</span>
               <span className="text-xs text-muted-foreground tabular-nums">{fmtUSD(r.spend)}</span>
