@@ -16,7 +16,7 @@ import { canAccessPath } from "@/lib/erp/access";
 import { useMyAllowedPages } from "@/hooks/use-my-allowed-pages";
 import { pathAllowedBy } from "@/lib/erp/permissions/page-catalog";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; search?: Record<string, string> };
 type FlatGroup = { kind: "flat"; label: string; items: NavItem[] };
 type AccordionGroup = { kind: "accordion"; label: string; sections: { key: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }[]; defaultClosed?: boolean };
 type Group = FlatGroup | AccordionGroup;
@@ -94,8 +94,8 @@ const groups: Group[] = [
           { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
           { to: "/erp/finance/accounts", label: "Accounts", icon: BookOpen },
           { to: "/erp/finance/journal", label: "Journal", icon: Receipt },
-          { to: "/erp/finance/journal?tab=quick", label: "Quick Entry", icon: Zap },
-          { to: "/erp/finance/journal?tab=recurring", label: "Recurring", icon: RotateCcw },
+          { to: "/erp/finance/journal", label: "Quick Entry", icon: Zap, search: { tab: "quick" } },
+          { to: "/erp/finance/journal", label: "Recurring", icon: RotateCcw, search: { tab: "recurring" } },
           { to: "/erp/finance/receivables", label: "AR / AP", icon: ArrowDownCircle },
           { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: Coins },
           { to: "/erp/finance/reports", label: "Reports", icon: FileBarChart },
