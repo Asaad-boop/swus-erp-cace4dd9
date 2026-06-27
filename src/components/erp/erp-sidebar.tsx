@@ -276,11 +276,12 @@ export function ErpSidebar() {
     });
   };
 
-  const NavLinkItem = ({ to, label, icon: Icon, exact, indented }: NavItem & { indented?: boolean }) => {
-    const active = isActive(to, exact);
+  const NavLinkItem = ({ to, label, icon: Icon, exact, search, indented }: NavItem & { indented?: boolean }) => {
+    const active = isActive(to, exact, search);
     const content = (
       <Link
         to={to as never}
+        search={search as never}
         className={cn(
           "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200 tracking-tight",
           collapsed
