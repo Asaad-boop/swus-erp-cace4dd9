@@ -274,7 +274,8 @@ function NewPoPage() {
   const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
   const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const itemsValid = items.length > 0 && items.every((i) => i.picked.title.trim() && i.quantity > 0);
-  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
+  const payEnabledUI = payAmount > 0 || !!payWalletId;
+  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabledUI || (payAmount > 0 && !!payWalletId));
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto pb-24">
@@ -564,12 +565,9 @@ function NewPoPage() {
           <Card className="p-4 md:p-5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <SectionTitle icon={Wallet} title="Advance payment (optional)" />
-              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={payEnabled} onChange={(e) => setPayEnabled(e.target.checked)} className="rounded" />
-                Pay supplier advance now
-              </label>
+              <div className="text-[11px] text-muted-foreground">Fill amount + wallet to pay now; leave blank to skip</div>
             </div>
-            {payEnabled && (
+            {(
               <div className="grid md:grid-cols-2 gap-4 mt-3">
                 <AmountPercentInput
                   total={productSubtotalBdt}
@@ -634,7 +632,7 @@ function NewPoPage() {
             <SideRow label="Total weight" value={`${totalCartonWeight.toFixed(1)} kg`} />
             <div className="border-t border-border my-2" />
             <SideRow label="Subtotal" value={fmtBdt(productSubtotalBdt)} bold />
-            {payEnabled && payAmount > 0 && (
+            {payAmount > 0 && (
               <>
                 <SideRow label="Advance" value={`− ${fmtBdt(payAmount)}`} accent="text-emerald-600" />
                 <SideRow label="Due after" value={fmtBdt(Math.max(0, productSubtotalBdt - payAmount))} bold accent={productSubtotalBdt - payAmount > 0 ? "text-orange-600" : "text-emerald-600"} />
