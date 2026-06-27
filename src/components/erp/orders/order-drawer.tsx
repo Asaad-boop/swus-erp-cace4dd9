@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send, AlertTriangle } from "lucide-react";
+import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send, AlertTriangle, Truck, Pencil, Lock, ShieldAlert } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -17,7 +17,6 @@ import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { useOrderLock } from "@/hooks/erp/use-order-lock";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
-import { Truck, Pencil, Lock, ShieldAlert } from "lucide-react";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -195,6 +194,10 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   });
 
   const openFeeDialog = () => {
+    if (editingBlocked) {
+      toast.error(`Order opened by ${lockState.lock?.user_name ?? "another user"}. Takeover first.`);
+      return;
+    }
     setFeeAmount(hasActual ? String(actualNum) : "");
     setFeeOpen(true);
   };
@@ -598,8 +601,8 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
             <DialogFooter>
               <Button variant="ghost" onClick={() => setFeeOpen(false)}>Cancel</Button>
               <Button
-                disabled={saveFee.isPending || !feeAmount || Number(feeAmount) < 0}
-                onClick={() => saveFee.mutate(Number(feeAmount))}
+                disabled={saveFee.isPending || !feeAmount || Number(feeAmount) < 0 || editingBlocked}
+                onClick={() => guardedAction(() => saveFee.mutate(Number(feeAmount)))}
               >
                 {saveFee.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
               </Button>
