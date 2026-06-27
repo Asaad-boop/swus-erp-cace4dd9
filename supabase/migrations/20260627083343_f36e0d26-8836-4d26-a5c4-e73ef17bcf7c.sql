@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public._fifo_step2_test_log;
