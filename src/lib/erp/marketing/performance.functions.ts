@@ -31,6 +31,10 @@ export type PerfRow = {
   spend_bdt: number;
   manual_spend_bdt: number;
   total_spend_bdt: number;
+  // FIFO cost-source info (per Step 2)
+  spend_bdt_fifo: number;
+  cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
+  estimated_bdt_cost: boolean;
   confirmed_orders: number;
   delivered_orders: number;
   delivered_revenue_bdt: number;
