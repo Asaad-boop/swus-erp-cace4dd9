@@ -140,6 +140,8 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ rows: PerfRow[]; totals: PerfTotals }> => {
     const supabase = context.supabase;
     const { from, to } = dateRangeDefaults(data);
+    const { getBrandUsdBdt } = await import("./fx.server");
+    const brandUsdBdt = await getBrandUsdBdt(supabase, data.brandId);
     // Default timezone = Asia/Dhaka (matches Meta Ads Manager day buckets for BD accounts).
     const tzMin = tzOffsetMinutes("Asia/Dhaka");
     const fromStart = localDayToUtcIso(from, tzMin, false);
@@ -274,7 +276,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
     const rows: PerfRow[] = (campaigns as any[]).map((c) => {
       const acc = c.mkt_ad_accounts;
       const currency: string = (acc?.currency ?? "USD").toUpperCase();
-      const usdFx: number = Number(acc?.usd_to_bdt_rate) || 110;
+      const usdFx: number = Number(acc?.usd_to_bdt_rate) || brandUsdBdt;
       // If account currency is BDT, spend is already BDT — do NOT multiply by FX.
       const fx: number = currency === "BDT" ? 1 : usdFx;
       const ins = insMap.get(c.id) ?? {
