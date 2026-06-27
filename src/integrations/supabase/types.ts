@@ -6979,6 +6979,7 @@ export type Database = {
           advance_txn_id: string | null
           alternate_phone: string | null
           assigned_to: string | null
+          attribution: Json | null
           attribution_landing_page: string | null
           auto_call_enabled: boolean | null
           brand_id: string | null
@@ -7090,6 +7091,7 @@ export type Database = {
           advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
+          attribution?: Json | null
           attribution_landing_page?: string | null
           auto_call_enabled?: boolean | null
           brand_id?: string | null
@@ -7201,6 +7203,7 @@ export type Database = {
           advance_txn_id?: string | null
           alternate_phone?: string | null
           assigned_to?: string | null
+          attribution?: Json | null
           attribution_landing_page?: string | null
           auto_call_enabled?: boolean | null
           brand_id?: string | null
@@ -8999,6 +9002,7 @@ export type Database = {
           advance_txn_id: string | null
           alternate_phone: string | null
           assigned_to: string | null
+          attribution: Json | null
           attribution_landing_page: string | null
           auto_call_enabled: boolean | null
           brand_id: string | null
@@ -9119,6 +9123,7 @@ export type Database = {
           advance_txn_id: string | null
           alternate_phone: string | null
           assigned_to: string | null
+          attribution: Json | null
           attribution_landing_page: string | null
           auto_call_enabled: boolean | null
           brand_id: string | null
