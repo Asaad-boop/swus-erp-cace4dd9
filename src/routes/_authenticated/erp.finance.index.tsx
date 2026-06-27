@@ -551,13 +551,11 @@ function QuickLinks() {
   const links: { to: string; label: string; icon: React.ReactNode; tone: string }[] = [
     { to: "/erp/finance/accounts", label: "Accounts", icon: <Wallet className="size-4" />, tone: "bg-muted text-foreground/70" },
     { to: "/erp/finance/receivables", label: "Receivables", icon: <ArrowDownRight className="size-4" />, tone: "bg-muted text-foreground/70" },
-    { to: "/erp/finance/payables", label: "Payables", icon: <ArrowUpRight className="size-4" />, tone: "bg-muted text-foreground/70" },
-    { to: "/erp/finance/recurring", label: "Recurring", icon: <Calendar className="size-4" />, tone: "bg-muted text-foreground/70" },
-    { to: "/erp/finance/reconciliation", label: "Reconcile", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
     { to: "/erp/finance/journal", label: "Journal", icon: <FileText className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: <ArrowUpRight className="size-4" />, tone: "bg-muted text-foreground/70" },
     { to: "/erp/finance/reports", label: "Reports", icon: <Activity className="size-4" />, tone: "bg-muted text-foreground/70" },
     { to: "/erp/finance/budgets", label: "Budgets", icon: <TrendingUp className="size-4" />, tone: "bg-muted text-foreground/70" },
-    { to: "/erp/finance/fx", label: "FX rates", icon: <TrendingDown className="size-4" />, tone: "bg-muted text-foreground/70" },
+    { to: "/erp/finance/taxes", label: "Taxes", icon: <TrendingDown className="size-4" />, tone: "bg-muted text-foreground/70" },
   ];
   return (
     <section className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
