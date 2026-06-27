@@ -113,7 +113,7 @@ export const cargoAdvanceDeposit = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: res, error } = await context.supabase.rpc("cargo_advance_deposit", {
+    const { data: res, error } = await (context.supabase.rpc as any)("cargo_advance_deposit", {
       p_brand_id: data.brandId,
       p_cargo_agent_id: data.cargoAgentId,
       p_payment_account_id: data.paymentAccountId,
@@ -152,7 +152,7 @@ export const createCargoBill = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: res, error } = await context.supabase.rpc("cargo_bill_create", {
+    const { data: res, error } = await (context.supabase.rpc as any)("cargo_bill_create", {
       p_brand_id: data.brandId,
       p_cargo_agent_id: data.cargoAgentId,
       p_bill_number: data.billNumber ?? null,
@@ -192,7 +192,7 @@ export const cargoPoPayment = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: res, error } = await context.supabase.rpc("cargo_po_payment", {
+    const { data: res, error } = await (context.supabase.rpc as any)("cargo_po_payment", {
       p_brand_id: data.brandId,
       p_po_id: data.poId,
       p_cargo_agent_id: data.cargoAgentId,
@@ -219,7 +219,7 @@ export const cargoManualAdjustment = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: res, error } = await context.supabase.rpc("cargo_manual_adjustment", {
+    const { data: res, error } = await (context.supabase.rpc as any)("cargo_manual_adjustment", {
       p_brand_id: data.brandId,
       p_cargo_agent_id: data.cargoAgentId,
       p_signed_amount: data.signedAmount,
