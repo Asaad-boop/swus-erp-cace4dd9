@@ -242,9 +242,10 @@ export function LiveVisitors() {
 export function ProfitQuality({
   brandIds, enabled, range,
 }: { brandIds: string[]; enabled: boolean; range: Range }) {
+  const { data: fx } = useUsdBdtRate(brandIds);
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-profit-q", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
-    enabled,
+    queryKey: ["dash-profit-q", brandIds.join(","), range.from.toISOString(), range.to.toISOString(), fx ?? 0],
+    enabled: enabled && fx != null,
     staleTime: 60_000,
     queryFn: async () => {
       const fromISO = range.from.toISOString();
@@ -287,7 +288,7 @@ export function ProfitQuality({
       // fallback: if no courier_cost_allocated rows, use orders.actual_shipping_cost
       if (courierCost === 0) courierCost = shipCost;
       const adSpendBdt = (adSpend.data ?? []).reduce(
-        (s: number, r: any) => s + Number(r.spend ?? 0) * 110,
+        (s: number, r: any) => s + Number(r.spend ?? 0) * (fx ?? 0),
         0,
       );
       const returnLoss = (returnRows.data ?? []).reduce(
