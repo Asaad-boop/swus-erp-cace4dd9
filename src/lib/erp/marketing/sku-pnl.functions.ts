@@ -24,6 +24,12 @@ export type SkuPnlRow = {
   ugc_spend: number;
   other_marketing: number;
   total_marketing: number;
+  // FIFO Meta cost-source breakdown
+  meta_spend_usd: number;
+  meta_spend_bdt_actual: number; // FIFO portion
+  meta_spend_bdt_fallback: number; // FX-converted portion
+  cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
+  estimated_bdt_cost: boolean;
   net_profit: number;
   margin_pct: number | null;
   roas: number | null;
