@@ -170,6 +170,10 @@ function NewPoPage() {
       if (items.some((i) => !i.picked.title.trim() || i.quantity <= 0)) throw new Error("Each item needs a name & quantity > 0");
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
+      if (payEnabled && useCargoBalance) {
+        if (!cargoAgentId) throw new Error("Select a cargo agent to pay from cargo balance");
+        if (payAmount > cargoBalance) throw new Error(`Cargo balance insufficient (available ${fmtBdt(cargoBalance)})`);
+      }
 
       const itemList = items.map((it) => ({
         product_id: it.picked.id ?? undefined,
@@ -200,7 +204,7 @@ function NewPoPage() {
       };
       if (supplierId) payload.supplier = { id: supplierId };
 
-      if (payEnabled && payAmount > 0 && payWalletId) {
+      if (payEnabled && payAmount > 0 && payWalletId && !useCargoBalance) {
         payload.initial_payment = {
           amount_bdt: payAmount,
           wallet_id: payWalletId,
@@ -218,6 +222,22 @@ function NewPoPage() {
           await setAgentFn({ data: { po_id: res.po_id, cargo_agent_id: cargoAgentId } });
         } catch (e) {
           console.warn("Failed to set cargo agent", e);
+        }
+      }
+      // Pay from cargo balance after PO exists
+      if (res?.po_id && payEnabled && useCargoBalance && payAmount > 0 && cargoAgentId && brandId) {
+        try {
+          await cargoPayFn({ data: {
+            brandId,
+            poId: res.po_id,
+            cargoAgentId,
+            amountFromBalance: payAmount,
+            amountFromAccount: 0,
+            paymentDate: payDate,
+            reference: payRef || undefined,
+          }});
+        } catch (e: any) {
+          toast.error(`Cargo balance payment failed: ${e?.message ?? e}`);
         }
       }
       // Persist agent commission (CNY/pcs) on the PO if provided
