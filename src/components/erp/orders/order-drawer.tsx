@@ -293,7 +293,27 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                   </div>
                 </div>
               )}
-              <div className={editingBlocked ? "pointer-events-none select-none opacity-45" : undefined} aria-disabled={editingBlocked}>
+              {editingBlocked ? (
+                <div className="p-5">
+                  <div className="rounded-xl border border-amber-300/70 bg-card p-8 text-center shadow-sm">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300">
+                      <ShieldAlert className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground">This order is locked</h3>
+                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                      {lockState.lock?.user_name ?? "Another user"} is working on this order. Takeover korle tar session close hoye tomar edit access open hobe.
+                    </p>
+                    {lockState.lock && (
+                      <div className="mt-3 text-xs font-medium">
+                        <LockCountdown lastHeartbeatAt={lockState.lock.last_heartbeat_at} tone="amber" />
+                      </div>
+                    )}
+                    <Button className="mt-5 gap-1.5" onClick={() => lockState.takeOver()}>
+                      <Lock className="h-3.5 w-3.5" /> Takeover & Open
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <div className="grid lg:grid-cols-3 gap-4 p-5">
                 {/* LEFT — Customer + Items (2 cols) */}
                 <div className="lg:col-span-2 space-y-4">
@@ -508,7 +528,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                   </section>
                 </div>
               </div>
-              </div>
+              )}
             </div>
           </>
         )}
