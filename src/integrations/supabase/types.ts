@@ -4417,6 +4417,206 @@ export type Database = {
           },
         ]
       }
+      imp_cargo_bills: {
+        Row: {
+          attachment_url: string | null
+          bill_date: string
+          bill_number: string | null
+          brand_id: string
+          cargo_agent_id: string
+          created_at: string
+          created_by: string | null
+          customs_charge: number
+          id: string
+          local_delivery_charge: number
+          note: string | null
+          other_charge: number
+          paid_from_account_bdt: number
+          paid_from_balance_bdt: number
+          payable_bdt: number
+          payment_account_id: string | null
+          payment_source: string
+          po_id: string | null
+          service_charge: number
+          shipment_ref: string | null
+          shipping_charge: number
+          total_bdt: number
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          bill_date?: string
+          bill_number?: string | null
+          brand_id: string
+          cargo_agent_id: string
+          created_at?: string
+          created_by?: string | null
+          customs_charge?: number
+          id?: string
+          local_delivery_charge?: number
+          note?: string | null
+          other_charge?: number
+          paid_from_account_bdt?: number
+          paid_from_balance_bdt?: number
+          payable_bdt?: number
+          payment_account_id?: string | null
+          payment_source?: string
+          po_id?: string | null
+          service_charge?: number
+          shipment_ref?: string | null
+          shipping_charge?: number
+          total_bdt?: number
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          attachment_url?: string | null
+          bill_date?: string
+          bill_number?: string | null
+          brand_id?: string
+          cargo_agent_id?: string
+          created_at?: string
+          created_by?: string | null
+          customs_charge?: number
+          id?: string
+          local_delivery_charge?: number
+          note?: string | null
+          other_charge?: number
+          paid_from_account_bdt?: number
+          paid_from_balance_bdt?: number
+          payable_bdt?: number
+          payment_account_id?: string | null
+          payment_source?: string
+          po_id?: string | null
+          service_charge?: number
+          shipment_ref?: string | null
+          shipping_charge?: number
+          total_bdt?: number
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_bills_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_bills_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_bills_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_balances"
+            referencedColumns: ["cargo_agent_id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_bills_payment_account_id_fkey"
+            columns: ["payment_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_bills_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "imp_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      imp_cargo_ledger: {
+        Row: {
+          attachment_url: string | null
+          brand_id: string
+          cargo_agent_id: string
+          created_at: string
+          created_by: string | null
+          credit_bdt: number
+          debit_bdt: number
+          entry_date: string
+          entry_type: string
+          id: string
+          note: string | null
+          payment_account_id: string | null
+          ref_id: string | null
+          ref_label: string | null
+          ref_type: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          brand_id: string
+          cargo_agent_id: string
+          created_at?: string
+          created_by?: string | null
+          credit_bdt?: number
+          debit_bdt?: number
+          entry_date?: string
+          entry_type: string
+          id?: string
+          note?: string | null
+          payment_account_id?: string | null
+          ref_id?: string | null
+          ref_label?: string | null
+          ref_type?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          brand_id?: string
+          cargo_agent_id?: string
+          created_at?: string
+          created_by?: string | null
+          credit_bdt?: number
+          debit_bdt?: number
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          note?: string | null
+          payment_account_id?: string | null
+          ref_id?: string | null
+          ref_label?: string | null
+          ref_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_ledger_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_ledger_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_ledger_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_balances"
+            referencedColumns: ["cargo_agent_id"]
+          },
+          {
+            foreignKeyName: "imp_cargo_ledger_payment_account_id_fkey"
+            columns: ["payment_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imp_carton_items: {
         Row: {
           carton_id: string
@@ -4915,6 +5115,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "imp_cargo_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_purchase_orders_cargo_agent_id_fkey"
+            columns: ["cargo_agent_id"]
+            isOneToOne: false
+            referencedRelation: "imp_cargo_balances"
+            referencedColumns: ["cargo_agent_id"]
           },
           {
             foreignKeyName: "imp_purchase_orders_supplier_id_fkey"
@@ -7958,6 +8165,27 @@ export type Database = {
         }
         Relationships: []
       }
+      imp_cargo_balances: {
+        Row: {
+          adjustment_net: number | null
+          brand_id: string | null
+          cargo_agent_id: string | null
+          current_balance: number | null
+          entry_count: number | null
+          last_entry_at: string | null
+          total_advance: number | null
+          total_deducted: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imp_cargo_agents_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews_public: {
         Row: {
           admin_note: string | null
@@ -8283,6 +8511,66 @@ export type Database = {
       calculate_rfm_all_brands: { Args: never; Returns: undefined }
       cancel_meta_dollar_purchase: {
         Args: { _purchase_id: string; _reason?: string }
+        Returns: Json
+      }
+      cargo_advance_deposit: {
+        Args: {
+          p_amount: number
+          p_attachment_url: string
+          p_brand_id: string
+          p_cargo_agent_id: string
+          p_note: string
+          p_payment_account_id: string
+          p_payment_date: string
+          p_reference: string
+        }
+        Returns: Json
+      }
+      cargo_bill_create: {
+        Args: {
+          p_amount_from_account: number
+          p_amount_from_balance: number
+          p_attachment_url: string
+          p_bill_date: string
+          p_bill_number: string
+          p_brand_id: string
+          p_cargo_agent_id: string
+          p_customs_charge: number
+          p_local_delivery_charge: number
+          p_note: string
+          p_other_charge: number
+          p_payment_account_id: string
+          p_payment_source: string
+          p_po_id: string
+          p_service_charge: number
+          p_shipment_ref: string
+          p_shipping_charge: number
+          p_weight_kg: number
+        }
+        Returns: Json
+      }
+      cargo_manual_adjustment: {
+        Args: {
+          p_attachment_url: string
+          p_brand_id: string
+          p_cargo_agent_id: string
+          p_note: string
+          p_signed_amount: number
+        }
+        Returns: Json
+      }
+      cargo_po_payment: {
+        Args: {
+          p_amount_from_account: number
+          p_amount_from_balance: number
+          p_brand_id: string
+          p_cargo_agent_id: string
+          p_note: string
+          p_payment_account_id: string
+          p_payment_date: string
+          p_po_id: string
+          p_reference: string
+        }
         Returns: Json
       }
       check_reorder_triggers: { Args: { _brand_id: string }; Returns: number }
