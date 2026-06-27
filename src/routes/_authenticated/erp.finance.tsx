@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, BookOpen, FileText, BarChart3, Settings, Wallet, Receipt, Target, Percent, PackageSearch } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileText, BarChart3, Settings, Wallet, Receipt, Target, Percent, PackageSearch, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/finance")({
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/erp/finance/wallets", label: "Wallets", icon: Wallet },
   { to: "/erp/finance/journal", label: "Journal", icon: FileText },
   { to: "/erp/finance/receivables", label: "AR / AP", icon: Receipt },
+  { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: DollarSign },
   { to: "/erp/finance/budgets", label: "Budgets", icon: Target },
   { to: "/erp/finance/taxes", label: "Taxes", icon: Percent },
   { to: "/erp/finance/product-profitability", label: "Profitability", icon: PackageSearch },
