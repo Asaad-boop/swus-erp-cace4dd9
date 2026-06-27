@@ -51,6 +51,8 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ rows: SkuPnlRow[]; unallocated_ad_spend: number; unallocated_manual_expenses: number; from: string; to: string }> => {
+    const { getBrandUsdBdt } = await import("./fx.server");
+    const brandUsdBdt = await getBrandUsdBdt(context.supabase, data.brandId);
     const supabase = context.supabase;
     const { from, to } = defaults(data);
     const toEnd = `${to}T23:59:59.999Z`;
@@ -187,7 +189,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     const campFx = new Map<string, number>();
     for (const c of (camps ?? []) as any[]) {
       const cur = (c.mkt_ad_accounts?.currency ?? "USD").toUpperCase();
-      const fx = cur === "BDT" ? 1 : (Number(c.mkt_ad_accounts?.usd_to_bdt_rate) || 110);
+      const fx = cur === "BDT" ? 1 : (Number(c.mkt_ad_accounts?.usd_to_bdt_rate) || brandUsdBdt);
       campFx.set(c.id, fx);
     }
     const campIds = Array.from(campFx.keys());
@@ -202,7 +204,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       : { data: [] as any[] };
     const campSpendBdt = new Map<string, number>();
     for (const r of (insights ?? []) as any[]) {
-      const fx = campFx.get(r.campaign_id) ?? 110;
+      const fx = campFx.get(r.campaign_id) ?? brandUsdBdt;
       campSpendBdt.set(r.campaign_id, (campSpendBdt.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0) * fx);
     }
 
