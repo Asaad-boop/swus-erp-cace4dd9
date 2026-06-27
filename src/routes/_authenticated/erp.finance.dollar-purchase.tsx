@@ -307,8 +307,13 @@ function DollarPurchasePage() {
               await updateFn({ data: { id: editing.id, ...payload } });
               toast.success("Updated");
             } else {
-              await createFn({ data: payload });
-              toast.success("Saved as draft. Confirm to post to ledger.");
+              const created: any = await createFn({ data: payload });
+              try {
+                await confirmFn({ data: { id: created.id } });
+                toast.success("Purchase posted to ledger.");
+              } catch (err: any) {
+                toast.error(`Saved as draft — auto-confirm failed: ${err?.message ?? "unknown"}`);
+              }
             }
             setDialogOpen(false); setEditing(null);
             refresh();
