@@ -113,6 +113,7 @@ import { Route as AuthenticatedErpHrAttendanceIndexRouteImport } from './routes/
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_authenticated/erp.imports.orders.new'
 import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
+import { Route as AuthenticatedErpImportsCargoAgentIdRouteImport } from './routes/_authenticated/erp.imports.cargo.$agentId'
 import { Route as AuthenticatedErpHrShiftsAssignRouteImport } from './routes/_authenticated/erp.hr.shifts.assign'
 import { Route as AuthenticatedErpHrPayrollRunIdRouteImport } from './routes/_authenticated/erp.hr.payroll.$runId'
 import { Route as AuthenticatedErpHrLeavePolicyRouteImport } from './routes/_authenticated/erp.hr.leave.policy'
@@ -720,6 +721,12 @@ const AuthenticatedErpImportsOrdersOrderIdRoute =
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpImportsCargoAgentIdRoute =
+  AuthenticatedErpImportsCargoAgentIdRouteImport.update({
+    id: '/$agentId',
+    path: '/$agentId',
+    getParentRoute: () => AuthenticatedErpImportsCargoRoute,
+  } as any)
 const AuthenticatedErpHrShiftsAssignRoute =
   AuthenticatedErpHrShiftsAssignRouteImport.update({
     id: '/assign',
@@ -818,7 +825,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
   '/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
-  '/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRoute
+  '/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRouteWithChildren
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -865,6 +872,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/erp/imports/cargo/$agentId': typeof AuthenticatedErpImportsCargoAgentIdRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -917,7 +925,7 @@ export interface FileRoutesByTo {
   '/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
   '/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
-  '/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRoute
+  '/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRouteWithChildren
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -964,6 +972,7 @@ export interface FileRoutesByTo {
   '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/erp/imports/cargo/$agentId': typeof AuthenticatedErpImportsCargoAgentIdRoute
   '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -1031,7 +1040,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/shifts': typeof AuthenticatedErpHrShiftsRouteWithChildren
   '/_authenticated/erp/hr/staff': typeof AuthenticatedErpHrStaffRoute
   '/_authenticated/erp/imports/agents': typeof AuthenticatedErpImportsAgentsRoute
-  '/_authenticated/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRoute
+  '/_authenticated/erp/imports/cargo': typeof AuthenticatedErpImportsCargoRouteWithChildren
   '/_authenticated/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/_authenticated/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
@@ -1078,6 +1087,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/_authenticated/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/_authenticated/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/_authenticated/erp/imports/cargo/$agentId': typeof AuthenticatedErpImportsCargoAgentIdRoute
   '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/_authenticated/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
@@ -1192,6 +1202,7 @@ export interface FileRouteTypes {
     | '/erp/hr/leave/policy'
     | '/erp/hr/payroll/$runId'
     | '/erp/hr/shifts/assign'
+    | '/erp/imports/cargo/$agentId'
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
@@ -1291,6 +1302,7 @@ export interface FileRouteTypes {
     | '/erp/hr/leave/policy'
     | '/erp/hr/payroll/$runId'
     | '/erp/hr/shifts/assign'
+    | '/erp/imports/cargo/$agentId'
     | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
@@ -1404,6 +1416,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr/leave/policy'
     | '/_authenticated/erp/hr/payroll/$runId'
     | '/_authenticated/erp/hr/shifts/assign'
+    | '/_authenticated/erp/imports/cargo/$agentId'
     | '/_authenticated/erp/imports/orders/$orderId'
     | '/_authenticated/erp/imports/orders/new'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
@@ -2157,6 +2170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/imports/cargo/$agentId': {
+      id: '/_authenticated/erp/imports/cargo/$agentId'
+      path: '/$agentId'
+      fullPath: '/erp/imports/cargo/$agentId'
+      preLoaderRoute: typeof AuthenticatedErpImportsCargoAgentIdRouteImport
+      parentRoute: typeof AuthenticatedErpImportsCargoRoute
+    }
     '/_authenticated/erp/hr/shifts/assign': {
       id: '/_authenticated/erp/hr/shifts/assign'
       path: '/assign'
@@ -2363,9 +2383,24 @@ const AuthenticatedErpHrRouteChildren: AuthenticatedErpHrRouteChildren = {
 const AuthenticatedErpHrRouteWithChildren =
   AuthenticatedErpHrRoute._addFileChildren(AuthenticatedErpHrRouteChildren)
 
+interface AuthenticatedErpImportsCargoRouteChildren {
+  AuthenticatedErpImportsCargoAgentIdRoute: typeof AuthenticatedErpImportsCargoAgentIdRoute
+}
+
+const AuthenticatedErpImportsCargoRouteChildren: AuthenticatedErpImportsCargoRouteChildren =
+  {
+    AuthenticatedErpImportsCargoAgentIdRoute:
+      AuthenticatedErpImportsCargoAgentIdRoute,
+  }
+
+const AuthenticatedErpImportsCargoRouteWithChildren =
+  AuthenticatedErpImportsCargoRoute._addFileChildren(
+    AuthenticatedErpImportsCargoRouteChildren,
+  )
+
 interface AuthenticatedErpImportsRouteChildren {
   AuthenticatedErpImportsAgentsRoute: typeof AuthenticatedErpImportsAgentsRoute
-  AuthenticatedErpImportsCargoRoute: typeof AuthenticatedErpImportsCargoRoute
+  AuthenticatedErpImportsCargoRoute: typeof AuthenticatedErpImportsCargoRouteWithChildren
   AuthenticatedErpImportsReportsRoute: typeof AuthenticatedErpImportsReportsRoute
   AuthenticatedErpImportsSettingsRoute: typeof AuthenticatedErpImportsSettingsRoute
   AuthenticatedErpImportsIndexRoute: typeof AuthenticatedErpImportsIndexRoute
@@ -2377,7 +2412,8 @@ interface AuthenticatedErpImportsRouteChildren {
 const AuthenticatedErpImportsRouteChildren: AuthenticatedErpImportsRouteChildren =
   {
     AuthenticatedErpImportsAgentsRoute: AuthenticatedErpImportsAgentsRoute,
-    AuthenticatedErpImportsCargoRoute: AuthenticatedErpImportsCargoRoute,
+    AuthenticatedErpImportsCargoRoute:
+      AuthenticatedErpImportsCargoRouteWithChildren,
     AuthenticatedErpImportsReportsRoute: AuthenticatedErpImportsReportsRoute,
     AuthenticatedErpImportsSettingsRoute: AuthenticatedErpImportsSettingsRoute,
     AuthenticatedErpImportsIndexRoute: AuthenticatedErpImportsIndexRoute,
