@@ -3,7 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
-import { beepNewOrder } from "@/lib/erp/audio-feedback";
+import { playOrderSound, beepKaching } from "@/lib/erp/audio-feedback";
 
 /**
  * Global listener: plays a chime + toast whenever a new order is inserted
@@ -19,13 +19,6 @@ export function GlobalNewOrderNotifier() {
 
   // Unlock WebAudio on first user interaction (browser autoplay policy)
   useEffect(() => {
-    const unlock = () => {
-      try { beepNewOrder(); } catch { /* ignore */ }
-      // Above will be silent if context still suspended; we just need the gesture
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-    // Silent unlock — wrap to avoid actual sound on first click
     const silentUnlock = () => {
       try {
         const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
@@ -40,8 +33,6 @@ export function GlobalNewOrderNotifier() {
     window.addEventListener("pointerdown", silentUnlock, { once: true });
     window.addEventListener("keydown", silentUnlock, { once: true });
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
       window.removeEventListener("pointerdown", silentUnlock);
       window.removeEventListener("keydown", silentUnlock);
     };
@@ -75,7 +66,7 @@ export function GlobalNewOrderNotifier() {
           if (seenRef.current.has(row.id)) return;
           seenRef.current.add(row.id);
 
-          try { beepNewOrder(); } catch { /* audio blocked until user interacts */ }
+          try { playOrderSound(); } catch { /* audio blocked until user interacts */ }
 
           const name = row.shipping_name ?? row.guest_name ?? "Customer";
           const city = row.shipping_city ? ` · ${row.shipping_city}` : "";
@@ -100,3 +91,6 @@ export function GlobalNewOrderNotifier() {
 
   return null;
 }
+
+// Re-export for settings UI convenience
+export { beepKaching };
