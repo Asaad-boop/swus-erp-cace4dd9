@@ -38,12 +38,14 @@ export type CapiEvent = {
   custom_data?: Record<string, unknown>;
 };
 
+type JsonValue = string | number | boolean | null | { [k: string]: JsonValue } | JsonValue[];
+
 export async function sendCapi(opts: {
   pixelId: string;
   accessToken: string;
   testEventCode?: string;
   events: CapiEvent[];
-}): Promise<{ ok: boolean; status: number; body: unknown; events_received?: number; fbtrace_id?: string; error?: string }> {
+}): Promise<{ ok: boolean; status: number; body: JsonValue; events_received?: number; fbtrace_id?: string; error?: string }> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(opts.pixelId)}/events`;
   const payload: Record<string, unknown> = {
     data: opts.events,
