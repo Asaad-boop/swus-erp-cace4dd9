@@ -1,113 +1,155 @@
-# ERP Login + Role-Based Dashboard Plan
+# Meta Dollar Purchase / Ad Account Funding System
 
-## Idea review (short answer)
-
-Bro, idea ta solid — **practical and standard ERP pattern**. Two jinis ektu refine kortesi:
-
-1. **Username diye login** — Supabase Auth shudhu email/phone support kore, raw username na. Solution: ekta `username` column profiles e rakhi, login form e user "username or email" type korle frontend e username → email resolve kore tarpor Supabase signIn call hobe. Clean, no hack.
-2. **My Workspace (`/me`) admin der jonno off** — agree, but **fully remove na kore** admin der jonno hide kori (sidebar/redirect level e). Karon kichu admin nijer payslip/leave dekhte chaibe future e. Just default landing `/erp` rakhbo, `/me` link hide.
-
-Baki sob — admin dashboard e side check-in/out widget, staff der dedicated operational dashboard (packed today, pending orders, attendance, live performance) — exactly right direction.
-
----
+Bro, eta boro feature — Finance + Marketing duitate connect korte hobe. Niche complete plan, approve korle ek ek kore build korbo.
 
 ## Scope
 
-### 1. Login UX upgrade (`/auth`)
+Manually-bought USD ke track korbo per Meta ad account, FIFO rate use kore actual BDT marketing cost calculate korbo, ar finance accounts (Cash/Bank/bKash etc.) theke outflow auto-deduct korbo.
 
-- Single field: **"Username or Email"** + Password.
-- Resolver: if input contains `@` → use as email; else lookup `profiles.username` → fetch email → `signInWithPassword`.
-- Add `username` column to `profiles` (unique, nullable for legacy). Settings → Profile e edit option.
-- "Remember me" + better error messages (Banglish).
-- Forgot password link intact.
+## 1. Database (single migration)
 
-### 2. Role detection & routing
+Notun tables (`public` schema, RLS + GRANTs):
 
-- Already exists: `useCurrentRole` + `user_roles` table. Reuse.
-- Post-login redirect logic:
-  - `admin` / `hr_admin` / `operations` → `/erp` (admin command center)
-  - `employee` / `warehouse_staff` / `packer` / `customer_service` → `/erp` but renders **Staff Dashboard** (already built: `staff-dashboard.tsx`)
-  - `/me` route — sidebar link only for non-admins.
+- **meta_dollar_purchases** — purchase_date, brand_id, ad_account_id (→ mkt_ad_accounts), usd_amount, usd_rate, bdt_amount (generated), fee_bdt, total_bdt (generated), paid_from_account_id (→ erp_accounts), payment_method, reference, supplier_name, note, attachment_url, status (draft/confirmed/cancelled), effective_rate (generated = total_bdt/usd_amount), confirmed_at, confirmed_by, created_by.
+- **meta_ad_wallet_ledger** — ad_account_id, entry_date, entry_type (`purchase` | `spend` | `refund` | `adjustment` | `opening`), usd_amount (+/-), bdt_amount, rate_used, source_purchase_id (FIFO lot), source_spend_ref, balance_usd_after, note.
+- **meta_fifo_lots** — ad_account_id, purchase_id, lot_date, usd_total, usd_remaining, effective_rate. (FIFO consumption tracking.)
+- **finance_audit_log** — entity_type, entity_id, action, old_value jsonb, new_value jsonb, actor_id, created_at. (Reuse `erp_finance_audit` if compatible — check schema first.)
 
-### 3. Admin Dashboard — Attendance Side Widget
+Reuse existing:
 
-Add a compact **AttendancePunchCard** component on `/erp` (admin view), top-right column:
+- `erp_accounts` (Cash/Bank/bKash/Nagad/Card) as Paid From.
+- `mkt_ad_accounts` as Meta ad accounts.
+- `erp_expense_categories` — seed: Meta Ad Balance / Prepaid Marketing, Meta Ads Expense, Bank Charge, Payment Processing Fee, FX Rate Difference, Refund/Adjustment.
+- `erp_transactions` / `erp_journal_entries` for ledger postings.
 
-- Shows: today's status (Not punched / Working since 9:42 AM / On break / Done — 8h 12m).
-- Buttons: **Check In** → **Start Break / End Break** → **Check Out**.
-- Uses existing `punchIn`, `punchBreak`, `punchOut` server fns from `src/lib/erp/hr/punch.functions.ts`.
-- Auto-resolves employee_id from current user (`hr_employees.user_id = auth.uid()`).
-- Live timer (mm:ss ticking), late warning if past shift start.
-- Geolocation optional (browser prompt, skippable).
+DB functions:
 
-### 4. Staff Dashboard upgrade (`staff-dashboard.tsx`)
+- `confirm_meta_dollar_purchase(purchase_id)` — validates balance, creates FIFO lot, wallet ledger entry (+USD), debits Paid From account via `erp_transactions`, posts journal (Dr Prepaid Meta Balance + Bank Charge, Cr Cash/Bank), audit row.
+- `cancel_meta_dollar_purchase(purchase_id)` — reverse entries if confirmed.
+- `consume_meta_spend_fifo(ad_account_id, usd_spend, spend_date, ref)` — walks `meta_fifo_lots` oldest-first, computes weighted BDT, writes wallet ledger (-USD), creates Marketing Expense journal (Dr Meta Ads Expense, Cr Prepaid Meta Balance). Returns `{bdt_cost, lots_used[]}`. Fallback to latest `erp_fx_rates` USD→BDT if no remaining lot.
+- Triggers: on `mkt_insights_daily` insert/update → call FIFO consume per ad account per day (idempotent via `spend_ref`).
+- View: `meta_ad_wallet_summary` per ad_account — sums usd_purchased, bdt_paid, usd_spent, bdt_spent, usd_remaining, avg_effective_rate, latest_rate.
 
-Already exists with scoped KPIs. Add:
+Settings flag in `erp_settings`: `meta_funding_mode` = `prepaid` (default) | `direct_expense`.
 
-- **Attendance card** (same `AttendancePunchCard` component, reused).
-- **Today's Packing**: count from `orders` where `packaged_by = me AND DATE(packaged_at) = today`.
-- **My Pending Queue**: orders `assigned_to = me AND status IN ('new','confirmed')`.
-- **Live Performance** strip: today vs 7-day avg (packs/hr, orders handled).
-- Quick actions: "Start Packing", "Mark Dispatched", "Request Leave".
-- Hide all financial/profit cards (already done).
+## 2. Server functions (`src/lib/erp/marketing/dollar-purchase.functions.ts`)
 
-### 5. Sidebar & shell adjustments
+- `listDollarPurchasesFn` (filters: dateRange, brand, ad_account, paid_from, status)
+- `createDollarPurchaseFn` (zod validated; status=draft)
+- `updateDollarPurchaseFn` (only when draft)
+- `confirmDollarPurchaseFn` → calls RPC
+- `cancelDollarPurchaseFn` → calls RPC
+- `getAdAccountWalletFn(adAccountId)` → summary + ledger + lots
+- `dollarPurchaseReportsFn` (variant per report)
 
-- `erp-sidebar.tsx`: hide "My Workspace" link for admins; show prominently for staff at top.
-- Header: show punch status pill (green dot "Checked in 2h 14m") — click opens widget.
+All `requireSupabaseAuth` + role check (admin/finance).
 
-### 6. First-login onboarding
+## 3. UI pages
 
-- If user has no `hr_employees` row linked → admin sees a banner "Link your employee profile to enable attendance". Staff sees a friendly setup screen instead of error.
+**Finance**
+
+- `erp.finance.dollar-purchase.tsx` — list + filters + summary KPI cards (Total USD, Total BDT, Avg Effective Rate, Wallet Balance, This Month Meta Spend, This Month Fees). Drawer/dialog for create/edit. Confirm/Cancel actions with reason.
+- Add nav link under Finance → Expenses → "Meta Dollar Purchase".
+
+**Marketing**
+
+- `erp.marketing.ad-account-funding.tsx` — list of ad accounts with wallet summary cards; click → detail drawer showing lots (FIFO), ledger entries, funding history, avg effective rate, latest rate.
+- Link from `erp.marketing.accounts.tsx` row → "Funding".
+
+**Reports** (add tabs in `erp.finance.reports.tsx` + marketing reports):
+
+- Meta Dollar Purchase, Ad Account Funding, Spend vs Fund Added, Rate Difference, Marketing Expense BDT, Brand-wise Meta, Campaign/adset/ad spend BDT, Account-wise outflow.
+
+**Components**
+
+- `<DollarPurchaseDialog>` with attachment upload (Supabase storage bucket `finance-attachments`).
+- `<AdAccountWalletCard>`, `<FifoLotTable>`, `<FundingLedgerTable>`.
+
+## 4. Marketing sync integration
+
+Update `src/lib/erp/marketing/sync.server.ts` & `performance.functions.ts`:
+
+- When writing `mkt_insights_daily.spend_usd`, also call `consume_meta_spend_fifo` to derive `spend_bdt_actual` (store in new column `spend_bdt_fifo`).
+- SKU P&L / dashboard / profitability now uses `spend_bdt_fifo` when present, else falls back to `erp_fx_rates`-based conversion (current behavior).
+
+## 5. Validation & Audit
+
+- Zod: usd_amount > 0, usd_rate > 0, ad_account & paid_from required.
+- Insufficient balance guard unless `erp_settings.allow_negative_account = true`.
+- Confirmed entries: edit blocked → must create reversal/adjustment.
+- All confirm/cancel/edit actions logged to `erp_finance_audit` (or new `finance_audit_log`).
+
+## 6. Storage
+
+Bucket `finance-attachments` (private) for receipt uploads. RLS: authenticated read/write within own brand scope.
+
+## Build order
+
+1. Migration (tables + RPCs + seed categories + storage bucket) — needs your approval.
+2. Server functions + types.
+3. Finance Dollar Purchase page + dialog.
+4. Marketing Ad Account Funding page.
+5. Sync integration (FIFO consumption on insights).
+6. Reports.
+7. Audit log UI in existing `erp.finance.audit.tsx`.
+
+## Tech notes
+
+- FIFO calc in Postgres `plpgsql` for atomicity.
+- Generated columns for `bdt_amount`, `total_bdt`, `effective_rate`.
+- Realtime: enable `meta_dollar_purchases`, `meta_ad_wallet_ledger` publications for live KPI updates.
+- BDT formatting via existing `formatBDT` util; USD via `Intl.NumberFormat('en-US', {style:'currency', currency:'USD'})`.
 
 ---
 
-## Technical details
+Approve korle migration die start korbo. Kono part chhoto/boro korte chao, ba mode (prepaid vs direct expense) default ulto chao — bolo.  
+Approved. Start with Step 1 migration, but before coding, apply these important corrections:
 
-**Files to create:**
+1. Default mode must stay `prepaid`, not direct expense.
+  - Dollar purchase = Meta Ad Balance / Prepaid Marketing
+  - Actual Meta spend = Meta Ads Expense
+  - Transaction fee = Bank Charge / Payment Processing Fee
+2. Do not create duplicate audit table if `erp_finance_audit` already exists and is compatible. First check existing finance audit schema, then reuse it. Only create `finance_audit_log` if no compatible table exists.
+3. FIFO spend consumption must be fully idempotent.  
+On `mkt_insights_daily` insert/update, do not blindly call FIFO every time, because spend may update multiple times and double consume wallet balance.  
+Add a table like `meta_spend_consumptions` with unique key:
+  - ad_account_id
+  - insight_date
+  - campaign_id/adset_id/ad_id or insight row id
+  - spend_ref
+  Store:
+  - usd_spend_recorded
+  - usd_consumed
+  - bdt_cost
+  - lots_used jsonb
+  - created_at / updated_at
+  If spend increases, consume only the delta.  
+  Example: previous spend $10, new spend $15 → consume only $5.  
+  If spend decreases, create reversal/adjustment logic instead of double-consuming.
+4. `brand_id` should be nullable because some Meta ad accounts may be shared across All Brands. Brand-wise allocation can be done later from campaign/product/order attribution.
+5. Confirmed dollar purchase must not be editable. Any correction must create reverse/adjustment entry with audit log.
+6. If FIFO lot balance is missing but Meta spend exists, fallback to `erp_fx_rates` but mark it clearly as `estimated_bdt_cost = true` or `conversion_source = fx_fallback`.
+7. Add wallet summary view with:
+  - total_usd_purchased
+  - total_bdt_paid
+  - total_usd_spent
+  - total_bdt_spent
+  - remaining_usd
+  - avg_effective_rate
+  - latest_purchase_rate
+  - estimated/fallback spend amount
+8. Add account balance validation:  
+Cannot confirm purchase if selected Cash/Bank/bKash account has insufficient balance, unless `allow_negative_account = true`.
 
-- `src/components/erp/hr/attendance-punch-card.tsx` — reusable widget (admin + staff).
-- `src/lib/erp/hr/me-punch.functions.ts` — `getMyPunchToday()` server fn returning today's row + active shift for current user (wraps existing punch fns).
+After these corrections, start with the single migration:
 
-**Files to modify:**
+- tables
+- RPC functions
+- generated columns
+- seed categories
+- storage bucket
+- RLS
+- grants
+- realtime publication
 
-- `src/routes/auth.tsx` — username-or-email resolver, polish UI.
-- `src/routes/_authenticated/erp.index.tsx` — mount `AttendancePunchCard` in sidebar column (admin) + route staff to staff dashboard (already partly done).
-- `src/components/erp/staff-dashboard.tsx` — add punch card + packing/perf cards.
-- `src/components/erp/erp-sidebar.tsx` — conditional "My Workspace" visibility.
-- `src/components/erp/header-quick-actions.tsx` — add punch status pill.
-
-**DB migration:**
-
-- `ALTER TABLE profiles ADD COLUMN username text UNIQUE;`
-- Index + grant (existing pattern).
-- RPC `resolve_login_email(p_identifier text) RETURNS text` — security definer, returns email for given username (used by login form via anon-allowed RPC; rate-limit aware).
-
-**Reused (no changes):**
-
-- `punchIn` / `punchBreak` / `punchOut` / `getTodayPunchStatus` server fns.
-- `useCurrentRole` hook.
-- `hr_employees`, `hr_attendance`, `hr_shifts` tables.
-
----
-
-## Out of scope (ask before adding)
-
-- Face recognition / selfie mandatory.
-- IP/geo-fence enforcement (only soft capture).
-- Mobile app / PWA install prompt.
-- 2FA on login.
-
----
-
-## Rollout order
-
-1. DB migration (username + RPC).
-2. Login form upgrade.
-3. AttendancePunchCard component.
-4. Mount on admin dashboard + staff dashboard.
-5. Sidebar/header polish.
-6. Test with one admin + one staff account.
-
-Idea ta approve korle ami order anusare implement shuru korbo. Kichu change/add korte chaile bolun.  
-alada me lagbe na 
+Then send me the migration summary before moving to server functions.  
