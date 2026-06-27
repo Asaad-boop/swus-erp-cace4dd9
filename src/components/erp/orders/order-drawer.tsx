@@ -205,6 +205,34 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
             </DialogHeader>
 
             <div className="overflow-y-auto max-h-[calc(92vh-90px)] bg-muted/20">
+              {lockState.heldByOther && lockState.lock && (
+                <div className="px-5 pt-4">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-950/40 px-4 py-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-amber-900 dark:text-amber-200">
+                          Order opened by {lockState.lock.user_name ?? "another user"}
+                        </div>
+                        <div className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+                          Same order ekhane edit korle conflict hote pare. Takeover korle oder access bondho hoye jabe.
+                        </div>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5" onClick={() => lockState.takeOver()}>
+                      <Lock className="h-3.5 w-3.5" /> Takeover
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {lockState.isMine && (
+                <div className="px-5 pt-4">
+                  <div className="inline-flex items-center gap-2 rounded-md border border-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    You are editing this order
+                  </div>
+                </div>
+              )}
               <div className="grid lg:grid-cols-3 gap-4 p-5">
                 {/* LEFT — Customer + Items (2 cols) */}
                 <div className="lg:col-span-2 space-y-4">
