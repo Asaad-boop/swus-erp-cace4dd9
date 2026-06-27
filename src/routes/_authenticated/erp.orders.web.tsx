@@ -700,14 +700,7 @@ function _WebOrdersPageBody() {
           const row = payload.new as { id: string; brand_id: string | null; total: number; shipping_name: string | null; guest_name: string | null; shipping_city: string | null };
           if (!row.brand_id || !brandIds.includes(row.brand_id)) return;
           const name = row.shipping_name ?? row.guest_name ?? "Customer";
-          const city = row.shipping_city ? ` from ${row.shipping_city}` : "";
-          try { beepNewOrder(); } catch { /* audio blocked until user interacts */ }
-          toast.success(`🎉 New Order! ৳${Number(row.total).toLocaleString()} — ${name}${city}`, {
-            duration: 8000,
-            className: "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60",
-            onDismiss: () => {},
-            action: { label: "Open", onClick: () => setOpenId(row.id) },
-          });
+          void name;
           setFlashIds((prev) => { const n = new Set(prev); n.add(row.id); return n; });
           const timer = setTimeout(() => {
             flashTimersRef.current.delete(timer);
