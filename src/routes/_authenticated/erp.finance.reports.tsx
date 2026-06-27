@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer, FileSpreadsheet, Target } from "lucide-react";
+import { Printer, FileSpreadsheet, Target, Wallet, Scale, TrendingUp } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -44,6 +44,13 @@ function ReportsPage() {
           <Button variant="outline" size="icon" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
         </div>
       </header>
+
+      <div className="flex flex-wrap gap-2 print:hidden">
+        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/wallets"><Wallet className="h-3.5 w-3.5 mr-1.5" />Wallets</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/budgets"><Target className="h-3.5 w-3.5 mr-1.5" />Budgets</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/taxes"><Scale className="h-3.5 w-3.5 mr-1.5" />Taxes</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/product-profitability"><TrendingUp className="h-3.5 w-3.5 mr-1.5" />Profitability</Link></Button>
+      </div>
 
       <Tabs defaultValue="pl">
         <TabsList className="print:hidden">
