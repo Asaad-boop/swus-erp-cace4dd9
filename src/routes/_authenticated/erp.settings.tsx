@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Building, Building2, FileText, Truck, Wallet, Bell, Plug, Users, Database, AlertTriangle, ContactRound, BarChart3,
+  Building, Building2, FileText, Truck, Wallet, Bell, Plug, Users, Database, AlertTriangle, ContactRound, BarChart3, Facebook,
 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { BusinessSettings } from "@/components/erp/settings/business-settings";
@@ -16,6 +16,7 @@ import { DataSystemSection } from "@/components/erp/settings/sections/data-syste
 import { DangerZoneSection } from "@/components/erp/settings/sections/danger-zone-section";
 import { CrmCustomFieldsSection } from "@/components/erp/settings/sections/crm-section";
 import { AnalyticsSection } from "@/components/erp/settings/sections/analytics-section";
+import { TrackingSection } from "@/components/erp/settings/sections/tracking-section";
 import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
 
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/erp/settings")({
 
 type SectionId =
   | "business" | "brands" | "invoice" | "courier" | "finance"
-  | "notifications" | "integrations" | "analytics" | "crm" | "users" | "data" | "danger";
+  | "notifications" | "integrations" | "analytics" | "tracking" | "crm" | "users" | "data" | "danger";
 
 type SectionDef = {
   id: SectionId;
@@ -46,6 +47,7 @@ const SECTIONS: SectionDef[] = [
   { id: "notifications", label: "Notifications",    description: "Alerts, daily summaries",             icon: Bell,           perBrand: true  },
   { id: "integrations",  label: "Integrations",     description: "Meta, Gemini, webhooks",              icon: Plug,           perBrand: true  },
   { id: "analytics",     label: "Analytics & Tracking", description: "GA4, Clarity, Pixel, retention", icon: BarChart3,      perBrand: true  },
+  { id: "tracking",      label: "Meta Pixel & CAPI",    description: "Per-brand Pixel, CAPI, UTM, status", icon: Facebook,    perBrand: false },
   { id: "crm",           label: "CRM Custom Fields", description: "Per-customer custom data fields",    icon: ContactRound,   perBrand: true,  adminOnly: true },
   { id: "users",         label: "Users",            description: "Roles & brand access",                icon: Users,          perBrand: false, adminOnly: true },
   { id: "data",          label: "Data & System",    description: "Exports, activity, info",             icon: Database,       perBrand: true  },
@@ -157,6 +159,7 @@ function SectionRouter({ section, brandId }: { section: SectionId; brandId: stri
     case "notifications": return <NotificationsSection key={brandId} brandId={brandId} />;
     case "integrations":  return <IntegrationsSection key={brandId} brandId={brandId} />;
     case "analytics":     return <AnalyticsSection key={brandId} brandId={brandId} />;
+    case "tracking":      return <TrackingSection />;
     case "crm":           return <CrmCustomFieldsSection key={brandId} brandId={brandId} />;
     case "users":         return <UsersSection />;
     case "data":          return <DataSystemSection key={brandId} brandId={brandId} />;
