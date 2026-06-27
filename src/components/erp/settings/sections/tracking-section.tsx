@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Save, Send, CheckCircle2, XCircle, AlertTriangle, KeyRound, Facebook,
-  Activity, Globe, ExternalLink, ShieldCheck, Loader2,
+  Activity, Globe, ExternalLink, ShieldCheck, Loader2, HeartPulse, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   sendCapiTestEvent,
   getCapiRecentLogs,
   getUtmBreakdown,
+  getTrackingHealth,
   type TrackingConfig,
 } from "@/lib/erp/tracking/meta-capi.functions";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,8 @@ export function TrackingSection() {
       </div>
 
       {cfgQ.isLoading && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading brands…</div>}
+
+      <HealthDashboard />
 
       <div className="space-y-5">
         {(cfgQ.data ?? []).map((row) => (
@@ -357,6 +360,122 @@ function RecentLogsCard() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-1.5"><Label className="text-sm font-medium">{label}</Label>{children}</div>;
+}
+
+function HealthDashboard() {
+  const fn = useServerFn(getTrackingHealth);
+  const q = useQuery({ queryKey: ["tracking-health"], queryFn: () => fn(), refetchInterval: 30_000 });
+
+  const summary = useMemo(() => {
+    const rows = q.data ?? [];
+    return {
+      healthy: rows.filter((r) => r.verdict === "healthy").length,
+      warning: rows.filter((r) => r.verdict === "warning").length,
+      down: rows.filter((r) => r.verdict === "down").length,
+      total: rows.length,
+    };
+  }, [q.data]);
+
+  return (
+    <section className="rounded-xl border bg-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b bg-gradient-to-r from-emerald-500/5 to-blue-500/5">
+        <div className="flex items-center gap-2">
+          <HeartPulse className="h-4 w-4 text-rose-600" />
+          <h3 className="font-semibold">Daily Health Check</h3>
+          <span className="text-[11px] text-muted-foreground">last 24h · auto-refresh 30s</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {summary.healthy} healthy</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> {summary.warning} warning</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> {summary.down} down</span>
+          <Button size="sm" variant="ghost" onClick={() => q.refetch()} disabled={q.isFetching} className="h-6 px-2">
+            <RefreshCw className={cn("h-3 w-3", q.isFetching && "animate-spin")} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="divide-y">
+        {(q.data ?? []).map((row) => <HealthRow key={row.brand.id} row={row} />)}
+        {!q.isLoading && (q.data?.length ?? 0) === 0 && (
+          <div className="text-center text-sm text-muted-foreground py-8">No brands configured.</div>
+        )}
+        {q.isLoading && <div className="text-center text-sm text-muted-foreground py-8"><Loader2 className="inline h-4 w-4 animate-spin" /> Loading…</div>}
+      </div>
+    </section>
+  );
+}
+
+function HealthRow({ row }: { row: any }) {
+  const [open, setOpen] = useState(false);
+  const dot = row.verdict === "healthy" ? "bg-emerald-500" : row.verdict === "warning" ? "bg-amber-500" : "bg-red-500";
+  const verdictLabel = row.verdict === "healthy" ? "All systems go" : row.verdict === "warning" ? "Minor issues" : "Needs attention";
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/40 text-left">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", dot)} />
+          <span className="font-semibold truncate">{row.brand.name}</span>
+          <span className="text-xs text-muted-foreground">{verdictLabel}</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground tabular-nums">
+          <span title="Browser pixel events">PX <b className="text-foreground">{row.counts.px_total}</b></span>
+          <span title="Server CAPI sends">CAPI <b className="text-foreground">{row.counts.capi_total}</b>{row.counts.capi_errors > 0 && <span className="text-red-600"> ({row.counts.capi_errors} err)</span>}</span>
+          <span title="Orders / with UTM">ORD <b className="text-foreground">{row.counts.orders_with_attribution}/{row.counts.orders}</b></span>
+        </div>
+      </button>
+      {open && (
+        <div className="px-5 pb-4 grid md:grid-cols-2 gap-4 bg-muted/20">
+          <div className="space-y-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Checks</div>
+            {row.checks.map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded bg-background border">
+                <div className="flex items-center gap-2 min-w-0">
+                  {c.ok
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    : (c.critical ? <XCircle className="h-3.5 w-3.5 text-red-600 shrink-0" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />)}
+                  <span className="truncate">{c.label}</span>
+                </div>
+                {c.detail && <span className="text-muted-foreground tabular-nums shrink-0">{c.detail}</span>}
+              </div>
+            ))}
+          </div>
+          <div className="space-y-3">
+            <EventBreakdown title="Browser pixel events (24h)" data={row.px_by_event} lastAt={row.last_px_at} />
+            <EventBreakdown title="Server CAPI sends (24h)" data={row.capi_by_event} errors={row.capi_err_by_event} lastAt={row.last_capi_at} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EventBreakdown({ title, data, errors, lastAt }: { title: string; data: Record<string, number>; errors?: Record<string, number>; lastAt: string | null }) {
+  const entries = Object.entries(data ?? {}).sort((a, b) => b[1] - a[1]);
+  return (
+    <div className="rounded border bg-background p-2.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{title}</div>
+        <div className="text-[10px] text-muted-foreground">last: {relTime(lastAt)}</div>
+      </div>
+      {entries.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-2">No events.</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-1.5">
+          {entries.map(([ev, n]) => {
+            const err = errors?.[ev] ?? 0;
+            return (
+              <div key={ev} className="flex items-center justify-between text-xs px-2 py-1 rounded border">
+                <span className="truncate">{ev}</span>
+                <span className="tabular-nums font-medium">
+                  {n}{err > 0 && <span className="text-red-600 ml-1">({err}!)</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
