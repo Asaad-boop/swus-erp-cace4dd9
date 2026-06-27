@@ -7,9 +7,7 @@ import {
   Package, Boxes, Megaphone, Activity, Users, Sparkles,
   ChevronDown, ChevronUp,
 } from "lucide-react";
-import {
-  Landmark, Smartphone, CreditCard, Coins, ArrowDownLeft, ArrowUpRight as ArrowOut,
-} from "lucide-react";
+import { Landmark, Smartphone, Coins, ArrowDownLeft, ArrowUpRight as ArrowOut } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   Line, ComposedChart, PieChart, Pie, Cell, BarChart, Bar, LineChart,
