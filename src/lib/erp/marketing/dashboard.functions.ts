@@ -335,9 +335,9 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       if (!(rawBudget > 0)) continue;
       const acc = c.mkt_ad_accounts ?? {};
       const cur = (acc.currency ?? "USD").toUpperCase();
-      const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || 110;
+      const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || brandUsdBdt;
       // Effective USD rate for converting BDT-side totals back to USD display.
-      const usdRate = cur === "USD" ? fx : Number(acc.usd_to_bdt_rate) || 110;
+      const usdRate = cur === "USD" ? fx : Number(acc.usd_to_bdt_rate) || brandUsdBdt;
       // Budgets in DB are already in major units (USD or BDT) — sync divides /100 at ingest.
       const budgetBdt = rawBudget * fx;
       const budgetUsd = cur === "USD" ? rawBudget : rawBudget / usdRate;
