@@ -222,7 +222,7 @@ function BrandTrackingCard({
         <Button
           variant="outline" size="sm"
           onClick={() => test.mutate()}
-          disabled={disabled || test.isPending || !config.pixel_id || !config.token_secret_name}
+          disabled={disabled || test.isPending || !config.pixel_id || !config.token_present}
         >
           {test.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Send test event
