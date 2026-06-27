@@ -30,6 +30,7 @@ import {
 } from "@/components/erp/orders/order-detail-extras";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { useOrderLock } from "@/hooks/erp/use-order-lock";
+import type { OrderLockState } from "@/hooks/erp/use-order-lock";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/orders/$orderId")({
