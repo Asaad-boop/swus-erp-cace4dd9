@@ -11,6 +11,7 @@ import { HeaderQuickActions } from "@/components/erp/header-quick-actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { GlobalNewOrderNotifier } from "@/components/erp/global-new-order-notifier";
 
 export const Route = createFileRoute("/_authenticated/erp")({
   component: ErpLayout,
@@ -35,6 +36,7 @@ function ErpLayout() {
       <GlobalSearchProvider>
       <div className="flex h-screen bg-background overflow-hidden">
         <ErpSidebar />
+        <GlobalNewOrderNotifier />
         <div className="flex-1 flex flex-col min-w-0 h-screen">
           <header className="h-14 shrink-0 border-b border-border/70 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8 gap-3">
             <div className="flex items-center gap-2 md:hidden">
