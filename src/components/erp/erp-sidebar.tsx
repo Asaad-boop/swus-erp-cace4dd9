@@ -318,7 +318,7 @@ export function ErpSidebar() {
     sectionKey, label, icon: Icon, items,
   }: { sectionKey: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }) => {
     const isOpen = activeGroup === sectionKey;
-    const hasActive = items.some((i) => isActive(i.to, i.exact));
+    const hasActive = items.some((i) => isActive(i.to, i.exact, i.search));
     if (collapsed) {
       // In collapsed mode, render items as flat icons (no accordion header)
       return (
