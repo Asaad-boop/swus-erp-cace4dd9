@@ -474,7 +474,7 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
             return (
               <div
                 key={b.id}
-                className="group relative rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/40 p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden"
+                className="group relative rounded-xl border border-border/60 bg-card p-4 hover:shadow-sm hover:-translate-y-0.5 transition-all overflow-hidden"
               >
                 <div className="absolute -top-10 -right-10 size-32 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
                 {/* Brand header */}
@@ -482,7 +482,7 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
                   {b.logo_url ? (
                     <img src={b.logo_url} alt="" className="size-10 rounded-lg object-cover ring-1 ring-border" />
                   ) : (
-                    <div className="size-10 rounded-lg bg-gradient-to-br from-primary/80 to-primary/40 grid place-items-center text-primary-foreground font-bold">
+                    <div className="size-10 rounded-lg bg-muted grid place-items-center text-foreground font-bold">
                       {b.name.charAt(0)}
                     </div>
                   )}
@@ -504,7 +504,7 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
                   )}
                   <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full transition-all"
+                      className="h-full bg-foreground/70 rounded-full transition-all"
                       style={{ width: `${Math.min(100, sharePct)}%` }}
                     />
                   </div>
