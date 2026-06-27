@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { MessageSquare, Loader2, Star, AlertTriangle, Repeat, Phone as PhoneIcon, Package, ChevronLeft, ChevronRight, Search, X, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { beepNewOrder } from "@/lib/erp/audio-feedback";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
