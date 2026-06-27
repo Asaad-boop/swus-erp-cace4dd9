@@ -989,14 +989,15 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       const { data: rows } = await applyBrandScope(
         supabase.from("mkt_insights_daily").select("date, spend, meta_purchases, meta_purchase_value"), brandIds
       ).gte("date", fromDate).lte("date", toDate);
-      // Live USD→BDT rate (latest per brand scope); fallback 110.
-      let fx = 110;
+      // Live USD→BDT rate (latest per brand scope). No hardcoded fallback —
+      // BDT-side numbers stay 0 until a real rate is entered in Finance → FX.
+      let fx = 0;
       const fxQ = brandIds.length
         ? await supabase.from("erp_fx_rates").select("rate, rate_date").in("brand_id", brandIds)
             .eq("from_ccy", "USD").eq("to_ccy", "BDT").order("rate_date", { ascending: false }).limit(1)
         : await supabase.from("erp_fx_rates").select("rate, rate_date")
             .eq("from_ccy", "USD").eq("to_ccy", "BDT").order("rate_date", { ascending: false }).limit(1);
-      if (fxQ.data?.[0]?.rate) fx = Number(fxQ.data[0].rate) || 110;
+      if (fxQ.data?.[0]?.rate) fx = Number(fxQ.data[0].rate) || 0;
       let spendTotal = 0, purchTotal = 0, valTotal = 0;
       const series = new Map<string, { date: string; spend: number; revenue: number }>();
       const days = Math.min(range.days, 60);
