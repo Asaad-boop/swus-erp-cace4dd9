@@ -702,6 +702,7 @@ function _WebOrdersPageBody() {
           if (!row.brand_id || !brandIds.includes(row.brand_id)) return;
           const name = row.shipping_name ?? row.guest_name ?? "Customer";
           const city = row.shipping_city ? ` from ${row.shipping_city}` : "";
+          try { beepNewOrder(); } catch { /* audio blocked until user interacts */ }
           toast.success(`🎉 New Order! ৳${Number(row.total).toLocaleString()} — ${name}${city}`, {
             duration: 8000,
             className: "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60",
