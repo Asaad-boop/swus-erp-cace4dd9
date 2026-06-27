@@ -98,7 +98,7 @@ export const saveBrandTrackingConfig = createServerFn({ method: "POST" })
     capi_access_token?: string | null;
   }) => d)
   .handler(async ({ data, context }) => {
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       brand_id: data.brand_id,
       pixel_id: data.pixel_id?.trim() || null,
       capi_enabled: data.capi_enabled,
