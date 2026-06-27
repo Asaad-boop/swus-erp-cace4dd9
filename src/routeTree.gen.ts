@@ -75,6 +75,7 @@ import { Route as AuthenticatedErpMarketingSkuPnlRouteImport } from './routes/_a
 import { Route as AuthenticatedErpMarketingRollupRouteImport } from './routes/_authenticated/erp.marketing.rollup'
 import { Route as AuthenticatedErpMarketingExpensesRouteImport } from './routes/_authenticated/erp.marketing.expenses'
 import { Route as AuthenticatedErpMarketingAttributionRouteImport } from './routes/_authenticated/erp.marketing.attribution'
+import { Route as AuthenticatedErpMarketingAdAccountFundingRouteImport } from './routes/_authenticated/erp.marketing.ad-account-funding'
 import { Route as AuthenticatedErpMarketingAccountsRouteImport } from './routes/_authenticated/erp.marketing.accounts'
 import { Route as AuthenticatedErpImportsSettingsRouteImport } from './routes/_authenticated/erp.imports.settings'
 import { Route as AuthenticatedErpImportsReportsRouteImport } from './routes/_authenticated/erp.imports.reports'
@@ -101,6 +102,7 @@ import { Route as AuthenticatedErpFinanceProductProfitabilityRouteImport } from 
 import { Route as AuthenticatedErpFinancePayablesRouteImport } from './routes/_authenticated/erp.finance.payables'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
 import { Route as AuthenticatedErpFinanceFxRouteImport } from './routes/_authenticated/erp.finance.fx'
+import { Route as AuthenticatedErpFinanceDollarPurchaseRouteImport } from './routes/_authenticated/erp.finance.dollar-purchase'
 import { Route as AuthenticatedErpFinanceCodRemittanceRouteImport } from './routes/_authenticated/erp.finance.cod-remittance'
 import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
 import { Route as AuthenticatedErpFinanceBrandProfitabilityRouteImport } from './routes/_authenticated/erp.finance.brand-profitability'
@@ -498,6 +500,12 @@ const AuthenticatedErpMarketingAttributionRoute =
     path: '/attribution',
     getParentRoute: () => AuthenticatedErpMarketingRoute,
   } as any)
+const AuthenticatedErpMarketingAdAccountFundingRoute =
+  AuthenticatedErpMarketingAdAccountFundingRouteImport.update({
+    id: '/ad-account-funding',
+    path: '/ad-account-funding',
+    getParentRoute: () => AuthenticatedErpMarketingRoute,
+  } as any)
 const AuthenticatedErpMarketingAccountsRoute =
   AuthenticatedErpMarketingAccountsRouteImport.update({
     id: '/accounts',
@@ -650,6 +658,12 @@ const AuthenticatedErpFinanceFxRoute =
   AuthenticatedErpFinanceFxRouteImport.update({
     id: '/fx',
     path: '/fx',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
+const AuthenticatedErpFinanceDollarPurchaseRoute =
+  AuthenticatedErpFinanceDollarPurchaseRouteImport.update({
+    id: '/dollar-purchase',
+    path: '/dollar-purchase',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
 const AuthenticatedErpFinanceCodRemittanceRoute =
@@ -830,6 +844,7 @@ export interface FileRoutesByFullPath {
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
+  '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -856,6 +871,7 @@ export interface FileRoutesByFullPath {
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/erp/marketing/ad-account-funding': typeof AuthenticatedErpMarketingAdAccountFundingRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
@@ -936,6 +952,7 @@ export interface FileRoutesByTo {
   '/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
+  '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -959,6 +976,7 @@ export interface FileRoutesByTo {
   '/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/erp/marketing/ad-account-funding': typeof AuthenticatedErpMarketingAdAccountFundingRoute
   '/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
@@ -1051,6 +1069,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/finance/brand-profitability': typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/_authenticated/erp/finance/cod-remittance': typeof AuthenticatedErpFinanceCodRemittanceRoute
+  '/_authenticated/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/_authenticated/erp/finance/fx': typeof AuthenticatedErpFinanceFxRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/payables': typeof AuthenticatedErpFinancePayablesRoute
@@ -1077,6 +1096,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/imports/reports': typeof AuthenticatedErpImportsReportsRoute
   '/_authenticated/erp/imports/settings': typeof AuthenticatedErpImportsSettingsRoute
   '/_authenticated/erp/marketing/accounts': typeof AuthenticatedErpMarketingAccountsRoute
+  '/_authenticated/erp/marketing/ad-account-funding': typeof AuthenticatedErpMarketingAdAccountFundingRoute
   '/_authenticated/erp/marketing/attribution': typeof AuthenticatedErpMarketingAttributionRoute
   '/_authenticated/erp/marketing/expenses': typeof AuthenticatedErpMarketingExpensesRoute
   '/_authenticated/erp/marketing/rollup': typeof AuthenticatedErpMarketingRollupRoute
@@ -1169,6 +1189,7 @@ export interface FileRouteTypes {
     | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
     | '/erp/finance/cod-remittance'
+    | '/erp/finance/dollar-purchase'
     | '/erp/finance/fx'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
@@ -1195,6 +1216,7 @@ export interface FileRouteTypes {
     | '/erp/imports/reports'
     | '/erp/imports/settings'
     | '/erp/marketing/accounts'
+    | '/erp/marketing/ad-account-funding'
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
     | '/erp/marketing/rollup'
@@ -1275,6 +1297,7 @@ export interface FileRouteTypes {
     | '/erp/finance/brand-profitability'
     | '/erp/finance/budgets'
     | '/erp/finance/cod-remittance'
+    | '/erp/finance/dollar-purchase'
     | '/erp/finance/fx'
     | '/erp/finance/journal'
     | '/erp/finance/payables'
@@ -1298,6 +1321,7 @@ export interface FileRouteTypes {
     | '/erp/imports/reports'
     | '/erp/imports/settings'
     | '/erp/marketing/accounts'
+    | '/erp/marketing/ad-account-funding'
     | '/erp/marketing/attribution'
     | '/erp/marketing/expenses'
     | '/erp/marketing/rollup'
@@ -1389,6 +1413,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/finance/brand-profitability'
     | '/_authenticated/erp/finance/budgets'
     | '/_authenticated/erp/finance/cod-remittance'
+    | '/_authenticated/erp/finance/dollar-purchase'
     | '/_authenticated/erp/finance/fx'
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/payables'
@@ -1415,6 +1440,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/imports/reports'
     | '/_authenticated/erp/imports/settings'
     | '/_authenticated/erp/marketing/accounts'
+    | '/_authenticated/erp/marketing/ad-account-funding'
     | '/_authenticated/erp/marketing/attribution'
     | '/_authenticated/erp/marketing/expenses'
     | '/_authenticated/erp/marketing/rollup'
@@ -1943,6 +1969,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpMarketingAttributionRouteImport
       parentRoute: typeof AuthenticatedErpMarketingRoute
     }
+    '/_authenticated/erp/marketing/ad-account-funding': {
+      id: '/_authenticated/erp/marketing/ad-account-funding'
+      path: '/ad-account-funding'
+      fullPath: '/erp/marketing/ad-account-funding'
+      preLoaderRoute: typeof AuthenticatedErpMarketingAdAccountFundingRouteImport
+      parentRoute: typeof AuthenticatedErpMarketingRoute
+    }
     '/_authenticated/erp/marketing/accounts': {
       id: '/_authenticated/erp/marketing/accounts'
       path: '/accounts'
@@ -2123,6 +2156,13 @@ declare module '@tanstack/react-router' {
       path: '/fx'
       fullPath: '/erp/finance/fx'
       preLoaderRoute: typeof AuthenticatedErpFinanceFxRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
+    '/_authenticated/erp/finance/dollar-purchase': {
+      id: '/_authenticated/erp/finance/dollar-purchase'
+      path: '/dollar-purchase'
+      fullPath: '/erp/finance/dollar-purchase'
+      preLoaderRoute: typeof AuthenticatedErpFinanceDollarPurchaseRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
     '/_authenticated/erp/finance/cod-remittance': {
@@ -2308,6 +2348,7 @@ interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceBrandProfitabilityRoute: typeof AuthenticatedErpFinanceBrandProfitabilityRoute
   AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
   AuthenticatedErpFinanceCodRemittanceRoute: typeof AuthenticatedErpFinanceCodRemittanceRoute
+  AuthenticatedErpFinanceDollarPurchaseRoute: typeof AuthenticatedErpFinanceDollarPurchaseRoute
   AuthenticatedErpFinanceFxRoute: typeof AuthenticatedErpFinanceFxRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinancePayablesRoute: typeof AuthenticatedErpFinancePayablesRoute
@@ -2332,6 +2373,8 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
     AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
     AuthenticatedErpFinanceCodRemittanceRoute:
       AuthenticatedErpFinanceCodRemittanceRoute,
+    AuthenticatedErpFinanceDollarPurchaseRoute:
+      AuthenticatedErpFinanceDollarPurchaseRoute,
     AuthenticatedErpFinanceFxRoute: AuthenticatedErpFinanceFxRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
     AuthenticatedErpFinancePayablesRoute: AuthenticatedErpFinancePayablesRoute,
@@ -2491,6 +2534,7 @@ const AuthenticatedErpImportsRouteWithChildren =
 
 interface AuthenticatedErpMarketingRouteChildren {
   AuthenticatedErpMarketingAccountsRoute: typeof AuthenticatedErpMarketingAccountsRoute
+  AuthenticatedErpMarketingAdAccountFundingRoute: typeof AuthenticatedErpMarketingAdAccountFundingRoute
   AuthenticatedErpMarketingAttributionRoute: typeof AuthenticatedErpMarketingAttributionRoute
   AuthenticatedErpMarketingExpensesRoute: typeof AuthenticatedErpMarketingExpensesRoute
   AuthenticatedErpMarketingRollupRoute: typeof AuthenticatedErpMarketingRollupRoute
@@ -2505,6 +2549,8 @@ const AuthenticatedErpMarketingRouteChildren: AuthenticatedErpMarketingRouteChil
   {
     AuthenticatedErpMarketingAccountsRoute:
       AuthenticatedErpMarketingAccountsRoute,
+    AuthenticatedErpMarketingAdAccountFundingRoute:
+      AuthenticatedErpMarketingAdAccountFundingRoute,
     AuthenticatedErpMarketingAttributionRoute:
       AuthenticatedErpMarketingAttributionRoute,
     AuthenticatedErpMarketingExpensesRoute:
@@ -2707,13 +2753,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
