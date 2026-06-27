@@ -24,6 +24,12 @@ export type SkuPnlRow = {
   ugc_spend: number;
   other_marketing: number;
   total_marketing: number;
+  // FIFO Meta cost-source breakdown
+  meta_spend_usd: number;
+  meta_spend_bdt_actual: number; // FIFO portion
+  meta_spend_bdt_fallback: number; // FX-converted portion
+  cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
+  estimated_bdt_cost: boolean;
   net_profit: number;
   margin_pct: number | null;
   roas: number | null;
@@ -197,15 +203,37 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     const { data: insights } = campIds.length
       ? await supabase
           .from("mkt_insights_daily")
-          .select("campaign_id, spend")
+          .select("campaign_id, spend, spend_bdt_fifo, conversion_source, estimated_bdt_cost")
           .in("campaign_id", campIds)
           .gte("date", from)
           .lte("date", to)
       : { data: [] as any[] };
-    const campSpendBdt = new Map<string, number>();
+    type CampSpend = {
+      bdt: number;
+      usd: number;
+      fifo_bdt: number;
+      fallback_bdt: number;
+      fifo_rows: number;
+      fallback_rows: number;
+    };
+    const campSpend = new Map<string, CampSpend>();
     for (const r of (insights ?? []) as any[]) {
       const fx = campFx.get(r.campaign_id) ?? brandUsdBdt;
-      campSpendBdt.set(r.campaign_id, (campSpendBdt.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0) * fx);
+      const usd = Number(r.spend) || 0;
+      const fifo = Number(r.spend_bdt_fifo) || 0;
+      const cur = campSpend.get(r.campaign_id) ?? { bdt: 0, usd: 0, fifo_bdt: 0, fallback_bdt: 0, fifo_rows: 0, fallback_rows: 0 };
+      cur.usd += usd;
+      if (fifo > 0 && r.conversion_source === "fifo") {
+        cur.bdt += fifo;
+        cur.fifo_bdt += fifo;
+        cur.fifo_rows += 1;
+      } else {
+        const fb = usd * fx;
+        cur.bdt += fb;
+        cur.fallback_bdt += fb;
+        cur.fallback_rows += 1;
+      }
+      campSpend.set(r.campaign_id, cur);
     }
 
     const { data: links } = campIds.length
@@ -222,19 +250,25 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       linksByCamp.set(l.campaign_id, arr);
     }
 
-    const adSpendByProduct = new Map<string, number>();
+    type ProdMeta = { bdt: number; usd: number; fifo_bdt: number; fallback_bdt: number };
+    const adSpendByProduct = new Map<string, ProdMeta>();
     let unallocated = 0;
-    for (const [campId, spendBdt] of campSpendBdt) {
-      if (spendBdt <= 0) continue;
+    for (const [campId, sp] of campSpend) {
+      if (sp.bdt <= 0 && sp.usd <= 0) continue;
       const ls = linksByCamp.get(campId) ?? [];
       const totalWeight = ls.reduce((s, x) => s + x.weight, 0);
       if (!ls.length || totalWeight <= 0) {
-        unallocated += spendBdt;
+        unallocated += sp.bdt;
         continue;
       }
       for (const l of ls) {
-        const share = (l.weight / totalWeight) * spendBdt;
-        adSpendByProduct.set(l.product_id, (adSpendByProduct.get(l.product_id) ?? 0) + share);
+        const w = l.weight / totalWeight;
+        const cur = adSpendByProduct.get(l.product_id) ?? { bdt: 0, usd: 0, fifo_bdt: 0, fallback_bdt: 0 };
+        cur.bdt += w * sp.bdt;
+        cur.usd += w * sp.usd;
+        cur.fifo_bdt += w * sp.fifo_bdt;
+        cur.fallback_bdt += w * sp.fallback_bdt;
+        adSpendByProduct.set(l.product_id, cur);
         productIds.add(l.product_id);
       }
     }
@@ -310,7 +344,8 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         sellable_returns: 0, damaged_returns: 0,
         cogs_reversed: 0, damaged_cogs_loss: 0,
       };
-      const adSpend = adSpendByProduct.get(pid) ?? 0;
+      const adInfo = adSpendByProduct.get(pid) ?? { bdt: 0, usd: 0, fifo_bdt: 0, fallback_bdt: 0 };
+      const adSpend = adInfo.bdt;
       const m = manualByProduct.get(pid) ?? { influencer: 0, ugc: 0, other: 0 };
       const meta = productMeta.get(pid);
       const net_revenue = a.gross_revenue - a.sellable_returns - a.damaged_returns;
@@ -318,6 +353,15 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       const gross_profit = net_revenue - net_cogs;
       const total_marketing = adSpend + m.influencer + m.ugc + m.other;
       const net = gross_profit - total_marketing;
+      const cost_source: SkuPnlRow["cost_source"] =
+        adSpend <= 0
+          ? "manual"
+          : adInfo.fifo_bdt > 0 && adInfo.fallback_bdt > 0
+            ? "mixed"
+            : adInfo.fifo_bdt > 0
+              ? "fifo"
+              : "fx_fallback";
+      const estimated_bdt_cost = cost_source !== "fifo" && adSpend > 0;
       rows.push({
         product_id: pid,
         sku: meta?.sku ?? null,
@@ -337,6 +381,11 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         ugc_spend: +m.ugc.toFixed(2),
         other_marketing: +m.other.toFixed(2),
         total_marketing: +total_marketing.toFixed(2),
+        meta_spend_usd: +adInfo.usd.toFixed(2),
+        meta_spend_bdt_actual: +adInfo.fifo_bdt.toFixed(2),
+        meta_spend_bdt_fallback: +adInfo.fallback_bdt.toFixed(2),
+        cost_source,
+        estimated_bdt_cost,
         net_profit: +net.toFixed(2),
         margin_pct: net_revenue > 0 ? +((net / net_revenue) * 100).toFixed(2) : null,
         roas: total_marketing > 0 ? +(net_revenue / total_marketing).toFixed(2) : null,
