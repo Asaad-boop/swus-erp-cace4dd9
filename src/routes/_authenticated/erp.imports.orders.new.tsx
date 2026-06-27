@@ -98,8 +98,7 @@ function NewPoPage() {
     { id: uid(), carton_number: 1, weight_kg: 0, allocations: {} },
   ]);
 
-  // initial payment
-  const [payEnabled, setPayEnabled] = useState(false);
+  // initial payment — auto-enabled when amount + wallet are filled
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payWalletId, setPayWalletId] = useState<string>("");
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
@@ -169,7 +168,9 @@ function NewPoPage() {
       if (!brandId) throw new Error("No brand");
       if (items.some((i) => !i.picked.title.trim() || i.quantity <= 0)) throw new Error("Each item needs a name & quantity > 0");
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
-      if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
+      const payEnabled = payAmount > 0 && !!payWalletId;
+      if (payAmount > 0 && !payWalletId) throw new Error("Select a wallet to pay from");
+      if (payWalletId && payAmount <= 0) throw new Error("Enter a payment amount");
       if (payEnabled && useCargoBalance) {
         if (!cargoAgentId) throw new Error("Select a cargo agent to pay from cargo balance");
         if (payAmount > cargoBalance) throw new Error(`Cargo balance insufficient (available ${fmtBdt(cargoBalance)})`);
@@ -204,7 +205,7 @@ function NewPoPage() {
       };
       if (supplierId) payload.supplier = { id: supplierId };
 
-      if (payEnabled && payAmount > 0 && payWalletId && !useCargoBalance) {
+      if (payEnabled && !useCargoBalance) {
         payload.initial_payment = {
           amount_bdt: payAmount,
           wallet_id: payWalletId,
@@ -225,7 +226,7 @@ function NewPoPage() {
         }
       }
       // Pay from cargo balance after PO exists
-      if (res?.po_id && payEnabled && useCargoBalance && payAmount > 0 && cargoAgentId && brandId) {
+      if (res?.po_id && payEnabled && useCargoBalance && cargoAgentId && brandId) {
         try {
           await cargoPayFn({ data: {
             brandId,
