@@ -1,0 +1,1 @@
+ALTER TABLE public.meta_tracking_config ADD COLUMN IF NOT EXISTS capi_access_token TEXT;

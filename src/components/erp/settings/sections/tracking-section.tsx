@@ -86,6 +86,8 @@ function BrandTrackingCard({
   const [testCode, setTestCode] = useState(config.test_event_code ?? "");
   const [capiEnabled, setCapiEnabled] = useState(config.capi_enabled);
   const [events, setEvents] = useState<Record<string, boolean>>({ ...config.enabled_events });
+  const [tokenInput, setTokenInput] = useState("");
+  const [showToken, setShowToken] = useState(false);
 
   const saveFn = useServerFn(saveBrandTrackingConfig);
   const testFn = useServerFn(sendCapiTestEvent);
@@ -98,8 +100,10 @@ function BrandTrackingCard({
       test_event_code: testCode,
       enabled_events: events,
       token_secret_name: tokenName,
+      // only send when user typed something; empty input keeps existing
+      ...(tokenInput.trim() ? { capi_access_token: tokenInput.trim() } : {}),
     } }),
-    onSuccess: () => { toast.success(`${brand.name} tracking saved`); onSaved(); },
+    onSuccess: () => { toast.success(`${brand.name} tracking saved`); setTokenInput(""); onSaved(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -148,12 +152,25 @@ function BrandTrackingCard({
             <Input value={pixelId} onChange={(e) => setPixelId(e.target.value)} placeholder="123456789012345"
               disabled={disabled} className="font-mono" inputMode="numeric" />
           </Field>
-          <Field label="CAPI Token Secret Name">
-            <Input value={tokenName} onChange={(e) => setTokenName(e.target.value)}
-              placeholder={`META_CAPI_TOKEN_${(brand.slug ?? brand.name).toUpperCase()}`}
-              disabled={disabled} className="font-mono text-xs" />
+          <Field label="CAPI Access Token">
+            <div className="flex gap-2">
+              <Input
+                type={showToken ? "text" : "password"}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder={config.token_present ? `•••••••• ${config.token_last4 ?? ""}` : "Paste your Meta CAPI access token"}
+                disabled={disabled}
+                className="font-mono text-xs"
+                autoComplete="off"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowToken((s) => !s)} disabled={disabled}>
+                {showToken ? "Hide" : "Show"}
+              </Button>
+            </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Add the actual token via <span className="font-mono">add_secret</span> using this exact name. Token never displayed here.
+              {config.token_present
+                ? `Token saved (ends ••${config.token_last4 ?? "??"}). Leave blank to keep, paste a new value to replace.`
+                : "Paste your Conversions API access token from Meta Events Manager."}
             </p>
           </Field>
           <Field label="Test Event Code (optional)">
@@ -205,7 +222,7 @@ function BrandTrackingCard({
         <Button
           variant="outline" size="sm"
           onClick={() => test.mutate()}
-          disabled={disabled || test.isPending || !config.pixel_id || !config.token_secret_name}
+          disabled={disabled || test.isPending || !config.pixel_id || !config.token_present}
         >
           {test.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Send test event
