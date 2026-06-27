@@ -65,6 +65,8 @@ function NewPoPage() {
   const landedFn = useServerFn(updatePoLandedCost);
   const agentsFn = useServerFn(listCargoAgents);
   const setAgentFn = useServerFn(setPoCargoAgent);
+  const cargoBalFn = useServerFn(listCargoAgentsWithBalance);
+  const cargoPayFn = useServerFn(cargoPoPayment);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
@@ -73,6 +75,10 @@ function NewPoPage() {
   const { data: cargoAgents = [] } = useQuery({
     queryKey: ["imp-cargo-agents", brandId, "active"], enabled: !!brandId,
     queryFn: () => agentsFn({ data: { brandId: brandId!, activeOnly: true } }),
+  });
+  const { data: cargoWithBal = [] } = useQuery({
+    queryKey: ["imp-cargo-bal", brandId], enabled: !!brandId,
+    queryFn: () => cargoBalFn({ data: { brandIds: [brandId!] } }),
   });
   const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
@@ -124,8 +130,13 @@ function NewPoPage() {
     });
   }, [items, totalAllocated]);
 
+  const selectedCargo = cargoAgentId ? (cargoWithBal as any[]).find((c) => c.id === cargoAgentId) : null;
+  const cargoBalance = Number(selectedCargo?.balance?.current_balance ?? 0);
+  const useCargoBalance = payWalletId === CARGO_BAL;
   const selectedWallet = wallets.find((w) => w.id === payWalletId);
-  const walletAfter = selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
+  const walletAfter = useCargoBalance
+    ? cargoBalance - payAmount
+    : selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
 
   // actions
   const addItem = () => setItems((xs) => [...xs, { id: uid(), picked: emptyPick(), quantity: 1, unit_cost_foreign: 0 }]);
