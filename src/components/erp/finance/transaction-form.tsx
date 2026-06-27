@@ -183,24 +183,48 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
           {/* Hero amount + date */}
           <div className={cn("rounded-xl border p-4", meta.bg)}>
-            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</Label>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className={cn("text-2xl font-semibold", meta.fg)}>৳</span>
+            <Label htmlFor="txn-amount" className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</Label>
+            <div className="mt-1.5 relative">
+              <span className={cn("absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-semibold pointer-events-none", meta.fg)}>৳</span>
               <Input
+                id="txn-amount"
                 type="number"
                 inputMode="decimal"
+                min={0}
+                step="0.01"
+                autoFocus
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 placeholder="0"
                 className={cn(
-                  "h-auto border-0 bg-transparent p-0 text-3xl font-semibold tracking-tight shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40",
+                  "h-14 w-full rounded-lg border bg-background pl-10 pr-3 text-2xl font-semibold tracking-tight shadow-sm focus-visible:ring-2",
                   meta.fg,
                 )}
               />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{amountPlaceholder}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{amountPlaceholder}</p>
 
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              {[100, 500, 1000, 5000].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setAmount(String((Number(amount) || 0) + v))}
+                  className="rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium hover:bg-muted transition-colors"
+                >
+                  +{v.toLocaleString()}
+                </button>
+              ))}
+              {amount && (
+                <button type="button" onClick={() => setAmount("")}
+                  className="rounded-full border bg-background px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted transition-colors">
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-3">
               <button type="button" onClick={() => setDate(todayIso())}
                 className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", date === todayIso() ? "border-foreground bg-foreground text-background" : "bg-background hover:bg-muted")}>
                 Today
