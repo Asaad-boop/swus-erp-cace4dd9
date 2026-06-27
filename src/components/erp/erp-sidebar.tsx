@@ -117,7 +117,7 @@ const groups: Group[] = [
           { to: "/erp/marketing", label: "Overview", icon: LayoutDashboard, exact: true },
           { to: "/erp/marketing/campaigns", label: "Campaigns", icon: Target },
           { to: "/erp/marketing/sku-pnl", label: "SKU P&L", icon: TrendingUp },
-          { to: "/erp/marketing/meta-reports", label: "Meta Reports", icon: FileBarChart },
+          { to: "/erp/marketing/ad-account-funding", label: "Ad Funding", icon: Banknote },
           { to: "/erp/marketing/expenses", label: "Expenses", icon: Banknote },
           { to: "/erp/marketing/attribution", label: "Attribution", icon: Activity },
         ],
