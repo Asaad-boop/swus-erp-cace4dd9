@@ -62,6 +62,8 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<CampaignRollupRow[]> => {
+    const { getBrandUsdBdt } = await import("./fx.server");
+    const brandUsdBdt = await getBrandUsdBdt(context.supabase, data.brandId);
     const supabase = context.supabase;
     const { from, to } = dateRangeDefaults(data);
 
@@ -144,7 +146,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
       const acc = c.mkt_ad_accounts ?? {};
       const currency: string = (acc.currency ?? "USD").toUpperCase();
-      const usdFx: number = Number(acc.usd_to_bdt_rate) || 110;
+      const usdFx: number = Number(acc.usd_to_bdt_rate) || brandUsdBdt;
       const fx: number = currency === "BDT" ? 1 : usdFx;
       const spend_bdt = ins.spend * fx;
       const meta_purchase_value_bdt = ins.meta_purchase_value * fx;
