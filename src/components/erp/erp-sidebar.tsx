@@ -16,7 +16,7 @@ import { canAccessPath } from "@/lib/erp/access";
 import { useMyAllowedPages } from "@/hooks/use-my-allowed-pages";
 import { pathAllowedBy } from "@/lib/erp/permissions/page-catalog";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; search?: Record<string, string> };
 type FlatGroup = { kind: "flat"; label: string; items: NavItem[] };
 type AccordionGroup = { kind: "accordion"; label: string; sections: { key: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }[]; defaultClosed?: boolean };
 type Group = FlatGroup | AccordionGroup;
@@ -93,7 +93,9 @@ const groups: Group[] = [
         items: [
           { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
           { to: "/erp/finance/accounts", label: "Accounts", icon: BookOpen },
-          { to: "/erp/finance/journal", label: "Journal", icon: Receipt },
+          { to: "/erp/finance/journal", label: "Journal", icon: Receipt, search: { tab: "entries" } },
+          { to: "/erp/finance/journal", label: "Quick Entry", icon: Zap, search: { tab: "quick" } },
+          { to: "/erp/finance/journal", label: "Recurring", icon: RotateCcw, search: { tab: "recurring" } },
           { to: "/erp/finance/receivables", label: "AR / AP", icon: ArrowDownCircle },
           { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: Coins },
           { to: "/erp/finance/reports", label: "Reports", icon: FileBarChart },
@@ -215,15 +217,26 @@ export function ErpSidebar() {
     return out;
   }, [roles, isAdmin, allowedPages]);
 
-  const isActive = (to: string, exact?: boolean) =>
-    exact ? location.pathname === to : location.pathname === to || location.pathname.startsWith(to + "/");
+  const isActive = (to: string, exact?: boolean, search?: Record<string, string>) => {
+    const pathMatch = exact
+      ? location.pathname === to
+      : location.pathname === to || location.pathname.startsWith(to + "/");
+    if (!pathMatch) return false;
+    if (search) {
+      const cur = location.search as Record<string, unknown>;
+      return Object.entries(search).every(([k, v]) => String(cur?.[k] ?? "") === v);
+    }
+    // Sibling links to same path with `search` shouldn't both highlight the plain one.
+    // Plain (no search) only active when no `tab` set (or tab matches default behavior of page).
+    return true;
+  };
 
   // Compute which accordion section should be auto-opened based on current route
   const autoSection = useMemo(() => {
     for (const g of groups) {
       if (g.kind !== "accordion") continue;
       for (const s of g.sections) {
-        if (s.items.some((i) => isActive(i.to, i.exact))) return s.key;
+        if (s.items.some((i) => isActive(i.to, i.exact, i.search))) return s.key;
       }
     }
     return null;
@@ -263,11 +276,12 @@ export function ErpSidebar() {
     });
   };
 
-  const NavLinkItem = ({ to, label, icon: Icon, exact, indented }: NavItem & { indented?: boolean }) => {
-    const active = isActive(to, exact);
+  const NavLinkItem = ({ to, label, icon: Icon, exact, search, indented }: NavItem & { indented?: boolean }) => {
+    const active = isActive(to, exact, search);
     const content = (
       <Link
         to={to as never}
+        search={search as never}
         className={cn(
           "group/link relative flex items-center gap-3 rounded-lg transition-all duration-200 tracking-tight",
           collapsed
@@ -304,7 +318,7 @@ export function ErpSidebar() {
     sectionKey, label, icon: Icon, items,
   }: { sectionKey: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }) => {
     const isOpen = activeGroup === sectionKey;
-    const hasActive = items.some((i) => isActive(i.to, i.exact));
+    const hasActive = items.some((i) => isActive(i.to, i.exact, i.search));
     if (collapsed) {
       // In collapsed mode, render items as flat icons (no accordion header)
       return (
