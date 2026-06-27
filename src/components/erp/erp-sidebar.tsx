@@ -94,6 +94,8 @@ const groups: Group[] = [
           { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
           { to: "/erp/finance/accounts", label: "Accounts", icon: BookOpen },
           { to: "/erp/finance/journal", label: "Journal", icon: Receipt },
+          { to: "/erp/finance/journal?tab=quick", label: "Quick Entry", icon: Zap },
+          { to: "/erp/finance/journal?tab=recurring", label: "Recurring", icon: RotateCcw },
           { to: "/erp/finance/receivables", label: "AR / AP", icon: ArrowDownCircle },
           { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: Coins },
           { to: "/erp/finance/reports", label: "Reports", icon: FileBarChart },
