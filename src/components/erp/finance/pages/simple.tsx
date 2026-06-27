@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Plus, Wallet, TrendingUp, TrendingDown, ArrowRightLeft, Trash2 } from "lucide-react";
+import { Download, Plus, Wallet, TrendingUp, TrendingDown, ArrowRightLeft, Trash2, Search, Sparkles, Check } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { CATEGORY_PRESETS, type CategoryPreset } from "@/lib/erp/finance/category-presets";
 import {
   useAccounts, useCategories, useTransactions, useProfitLoss, type TxnFilter,
 } from "@/hooks/erp/use-finance-query";
