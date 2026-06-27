@@ -24,9 +24,6 @@ import {
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
 import { AmountPercentInput } from "@/components/erp/amount-percent-input";
-import { listCargoAgentsWithBalance, cargoPoPayment } from "@/lib/erp/imports/cargo.functions";
-
-const CARGO_BAL = "__cargo_balance__";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/new")({
   head: () => ({ meta: [{ title: "New Purchase Order — Imports" }] }),
@@ -65,8 +62,6 @@ function NewPoPage() {
   const landedFn = useServerFn(updatePoLandedCost);
   const agentsFn = useServerFn(listCargoAgents);
   const setAgentFn = useServerFn(setPoCargoAgent);
-  const cargoBalFn = useServerFn(listCargoAgentsWithBalance);
-  const cargoPayFn = useServerFn(cargoPoPayment);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["imp-suppliers", brandId], enabled: !!brandId,
@@ -75,10 +70,6 @@ function NewPoPage() {
   const { data: cargoAgents = [] } = useQuery({
     queryKey: ["imp-cargo-agents", brandId, "active"], enabled: !!brandId,
     queryFn: () => agentsFn({ data: { brandId: brandId!, activeOnly: true } }),
-  });
-  const { data: cargoWithBal = [] } = useQuery({
-    queryKey: ["imp-cargo-bal", brandId], enabled: !!brandId,
-    queryFn: () => cargoBalFn({ data: { brandIds: [brandId!] } }),
   });
   const { data: wallets = [] } = useAccounts(brandId ? [brandId] : []);
 
@@ -98,7 +89,8 @@ function NewPoPage() {
     { id: uid(), carton_number: 1, weight_kg: 0, allocations: {} },
   ]);
 
-  // initial payment — auto-enabled when amount + wallet are filled
+  // initial payment
+  const [payEnabled, setPayEnabled] = useState(false);
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payWalletId, setPayWalletId] = useState<string>("");
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
@@ -129,13 +121,8 @@ function NewPoPage() {
     });
   }, [items, totalAllocated]);
 
-  const selectedCargo = cargoAgentId ? (cargoWithBal as any[]).find((c) => c.id === cargoAgentId) : null;
-  const cargoBalance = Number(selectedCargo?.balance?.current_balance ?? 0);
-  const useCargoBalance = payWalletId === CARGO_BAL;
   const selectedWallet = wallets.find((w) => w.id === payWalletId);
-  const walletAfter = useCargoBalance
-    ? cargoBalance - payAmount
-    : selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
+  const walletAfter = selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
 
   // actions
   const addItem = () => setItems((xs) => [...xs, { id: uid(), picked: emptyPick(), quantity: 1, unit_cost_foreign: 0 }]);
@@ -168,13 +155,7 @@ function NewPoPage() {
       if (!brandId) throw new Error("No brand");
       if (items.some((i) => !i.picked.title.trim() || i.quantity <= 0)) throw new Error("Each item needs a name & quantity > 0");
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
-      const payEnabled = payAmount > 0 && !!payWalletId;
-      if (payAmount > 0 && !payWalletId) throw new Error("Select a wallet to pay from");
-      if (payWalletId && payAmount <= 0) throw new Error("Enter a payment amount");
-      if (payEnabled && useCargoBalance) {
-        if (!cargoAgentId) throw new Error("Select a cargo agent to pay from cargo balance");
-        if (payAmount > cargoBalance) throw new Error(`Cargo balance insufficient (available ${fmtBdt(cargoBalance)})`);
-      }
+      if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
 
       const itemList = items.map((it) => ({
         product_id: it.picked.id ?? undefined,
@@ -205,7 +186,7 @@ function NewPoPage() {
       };
       if (supplierId) payload.supplier = { id: supplierId };
 
-      if (payEnabled && !useCargoBalance) {
+      if (payEnabled && payAmount > 0 && payWalletId) {
         payload.initial_payment = {
           amount_bdt: payAmount,
           wallet_id: payWalletId,
@@ -223,22 +204,6 @@ function NewPoPage() {
           await setAgentFn({ data: { po_id: res.po_id, cargo_agent_id: cargoAgentId } });
         } catch (e) {
           console.warn("Failed to set cargo agent", e);
-        }
-      }
-      // Pay from cargo balance after PO exists
-      if (res?.po_id && payEnabled && useCargoBalance && cargoAgentId && brandId) {
-        try {
-          await cargoPayFn({ data: {
-            brandId,
-            poId: res.po_id,
-            cargoAgentId,
-            amountFromBalance: payAmount,
-            amountFromAccount: 0,
-            paymentDate: payDate,
-            reference: payRef || undefined,
-          }});
-        } catch (e: any) {
-          toast.error(`Cargo balance payment failed: ${e?.message ?? e}`);
         }
       }
       // Persist agent commission (CNY/pcs) on the PO if provided
@@ -274,8 +239,7 @@ function NewPoPage() {
   const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
   const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const itemsValid = items.length > 0 && items.every((i) => i.picked.title.trim() && i.quantity > 0);
-  const payEnabledUI = payAmount > 0 || !!payWalletId;
-  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabledUI || (payAmount > 0 && !!payWalletId));
+  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto pb-24">
@@ -565,9 +529,12 @@ function NewPoPage() {
           <Card className="p-4 md:p-5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <SectionTitle icon={Wallet} title="Advance payment (optional)" />
-              <div className="text-[11px] text-muted-foreground">Fill amount + wallet to pay now; leave blank to skip</div>
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={payEnabled} onChange={(e) => setPayEnabled(e.target.checked)} className="rounded" />
+                Pay supplier advance now
+              </label>
             </div>
-            {(
+            {payEnabled && (
               <div className="grid md:grid-cols-2 gap-4 mt-3">
                 <AmountPercentInput
                   total={productSubtotalBdt}
@@ -580,11 +547,6 @@ function NewPoPage() {
                   <Select value={payWalletId} onValueChange={setPayWalletId}>
                     <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
                     <SelectContent>
-                      {cargoAgentId && (
-                        <SelectItem value={CARGO_BAL}>
-                          🚚 Cargo Balance — {selectedCargo?.name ?? "Agent"} ({fmtBdt(cargoBalance)})
-                        </SelectItem>
-                      )}
                       {wallets.filter((w) => w.is_active).map((w) => (
                         <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>
                       ))}
@@ -594,9 +556,6 @@ function NewPoPage() {
                     <div className={`text-[11px] ${walletAfter < 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
                       After: {fmtBdt(walletAfter)}{walletAfter < 0 ? " ⚠ negative" : ""}
                     </div>
-                  )}
-                  {useCargoBalance && !cargoAgentId && (
-                    <div className="text-[11px] text-red-600">Select a cargo agent above first.</div>
                   )}
                 </div>
                 <div>
@@ -632,7 +591,7 @@ function NewPoPage() {
             <SideRow label="Total weight" value={`${totalCartonWeight.toFixed(1)} kg`} />
             <div className="border-t border-border my-2" />
             <SideRow label="Subtotal" value={fmtBdt(productSubtotalBdt)} bold />
-            {payAmount > 0 && (
+            {payEnabled && payAmount > 0 && (
               <>
                 <SideRow label="Advance" value={`− ${fmtBdt(payAmount)}`} accent="text-emerald-600" />
                 <SideRow label="Due after" value={fmtBdt(Math.max(0, productSubtotalBdt - payAmount))} bold accent={productSubtotalBdt - payAmount > 0 ? "text-orange-600" : "text-emerald-600"} />

@@ -78,7 +78,6 @@ const groups: Group[] = [
         items: [
           { to: "/erp/suppliers", label: "Suppliers", icon: Users },
           { to: "/erp/imports", label: "Imports", icon: Container },
-          { to: "/erp/imports/cargo", label: "Cargo Balance", icon: Wallet },
         ],
       },
     ],
