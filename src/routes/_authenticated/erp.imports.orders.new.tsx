@@ -581,6 +581,11 @@ function NewPoPage() {
                   <Select value={payWalletId} onValueChange={setPayWalletId}>
                     <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
                     <SelectContent>
+                      {cargoAgentId && (
+                        <SelectItem value={CARGO_BAL}>
+                          🚚 Cargo Balance — {selectedCargo?.name ?? "Agent"} ({fmtBdt(cargoBalance)})
+                        </SelectItem>
+                      )}
                       {wallets.filter((w) => w.is_active).map((w) => (
                         <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>
                       ))}
@@ -590,6 +595,9 @@ function NewPoPage() {
                     <div className={`text-[11px] ${walletAfter < 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
                       After: {fmtBdt(walletAfter)}{walletAfter < 0 ? " ⚠ negative" : ""}
                     </div>
+                  )}
+                  {useCargoBalance && !cargoAgentId && (
+                    <div className="text-[11px] text-red-600">Select a cargo agent above first.</div>
                   )}
                 </div>
                 <div>
