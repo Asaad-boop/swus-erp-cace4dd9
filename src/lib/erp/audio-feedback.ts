@@ -121,3 +121,117 @@ export function beepNewOrder() {
   bell(1318.51, 0.42, 1.6, 0.14);  // E6 shimmer
   bell(1567.98, 0.55, 1.4, 0.10);  // G6 air
 }
+
+/**
+ * Classic cash-register "ka-ching!" — drawer-bell ding plus mechanical
+ * click + drawer slide. Old-school retail dopamine.
+ */
+export function beepKaching() {
+  const a = ac();
+  if (!a) return;
+  const t0 = a.currentTime;
+  const master = a.createGain();
+  master.gain.value = 1.0;
+  master.connect(a.destination);
+
+  // 1) Mechanical click (key press)
+  const click = (when: number) => {
+    const start = t0 + when;
+    const len = 0.05;
+    const buf = a.createBuffer(1, Math.floor(a.sampleRate * len), a.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const bp = a.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800;
+    bp.Q.value = 0.8;
+    const g = a.createGain();
+    g.gain.value = 0.25;
+    src.connect(bp).connect(g).connect(master);
+    src.start(start);
+    src.stop(start + len);
+  };
+
+  // 2) Bright brass bell "ding" (inharmonic partials)
+  const ding = (when: number, freq: number, dur: number, level: number) => {
+    const start = t0 + when;
+    const partials = [
+      { m: 1.0,  g: 1.0 },
+      { m: 2.76, g: 0.55 },
+      { m: 5.4,  g: 0.28 },
+      { m: 8.93, g: 0.15 },
+    ];
+    partials.forEach((p) => {
+      const osc = a.createOscillator();
+      const g = a.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq * p.m;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(level * p.g, start + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(g).connect(master);
+      osc.start(start);
+      osc.stop(start + dur + 0.05);
+    });
+  };
+
+  // 3) Drawer slide — pink-noise swoosh
+  const drawer = (when: number) => {
+    const start = t0 + when;
+    const len = 0.35;
+    const buf = a.createBuffer(1, Math.floor(a.sampleRate * len), a.sampleRate);
+    const ch = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < ch.length; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02;
+      ch[i] = last * 3;
+    }
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const lp = a.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(800, start);
+    lp.frequency.exponentialRampToValueAtTime(200, start + len);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.22, start + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + len);
+    src.connect(lp).connect(g).connect(master);
+    src.start(start);
+    src.stop(start + len);
+  };
+
+  click(0);
+  ding(0.02, 1760, 1.2, 0.28);   // A6 main bell
+  ding(0.03, 2349, 1.0, 0.16);   // D7 brightness
+  drawer(0.18);
+}
+
+/**
+ * Lets users pick the new-order sound from settings.
+ * Stored in localStorage as `erp.orderSoundType`.
+ */
+export type OrderSoundType = "kaching" | "chime" | "off";
+const SOUND_KEY = "erp.orderSoundType";
+
+export function getOrderSoundType(): OrderSoundType {
+  if (typeof window === "undefined") return "kaching";
+  const v = window.localStorage.getItem(SOUND_KEY);
+  if (v === "chime" || v === "off" || v === "kaching") return v;
+  return "kaching";
+}
+
+export function setOrderSoundType(t: OrderSoundType) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SOUND_KEY, t);
+}
+
+export function playOrderSound() {
+  const t = getOrderSoundType();
+  if (t === "off") return;
+  if (t === "chime") return beepNewOrder();
+  return beepKaching();
+}
