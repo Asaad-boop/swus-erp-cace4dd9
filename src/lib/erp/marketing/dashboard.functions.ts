@@ -83,6 +83,20 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const todayBD = bdDateStr(now);
     const sevenAgoBD = bdDateStr(new Date(now.getTime() - 6 * 24 * 3600 * 1000));
 
+    // Brand-level USD→BDT fallback rate, pulled live from erp_fx_rates.
+    // No hardcoded fallback — when no rate exists yet, conversion uses 0
+    // until the user adds one in Finance → FX.
+    const { data: fxRow } = await supabase
+      .from("erp_fx_rates")
+      .select("rate")
+      .eq("brand_id", brandId)
+      .eq("from_ccy", "USD")
+      .eq("to_ccy", "BDT")
+      .order("rate_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const brandUsdBdt = Number(fxRow?.rate) || 0;
+
     // 1. Active accounts → FX map
     const { data: accounts } = await supabase
       .from("mkt_ad_accounts")
@@ -91,7 +105,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const accFx = new Map<string, number>();
     for (const a of accounts ?? []) {
       const cur = (a.currency ?? "USD").toUpperCase();
-      const rate = Number(a.usd_to_bdt_rate) || 110;
+      const rate = Number(a.usd_to_bdt_rate) || brandUsdBdt;
       accFx.set(a.id, cur === "BDT" ? 1 : rate);
     }
 
