@@ -149,7 +149,18 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !fromId || !toId || !amt || !!insufficient}>
+          <Button
+            onClick={() => {
+              if (insufficient && from) {
+                toast.error("Insufficient balance", {
+                  description: `${from.name} e ache ${fmtBdt(from.current_balance)} · short by ${fmtBdt(amt - Number(from.current_balance))}`,
+                });
+                return;
+              }
+              mut.mutate();
+            }}
+            disabled={mut.isPending || !fromId || !toId || !amt || !!insufficient}
+          >
             {mut.isPending ? "Saving…" : "Transfer"}
           </Button>
         </DialogFooter>
