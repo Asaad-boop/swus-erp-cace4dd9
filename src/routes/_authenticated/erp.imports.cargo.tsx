@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Truck, Plus, ArrowRight, Wallet, Sparkles, Loader2, Settings2 } from "lucide-react";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,8 @@ function statusBadge(balance: number) {
 }
 
 function CargoPartnersPage() {
-  const { brandId, brandIds, picker } = useBrandPicker();
+  const { brandId, picker } = useBrandPicker();
+  const { brandIds } = useBrand();
   const listFn = useServerFn(listCargoAgentsWithBalance);
   const summaryFn = useServerFn(getCargoDashboardSummary);
 
