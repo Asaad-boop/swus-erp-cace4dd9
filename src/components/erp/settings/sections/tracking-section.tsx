@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Save, Send, CheckCircle2, XCircle, AlertTriangle, KeyRound, Facebook,
-  Activity, Globe, ExternalLink, ShieldCheck, Loader2,
+  Activity, Globe, ExternalLink, ShieldCheck, Loader2, HeartPulse, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   sendCapiTestEvent,
   getCapiRecentLogs,
   getUtmBreakdown,
+  getTrackingHealth,
   type TrackingConfig,
 } from "@/lib/erp/tracking/meta-capi.functions";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,8 @@ export function TrackingSection() {
       </div>
 
       {cfgQ.isLoading && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading brands…</div>}
+
+      <HealthDashboard />
 
       <div className="space-y-5">
         {(cfgQ.data ?? []).map((row) => (
