@@ -1,0 +1,1 @@
+REVOKE ALL ON public.order_locks FROM anon;
