@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send } from "lucide-react";
+import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send, AlertTriangle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -95,6 +95,14 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const advanceSource = (order as { advance_source?: string | null } | undefined)?.advance_source;
   const advancePaymentNumber = (order as { advance_payment_number?: string | null } | undefined)?.advance_payment_number;
   const advanceTxnId = (order as { advance_txn_id?: string | null } | undefined)?.advance_txn_id;
+  const editingBlocked = mode === "web" && lockState.heldByOther;
+  const guardedAction = (action: () => void) => {
+    if (editingBlocked) {
+      toast.error(`Order opened by ${lockState.lock?.user_name ?? "another user"}. Takeover first.`);
+      return;
+    }
+    action();
+  };
 
   const updateStatus = useMutation({
     mutationFn: async (status: OrderStatus) => {
@@ -135,10 +143,14 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
       setAdvOpen(true);
       return;
     }
-    updateWebStatus.mutate({ web_status: v });
+    guardedAction(() => updateWebStatus.mutate({ web_status: v }));
   };
 
   const submitAdvance = () => {
+    if (editingBlocked) {
+      toast.error(`Order opened by ${lockState.lock?.user_name ?? "another user"}. Takeover first.`);
+      return;
+    }
     const amt = Number(advAmount);
     if (!amt || amt <= 0) { toast.error("Enter a valid advance amount"); return; }
     if (!advSource) { toast.error("Select advance payment source"); return; }
@@ -233,6 +245,14 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
             </DialogHeader>
 
             <div className="overflow-y-auto max-h-[calc(92vh-90px)] bg-muted/20">
+              {lockState.error && (
+                <div className="px-5 pt-4">
+                  <div className="flex items-center gap-2 rounded-lg border border-rose-400/60 bg-rose-50 px-4 py-2.5 text-sm text-rose-800 shadow-sm dark:bg-rose-950/40 dark:text-rose-200">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    Order lock check failed: {lockState.error}
+                  </div>
+                </div>
+              )}
               {lockState.heldByOther && lockState.lock && (
                 <div className="px-5 pt-4">
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-950/40 px-4 py-2.5 shadow-sm">
@@ -270,6 +290,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                   </div>
                 </div>
               )}
+              <div className={editingBlocked ? "pointer-events-none select-none opacity-45" : undefined} aria-disabled={editingBlocked}>
               <div className="grid lg:grid-cols-3 gap-4 p-5">
                 {/* LEFT — Customer + Items (2 cols) */}
                 <div className="lg:col-span-2 space-y-4">
@@ -406,7 +427,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                       {mode === "web" ? (
                     <Select
                       value={(order as { web_status?: string | null }).web_status ?? "processing"}
-                      disabled={updateWebStatus.isPending}
+                      disabled={updateWebStatus.isPending || editingBlocked}
                       onValueChange={onPickWebStatus}
                     >
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -417,7 +438,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Select value={order.status} disabled={updateStatus.isPending} onValueChange={(v) => updateStatus.mutate(v as OrderStatus)}>
+                    <Select value={order.status} disabled={updateStatus.isPending || editingBlocked} onValueChange={(v) => guardedAction(() => updateStatus.mutate(v as OrderStatus))}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {STATUS_GROUPS.map((g) => (
@@ -440,8 +461,8 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                       <label className="text-[11px] font-semibold text-muted-foreground mb-1.5 flex items-center gap-1"><UserCog className="h-3 w-3" />Assigned to</label>
                       <Select
                         value={order.assigned_to ?? "none"}
-                        disabled={assignStaff.isPending}
-                        onValueChange={(v) => assignStaff.mutate(v === "none" ? null : v)}
+                        disabled={assignStaff.isPending || editingBlocked}
+                        onValueChange={(v) => guardedAction(() => assignStaff.mutate(v === "none" ? null : v))}
                       >
                         <SelectTrigger className="h-9"><SelectValue placeholder="Unassigned" /></SelectTrigger>
                         <SelectContent>
@@ -465,7 +486,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                         rows={2}
                         className="resize-none text-sm"
                       />
-                      <Button size="sm" className="w-full gap-1.5" disabled={!note.trim() || addNote.isPending} onClick={() => addNote.mutate()}>
+                      <Button size="sm" className="w-full gap-1.5" disabled={!note.trim() || addNote.isPending || editingBlocked} onClick={() => guardedAction(() => addNote.mutate())}>
                         <Send className="h-3.5 w-3.5" />Add Note
                       </Button>
                     </div>
@@ -483,6 +504,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     )}
                   </section>
                 </div>
+              </div>
               </div>
             </div>
           </>
