@@ -1194,7 +1194,7 @@ function _WebOrdersPageBody() {
                                 <TooltipTrigger asChild>
                                   <span className="inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/40 max-w-[200px]">
                                     <Lock className="h-2.5 w-2.5 shrink-0" />
-                                    <span className="truncate">Opened by {lock.user_name ?? "another user"}</span>
+                                    <span className="truncate">Opened by {lock.user_name ?? "Staff"}</span>
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-xs">
