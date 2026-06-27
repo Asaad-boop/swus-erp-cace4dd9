@@ -12,6 +12,21 @@ export function useOrderLocks(orderIds: string[]): Map<string, OrderLockRow> {
   const [locks, setLocks] = useState<Map<string, OrderLockRow>>(new Map());
   const key = orderIds.slice().sort().join(",");
 
+  // Resolve missing user_name via profiles lookup, cached per user_id.
+  const resolveName = async (rows: OrderLockRow[]): Promise<OrderLockRow[]> => {
+    const missing = Array.from(new Set(rows.filter((r) => !r.user_name).map((r) => r.user_id)));
+    if (!missing.length) return rows;
+    const { data } = await supabase
+      .from("profiles")
+      .select("id,display_name,email")
+      .in("id", missing);
+    const map = new Map<string, string>();
+    (data ?? []).forEach((p: any) => {
+      map.set(p.id, p.display_name || p.email || "Staff");
+    });
+    return rows.map((r) => (r.user_name ? r : { ...r, user_name: map.get(r.user_id) ?? "Staff" }));
+  };
+
   useEffect(() => {
     if (!orderIds.length) {
       setLocks(new Map());
@@ -27,10 +42,13 @@ export function useOrderLocks(orderIds: string[]): Map<string, OrderLockRow> {
       if (cancelled || !data) return;
       const m = new Map<string, OrderLockRow>();
       const now = Date.now();
-      for (const row of data as OrderLockRow[]) {
-        if (now - new Date(row.last_heartbeat_at).getTime() <= STALE_MS) {
-          m.set(row.order_id, row);
-        }
+      const fresh = (data as OrderLockRow[]).filter(
+        (row) => now - new Date(row.last_heartbeat_at).getTime() <= STALE_MS,
+      );
+      const enriched = await resolveName(fresh);
+      if (cancelled) return;
+      for (const row of enriched) {
+        m.set(row.order_id, row);
       }
       setLocks(m);
     };
@@ -41,18 +59,23 @@ export function useOrderLocks(orderIds: string[]): Map<string, OrderLockRow> {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_locks" },
-        (payload) => {
+        async (payload) => {
           const oldRow = payload.old as Partial<OrderLockRow> | null;
           const newRow = payload.new as OrderLockRow | null;
           const targetId = newRow?.order_id ?? oldRow?.order_id;
           if (!targetId || !orderIds.includes(targetId)) return;
+          let resolved = newRow;
+          if (newRow && !newRow.user_name) {
+            const [r] = await resolveName([newRow]);
+            resolved = r;
+          }
           setLocks((prev) => {
             const next = new Map(prev);
             if (payload.eventType === "DELETE") {
               next.delete(targetId);
-            } else if (newRow) {
-              const fresh = Date.now() - new Date(newRow.last_heartbeat_at).getTime() <= STALE_MS;
-              if (fresh) next.set(targetId, newRow);
+            } else if (resolved) {
+              const isFresh = Date.now() - new Date(resolved.last_heartbeat_at).getTime() <= STALE_MS;
+              if (isFresh) next.set(targetId, resolved);
               else next.delete(targetId);
             }
             return next;
