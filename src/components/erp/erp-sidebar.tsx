@@ -93,7 +93,7 @@ const groups: Group[] = [
         items: [
           { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
           { to: "/erp/finance/accounts", label: "Accounts", icon: BookOpen },
-          { to: "/erp/finance/journal", label: "Journal", icon: Receipt },
+          { to: "/erp/finance/journal", label: "Journal", icon: Receipt, search: { tab: "entries" } },
           { to: "/erp/finance/journal", label: "Quick Entry", icon: Zap, search: { tab: "quick" } },
           { to: "/erp/finance/journal", label: "Recurring", icon: RotateCcw, search: { tab: "recurring" } },
           { to: "/erp/finance/receivables", label: "AR / AP", icon: ArrowDownCircle },
