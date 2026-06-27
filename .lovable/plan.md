@@ -1,155 +1,61 @@
-# Meta Dollar Purchase / Ad Account Funding System
+# Finance Module — Cleanup & Simplification Plan
 
-Bro, eta boro feature — Finance + Marketing duitate connect korte hobe. Niche complete plan, approve korle ek ek kore build korbo.
+## Current State (audit)
 
-## Scope
+Finance e onek route ache, kintu onek age theke already redirect stub hoye gache (7 line):
+- `finance/audit` → dollar-purchase (redirect)
+- `finance/fx` → settings?tab=fx (redirect)
+- `finance/brand-profitability`, `finance/cod-remittance`, `finance/payables`, `finance/reconciliation`, `finance/recurring`, `finance/simple` — sob already redirect stub.
 
-Manually-bought USD ke track korbo per Meta ad account, FIFO rate use kore actual BDT marketing cost calculate korbo, ar finance accounts (Cash/Bank/bKash etc.) theke outflow auto-deduct korbo.
+Active heavy pages:
+- `finance/index` (632 lines) — Overview/Dashboard
+- `finance/reports` (745) — Reports
+- `finance/dollar-purchase` (518), `accounts` (301), `taxes` (324), `budgets` (170)
+- Layouts: `journal`, `receivables` (AR/AP), `wallets`, `settings`, `product-profitability`
 
-## 1. Database (single migration)
+Nav tabs (current): Overview, Chart of Accounts, Wallets, Journal, AR/AP, Dollar Purchase, Budgets, Taxes, Profitability, Reports, Settings → **11 tabs**, scroll lage.
 
-Notun tables (`public` schema, RLS + GRANTs):
+## Problems
+1. 11 top tabs — beshi, cognitive load high.
+2. 8+ orphan redirect route files clutter create kortece (codebase noise, route tree size).
+3. Overview + Reports overlap — duplicate KPI/charts likely.
+4. Wallets + Chart of Accounts conceptually overlap (account list).
+5. Dollar Purchase Finance-er moddhe ase, kintu Marketing-eo Ad Funding ache — link mismatch.
 
-- **meta_dollar_purchases** — purchase_date, brand_id, ad_account_id (→ mkt_ad_accounts), usd_amount, usd_rate, bdt_amount (generated), fee_bdt, total_bdt (generated), paid_from_account_id (→ erp_accounts), payment_method, reference, supplier_name, note, attachment_url, status (draft/confirmed/cancelled), effective_rate (generated = total_bdt/usd_amount), confirmed_at, confirmed_by, created_by.
-- **meta_ad_wallet_ledger** — ad_account_id, entry_date, entry_type (`purchase` | `spend` | `refund` | `adjustment` | `opening`), usd_amount (+/-), bdt_amount, rate_used, source_purchase_id (FIFO lot), source_spend_ref, balance_usd_after, note.
-- **meta_fifo_lots** — ad_account_id, purchase_id, lot_date, usd_total, usd_remaining, effective_rate. (FIFO consumption tracking.)
-- **finance_audit_log** — entity_type, entity_id, action, old_value jsonb, new_value jsonb, actor_id, created_at. (Reuse `erp_finance_audit` if compatible — check schema first.)
+## Proposed Simplification
 
-Reuse existing:
+### 1. Delete dead redirect files (8 files)
+Already nav theke unreachable, just clutter:
+- `erp.finance.audit.tsx`, `erp.finance.fx.tsx`, `erp.finance.brand-profitability.tsx`, `erp.finance.cod-remittance.tsx`, `erp.finance.payables.tsx`, `erp.finance.reconciliation.tsx`, `erp.finance.recurring.tsx`, `erp.finance.simple.tsx`
 
-- `erp_accounts` (Cash/Bank/bKash/Nagad/Card) as Paid From.
-- `mkt_ad_accounts` as Meta ad accounts.
-- `erp_expense_categories` — seed: Meta Ad Balance / Prepaid Marketing, Meta Ads Expense, Bank Charge, Payment Processing Fee, FX Rate Difference, Refund/Adjustment.
-- `erp_transactions` / `erp_journal_entries` for ledger postings.
+Old links jodi kothao thake (sidebar/menu), update kore proper destination e pathabo.
 
-DB functions:
+### 2. Consolidate nav from 11 → 7 tabs
+```text
+Overview │ Accounts │ Journal │ AR/AP │ Dollar Purchase │ Reports │ Settings
+```
+- **Merge "Wallets" into "Accounts"** — wallets = cash/bank accounts subset. Accounts page e ekta "Wallets" filter chip.
+- **Move "Budgets" + "Taxes" + "Profitability" into Reports** as sub-tabs — egulo reporting/planning views, alada top-level dorker nai.
+- **Settings** unchanged.
 
-- `confirm_meta_dollar_purchase(purchase_id)` — validates balance, creates FIFO lot, wallet ledger entry (+USD), debits Paid From account via `erp_transactions`, posts journal (Dr Prepaid Meta Balance + Bank Charge, Cr Cash/Bank), audit row.
-- `cancel_meta_dollar_purchase(purchase_id)` — reverse entries if confirmed.
-- `consume_meta_spend_fifo(ad_account_id, usd_spend, spend_date, ref)` — walks `meta_fifo_lots` oldest-first, computes weighted BDT, writes wallet ledger (-USD), creates Marketing Expense journal (Dr Meta Ads Expense, Cr Prepaid Meta Balance). Returns `{bdt_cost, lots_used[]}`. Fallback to latest `erp_fx_rates` USD→BDT if no remaining lot.
-- Triggers: on `mkt_insights_daily` insert/update → call FIFO consume per ad account per day (idempotent via `spend_ref`).
-- View: `meta_ad_wallet_summary` per ad_account — sums usd_purchased, bdt_paid, usd_spent, bdt_spent, usd_remaining, avg_effective_rate, latest_rate.
+### 3. Overview page trim
+632 lines → target ~300. Duplicate cards (already Reports e ache) remove, keep:
+- Cash position (per wallet)
+- This month: Revenue, Expense, Net
+- AR/AP outstanding
+- Recent transactions (10)
+- Quick actions (New transaction, New bill, Transfer)
 
-Settings flag in `erp_settings`: `meta_funding_mode` = `prepaid` (default) | `direct_expense`.
+### 4. Keep as-is (useful, not bloated)
+- Journal, AR/AP, Dollar Purchase, Settings — already clean layouts.
+- Components in `src/components/erp/finance/` — sob actively used (verify on apply).
 
-## 2. Server functions (`src/lib/erp/marketing/dollar-purchase.functions.ts`)
+## Out of scope
+- Backend tables/RPC change na — pure UI/nav restructure.
+- Dollar Purchase FIFO logic untouched.
+- Reports tab er internal sub-pages restructure korbo na (just budgets/taxes/profitability accommodate).
 
-- `listDollarPurchasesFn` (filters: dateRange, brand, ad_account, paid_from, status)
-- `createDollarPurchaseFn` (zod validated; status=draft)
-- `updateDollarPurchaseFn` (only when draft)
-- `confirmDollarPurchaseFn` → calls RPC
-- `cancelDollarPurchaseFn` → calls RPC
-- `getAdAccountWalletFn(adAccountId)` → summary + ledger + lots
-- `dollarPurchaseReportsFn` (variant per report)
+## Risk
+Low. Redirect files delete korle direct URL hit korle 404 dekhabe — acceptable, ora already nav theke hidden.
 
-All `requireSupabaseAuth` + role check (admin/finance).
-
-## 3. UI pages
-
-**Finance**
-
-- `erp.finance.dollar-purchase.tsx` — list + filters + summary KPI cards (Total USD, Total BDT, Avg Effective Rate, Wallet Balance, This Month Meta Spend, This Month Fees). Drawer/dialog for create/edit. Confirm/Cancel actions with reason.
-- Add nav link under Finance → Expenses → "Meta Dollar Purchase".
-
-**Marketing**
-
-- `erp.marketing.ad-account-funding.tsx` — list of ad accounts with wallet summary cards; click → detail drawer showing lots (FIFO), ledger entries, funding history, avg effective rate, latest rate.
-- Link from `erp.marketing.accounts.tsx` row → "Funding".
-
-**Reports** (add tabs in `erp.finance.reports.tsx` + marketing reports):
-
-- Meta Dollar Purchase, Ad Account Funding, Spend vs Fund Added, Rate Difference, Marketing Expense BDT, Brand-wise Meta, Campaign/adset/ad spend BDT, Account-wise outflow.
-
-**Components**
-
-- `<DollarPurchaseDialog>` with attachment upload (Supabase storage bucket `finance-attachments`).
-- `<AdAccountWalletCard>`, `<FifoLotTable>`, `<FundingLedgerTable>`.
-
-## 4. Marketing sync integration
-
-Update `src/lib/erp/marketing/sync.server.ts` & `performance.functions.ts`:
-
-- When writing `mkt_insights_daily.spend_usd`, also call `consume_meta_spend_fifo` to derive `spend_bdt_actual` (store in new column `spend_bdt_fifo`).
-- SKU P&L / dashboard / profitability now uses `spend_bdt_fifo` when present, else falls back to `erp_fx_rates`-based conversion (current behavior).
-
-## 5. Validation & Audit
-
-- Zod: usd_amount > 0, usd_rate > 0, ad_account & paid_from required.
-- Insufficient balance guard unless `erp_settings.allow_negative_account = true`.
-- Confirmed entries: edit blocked → must create reversal/adjustment.
-- All confirm/cancel/edit actions logged to `erp_finance_audit` (or new `finance_audit_log`).
-
-## 6. Storage
-
-Bucket `finance-attachments` (private) for receipt uploads. RLS: authenticated read/write within own brand scope.
-
-## Build order
-
-1. Migration (tables + RPCs + seed categories + storage bucket) — needs your approval.
-2. Server functions + types.
-3. Finance Dollar Purchase page + dialog.
-4. Marketing Ad Account Funding page.
-5. Sync integration (FIFO consumption on insights).
-6. Reports.
-7. Audit log UI in existing `erp.finance.audit.tsx`.
-
-## Tech notes
-
-- FIFO calc in Postgres `plpgsql` for atomicity.
-- Generated columns for `bdt_amount`, `total_bdt`, `effective_rate`.
-- Realtime: enable `meta_dollar_purchases`, `meta_ad_wallet_ledger` publications for live KPI updates.
-- BDT formatting via existing `formatBDT` util; USD via `Intl.NumberFormat('en-US', {style:'currency', currency:'USD'})`.
-
----
-
-Approve korle migration die start korbo. Kono part chhoto/boro korte chao, ba mode (prepaid vs direct expense) default ulto chao — bolo.  
-Approved. Start with Step 1 migration, but before coding, apply these important corrections:
-
-1. Default mode must stay `prepaid`, not direct expense.
-  - Dollar purchase = Meta Ad Balance / Prepaid Marketing
-  - Actual Meta spend = Meta Ads Expense
-  - Transaction fee = Bank Charge / Payment Processing Fee
-2. Do not create duplicate audit table if `erp_finance_audit` already exists and is compatible. First check existing finance audit schema, then reuse it. Only create `finance_audit_log` if no compatible table exists.
-3. FIFO spend consumption must be fully idempotent.  
-On `mkt_insights_daily` insert/update, do not blindly call FIFO every time, because spend may update multiple times and double consume wallet balance.  
-Add a table like `meta_spend_consumptions` with unique key:
-  - ad_account_id
-  - insight_date
-  - campaign_id/adset_id/ad_id or insight row id
-  - spend_ref
-  Store:
-  - usd_spend_recorded
-  - usd_consumed
-  - bdt_cost
-  - lots_used jsonb
-  - created_at / updated_at
-  If spend increases, consume only the delta.  
-  Example: previous spend $10, new spend $15 → consume only $5.  
-  If spend decreases, create reversal/adjustment logic instead of double-consuming.
-4. `brand_id` should be nullable because some Meta ad accounts may be shared across All Brands. Brand-wise allocation can be done later from campaign/product/order attribution.
-5. Confirmed dollar purchase must not be editable. Any correction must create reverse/adjustment entry with audit log.
-6. If FIFO lot balance is missing but Meta spend exists, fallback to `erp_fx_rates` but mark it clearly as `estimated_bdt_cost = true` or `conversion_source = fx_fallback`.
-7. Add wallet summary view with:
-  - total_usd_purchased
-  - total_bdt_paid
-  - total_usd_spent
-  - total_bdt_spent
-  - remaining_usd
-  - avg_effective_rate
-  - latest_purchase_rate
-  - estimated/fallback spend amount
-8. Add account balance validation:  
-Cannot confirm purchase if selected Cash/Bank/bKash account has insufficient balance, unless `allow_negative_account = true`.
-
-After these corrections, start with the single migration:
-
-- tables
-- RPC functions
-- generated columns
-- seed categories
-- storage bucket
-- RLS
-- grants
-- realtime publication
-
-Then send me the migration summary before moving to server functions.  
+Approve korle implement kori.
