@@ -5845,6 +5845,7 @@ export type Database = {
       meta_tracking_config: {
         Row: {
           brand_id: string
+          capi_access_token: string | null
           capi_enabled: boolean
           created_at: string
           enabled_events: Json
@@ -5855,6 +5856,7 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          capi_access_token?: string | null
           capi_enabled?: boolean
           created_at?: string
           enabled_events?: Json
@@ -5865,6 +5867,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          capi_access_token?: string | null
           capi_enabled?: boolean
           created_at?: string
           enabled_events?: Json
