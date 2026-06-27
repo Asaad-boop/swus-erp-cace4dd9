@@ -26,6 +26,24 @@ const fmtNum = (n: number) => Number(n).toLocaleString(undefined, { maximumFract
 const fmtBDT = (n: number) => `৳${Math.round(Number(n) || 0).toLocaleString()}`;
 const fmtUSD = (n: number) => `$${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
+function CostSourceBadge({ source, estimated }: { source: CampaignRollupRow["cost_source"]; estimated: boolean }) {
+  const label =
+    source === "fifo" ? "FIFO" : source === "fx_fallback" ? "FX Fallback" : source === "mixed" ? "Mixed" : "Manual";
+  const cls = !estimated
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+    : source === "mixed"
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : "bg-orange-50 text-orange-700 border-orange-200";
+  return (
+    <span
+      title={estimated ? "Estimated — uses FX fallback (no FIFO lot)" : "Actual BDT cost from FIFO dollar lots"}
+      className={cn("inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border", cls)}
+    >
+      {label}{estimated && source !== "manual" ? " • Est" : ""}
+    </span>
+  );
+}
+
 function CampaignsPage() {
   const { brandId, picker } = useBrandPicker();
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
@@ -262,7 +280,10 @@ function CampaignCard({ row: r }: { row: CampaignRollupRow }) {
 
           {/* Spend */}
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Spend</div>
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Spend</div>
+              <CostSourceBadge source={r.cost_source} estimated={r.estimated_bdt_cost} />
+            </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-xl font-bold tabular-nums text-foreground">{fmtBDT(r.spend_bdt)}</span>
               <span className="text-xs text-muted-foreground tabular-nums">{fmtUSD(r.spend)}</span>

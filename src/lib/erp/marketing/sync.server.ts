@@ -277,6 +277,68 @@ export async function runInsightsSync(
           if (error) throw error;
         }
 
+        // ---- FIFO spend consumption (idempotent, delta-aware) ----
+        // Build a stable spend_ref per insight row and call consume_meta_spend_fifo.
+        // The RPC handles delta detection via meta_spend_consumptions, so re-syncing
+        // the same window is safe.
+        let fifoConsumed = 0;
+        let fifoFallback = 0;
+        try {
+          const { data: freshRows } = await supabase
+            .from("mkt_insights_daily")
+            .select("id,date,spend,ad_id,adset_id,campaign_id")
+            .eq("account_id", acc.id)
+            .gte("date", since)
+            .lte("date", until);
+          for (const r of freshRows ?? []) {
+            const usd = Number(r.spend) || 0;
+            const spendRef = `meta:${acc.id}:${r.date}:${
+              r.ad_id ? "ad" : r.adset_id ? "adset" : "campaign"
+            }:${r.campaign_id ?? "_"}:${r.adset_id ?? "_"}:${r.ad_id ?? "_"}`;
+            const { data: fifoRes, error: fifoErr } = await supabase.rpc(
+              "consume_meta_spend_fifo",
+              {
+                _ad_account_id: acc.id,
+                _spend_ref: spendRef,
+                _usd_spend: usd,
+                _spend_date: r.date,
+                _insight_id: r.id,
+              },
+            );
+            if (fifoErr) continue;
+
+            // Re-read the canonical consumption row to capture cumulative BDT cost.
+            const { data: consRow } = await supabase
+              .from("meta_spend_consumptions")
+              .select("bdt_cost,conversion_source")
+              .eq("ad_account_id", acc.id)
+              .eq("spend_ref", spendRef)
+              .maybeSingle();
+
+            const conv = (consRow?.conversion_source ?? (fifoRes as any)?.conversion ?? "fifo") as
+              | "fifo"
+              | "fx_fallback"
+              | "manual";
+            const bdt = Number(consRow?.bdt_cost ?? 0);
+
+            await supabase
+              .from("mkt_insights_daily")
+              .update({
+                spend_bdt_fifo: bdt,
+                conversion_source: conv,
+                estimated_bdt_cost: conv === "fx_fallback",
+                fifo_consumption_ref: spendRef,
+                fifo_consumed_at: new Date().toISOString(),
+              })
+              .eq("id", r.id);
+
+            fifoConsumed++;
+            if (conv === "fx_fallback") fifoFallback++;
+          }
+        } catch {
+          // Non-fatal — insights sync still succeeds.
+        }
+
         await supabase
           .from("mkt_ad_accounts")
           .update({
@@ -296,7 +358,12 @@ export async function runInsightsSync(
 
         return {
           rows: rows.length,
-          meta: { since, until, finance: financePosted },
+          meta: {
+            since,
+            until,
+            finance: financePosted,
+            fifo: { consumed: fifoConsumed, fallback: fifoFallback },
+          },
         };
       },
     });

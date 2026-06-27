@@ -26,6 +26,10 @@ export type CampaignRollupRow = {
   fx_rate: number; // 1 unit of account currency in BDT
   spend_bdt: number;
   meta_purchase_value_bdt: number;
+  // FIFO cost source
+  spend_bdt_fifo: number;
+  cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
+  estimated_bdt_cost: boolean;
   // Attribution-derived
   confirmed_orders: number;
   confirmed_revenue: number;
@@ -82,22 +86,25 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
     // Aggregate Meta insights per campaign within window
     const { data: insights, error: iErr } = await supabase
       .from("mkt_insights_daily")
-      .select("campaign_id,spend,impressions,clicks,meta_purchases,meta_purchase_value,meta_leads")
+      .select("campaign_id,spend,impressions,clicks,meta_purchases,meta_purchase_value,meta_leads,spend_bdt_fifo,conversion_source,estimated_bdt_cost")
       .in("campaign_id", campIds)
       .gte("date", from)
       .lte("date", to);
     if (iErr) throw iErr;
 
-    const insMap = new Map<string, { spend: number; impressions: number; clicks: number; meta_purchases: number; meta_purchase_value: number; meta_leads: number }>();
+    const insMap = new Map<string, { spend: number; impressions: number; clicks: number; meta_purchases: number; meta_purchase_value: number; meta_leads: number; spend_bdt_fifo: number; fifo_rows: number; fallback_rows: number }>();
     for (const r of insights ?? []) {
       if (!r.campaign_id) continue;
-      const cur = insMap.get(r.campaign_id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0 };
+      const cur = insMap.get(r.campaign_id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0, spend_bdt_fifo: 0, fifo_rows: 0, fallback_rows: 0 };
       cur.spend += Number(r.spend) || 0;
       cur.impressions += Number(r.impressions) || 0;
       cur.clicks += Number(r.clicks) || 0;
       cur.meta_purchases += Number(r.meta_purchases) || 0;
       cur.meta_purchase_value += Number(r.meta_purchase_value) || 0;
       cur.meta_leads += Number(r.meta_leads) || 0;
+      cur.spend_bdt_fifo += Number((r as any).spend_bdt_fifo) || 0;
+      if ((r as any).conversion_source === "fifo") cur.fifo_rows += 1;
+      if ((r as any).conversion_source === "fx_fallback" || (r as any).estimated_bdt_cost) cur.fallback_rows += 1;
       insMap.set(r.campaign_id, cur);
     }
 
@@ -140,7 +147,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
     }
 
     return campaigns.map((c: any): CampaignRollupRow => {
-      const ins = insMap.get(c.id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0 };
+      const ins = insMap.get(c.id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0, spend_bdt_fifo: 0, fifo_rows: 0, fallback_rows: 0 };
       const att = attrMap.get(c.id) ?? { confirmed_orders: 0, confirmed_revenue: 0, delivered_orders: 0, delivered_revenue: 0, return_orders: 0 };
       const ctr = ins.impressions > 0 ? (ins.clicks / ins.impressions) * 100 : null;
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
@@ -148,7 +155,16 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       const currency: string = (acc.currency ?? "USD").toUpperCase();
       const usdFx: number = Number(acc.usd_to_bdt_rate) || brandUsdBdt;
       const fx: number = currency === "BDT" ? 1 : usdFx;
-      const spend_bdt = ins.spend * fx;
+      const hasFifo = ins.spend_bdt_fifo > 0;
+      const spend_bdt = hasFifo ? ins.spend_bdt_fifo : ins.spend * fx;
+      const cost_source: CampaignRollupRow["cost_source"] = !hasFifo
+        ? "fx_fallback"
+        : ins.fallback_rows > 0 && ins.fifo_rows > 0
+        ? "mixed"
+        : ins.fallback_rows > 0
+        ? "fx_fallback"
+        : "fifo";
+      const estimated_bdt_cost = cost_source !== "fifo";
       const meta_purchase_value_bdt = ins.meta_purchase_value * fx;
       // ROAS — all in BDT for apples-to-apples
       const roas_meta = spend_bdt > 0 ? meta_purchase_value_bdt / spend_bdt : null;
@@ -173,6 +189,9 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         fx_rate: fx,
         spend_bdt,
         meta_purchase_value_bdt,
+        spend_bdt_fifo: ins.spend_bdt_fifo,
+        cost_source,
+        estimated_bdt_cost,
         ...att,
         roas_meta,
         roas_confirmed,

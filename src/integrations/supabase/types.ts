@@ -5972,11 +5972,15 @@ export type Database = {
           brand_id: string
           campaign_id: string | null
           clicks: number
+          conversion_source: string | null
           cpc: number | null
           cpm: number | null
           created_at: string
           ctr: number | null
           date: string
+          estimated_bdt_cost: boolean
+          fifo_consumed_at: string | null
+          fifo_consumption_ref: string | null
           id: string
           impressions: number
           meta_add_to_cart: number
@@ -5987,6 +5991,7 @@ export type Database = {
           raw: Json | null
           reach: number
           spend: number
+          spend_bdt_fifo: number | null
           updated_at: string
         }
         Insert: {
@@ -5996,11 +6001,15 @@ export type Database = {
           brand_id: string
           campaign_id?: string | null
           clicks?: number
+          conversion_source?: string | null
           cpc?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
           date: string
+          estimated_bdt_cost?: boolean
+          fifo_consumed_at?: string | null
+          fifo_consumption_ref?: string | null
           id?: string
           impressions?: number
           meta_add_to_cart?: number
@@ -6011,6 +6020,7 @@ export type Database = {
           raw?: Json | null
           reach?: number
           spend?: number
+          spend_bdt_fifo?: number | null
           updated_at?: string
         }
         Update: {
@@ -6020,11 +6030,15 @@ export type Database = {
           brand_id?: string
           campaign_id?: string | null
           clicks?: number
+          conversion_source?: string | null
           cpc?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
           date?: string
+          estimated_bdt_cost?: boolean
+          fifo_consumed_at?: string | null
+          fifo_consumption_ref?: string | null
           id?: string
           impressions?: number
           meta_add_to_cart?: number
@@ -6035,6 +6049,7 @@ export type Database = {
           raw?: Json | null
           reach?: number
           spend?: number
+          spend_bdt_fifo?: number | null
           updated_at?: string
         }
         Relationships: [
