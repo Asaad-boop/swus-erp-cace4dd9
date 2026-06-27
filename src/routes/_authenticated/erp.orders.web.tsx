@@ -962,6 +962,7 @@ function _WebOrdersPageBody() {
 
   // selection helpers — operate on currently visible filteredRows
   const visibleIds = useMemo(() => filteredRows.map(({ row }) => row.id), [filteredRows]);
+  const orderLocks = useOrderLocks(visibleIds);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
   const toggleSelect = (id: string) => setSelectedIds((prev) => {
