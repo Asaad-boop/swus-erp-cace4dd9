@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useUsdBdtRate } from "@/hooks/erp/use-fx-rate";
 
 const BDT = (n: number) => "৳" + Math.round(n).toLocaleString("en-IN");
 
@@ -18,9 +19,10 @@ type Range = { from: Date; to: Date };
    1) TODAY COMMAND PANEL — action list
 ============================================================ */
 export function TodayCommandPanel({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+  const { data: fx } = useUsdBdtRate(brandIds);
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-cmd", brandIds.join(",")],
-    enabled,
+    queryKey: ["dash-cmd", brandIds.join(","), fx ?? 0],
+    enabled: enabled && fx != null,
     staleTime: 30_000,
     refetchInterval: 30_000,
     queryFn: async () => {
@@ -46,7 +48,7 @@ export function TodayCommandPanel({ brandIds, enabled }: { brandIds: string[]; e
       );
       // losing = days where spend > 0 and ROAS < 1
       const losingDays = (losingCamp.data ?? []).filter(
-        (r: any) => Number(r.spend ?? 0) > 0 && Number(r.meta_purchase_value ?? 0) < Number(r.spend ?? 0) * 110,
+        (r: any) => Number(r.spend ?? 0) > 0 && Number(r.meta_purchase_value ?? 0) < Number(r.spend ?? 0) * (fx ?? 0),
       ).length;
       return {
         needConfirm: needConfirm.count ?? 0,
