@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,6 +20,34 @@ import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
 import { Truck, Pencil, Lock, ShieldAlert } from "lucide-react";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
+
+const LOCK_STALE_MS = 90_000;
+
+function formatRemaining(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m > 0 ? `${m}m ${r}s` : `${r}s`;
+}
+
+function LockCountdown({ lastHeartbeatAt, tone }: { lastHeartbeatAt: string; tone: "emerald" | "amber" }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const last = new Date(lastHeartbeatAt).getTime();
+  const remaining = LOCK_STALE_MS - (Date.now() - last);
+  const secondsAgo = Math.max(0, Math.floor((Date.now() - last) / 1000));
+  const cls = tone === "emerald"
+    ? "text-emerald-700 dark:text-emerald-300"
+    : "text-amber-700 dark:text-amber-300";
+  return (
+    <span className={`tabular-nums ${cls}`}>
+      Expires in {formatRemaining(remaining)} · heartbeat {secondsAgo}s ago
+    </span>
+  );
+}
 
 const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "processing", label: "Processing" },
