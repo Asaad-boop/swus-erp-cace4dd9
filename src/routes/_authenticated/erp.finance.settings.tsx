@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsPage } from "@/components/erp/finance/pages/settings";
-import { FxPage } from "@/components/erp/finance/pages/fx";
 import { AuditPage } from "@/components/erp/finance/pages/audit";
 
-type Search = { tab?: "general" | "fx" | "audit" };
+type Search = { tab?: "general" | "audit" };
 
 export const Route = createFileRoute("/_authenticated/erp/finance/settings")({
   validateSearch: (s: Record<string, unknown>): Search => {
     const t = s.tab;
-    return { tab: t === "fx" || t === "audit" ? t : "general" };
+    return { tab: t === "audit" ? t : "general" };
   },
   head: () => ({ meta: [{ title: "Settings — Finance" }] }),
   component: SettingsLayout,
@@ -23,12 +22,10 @@ function SettingsLayout() {
       <div className="px-4 sm:px-6 pt-4">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="fx">FX Rates</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="general" className="mt-0"><SettingsPage /></TabsContent>
-      <TabsContent value="fx" className="mt-0"><FxPage /></TabsContent>
       <TabsContent value="audit" className="mt-0"><AuditPage /></TabsContent>
     </Tabs>
   );
