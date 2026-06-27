@@ -21,6 +21,7 @@ import {
   getDashboardSummary,
   type DashboardSummary,
 } from "@/lib/erp/marketing/dashboard.functions";
+import { EstimatedWarning, CostSourceBadge } from "@/components/erp/marketing/_ui/CostSourceBadge";
 
 const fmtBDT = (n: number) =>
   `৳${Math.round(Number(n) || 0).toLocaleString()}`;
@@ -64,6 +65,8 @@ export function DashboardOverview({ brandId }: { brandId: string }) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Today · {d.today.date_bd} (auto-refresh 5 min)
             </h2>
+            <CostSourceBadge source={d.today.cost_source} estimated={d.today.estimated_bdt_cost} className="ml-2" />
+            {d.today.estimated_bdt_cost && <EstimatedWarning className="ml-1" />}
           </div>
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
             <TodayKpi
