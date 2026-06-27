@@ -140,6 +140,15 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
   const amt = Number(amount) || 0;
   const insufficient = (type === "expense" || type === "transfer") && selectedFrom && amt > 0 && amt > Number(selectedFrom.current_balance);
+  const handleSave = () => {
+    if (insufficient && selectedFrom) {
+      toast.error("Insufficient balance", {
+        description: `${selectedFrom.name} e ache ${fmtBdt(selectedFrom.current_balance)} · short by ${fmtBdt(amt - Number(selectedFrom.current_balance))}`,
+      });
+      return;
+    }
+    mut.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -312,7 +321,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
         <DialogFooter className="border-t bg-muted/30 px-5 py-3">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount || !!insufficient} className="min-w-[140px]">
+          <Button onClick={handleSave} disabled={mut.isPending || !amount || !!insufficient} className="min-w-[140px]">
             {mut.isPending ? "Saving…" : meta.verb}
           </Button>
         </DialogFooter>
