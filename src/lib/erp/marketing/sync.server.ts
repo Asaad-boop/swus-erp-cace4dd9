@@ -364,7 +364,9 @@ export async function postMetaSpendToFinance(
     dailyUsd.set(r.date, (dailyUsd.get(r.date) ?? 0) + (Number(r.spend) || 0));
   }
 
-  const fx = Number(acc.usd_to_bdt_rate) || 110;
+  // Account-level rate, then brand-level FX as fallback, never a hardcoded constant.
+  const { getBrandUsdBdt } = await import("./fx.server");
+  const fx = Number(acc.usd_to_bdt_rate) || (await getBrandUsdBdt(supabase, acc.brand_id));
   const isBdtAcc = (acc.currency ?? "").toUpperCase() === "BDT";
 
   // Existing auto-posted rows in window
