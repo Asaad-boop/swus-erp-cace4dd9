@@ -362,6 +362,7 @@ function OrderDetailsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data, isLoading } = useOrderDetail(orderId);
+  const orderLock = useOrderLock(orderId);
   const detectFn = useServerFn(pathaoDetectForOrderFn);
   const matchAddressFn = useServerFn(pathaoMatchAddressFn);
 
