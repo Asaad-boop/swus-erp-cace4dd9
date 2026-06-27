@@ -99,6 +99,11 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
       if (type === "transfer" && (!accountId || !toAccountId || accountId === toAccountId)) {
         throw new Error("Pick two different accounts for transfer");
       }
+      // Block negative balance for expense/transfer
+      const src = scopedAccounts.find((a) => a.id === accountId);
+      if ((type === "expense" || type === "transfer") && src && amt > Number(src.current_balance)) {
+        throw new Error(`Insufficient balance in ${src.name}. Available ${fmtBdt(src.current_balance)}`);
+      }
       const payload = {
         brand_id: effectiveBrandId,
         txn_type: type,
@@ -132,6 +137,9 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
   const amountPlaceholder = type === "expense" ? "Koto khoroch holo?" : type === "income" ? "Koto ashlo?" : type === "transfer" ? "Koto transfer?" : "Adjustment amount";
   const descPlaceholder = type === "expense" ? "e.g. Office er jonno notun desk" : type === "income" ? "e.g. Customer payment / wallet refund" : type === "transfer" ? "e.g. bKash theke Bank e shift" : "e.g. Cash count mismatch reconcile";
+
+  const amt = Number(amount) || 0;
+  const insufficient = (type === "expense" || type === "transfer") && selectedFrom && amt > 0 && amt > Number(selectedFrom.current_balance);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -294,11 +302,17 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
               Adjustment direct account balance e jog hobe. Komate chaile <span className="font-semibold">negative</span> amount din.
             </p>
           )}
+
+          {insufficient && (
+            <p className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-700 dark:text-rose-400">
+              ⚠ Insufficient balance in <span className="font-semibold">{selectedFrom?.name}</span>. Available {fmtBdt(selectedFrom?.current_balance ?? 0)} · Short by {fmtBdt(amt - Number(selectedFrom?.current_balance ?? 0))}
+            </p>
+          )}
         </div>
 
         <DialogFooter className="border-t bg-muted/30 px-5 py-3">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount} className="min-w-[140px]">
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount || !!insufficient} className="min-w-[140px]">
             {mut.isPending ? "Saving…" : meta.verb}
           </Button>
         </DialogFooter>
