@@ -281,25 +281,15 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
           {/* Category (income/expense only) */}
           {(type === "income" || type === "expense") && (
-            <div className="space-y-1.5">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Category <span className="text-muted-foreground/60 normal-case">(optional)</span></Label>
-              <Select value={categoryId} onValueChange={setCategoryId} disabled={!effectiveBrandId}>
-                <SelectTrigger><SelectValue placeholder={filteredCats.length === 0 ? "No categories yet" : "Choose category"} /></SelectTrigger>
-                <SelectContent>
-                  {filteredCats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {filteredCats.length > 0 && filteredCats.length <= 6 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {filteredCats.map((c) => (
-                    <button key={c.id} type="button" onClick={() => setCategoryId(c.id === categoryId ? "" : c.id)}
-                      className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", categoryId === c.id ? cn("border-transparent", meta.bg, meta.fg) : "bg-card hover:bg-muted")}>
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <CategoryPicker
+              value={categoryId}
+              onChange={setCategoryId}
+              categories={filteredCats}
+              brandId={effectiveBrandId}
+              kind={type as "income" | "expense"}
+              meta={meta}
+              qc={qc}
+            />
           )}
 
           {/* Description */}
