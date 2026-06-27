@@ -9,6 +9,10 @@ export type DashboardSummary = {
     date_bd: string;
     spend_usd: number;
     spend_bdt: number;
+    spend_bdt_fifo: number;
+    spend_bdt_fallback: number;
+    cost_source: "fifo" | "fx_fallback" | "mixed" | "manual";
+    estimated_bdt_cost: boolean;
     meta_orders: number; // Meta-reported purchases
     meta_revenue_usd: number;
     meta_revenue_bdt: number;
@@ -113,7 +117,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: insights } = await supabase
       .from("mkt_insights_daily")
       .select(
-        "date, account_id, campaign_id, spend, meta_purchases, meta_purchase_value",
+        "date, account_id, campaign_id, spend, meta_purchases, meta_purchase_value, spend_bdt_fifo, conversion_source, estimated_bdt_cost",
       )
       .eq("brand_id", brandId)
       .gte("date", sevenAgoBD)
@@ -173,6 +177,8 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     // ── Build TODAY ──
     let spendUsdToday = 0;
     let spendBdtToday = 0;
+    let spendBdtTodayFifo = 0;
+    let spendBdtTodayFallback = 0;
     let metaOrdersToday = 0;
     let metaRevUsdToday = 0;
     let metaRevBdtToday = 0;
@@ -181,8 +187,13 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const fx = accFx.get(r.account_id) ?? 1;
       const spend = Number(r.spend) || 0;
       const mrev = Number(r.meta_purchase_value) || 0;
+      const fifo = Number((r as any).spend_bdt_fifo) || 0;
+      const useFifo = fifo > 0 && (r as any).conversion_source === "fifo";
+      const bdt = useFifo ? fifo : spend * fx;
       spendUsdToday += spend;
-      spendBdtToday += spend * fx;
+      spendBdtToday += bdt;
+      if (useFifo) spendBdtTodayFifo += bdt;
+      else spendBdtTodayFallback += bdt;
       metaOrdersToday += Number(r.meta_purchases) || 0;
       metaRevUsdToday += mrev;
       metaRevBdtToday += mrev * fx;
@@ -212,6 +223,16 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       date_bd: todayBD,
       spend_usd: spendUsdToday,
       spend_bdt: spendBdtToday,
+      spend_bdt_fifo: spendBdtTodayFifo,
+      spend_bdt_fallback: spendBdtTodayFallback,
+      cost_source: (spendBdtToday <= 0
+        ? "manual"
+        : spendBdtTodayFifo > 0 && spendBdtTodayFallback > 0
+          ? "mixed"
+          : spendBdtTodayFifo > 0
+            ? "fifo"
+            : "fx_fallback") as "fifo" | "fx_fallback" | "mixed" | "manual",
+      estimated_bdt_cost: spendBdtTodayFallback > 0,
       meta_orders: metaOrdersToday,
       meta_revenue_usd: metaRevUsdToday,
       meta_revenue_bdt: metaRevBdtToday,
@@ -240,7 +261,9 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const fx = accFx.get(r.account_id) ?? 1;
       const cur = trendMap.get(r.date);
       if (!cur) continue;
-      cur.spend_bdt += (Number(r.spend) || 0) * fx;
+      const fifo = Number((r as any).spend_bdt_fifo) || 0;
+      const useFifo = fifo > 0 && (r as any).conversion_source === "fifo";
+      cur.spend_bdt += useFifo ? fifo : (Number(r.spend) || 0) * fx;
     }
     for (const r of (attr7d ?? []) as any[]) {
       if (!r.orders) continue;
@@ -263,7 +286,9 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       if (!r.campaign_id) continue;
       const fx = accFx.get(r.account_id) ?? 1;
       const cur = campAgg.get(r.campaign_id) ?? { spend_bdt: 0, confirmed: 0, delivered: 0 };
-      cur.spend_bdt += (Number(r.spend) || 0) * fx;
+      const fifo = Number((r as any).spend_bdt_fifo) || 0;
+      const useFifo = fifo > 0 && (r as any).conversion_source === "fifo";
+      cur.spend_bdt += useFifo ? fifo : (Number(r.spend) || 0) * fx;
       campAgg.set(r.campaign_id, cur);
     }
     for (const r of (attr7d ?? []) as any[]) {
