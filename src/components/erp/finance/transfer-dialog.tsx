@@ -60,6 +60,9 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
       if (!fromId || !toId) throw new Error("Select both accounts");
       if (fromId === toId) throw new Error("From and To must be different");
       if (!amt || amt <= 0) throw new Error("Amount must be > 0");
+      if (from && amt > Number(from.current_balance)) {
+        throw new Error(`Insufficient balance in ${from.name}. Available ${fmtBdt(from.current_balance)}`);
+      }
       const { error } = await supabase.from("erp_transactions").insert({
         brand_id: effectiveBrandId,
         txn_type: "transfer",
@@ -139,12 +142,14 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Top-up bKash from Cash" />
           </div>
           {insufficient && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">Warning: source balance is {fmtBdt(from?.current_balance ?? 0)}, transfer will go negative.</p>
+            <p className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-700 dark:text-rose-400">
+              ⚠ Insufficient balance in <span className="font-semibold">{from?.name}</span>. Available {fmtBdt(from?.current_balance ?? 0)} · Short by {fmtBdt(amt - Number(from?.current_balance ?? 0))}
+            </p>
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !fromId || !toId || !amt}>
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !fromId || !toId || !amt || !!insufficient}>
             {mut.isPending ? "Saving…" : "Transfer"}
           </Button>
         </DialogFooter>
