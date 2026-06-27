@@ -14,9 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
+import { useOrderLock } from "@/hooks/erp/use-order-lock";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
-import { Truck, Pencil } from "lucide-react";
+import { Truck, Pencil, Lock, ShieldAlert } from "lucide-react";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -35,6 +36,7 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
   const { data: staff = [] } = useStaffList();
+  const lockState = useOrderLock(orderId);
   const [note, setNote] = useState("");
   const [advOpen, setAdvOpen] = useState(false);
   const [advAmount, setAdvAmount] = useState("");
