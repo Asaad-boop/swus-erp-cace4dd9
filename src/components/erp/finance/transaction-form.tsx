@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, Banknote, Building2, Landmark, Settings2, Smartphone, Wallet as WalletIcon } from "lucide-react";
+import { ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, Banknote, Building2, Landmark, Settings2, Smartphone, Wallet as WalletIcon, ChevronsUpDown, Check, Plus, Tag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { fmtBdt, type Account, type Category, type TxnType } from "@/lib/erp/finance";
 import type { Brand } from "@/contexts/brand-context";
@@ -279,25 +281,15 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
           {/* Category (income/expense only) */}
           {(type === "income" || type === "expense") && (
-            <div className="space-y-1.5">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Category <span className="text-muted-foreground/60 normal-case">(optional)</span></Label>
-              <Select value={categoryId} onValueChange={setCategoryId} disabled={!effectiveBrandId}>
-                <SelectTrigger><SelectValue placeholder={filteredCats.length === 0 ? "No categories yet" : "Choose category"} /></SelectTrigger>
-                <SelectContent>
-                  {filteredCats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {filteredCats.length > 0 && filteredCats.length <= 6 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {filteredCats.map((c) => (
-                    <button key={c.id} type="button" onClick={() => setCategoryId(c.id === categoryId ? "" : c.id)}
-                      className={cn("rounded-full border px-2.5 py-0.5 text-xs transition-colors", categoryId === c.id ? cn("border-transparent", meta.bg, meta.fg) : "bg-card hover:bg-muted")}>
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <CategoryPicker
+              value={categoryId}
+              onChange={setCategoryId}
+              categories={filteredCats}
+              brandId={effectiveBrandId}
+              kind={type as "income" | "expense"}
+              meta={meta}
+              qc={qc}
+            />
           )}
 
           {/* Description */}
@@ -367,6 +359,120 @@ function AccountCombo({ label, value, onChange, accounts, disabled }: { label: s
           })}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function CategoryPicker({ value, onChange, categories, brandId, kind, meta, qc }: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: Category[];
+  brandId: string | null;
+  kind: "income" | "expense";
+  meta: { bg: string; fg: string };
+  qc: ReturnType<typeof useQueryClient>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = categories.find((c) => c.id === value);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const inKind = categories.filter((c) => c.kind === kind);
+    if (!q) return inKind;
+    return inKind.filter((c) => c.name.toLowerCase().includes(q));
+  }, [categories, kind, query]);
+
+  const otherKind = useMemo(
+    () => categories.filter((c) => c.kind !== kind && (!query || c.name.toLowerCase().includes(query.trim().toLowerCase()))),
+    [categories, kind, query],
+  );
+
+  const exactExists = categories.some((c) => c.name.toLowerCase() === query.trim().toLowerCase());
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (!brandId) throw new Error("Select brand first");
+      const name = query.trim();
+      if (!name) throw new Error("Enter a name");
+      const { data, error } = await supabase.from("erp_expense_categories")
+        .insert({ brand_id: brandId, name, kind, is_active: true })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: (id) => {
+      toast.success(`"${query.trim()}" added`);
+      qc.invalidateQueries({ queryKey: ["erp_categories"] });
+      onChange(id);
+      setQuery("");
+      setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+        Category <span className="text-muted-foreground/60 normal-case">(optional)</span>
+      </Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" disabled={!brandId}
+            className="w-full justify-between h-10 font-normal">
+            <span className="flex items-center gap-2 truncate">
+              <Tag className={cn("h-3.5 w-3.5", selected ? meta.fg : "text-muted-foreground")} />
+              {selected ? selected.name : <span className="text-muted-foreground">{categories.length === 0 ? "No categories yet — type to create" : "Choose or search…"}</span>}
+            </span>
+            <ChevronsUpDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search or type new…" value={query} onValueChange={setQuery} />
+            <CommandList className="max-h-64">
+              {filtered.length === 0 && otherKind.length === 0 && !query.trim() && (
+                <CommandEmpty>No categories yet</CommandEmpty>
+              )}
+              {filtered.length > 0 && (
+                <CommandGroup heading={kind === "expense" ? "Expense" : "Income"}>
+                  {filtered.map((c) => (
+                    <CommandItem key={c.id} value={c.id} onSelect={() => { onChange(c.id); setOpen(false); }}>
+                      <Check className={cn("mr-2 h-3.5 w-3.5", value === c.id ? "opacity-100" : "opacity-0")} />
+                      {c.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {otherKind.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading={kind === "expense" ? "Income (other kind)" : "Expense (other kind)"}>
+                    {otherKind.map((c) => (
+                      <CommandItem key={c.id} value={c.id} onSelect={() => { onChange(c.id); setOpen(false); }} className="opacity-70">
+                        <Check className={cn("mr-2 h-3.5 w-3.5", value === c.id ? "opacity-100" : "opacity-0")} />
+                        {c.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
+              {query.trim() && !exactExists && brandId && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem value="__create__" onSelect={() => create.mutate()} disabled={create.isPending}>
+                      <Plus className="mr-2 h-3.5 w-3.5 text-primary" />
+                      Create "<span className="font-semibold mx-0.5">{query.trim()}</span>" as {kind}
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
