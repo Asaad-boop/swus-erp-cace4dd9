@@ -1739,6 +1739,64 @@ function OrderDetailsPage() {
   );
 }
 
+function OrderLockBanner({ lock }: { lock: OrderLockState }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!lock.heldByOther) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [lock.heldByOther]);
+
+  if (!lock.lock) return null;
+
+  if (lock.heldByOther) {
+    const expiresInSec = Math.max(
+      0,
+      Math.round((new Date(lock.lock.last_heartbeat_at).getTime() + 90_000 - now) / 1000),
+    );
+    return (
+      <>
+        <div className="sticky top-0 z-40 bg-amber-500 text-amber-950 border-b border-amber-600 shadow-sm">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base">🔒</span>
+              <span className="font-semibold truncate">
+                Opened by {lock.lock.user_name ?? "another user"}
+              </span>
+              <span className="opacity-75">· Expires in ~{expiresInSec}s</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 bg-white hover:bg-amber-50 border-amber-700 text-amber-950"
+              onClick={() => lock.takeOver().then(() => toast.success("You took over editing"))}
+            >
+              Takeover & Open
+            </Button>
+          </div>
+        </div>
+        <div
+          className="fixed inset-0 z-20 bg-black/30 backdrop-blur-[1px] pointer-events-auto"
+          aria-hidden="true"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </>
+    );
+  }
+
+  if (lock.isMine) {
+    return (
+      <div className="bg-emerald-500/10 border-b border-emerald-500/30 text-emerald-800 dark:text-emerald-300">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-1.5 text-xs flex items-center gap-2">
+          <span>✏️</span>
+          <span className="font-medium">You are editing this order</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Small input helpers                                                        */
 /* -------------------------------------------------------------------------- */
