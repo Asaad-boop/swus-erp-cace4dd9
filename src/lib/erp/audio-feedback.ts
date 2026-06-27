@@ -23,3 +23,10 @@ export function beepShip() {
   setTimeout(() => tone(880, 0.08), 90);
   setTimeout(() => tone(1180, 0.16), 180);
 }
+export function beepNewOrder() {
+  // Cheerful 4-note chime — "ding-da-ding-ding!"
+  tone(880, 0.12, "triangle", 0.2);              // A5
+  setTimeout(() => tone(1175, 0.12, "triangle", 0.2), 130);  // D6
+  setTimeout(() => tone(1568, 0.14, "triangle", 0.22), 260); // G6
+  setTimeout(() => tone(2093, 0.22, "triangle", 0.22), 410); // C7
+}
