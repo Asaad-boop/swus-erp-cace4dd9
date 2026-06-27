@@ -98,8 +98,7 @@ function NewPoPage() {
     { id: uid(), carton_number: 1, weight_kg: 0, allocations: {} },
   ]);
 
-  // initial payment
-  const [payEnabled, setPayEnabled] = useState(false);
+  // initial payment — auto-enabled when amount + wallet are filled
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payWalletId, setPayWalletId] = useState<string>("");
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
@@ -169,7 +168,9 @@ function NewPoPage() {
       if (!brandId) throw new Error("No brand");
       if (items.some((i) => !i.picked.title.trim() || i.quantity <= 0)) throw new Error("Each item needs a name & quantity > 0");
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
-      if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
+      const payEnabled = payAmount > 0 && !!payWalletId;
+      if (payAmount > 0 && !payWalletId) throw new Error("Select a wallet to pay from");
+      if (payWalletId && payAmount <= 0) throw new Error("Enter a payment amount");
       if (payEnabled && useCargoBalance) {
         if (!cargoAgentId) throw new Error("Select a cargo agent to pay from cargo balance");
         if (payAmount > cargoBalance) throw new Error(`Cargo balance insufficient (available ${fmtBdt(cargoBalance)})`);
@@ -204,7 +205,7 @@ function NewPoPage() {
       };
       if (supplierId) payload.supplier = { id: supplierId };
 
-      if (payEnabled && payAmount > 0 && payWalletId && !useCargoBalance) {
+      if (payEnabled && !useCargoBalance) {
         payload.initial_payment = {
           amount_bdt: payAmount,
           wallet_id: payWalletId,
@@ -225,7 +226,7 @@ function NewPoPage() {
         }
       }
       // Pay from cargo balance after PO exists
-      if (res?.po_id && payEnabled && useCargoBalance && payAmount > 0 && cargoAgentId && brandId) {
+      if (res?.po_id && payEnabled && useCargoBalance && cargoAgentId && brandId) {
         try {
           await cargoPayFn({ data: {
             brandId,
@@ -273,7 +274,8 @@ function NewPoPage() {
   const totalCartonWeight = cartons.reduce((s, c) => s + (Number(c.weight_kg) || 0), 0);
   const totalUnits = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const itemsValid = items.length > 0 && items.every((i) => i.picked.title.trim() && i.quantity > 0);
-  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabled || (payAmount > 0 && !!payWalletId));
+  const payEnabledUI = payAmount > 0 || !!payWalletId;
+  const canSubmit = !!brandId && itemsValid && reconciliationErrors.length === 0 && !submitMut.isPending && (!payEnabledUI || (payAmount > 0 && !!payWalletId));
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto pb-24">
@@ -563,12 +565,9 @@ function NewPoPage() {
           <Card className="p-4 md:p-5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <SectionTitle icon={Wallet} title="Advance payment (optional)" />
-              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={payEnabled} onChange={(e) => setPayEnabled(e.target.checked)} className="rounded" />
-                Pay supplier advance now
-              </label>
+              <div className="text-[11px] text-muted-foreground">Fill amount + wallet to pay now; leave blank to skip</div>
             </div>
-            {payEnabled && (
+            {(
               <div className="grid md:grid-cols-2 gap-4 mt-3">
                 <AmountPercentInput
                   total={productSubtotalBdt}
@@ -633,7 +632,7 @@ function NewPoPage() {
             <SideRow label="Total weight" value={`${totalCartonWeight.toFixed(1)} kg`} />
             <div className="border-t border-border my-2" />
             <SideRow label="Subtotal" value={fmtBdt(productSubtotalBdt)} bold />
-            {payEnabled && payAmount > 0 && (
+            {payAmount > 0 && (
               <>
                 <SideRow label="Advance" value={`− ${fmtBdt(payAmount)}`} accent="text-emerald-600" />
                 <SideRow label="Due after" value={fmtBdt(Math.max(0, productSubtotalBdt - payAmount))} bold accent={productSubtotalBdt - payAmount > 0 ? "text-orange-600" : "text-emerald-600"} />
