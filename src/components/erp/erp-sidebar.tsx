@@ -236,7 +236,7 @@ export function ErpSidebar() {
     for (const g of groups) {
       if (g.kind !== "accordion") continue;
       for (const s of g.sections) {
-        if (s.items.some((i) => isActive(i.to, i.exact))) return s.key;
+        if (s.items.some((i) => isActive(i.to, i.exact, i.search))) return s.key;
       }
     }
     return null;
