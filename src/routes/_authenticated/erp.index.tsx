@@ -874,14 +874,14 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
   });
 
   const wallets = [
-    { label: "Cash", Icon: Coins, value: data?.cash ?? 0, tint: "from-amber-500/15 to-amber-500/0 text-amber-600 ring-amber-500/20" },
-    { label: "bKash", Icon: Smartphone, value: data?.bkash ?? 0, tint: "from-pink-500/15 to-pink-500/0 text-pink-600 ring-pink-500/20" },
-    { label: "Nagad", Icon: Smartphone, value: data?.nagad ?? 0, tint: "from-orange-500/15 to-orange-500/0 text-orange-600 ring-orange-500/20" },
-    { label: "Bank", Icon: Landmark, value: data?.bank ?? 0, tint: "from-sky-500/15 to-sky-500/0 text-sky-600 ring-sky-500/20" },
+    { label: "Cash", Icon: Coins, value: data?.cash ?? 0 },
+    { label: "bKash", Icon: Smartphone, value: data?.bkash ?? 0 },
+    { label: "Nagad", Icon: Smartphone, value: data?.nagad ?? 0 },
+    { label: "Bank", Icon: Landmark, value: data?.bank ?? 0 },
   ];
   const receivablePayable = [
-    { label: "Receivable", Icon: ArrowDownLeft, value: data?.ar ?? 0, hint: "COD pending", tint: "text-emerald-600 ring-emerald-500/20 bg-emerald-500/5" },
-    { label: "Payable", Icon: ArrowOut, value: data?.ap ?? 0, hint: "Bills unpaid", tint: "text-rose-600 ring-rose-500/20 bg-rose-500/5" },
+    { label: "Receivable", Icon: ArrowDownLeft, value: data?.ar ?? 0, hint: "COD pending" },
+    { label: "Payable", Icon: ArrowOut, value: data?.ap ?? 0, hint: "Bills unpaid" },
   ];
 
   return (
@@ -911,11 +911,11 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-              {wallets.map(({ label, Icon, value, tint }) => (
-                <div key={label} className={cn("group relative rounded-xl ring-1 bg-gradient-to-br p-3 transition-all hover:scale-[1.02] hover:shadow-sm", tint)}>
+              {wallets.map(({ label, Icon, value }) => (
+                <div key={label} className="group relative rounded-xl border border-border/60 bg-card p-3 transition-all hover:border-border hover:shadow-sm">
                   <div className="flex items-center justify-between mb-1.5">
-                    <Icon className="size-4 opacity-80" />
-                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-70">{label}</span>
+                    <Icon className="size-4 text-muted-foreground" />
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
                   </div>
                   {isLoading ? <Skeleton className="h-5 w-16" /> : (
                     <div className={cn("text-base font-bold tabular-nums text-foreground", value < 0 && "text-rose-600")}>
@@ -927,11 +927,11 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            {receivablePayable.map(({ label, Icon, value, hint, tint }) => (
-              <div key={label} className={cn("flex items-center justify-between rounded-xl ring-1 p-3", tint)}>
+            {receivablePayable.map(({ label, Icon, value, hint }) => (
+              <div key={label} className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={cn("size-9 rounded-lg flex items-center justify-center bg-background/60", tint)}>
-                    <Icon className="size-4" />
+                  <div className="size-9 rounded-lg flex items-center justify-center bg-muted">
+                    <Icon className="size-4 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-foreground">{label}</div>
