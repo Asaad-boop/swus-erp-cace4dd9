@@ -50,6 +50,7 @@ type Form = {
   image: string;
   gallery: string[];
   video_url: string;
+  age_group: string;
 };
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -80,6 +81,7 @@ function toForm(p: Record<string, any>): Form {
     image: str(p.image),
     gallery: Array.isArray(p.gallery) ? p.gallery : [],
     video_url: str(p.video_url),
+    age_group: str(p.age_group),
   };
 }
 
@@ -163,6 +165,7 @@ export function ProductEditDialog({ product, onClose }: Props) {
         image: f.image || null,
         gallery: f.gallery,
         video_url: f.video_url || null,
+        age_group: f.age_group || null,
       };
       const { error } = await supabase
         .from("products")
