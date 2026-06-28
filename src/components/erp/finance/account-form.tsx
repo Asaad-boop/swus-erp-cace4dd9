@@ -59,19 +59,16 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
         }).eq("id", editing.id);
         if (error) throw error;
       } else if (isAllBrands) {
-        if (brands.length === 0) throw new Error("No brands available");
-        const rows = brands.map((b, idx) => ({
-          brand_id: b.id,
+        const { error } = await supabase.from("erp_accounts").insert({
+          brand_id: null,
           name: name.trim(),
           account_type: type,
           account_number: number || null,
-          // opening only on first brand to avoid double-counting a shared real-world account
-          opening_balance: idx === 0 ? ob : 0,
-          current_balance: idx === 0 ? ob : 0,
-          notes: notes ? `${notes}\n(Shared across brands)` : "(Shared across brands)",
+          opening_balance: ob,
+          current_balance: ob,
+          notes: notes || null,
           is_active: true,
-        }));
-        const { error } = await supabase.from("erp_accounts").insert(rows);
+        });
         if (error) throw error;
       } else {
         if (!effectiveBrandId) throw new Error("Select a brand");
@@ -85,7 +82,7 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
       }
     },
     onSuccess: () => {
-      toast.success(editing ? "Account updated" : isAllBrands ? `Account created for ${brands.length} brands` : "Account created");
+      toast.success(editing ? "Account updated" : isAllBrands ? "Shared account created (all brands)" : "Account created");
       invalidate();
       onClose();
     },
@@ -132,7 +129,7 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
               </Select>
               {isAllBrands && (
                 <p className="text-[11px] text-muted-foreground">
-                  Each brand pabe ekta separate account same name e. Opening balance shudhu prothom brand e boshbe (double-count eraate).
+                  Ekta single shared account banbe — sob brand e dekha jabe. Brand-wise report transactions theke ashbe (account na, transaction er brand count hoy).
                 </p>
               )}
             </div>
