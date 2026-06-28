@@ -453,6 +453,7 @@ function NewPoPage() {
                           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                           <Input
                             type="number" min={1} value={it.quantity}
+                            disabled={!!it.allocations}
                             onChange={(e) => updItem(it.id, { quantity: Math.max(1, Number(e.target.value) || 1) })}
                             className="h-9 text-center font-semibold tabular-nums"
                           />
