@@ -255,6 +255,19 @@ export function ProductEditDialog({ product, onClose }: Props) {
                         </SelectContent>
                       </Select>
                     </Field>
+                    <Field label="Shop by Age" hint="Toyora storefront e age filter er jonno">
+                      <Select value={f.age_group || "none"} onValueChange={(v) => set("age_group", v === "none" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="All ages" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">All ages</SelectItem>
+                          <SelectItem value="0-2">0 – 2 years</SelectItem>
+                          <SelectItem value="3-5">3 – 5 years</SelectItem>
+                          <SelectItem value="6-8">6 – 8 years</SelectItem>
+                          <SelectItem value="9-12">9 – 12 years</SelectItem>
+                          <SelectItem value="13+">13+ years</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
                     <Field label="Description">
                       <Textarea rows={3} value={f.description} onChange={(e) => set("description", e.target.value)} />
                     </Field>
