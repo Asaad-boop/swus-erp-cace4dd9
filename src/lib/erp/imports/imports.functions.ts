@@ -1061,6 +1061,33 @@ export const setPoCargoAgent = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteCargoAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; force?: boolean }) =>
+    z.object({ id: z.string().uuid(), force: z.boolean().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations"]);
+    const { count, error: cErr } = await context.supabase
+      .from("imp_purchase_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("cargo_agent_id", data.id);
+    if (cErr) throw cErr;
+    if ((count ?? 0) > 0) {
+      if (!data.force) {
+        throw new Error(`Cannot delete: ${count} purchase order(s) use this agent. Use force delete to detach and remove.`);
+      }
+      const { error: upErr } = await context.supabase
+        .from("imp_purchase_orders")
+        .update({ cargo_agent_id: null })
+        .eq("cargo_agent_id", data.id);
+      if (upErr) throw upErr;
+    }
+    const { error } = await context.supabase.from("imp_cargo_agents").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
 export const getCargoAgentDashboard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { brandId?: string | null; brandIds?: string[] }) =>
