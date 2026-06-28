@@ -306,7 +306,11 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       cogs = revenue * ratio;
     }
     const gross = revenue - cogs;
-    const net = revenue + otherIncome - expense - cogs;
+    // Net Profit = operating result only. "Other income" (capital injections,
+    // loans, owner contributions, transfers in) is shown separately and must NOT
+    // inflate profit — otherwise zero-sales periods would show huge profits
+    // just because the user added opening balance.
+    const net = revenue - cogs - expense;
     const margin = revenue > 0 ? (net / revenue) * 100 : 0;
 
     // Recent transactions
