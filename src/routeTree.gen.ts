@@ -67,6 +67,7 @@ import { Route as AuthenticatedErpReconciliationInvoiceRouteImport } from './rou
 import { Route as AuthenticatedErpPurchaseOrdersNewRouteImport } from './routes/_authenticated/erp.purchase-orders.new'
 import { Route as AuthenticatedErpPurchaseOrdersPoIdRouteImport } from './routes/_authenticated/erp.purchase-orders.$poId'
 import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authenticated/erp.orders.web'
+import { Route as AuthenticatedErpOrdersPreOrdersRouteImport } from './routes/_authenticated/erp.orders.pre-orders'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
@@ -443,6 +444,12 @@ const AuthenticatedErpOrdersWebRoute =
   AuthenticatedErpOrdersWebRouteImport.update({
     id: '/web',
     path: '/web',
+    getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
+const AuthenticatedErpOrdersPreOrdersRoute =
+  AuthenticatedErpOrdersPreOrdersRouteImport.update({
+    id: '/pre-orders',
+    path: '/pre-orders',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
 const AuthenticatedErpOrdersNewRoute =
@@ -824,6 +831,7 @@ export interface FileRoutesByFullPath {
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
@@ -922,6 +930,7 @@ export interface FileRoutesByTo {
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
   '/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
@@ -1035,6 +1044,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
+  '/_authenticated/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
   '/_authenticated/erp/orders/web': typeof AuthenticatedErpOrdersWebRoute
   '/_authenticated/erp/purchase-orders/$poId': typeof AuthenticatedErpPurchaseOrdersPoIdRoute
   '/_authenticated/erp/purchase-orders/new': typeof AuthenticatedErpPurchaseOrdersNewRoute
@@ -1148,6 +1158,7 @@ export interface FileRouteTypes {
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
+    | '/erp/orders/pre-orders'
     | '/erp/orders/web'
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
@@ -1246,6 +1257,7 @@ export interface FileRouteTypes {
     | '/erp/orders/$orderId'
     | '/erp/orders/list'
     | '/erp/orders/new'
+    | '/erp/orders/pre-orders'
     | '/erp/orders/web'
     | '/erp/purchase-orders/$poId'
     | '/erp/purchase-orders/new'
@@ -1358,6 +1370,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/orders/$orderId'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
+    | '/_authenticated/erp/orders/pre-orders'
     | '/_authenticated/erp/orders/web'
     | '/_authenticated/erp/purchase-orders/$poId'
     | '/_authenticated/erp/purchase-orders/new'
@@ -1820,6 +1833,13 @@ declare module '@tanstack/react-router' {
       path: '/web'
       fullPath: '/erp/orders/web'
       preLoaderRoute: typeof AuthenticatedErpOrdersWebRouteImport
+      parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
+    '/_authenticated/erp/orders/pre-orders': {
+      id: '/_authenticated/erp/orders/pre-orders'
+      path: '/pre-orders'
+      fullPath: '/erp/orders/pre-orders'
+      preLoaderRoute: typeof AuthenticatedErpOrdersPreOrdersRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
     '/_authenticated/erp/orders/new': {
@@ -2417,6 +2437,7 @@ interface AuthenticatedErpOrdersRouteChildren {
   AuthenticatedErpOrdersOrderIdRoute: typeof AuthenticatedErpOrdersOrderIdRoute
   AuthenticatedErpOrdersListRoute: typeof AuthenticatedErpOrdersListRoute
   AuthenticatedErpOrdersNewRoute: typeof AuthenticatedErpOrdersNewRoute
+  AuthenticatedErpOrdersPreOrdersRoute: typeof AuthenticatedErpOrdersPreOrdersRoute
   AuthenticatedErpOrdersWebRoute: typeof AuthenticatedErpOrdersWebRoute
   AuthenticatedErpOrdersIndexRoute: typeof AuthenticatedErpOrdersIndexRoute
 }
@@ -2426,6 +2447,7 @@ const AuthenticatedErpOrdersRouteChildren: AuthenticatedErpOrdersRouteChildren =
     AuthenticatedErpOrdersOrderIdRoute: AuthenticatedErpOrdersOrderIdRoute,
     AuthenticatedErpOrdersListRoute: AuthenticatedErpOrdersListRoute,
     AuthenticatedErpOrdersNewRoute: AuthenticatedErpOrdersNewRoute,
+    AuthenticatedErpOrdersPreOrdersRoute: AuthenticatedErpOrdersPreOrdersRoute,
     AuthenticatedErpOrdersWebRoute: AuthenticatedErpOrdersWebRoute,
     AuthenticatedErpOrdersIndexRoute: AuthenticatedErpOrdersIndexRoute,
   }
@@ -2596,13 +2618,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

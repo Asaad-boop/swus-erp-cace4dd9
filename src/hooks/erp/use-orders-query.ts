@@ -38,6 +38,9 @@ export function useOrdersQuery(filter: OrdersFilter) {
         brandIds,
       ).order("created_at", { ascending: false });
 
+      // Pre-orders live on their own page (/erp/orders/pre-orders).
+      q = q.or("is_preorder.is.null,is_preorder.eq.false");
+
       if (filter.statuses.length > 0) {
         q = q.in("status", filter.statuses);
         if (filter.statuses.includes("confirmed")) {
@@ -129,6 +132,7 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
       )
         .neq("status", "new")
         .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
+        .or("is_preorder.is.null,is_preorder.eq.false")
         .limit(10000);
 
       if (filter.source) q = q.eq("source", filter.source as never);

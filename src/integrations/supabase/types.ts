@@ -7044,6 +7044,9 @@ export type Database = {
           payment_source: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           pipeline_log: Json
+          preorder_converted_at: string | null
+          preorder_expected_date: string | null
+          preorder_ready_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number
@@ -7156,6 +7159,9 @@ export type Database = {
           payment_source?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           pipeline_log?: Json
+          preorder_converted_at?: string | null
+          preorder_expected_date?: string | null
+          preorder_ready_at?: string | null
           priority?: Database["public"]["Enums"]["order_priority"]
           reconciliation_status?: string | null
           refund_amount?: number
@@ -7268,6 +7274,9 @@ export type Database = {
           payment_source?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           pipeline_log?: Json
+          preorder_converted_at?: string | null
+          preorder_expected_date?: string | null
+          preorder_ready_at?: string | null
           priority?: Database["public"]["Enums"]["order_priority"]
           reconciliation_status?: string | null
           refund_amount?: number
@@ -7552,8 +7561,11 @@ export type Database = {
           is_active: boolean
           is_featured: boolean
           is_new_arrival: boolean
+          is_preorder: boolean
           low_stock_threshold: number
           old_price: number | null
+          preorder_expected_date: string | null
+          preorder_note: string | null
           price: number
           rating: number
           reorder_point: number | null
@@ -7588,8 +7600,11 @@ export type Database = {
           is_active?: boolean
           is_featured?: boolean
           is_new_arrival?: boolean
+          is_preorder?: boolean
           low_stock_threshold?: number
           old_price?: number | null
+          preorder_expected_date?: string | null
+          preorder_note?: string | null
           price: number
           rating?: number
           reorder_point?: number | null
@@ -7624,8 +7639,11 @@ export type Database = {
           is_active?: boolean
           is_featured?: boolean
           is_new_arrival?: boolean
+          is_preorder?: boolean
           low_stock_threshold?: number
           old_price?: number | null
+          preorder_expected_date?: string | null
+          preorder_note?: string | null
           price?: number
           rating?: number
           reorder_point?: number | null
@@ -9067,6 +9085,9 @@ export type Database = {
           payment_source: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           pipeline_log: Json
+          preorder_converted_at: string | null
+          preorder_expected_date: string | null
+          preorder_ready_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number
@@ -9188,6 +9209,9 @@ export type Database = {
           payment_source: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           pipeline_log: Json
+          preorder_converted_at: string | null
+          preorder_expected_date: string | null
+          preorder_ready_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number
