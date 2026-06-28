@@ -564,6 +564,11 @@ function InventoryPage() {
                                     <Layers className="h-2.5 w-2.5" />{variants.length}
                                   </span>
                                 )}
+                                {r.is_preorder && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 text-[10px] font-medium">
+                                    <Clock className="h-2.5 w-2.5" />Pre-order
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </button>
