@@ -67,7 +67,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
   // When in All-Brands mode, after picking a brand, narrow accounts/categories.
   const scopedAccounts = useMemo(
-    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId) : []),
+    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId || a.brand_id === null) : []),
     [accounts, effectiveBrandId],
   );
   const scopedCategories = useMemo(
@@ -267,7 +267,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
             <AccountCombo label={type === "expense" ? "Pay from" : type === "income" ? "Receive in" : "Account"} value={accountId} onChange={setAccountId} accounts={scopedAccounts} disabled={!effectiveBrandId} />
           )}
           {effectiveBrandId && scopedAccounts.length === 0 && (
-            <p className="text-xs text-muted-foreground -mt-2">No wallets in this brand yet. Add one in Wallets first.</p>
+            <p className="text-xs text-muted-foreground -mt-2">No account/wallet in this brand yet. Add one from Finance → Accounts first.</p>
           )}
 
           {/* Transfer preview */}

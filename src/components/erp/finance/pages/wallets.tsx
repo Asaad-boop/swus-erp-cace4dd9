@@ -25,6 +25,17 @@ function subtypeStyle(w: Wallet): { ring?: string; bg?: string; accent?: string 
   return {};
 }
 
+function walletGroup(w: Wallet) {
+  const sub = (w.account_subtype ?? w.account_type ?? "").toLowerCase();
+  if (["cash", "petty_cash"].includes(sub)) return "cash";
+  if (["bank", "bank_savings", "bank_current"].includes(sub)) return "bank";
+  if (["bkash", "nagad", "rocket", "upay"].includes(sub)) return "mfs";
+  if (sub === "courier_wallet") return "courier_wallet";
+  if (["loan", "credit_card"].includes(sub)) return "loan";
+  if (sub === "equity") return "equity";
+  return w.wallet_type || "other";
+}
+
 const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color: string }> = [
   { key: "cash",           label: "Cash in Hand",   icon: Coins,      color: "text-emerald-600" },
   { key: "bank",           label: "Bank Accounts",  icon: Landmark,   color: "text-blue-600" },
@@ -104,7 +115,7 @@ export function WalletsPage() {
     const t: Record<string, number> = {};
     let liquid = 0;
     for (const w of wallets) {
-      const k = w.wallet_type || "other";
+      const k = walletGroup(w);
       t[k] = (t[k] ?? 0) + Number(w.current_balance || 0);
       if (["cash", "bank", "mfs"].includes(k)) liquid += Number(w.current_balance || 0);
     }
@@ -113,16 +124,16 @@ export function WalletsPage() {
 
   const netWorth = wallets.reduce((s, w) => {
     const v = Number(w.current_balance || 0);
-    return s + (w.wallet_type === "loan" ? -v : v);
+    return s + (walletGroup(w) === "loan" ? -v : v);
   }, 0);
 
   return (
     <div className="p-4 md:p-6 space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Wallets &amp; Accounts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Accounts &amp; Wallets</h1>
           <p className="text-sm text-muted-foreground">
-            {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
+            Cash, bank, mobile wallet, courier COD and owner accounts · {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -130,7 +141,7 @@ export function WalletsPage() {
             <ArrowRightLeft className="h-4 w-4 mr-1.5" /> Transfer
           </Button>
           <Button size="sm" onClick={() => setNewAcctOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Wallet
+            <Plus className="h-4 w-4 mr-1.5" /> New Account / Wallet
           </Button>
         </div>
       </header>
@@ -143,14 +154,14 @@ export function WalletsPage() {
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <WalletIcon className="h-10 w-10 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No wallets yet. Create cash, bank, or mobile wallet accounts to start tracking balances.</p>
-            <Button size="sm" onClick={() => setNewAcctOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create first wallet</Button>
+            <p className="text-sm text-muted-foreground">No accounts yet. Create cash, bank, mobile wallet, courier COD, loan, or owner accounts here.</p>
+            <Button size="sm" onClick={() => setNewAcctOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create first account</Button>
           </CardContent>
         </Card>
       )}
 
       {GROUPS.map((g) => {
-        const items = wallets.filter((w) => (w.wallet_type || "other") === g.key);
+        const items = wallets.filter((w) => walletGroup(w) === g.key);
         if (items.length === 0) return null;
         const Icon = g.icon;
         const subtotal = totals.byType[g.key] ?? 0;

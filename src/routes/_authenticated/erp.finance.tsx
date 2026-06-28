@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/erp/finance")({
 
 const NAV = [
   { to: "/erp/finance", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/erp/finance/accounts", label: "Accounts", icon: BookOpen },
+  { to: "/erp/finance/accounts", label: "Accounts & Wallets", icon: BookOpen },
   { to: "/erp/finance/journal", label: "Journal", icon: FileText },
   { to: "/erp/finance/receivables", label: "AR / AP", icon: Receipt },
   { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase", icon: DollarSign },

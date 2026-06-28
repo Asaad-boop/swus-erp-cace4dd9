@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type Wallet = {
   id: string;
-  brand_id: string;
+  brand_id: string | null;
   name: string;
   account_subtype: string | null;
   account_type: string | null;
@@ -31,6 +31,15 @@ function subtypeOf(w: Wallet): string {
   return (w.account_subtype ?? w.account_type ?? "").toLowerCase();
 }
 
+function bucketKeyFor(w: Wallet): string | null {
+  const sub = subtypeOf(w);
+  if (["cash", "petty_cash"].includes(sub)) return "cash";
+  if (["bkash"].includes(sub)) return "bkash";
+  if (["nagad", "rocket", "upay"].includes(sub)) return "nagad";
+  if (["bank", "bank_savings", "bank_current"].includes(sub)) return "bank";
+  return null;
+}
+
 export function BdWalletsWidget() {
   const { brandIds } = useBrand();
   const today = new Date().toISOString().slice(0, 10);
@@ -42,6 +51,8 @@ export function BdWalletsWidget() {
       const { data, error } = await applyBrandScope(
         supabase.from("erp_accounts").select("id,brand_id,name,account_subtype,account_type,current_balance"),
         brandIds,
+        "brand_id",
+        { includeNull: true },
       ).eq("is_active", true);
       if (error) throw error;
       return (data ?? []) as Wallet[];
@@ -67,11 +78,11 @@ export function BdWalletsWidget() {
     const walletBucket = new Map<string, string>();
     for (const w of wallets) {
       const sub = subtypeOf(w);
-      const bucket = BUCKETS.find((b) => b.subtypes.includes(sub));
-      if (bucket) walletBucket.set(w.id, bucket.key);
+      const bucket = bucketKeyFor(w);
+      if (bucket) walletBucket.set(w.id, bucket);
     }
     return BUCKETS.map((b) => {
-      const wallets_ = wallets.filter((w) => b.subtypes.includes(subtypeOf(w)));
+      const wallets_ = wallets.filter((w) => bucketKeyFor(w) === b.key);
       const balance = wallets_.reduce((s, w) => s + Number(w.current_balance || 0), 0);
       let inflow = 0, outflow = 0;
       for (const t of txns) {
@@ -100,9 +111,9 @@ export function BdWalletsWidget() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold flex items-center gap-1.5">
-            <WalletIcon className="h-4 w-4 text-muted-foreground" /> BD Wallets · Today
+            <WalletIcon className="h-4 w-4 text-muted-foreground" /> Accounts &amp; Wallets · Today
           </h3>
-          <Link to="/erp/finance/wallets" className="text-xs text-primary hover:underline">View all →</Link>
+          <Link to="/erp/finance/accounts" className="text-xs text-primary hover:underline">View all →</Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {buckets.map((b) => {
