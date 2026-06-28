@@ -52,6 +52,46 @@ export const ACCOUNT_TYPES = [
   { value: "other", label: "Other" },
 ] as const;
 
+export type AccountTypeMeta = {
+  value: string;
+  label: string;
+  group: "cash" | "bank" | "mfs" | "courier" | "loan" | "equity" | "other";
+  hint?: string;
+};
+
+export const ACCOUNT_TYPE_CATALOG: AccountTypeMeta[] = [
+  { value: "cash", label: "Cash in Hand", group: "cash", hint: "Office / drawer cash" },
+  { value: "petty_cash", label: "Petty Cash", group: "cash", hint: "Small daily expenses" },
+
+  { value: "bank", label: "Bank Account", group: "bank", hint: "Current / savings" },
+  { value: "bank_savings", label: "Bank — Savings", group: "bank" },
+  { value: "bank_current", label: "Bank — Current", group: "bank" },
+
+  { value: "bkash", label: "bKash", group: "mfs" },
+  { value: "nagad", label: "Nagad", group: "mfs" },
+  { value: "rocket", label: "Rocket", group: "mfs" },
+  { value: "upay", label: "Upay", group: "mfs" },
+
+  { value: "courier_wallet", label: "Courier COD Wallet", group: "courier", hint: "Pathao / Steadfast / RedX" },
+
+  { value: "loan", label: "Loan / Liability", group: "loan", hint: "Money you owe" },
+  { value: "credit_card", label: "Credit Card", group: "loan" },
+
+  { value: "equity", label: "Owner Equity", group: "equity", hint: "Capital invested" },
+
+  { value: "other", label: "Other", group: "other" },
+];
+
+export const ACCOUNT_GROUP_META: Record<AccountTypeMeta["group"], { label: string; icon: string; accent: string }> = {
+  cash:    { label: "Cash",         icon: "💵", accent: "text-emerald-600" },
+  bank:    { label: "Bank",         icon: "🏦", accent: "text-blue-600" },
+  mfs:     { label: "Mobile Wallet", icon: "📱", accent: "text-pink-600" },
+  courier: { label: "Courier COD",  icon: "🚚", accent: "text-orange-600" },
+  loan:    { label: "Loan / Credit", icon: "💳", accent: "text-red-600" },
+  equity:  { label: "Equity",       icon: "🏛️", accent: "text-purple-600" },
+  other:   { label: "Other",        icon: "📂", accent: "text-muted-foreground" },
+};
+
 export function fmtBdt(n: number | string | null | undefined) {
   const v = Number(n ?? 0);
   return "৳" + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
