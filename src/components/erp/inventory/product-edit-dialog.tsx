@@ -20,9 +20,10 @@ import { useBrand } from "@/contexts/brand-context";
 import type { ProductRow } from "@/lib/erp/inventory";
 import {
   Package, Tag, Barcode, DollarSign, AlertTriangle, RotateCcw, ImagePlus,
-  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play,
+  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ColorsManager } from "./colors-manager";
 
 type Props = { product: ProductRow | null; onClose: () => void };
 
@@ -328,6 +329,14 @@ export function ProductEditDialog({ product, onClose }: Props) {
                         </Field>
                       </div>
                     </div>
+                  </section>
+
+                  <Separator />
+
+                  {/* COLOR VARIANTS */}
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Palette className="h-4 w-4" />} title="Colors & variants" big hint="Each color tracks its own stock" />
+                    <ColorsManager productId={product.id} productSku={f.sku || null} baseImage={f.image || null} />
                   </section>
 
                   <Separator />
