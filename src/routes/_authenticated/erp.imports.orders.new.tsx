@@ -160,22 +160,72 @@ function NewPoPage() {
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
 
-      const itemList = items.map((it) => ({
-        product_id: it.picked.id ?? undefined,
-        name_snapshot: it.picked.title.trim(),
-        sku_snapshot: it.picked.sku ?? undefined,
-        image_snapshot: it.picked.image ?? undefined,
-        quantity: it.quantity,
-        unit_cost_foreign: it.unit_cost_foreign,
-      }));
+      // Expand color allocations into per-variant items.
+      // Track parent draft -> expanded index range so cartons can map proportionally.
+      const itemList: any[] = [];
+      const expansionMap: Array<{ draftId: string; indexes: number[]; weights: number[]; totalQty: number }> = [];
+      items.forEach((it) => {
+        const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
+        const startIdx = itemList.length;
+        if (allocs.length > 0) {
+          const weights: number[] = [];
+          allocs.forEach(([variant_id, qty]) => {
+            itemList.push({
+              product_id: it.picked.id ?? undefined,
+              variant_id,
+              name_snapshot: it.picked.title.trim(),
+              sku_snapshot: it.picked.sku ?? undefined,
+              image_snapshot: it.picked.image ?? undefined,
+              quantity: qty,
+              unit_cost_foreign: it.unit_cost_foreign,
+            });
+            weights.push(qty);
+          });
+          expansionMap.push({
+            draftId: it.id,
+            indexes: weights.map((_, i) => startIdx + i),
+            weights,
+            totalQty: weights.reduce((s, n) => s + n, 0),
+          });
+        } else {
+          itemList.push({
+            product_id: it.picked.id ?? undefined,
+            name_snapshot: it.picked.title.trim(),
+            sku_snapshot: it.picked.sku ?? undefined,
+            image_snapshot: it.picked.image ?? undefined,
+            quantity: it.quantity,
+            unit_cost_foreign: it.unit_cost_foreign,
+          });
+          expansionMap.push({ draftId: it.id, indexes: [startIdx], weights: [it.quantity], totalQty: it.quantity });
+        }
+      });
 
-      const cartonList = cartons.map((c) => ({
-        carton_number: c.carton_number,
-        weight_kg: c.weight_kg || 0,
-        allocations: items
-          .map((it, idx) => ({ item_index: idx, quantity: c.allocations[it.id] ?? 0 }))
-          .filter((a) => a.quantity > 0),
-      }));
+      const cartonList = cartons.map((c) => {
+        const allocs: { item_index: number; quantity: number }[] = [];
+        for (const exp of expansionMap) {
+          const total = c.allocations[exp.draftId] ?? 0;
+          if (total <= 0) continue;
+          if (exp.indexes.length === 1) {
+            allocs.push({ item_index: exp.indexes[0], quantity: total });
+          } else {
+            // Proportional split with remainder going to first
+            let assigned = 0;
+            exp.indexes.forEach((idx, i) => {
+              const isLast = i === exp.indexes.length - 1;
+              const share = isLast
+                ? total - assigned
+                : Math.floor((total * exp.weights[i]) / exp.totalQty);
+              if (share > 0) allocs.push({ item_index: idx, quantity: share });
+              assigned += share;
+            });
+          }
+        }
+        return {
+          carton_number: c.carton_number,
+          weight_kg: c.weight_kg || 0,
+          allocations: allocs,
+        };
+      });
 
       const payload: any = {
         brand_id: brandId,
