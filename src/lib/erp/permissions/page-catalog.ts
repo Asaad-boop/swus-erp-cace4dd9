@@ -81,8 +81,11 @@ export const ALL_PAGE_PATHS = PAGE_CATALOG.map((p) => p.path);
  */
 export function pathAllowedBy(allowed: string[] | null | undefined, pathname: string): boolean {
   if (!allowed || allowed.length === 0) return true; // no override = use role defaults
+  const effectiveAllowed = allowed.includes("/erp/finance/wallets") && !allowed.includes("/erp/finance/accounts")
+    ? [...allowed, "/erp/finance/accounts"]
+    : allowed;
   // Sort longest-first to match the most specific entry first.
-  for (const a of [...allowed].sort((x, y) => y.length - x.length)) {
+  for (const a of [...effectiveAllowed].sort((x, y) => y.length - x.length)) {
     if (pathname === a) return true;
     // `/erp` is the dashboard landing only — never treat it as a prefix
     // that grants every `/erp/...` child page.
@@ -104,7 +107,7 @@ export function pathAllowedBy(allowed: string[] | null | undefined, pathname: st
     { test: /^\/erp\/hr\/payroll\/[^/]+$/, anyOf: ["/erp/hr"] },
   ];
   for (const d of detailParents) {
-    if (d.test.test(pathname) && d.anyOf.some((p) => allowed.includes(p))) return true;
+    if (d.test.test(pathname) && d.anyOf.some((p) => effectiveAllowed.includes(p))) return true;
   }
   return false;
 }
