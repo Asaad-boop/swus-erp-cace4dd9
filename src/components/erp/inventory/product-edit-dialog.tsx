@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -88,7 +87,6 @@ export function ProductEditDialog({ product, onClose }: Props) {
   const qc = useQueryClient();
   const { brands } = useBrand();
   const [f, setF] = useState<Form | null>(null);
-  const [tab, setTab] = useState("basics");
 
   // Fetch full product row (edit dialog needs many fields not in list)
   const fullQ = useQuery({
@@ -107,7 +105,6 @@ export function ProductEditDialog({ product, onClose }: Props) {
 
   useEffect(() => {
     if (fullQ.data) setF(toForm(fullQ.data));
-    if (product) setTab("basics");
   }, [fullQ.data, product?.id]);
 
   const categoriesQ = useQuery({
@@ -186,15 +183,19 @@ export function ProductEditDialog({ product, onClose }: Props) {
 
   return (
     <Dialog open={!!product} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b">
-          <DialogTitle className="flex items-center gap-2">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Package className="h-4 w-4" />
+      <DialogContent className="max-w-6xl p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b bg-gradient-to-b from-muted/40 to-transparent">
+          <DialogTitle className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <Package className="h-5 w-5" />
             </div>
-            Edit Product
+            <div className="min-w-0">
+              <div className="text-base font-semibold truncate">{f?.title || "Edit Product"}</div>
+              <DialogDescription className="text-xs">
+                Basics • Images • Pricing • Shipping • Features — sob ek page e.
+              </DialogDescription>
+            </div>
           </DialogTitle>
-          <DialogDescription>Update product details — images, pricing, stock, shipping & metadata.</DialogDescription>
         </DialogHeader>
 
         {!f ? (
@@ -203,28 +204,36 @@ export function ProductEditDialog({ product, onClose }: Props) {
           </div>
         ) : (
           <>
-            <Tabs value={tab} onValueChange={setTab} className="flex flex-col">
-              <div className="px-6 pt-3">
-                <TabsList className="grid grid-cols-5 w-full">
-                  <TabsTrigger value="basics" className="gap-1.5"><Info className="h-3.5 w-3.5" />Basics</TabsTrigger>
-                  <TabsTrigger value="images" className="gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Images</TabsTrigger>
-                  <TabsTrigger value="pricing" className="gap-1.5"><DollarSign className="h-3.5 w-3.5" />Pricing</TabsTrigger>
-                  <TabsTrigger value="shipping" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Shipping</TabsTrigger>
-                  <TabsTrigger value="details" className="gap-1.5"><Star className="h-3.5 w-3.5" />Details</TabsTrigger>
-                </TabsList>
-              </div>
+            <ScrollArea className="max-h-[72vh]">
+              <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-0">
+                {/* LEFT RAIL — Media */}
+                <aside className="lg:border-r bg-muted/20 px-5 py-5 space-y-5 lg:sticky lg:top-0 lg:self-start">
+                  <SectionHeader icon={<ImagePlus className="h-3.5 w-3.5" />} title="Main image" />
+                  <CompactImage value={f.image} onChange={(url) => set("image", url)} onClear={() => set("image", "")} />
 
-              <ScrollArea className="max-h-[60vh]">
-                <div className="px-6 py-5">
+                  <SectionHeader icon={<Film className="h-3.5 w-3.5" />} title="Product video" hint="autoplays on thumbnail" />
+                  <CompactVideo value={f.video_url} poster={f.image} onChange={(url) => set("video_url", url)} onClear={() => set("video_url", "")} />
+
+                  <SectionHeader icon={<Plus className="h-3.5 w-3.5" />} title={`Gallery (${f.gallery.length})`} />
+                  <GalleryUploader
+                    items={f.gallery}
+                    onAdd={(url) => set("gallery", [...f.gallery, url])}
+                    onRemove={(i) => set("gallery", f.gallery.filter((_, idx) => idx !== i))}
+                  />
+                </aside>
+
+                {/* RIGHT — All form sections stacked */}
+                <div className="px-6 py-5 space-y-7">
                   {/* BASICS */}
-                  <TabsContent value="basics" className="mt-0 space-y-4">
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Info className="h-4 w-4" />} title="Basics" big />
                     <Field label="Title" required>
                       <Input value={f.title} onChange={(e) => set("title", e.target.value)} />
                     </Field>
-                    <Field label="Slug" required hint="Used in product URL">
-                      <Input value={f.slug} onChange={(e) => set("slug", e.target.value)} />
-                    </Field>
                     <div className="grid grid-cols-2 gap-4">
+                      <Field label="Slug" required hint="Used in product URL">
+                        <Input value={f.slug} onChange={(e) => set("slug", e.target.value)} />
+                      </Field>
                       <Field label="Brand" required>
                         <Select value={f.brand_id} onValueChange={(v) => { set("brand_id", v); set("category_id", ""); }}>
                           <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
@@ -233,66 +242,39 @@ export function ProductEditDialog({ product, onClose }: Props) {
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Category">
-                        <Select value={f.category_id || "none"} onValueChange={(v) => set("category_id", v === "none" ? "" : v)} disabled={!f.brand_id}>
-                          <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Uncategorized</SelectItem>
-                            {(categoriesQ.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </Field>
                     </div>
-                    <Field label="Description">
-                      <Textarea rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} />
+                    <Field label="Category">
+                      <Select value={f.category_id || "none"} onValueChange={(v) => set("category_id", v === "none" ? "" : v)} disabled={!f.brand_id}>
+                        <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Uncategorized</SelectItem>
+                          {(categoriesQ.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </Field>
-                    <div className="flex items-center gap-6 pt-1">
+                    <Field label="Description">
+                      <Textarea rows={3} value={f.description} onChange={(e) => set("description", e.target.value)} />
+                    </Field>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
                       <ToggleRow icon={<Zap className="h-4 w-4 text-emerald-500" />} label="Active" checked={f.is_active} onChange={(v) => set("is_active", v)} />
                       <ToggleRow icon={<Star className="h-4 w-4 text-amber-500" />} label="Featured" checked={f.is_featured} onChange={(v) => set("is_featured", v)} />
                       <ToggleRow icon={<Sparkles className="h-4 w-4 text-blue-500" />} label="New arrival" checked={f.is_new_arrival} onChange={(v) => set("is_new_arrival", v)} />
                     </div>
-                  </TabsContent>
+                  </section>
 
-                  {/* IMAGES */}
-                  <TabsContent value="images" className="mt-0 space-y-4">
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Main image</Label>
-                      <ImageUploader value={f.image} onChange={(url) => set("image", url)} onClear={() => set("image", "")} />
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Gallery ({f.gallery.length})</Label>
-                      <GalleryUploader
-                        items={f.gallery}
-                        onAdd={(url) => set("gallery", [...f.gallery, url])}
-                        onRemove={(i) => set("gallery", f.gallery.filter((_, idx) => idx !== i))}
-                      />
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground inline-flex items-center gap-1.5">
-                        <Film className="h-3.5 w-3.5" /> Product video
-                        <span className="text-[10px] font-normal text-muted-foreground">(autoplays on thumbnail)</span>
-                      </Label>
-                      <VideoUploader
-                        value={f.video_url}
-                        poster={f.image}
-                        onChange={(url) => set("video_url", url)}
-                        onClear={() => set("video_url", "")}
-                      />
-                    </div>
-                  </TabsContent>
+                  <Separator />
 
                   {/* PRICING */}
-                  <TabsContent value="pricing" className="mt-0 space-y-4">
+                  <section className="space-y-4">
+                    <SectionHeader icon={<DollarSign className="h-4 w-4" />} title="Pricing & inventory" big />
                     <div className="grid grid-cols-3 gap-4">
-                      <Field label="Price (BDT)" required icon={<DollarSign className="h-3.5 w-3.5" />}>
+                      <Field label="Price (BDT)" required>
                         <Input type="number" value={f.price} onChange={(e) => set("price", e.target.value)} />
                       </Field>
-                      <Field label="Compare-at price" hint="Shown struck-through">
+                      <Field label="Compare-at" hint="Shown struck-through">
                         <Input type="number" value={f.old_price} onChange={(e) => set("old_price", e.target.value)} />
                       </Field>
-                      <Field label="Cost price" icon={<DollarSign className="h-3.5 w-3.5" />}>
+                      <Field label="Cost price">
                         <Input type="number" value={f.cost_price} onChange={(e) => set("cost_price", e.target.value)} />
                       </Field>
                     </div>
@@ -308,7 +290,6 @@ export function ProductEditDialog({ product, onClose }: Props) {
                         <span className="text-muted-foreground">· profit ৳{(Number(f.price) - Number(f.cost_price)).toFixed(0)}</span>
                       </div>
                     )}
-                    <Separator />
                     <div className="grid grid-cols-2 gap-4">
                       <Field label="SKU" icon={<Tag className="h-3.5 w-3.5" />}>
                         <Input value={f.sku} onChange={(e) => set("sku", e.target.value)} />
@@ -317,56 +298,58 @@ export function ProductEditDialog({ product, onClose }: Props) {
                         <Input value={f.barcode} onChange={(e) => set("barcode", e.target.value)} />
                       </Field>
                     </div>
-                    <Separator />
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reorder & alerts</div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <Field label="Low stock alert" icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}>
-                        <Input type="number" value={f.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} />
-                      </Field>
-                      <Field label="Reorder point" icon={<RotateCcw className="h-3.5 w-3.5 text-blue-500" />}>
-                        <Input type="number" value={f.reorder_point} onChange={(e) => set("reorder_point", e.target.value)} />
-                      </Field>
-                      <Field label="Reorder qty">
-                        <Input type="number" value={f.reorder_qty} onChange={(e) => set("reorder_qty", e.target.value)} />
-                      </Field>
+                    <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Reorder & alerts</div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <Field label="Low stock" icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}>
+                          <Input type="number" value={f.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} />
+                        </Field>
+                        <Field label="Reorder pt" icon={<RotateCcw className="h-3.5 w-3.5 text-blue-500" />}>
+                          <Input type="number" value={f.reorder_point} onChange={(e) => set("reorder_point", e.target.value)} />
+                        </Field>
+                        <Field label="Reorder qty">
+                          <Input type="number" value={f.reorder_qty} onChange={(e) => set("reorder_qty", e.target.value)} />
+                        </Field>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Stock quantity adjust korte chaile "Adjust Stock" use korun — etay shudhu metadata change hobe.
-                    </p>
-                  </TabsContent>
+                  </section>
+
+                  <Separator />
 
                   {/* SHIPPING */}
-                  <TabsContent value="shipping" className="mt-0 space-y-4">
-                    <p className="text-xs text-muted-foreground">Override default shipping rates for this product. Leave blank to use brand defaults.</p>
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Truck className="h-4 w-4" />} title="Shipping overrides" big hint="Blank = brand default" />
                     <div className="grid grid-cols-2 gap-4">
-                      <Field label="Inside Dhaka (BDT)" icon={<Truck className="h-3.5 w-3.5" />}>
+                      <Field label="Inside Dhaka (BDT)">
                         <Input type="number" value={f.shipping_fee_inside} onChange={(e) => set("shipping_fee_inside", e.target.value)} />
                       </Field>
-                      <Field label="Outside Dhaka (BDT)" icon={<Truck className="h-3.5 w-3.5" />}>
+                      <Field label="Outside Dhaka (BDT)">
                         <Input type="number" value={f.shipping_fee_outside} onChange={(e) => set("shipping_fee_outside", e.target.value)} />
                       </Field>
                     </div>
-                  </TabsContent>
+                  </section>
 
-                  {/* DETAILS */}
-                  <TabsContent value="details" className="mt-0 space-y-5">
+                  <Separator />
+
+                  {/* FEATURES / DETAILS */}
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Star className="h-4 w-4" />} title="Features & specs" big />
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Key benefits / bullet points</Label>
+                      <Label className="text-xs font-medium text-muted-foreground">Key benefits</Label>
                       <ListEditor
                         items={f.benefits}
                         placeholder="e.g. Rechargeable battery"
                         onChange={(arr) => set("benefits", arr)}
                       />
                     </div>
-                    <Separator />
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Specifications (key → value)</Label>
+                      <Label className="text-xs font-medium text-muted-foreground">Specifications</Label>
                       <SpecsEditor specs={f.specs} onChange={(arr) => set("specs", arr)} />
                     </div>
-                  </TabsContent>
+                  </section>
                 </div>
-              </ScrollArea>
-            </Tabs>
+              </div>
+            </ScrollArea>
 
             <DialogFooter className="border-t bg-muted/30 px-6 py-3 flex !justify-between items-center">
               <div className="text-[11px] text-muted-foreground flex items-center gap-2">
@@ -389,6 +372,100 @@ export function ProductEditDialog({ product, onClose }: Props) {
 }
 
 /* ------------------ helpers (mirror add dialog) ------------------ */
+
+function SectionHeader({ icon, title, hint, big }: {
+  icon: React.ReactNode; title: string; hint?: string; big?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <div className={cn(
+        "inline-flex items-center gap-1.5 font-semibold",
+        big ? "text-sm text-foreground" : "text-[11px] uppercase tracking-wide text-muted-foreground",
+      )}>
+        <span className={cn("text-muted-foreground", big && "text-primary")}>{icon}</span>
+        {title}
+      </div>
+      {hint && <span className="text-[11px] text-muted-foreground">· {hint}</span>}
+    </div>
+  );
+}
+
+function CompactImage({ value, onChange, onClear }: {
+  value: string; onChange: (url: string) => void; onClear: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const onFile = async (file: File) => {
+    setBusy(true);
+    try { onChange(await uploadToBucket(file)); toast.success("Image uploaded"); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-2">
+      <div
+        onClick={() => ref.current?.click()}
+        className={cn(
+          "relative aspect-square w-full rounded-xl border-2 border-dashed grid place-items-center cursor-pointer transition overflow-hidden",
+          value ? "border-transparent ring-1 ring-border" : "border-border hover:border-primary/40 hover:bg-muted/40",
+        )}
+      >
+        {busy ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          : value ? <img src={value} alt="" className="h-full w-full object-cover" />
+          : <div className="text-center text-muted-foreground">
+              <ImagePlus className="h-7 w-7 mx-auto mb-1" />
+              <div className="text-xs">Click to upload</div>
+            </div>}
+        {value && !busy && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-background/95 border shadow-sm hover:bg-destructive hover:text-white"
+          ><X className="h-3.5 w-3.5" /></button>
+        )}
+      </div>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="Or paste image URL" className="h-8 text-xs" />
+      <input ref={ref} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+    </div>
+  );
+}
+
+function CompactVideo({ value, poster, onChange, onClear }: {
+  value: string; poster?: string; onChange: (url: string) => void; onClear: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const onFile = async (file: File) => {
+    if (file.size > 50 * 1024 * 1024) { toast.error("Video too large (max 50MB)"); return; }
+    setBusy(true);
+    try { onChange(await uploadToBucket(file)); toast.success("Video uploaded"); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-2">
+      <div
+        onClick={() => !value && ref.current?.click()}
+        className={cn(
+          "relative aspect-video w-full rounded-xl border-2 border-dashed grid place-items-center overflow-hidden transition",
+          value ? "border-transparent bg-black cursor-default" : "border-border hover:border-primary/40 hover:bg-muted/40 cursor-pointer",
+        )}
+      >
+        {busy ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          : value ? <video src={value} poster={poster || undefined} className="h-full w-full object-cover" muted autoPlay loop playsInline />
+          : <div className="text-center text-muted-foreground">
+              <Play className="h-6 w-6 mx-auto mb-1" />
+              <div className="text-[11px]">Click to upload</div>
+            </div>}
+        {value && !busy && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-background/95 border shadow-sm hover:bg-destructive hover:text-white"
+          ><X className="h-3.5 w-3.5" /></button>
+        )}
+      </div>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="Or paste video URL" className="h-8 text-xs" />
+      <input ref={ref} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+    </div>
+  );
+}
 
 function Field({
   label, hint, icon, required, children,
