@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, Banknote, Building2, Coins, Landmark, Plus, Smartphone, Truck, Wallet as WalletIcon, FileText, Pencil } from "lucide-react";
+import { ArrowRightLeft, Banknote, Building2, Coins, Landmark, Plus, Smartphone, Truck, Wallet as WalletIcon, FileText, Pencil, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { fmtBdt, type Account } from "@/lib/erp/finance";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
+import { TransactionForm } from "@/components/erp/finance/transaction-form";
+import { useCategories } from "@/hooks/erp/use-finance-query";
 import { cn } from "@/lib/utils";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
@@ -54,6 +56,8 @@ export function WalletsPage() {
   const [newAcctOpen, setNewAcctOpen] = useState(false);
   const [editWallet, setEditWallet] = useState<Wallet | null>(null);
   const [statementFor, setStatementFor] = useState<Wallet | null>(null);
+  const [txnDialog, setTxnDialog] = useState<{ open: boolean; type: "income" | "expense"; accountId: string | null; brandId: string | null }>({ open: false, type: "income", accountId: null, brandId: null });
+  const categoriesQ = useCategories(brandIds);
 
   const walletsQ = useQuery({
     queryKey: ["wallets", brandIds],
@@ -207,7 +211,15 @@ export function WalletsPage() {
                       <div className="text-[11px] text-muted-foreground">Opening: {fmtBdt(w.opening_balance)}</div>
                     )}
                     <div className="flex gap-1.5 pt-1">
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setStatementFor(w)}>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40" onClick={() => setTxnDialog({ open: true, type: "income", accountId: w.id, brandId: w.brand_id })}>
+                        <ArrowDownToLine className="h-3 w-3 mr-1" />Deposit
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40" onClick={() => setTxnDialog({ open: true, type: "expense", accountId: w.id, brandId: w.brand_id })}>
+                        <ArrowUpFromLine className="h-3 w-3 mr-1" />Withdraw
+                      </Button>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setStatementFor(w)}>
                         <FileText className="h-3 w-3 mr-1" />Statement
                       </Button>
                       <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setEditWallet(w)} title="Edit / Delete">
@@ -238,6 +250,18 @@ export function WalletsPage() {
       )}
       {brandIds.length > 0 && <AccountForm open={newAcctOpen} onClose={() => setNewAcctOpen(false)} brandId={isAllBrands ? null : brandId} brands={brands} />}
       {brandIds.length > 0 && <AccountForm open={!!editWallet} onClose={() => setEditWallet(null)} brandId={editWallet?.brand_id ?? (isAllBrands ? null : brandId)} brands={brands} editing={editWallet} />}
+      {brandIds.length > 0 && (
+        <TransactionForm
+          open={txnDialog.open}
+          onClose={() => setTxnDialog((s) => ({ ...s, open: false }))}
+          brandId={txnDialog.brandId ?? (isAllBrands ? null : brandId)}
+          accounts={wallets}
+          categories={categoriesQ.data ?? []}
+          brands={brands}
+          defaultType={txnDialog.type}
+          defaultAccountId={txnDialog.accountId}
+        />
+      )}
       <StatementDialog wallet={statementFor} onClose={() => setStatementFor(null)} />
     </div>
   );
