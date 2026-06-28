@@ -51,6 +51,7 @@ type Form = {
   image: string;
   gallery: string[];
   video_url: string;
+  age_group: string;
 };
 
 const empty = (brandId: string): Form => ({
@@ -64,6 +65,7 @@ const empty = (brandId: string): Form => ({
   is_active: true, is_featured: false, is_new_arrival: false,
   benefits: [], specs: [],
   image: "", gallery: [], video_url: "",
+  age_group: "",
 });
 
 const slugify = (s: string) =>
