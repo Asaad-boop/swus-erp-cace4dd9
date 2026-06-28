@@ -1,0 +1,1 @@
+ALTER TABLE public.erp_accounts ALTER COLUMN brand_id DROP NOT NULL;

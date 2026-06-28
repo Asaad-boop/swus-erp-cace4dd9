@@ -1127,7 +1127,7 @@ export type Database = {
           account_number: string | null
           account_subtype: string | null
           account_type: string
-          brand_id: string
+          brand_id: string | null
           created_at: string
           current_balance: number
           id: string
@@ -1142,7 +1142,7 @@ export type Database = {
           account_number?: string | null
           account_subtype?: string | null
           account_type: string
-          brand_id: string
+          brand_id?: string | null
           created_at?: string
           current_balance?: number
           id?: string
@@ -1157,7 +1157,7 @@ export type Database = {
           account_number?: string | null
           account_subtype?: string | null
           account_type?: string
-          brand_id?: string
+          brand_id?: string | null
           created_at?: string
           current_balance?: number
           id?: string

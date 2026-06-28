@@ -835,7 +835,7 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
       const fromDate = fromISO.slice(0, 10);
       const toDate = toISO.slice(0, 10);
       const [accounts, rev, items, txns, bills, arOrders] = await Promise.all([
-        applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds).eq("is_active", true),
+        applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds, "brand_id", { includeNull: true }).eq("is_active", true),
         applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered")
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(supabase.from("order_items").select("cost_price, quantity, orders!inner(brand_id, status, created_at)"), brandIds, "orders.brand_id" as any)
