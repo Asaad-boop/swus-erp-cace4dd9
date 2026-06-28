@@ -91,15 +91,21 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
   });
 
   const del = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (force: boolean = false) => {
       if (!editing) throw new Error("Nothing to delete");
       const { count } = await supabase.from("erp_transactions")
         .select("id", { count: "exact", head: true })
         .or(`account_id.eq.${editing.id},to_account_id.eq.${editing.id}`);
-      if ((count ?? 0) > 0) {
+      if ((count ?? 0) > 0 && !force) {
         const { error } = await supabase.from("erp_accounts").update({ is_active: false }).eq("id", editing.id);
         if (error) throw error;
         return "archived" as const;
+      }
+      if ((count ?? 0) > 0 && force) {
+        const { error: txErr } = await supabase.from("erp_transactions")
+          .delete()
+          .or(`account_id.eq.${editing.id},to_account_id.eq.${editing.id}`);
+        if (txErr) throw txErr;
       }
       const { error } = await supabase.from("erp_accounts").delete().eq("id", editing.id);
       if (error) throw error;
@@ -174,13 +180,26 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
 
         <DialogFooter className="flex sm:justify-between gap-2">
           {editing ? (
-            <Button
-              variant="destructive"
-              onClick={() => { if (confirm("Delete this account? If it has transactions it will be archived instead.")) del.mutate(); }}
-              disabled={del.isPending || mut.isPending}
-            >
-              {del.isPending ? "Deleting…" : "Delete"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { if (confirm("Delete this account? If it has transactions it will be archived instead.")) del.mutate(false); }}
+                disabled={del.isPending || mut.isPending}
+              >
+                {del.isPending ? "Working…" : "Delete / Archive"}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (confirm("⚠️ FORCE DELETE this account AND all its transactions? This cannot be undone. Use only for demo/test cleanup.")) {
+                    del.mutate(true);
+                  }
+                }}
+                disabled={del.isPending || mut.isPending}
+              >
+                Force delete (with txns)
+              </Button>
+            </div>
           ) : <span />}
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
