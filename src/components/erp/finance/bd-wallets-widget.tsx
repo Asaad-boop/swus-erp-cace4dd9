@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type Wallet = {
   id: string;
-  brand_id: string;
+  brand_id: string | null;
   name: string;
   account_subtype: string | null;
   account_type: string | null;
@@ -42,6 +42,8 @@ export function BdWalletsWidget() {
       const { data, error } = await applyBrandScope(
         supabase.from("erp_accounts").select("id,brand_id,name,account_subtype,account_type,current_balance"),
         brandIds,
+        "brand_id",
+        { includeNull: true },
       ).eq("is_active", true);
       if (error) throw error;
       return (data ?? []) as Wallet[];
@@ -71,7 +73,7 @@ export function BdWalletsWidget() {
       if (bucket) walletBucket.set(w.id, bucket.key);
     }
     return BUCKETS.map((b) => {
-      const wallets_ = wallets.filter((w) => b.subtypes.includes(subtypeOf(w)));
+      const wallets_ = wallets.filter((w) => b.subtypes.includes(subtypeOf(w)) || (b.key === "bank" && ["bank_savings", "bank_current"].includes(subtypeOf(w))) || (b.key === "cash" && subtypeOf(w) === "petty_cash"));
       const balance = wallets_.reduce((s, w) => s + Number(w.current_balance || 0), 0);
       let inflow = 0, outflow = 0;
       for (const t of txns) {

@@ -67,7 +67,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
 
   // When in All-Brands mode, after picking a brand, narrow accounts/categories.
   const scopedAccounts = useMemo(
-    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId) : []),
+    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId || a.brand_id === null) : []),
     [accounts, effectiveBrandId],
   );
   const scopedCategories = useMemo(

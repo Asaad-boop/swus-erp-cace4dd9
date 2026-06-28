@@ -2,7 +2,7 @@ export type TxnType = "income" | "expense" | "transfer" | "adjustment";
 
 export type Account = {
   id: string;
-  brand_id: string;
+  brand_id: string | null;
   name: string;
   account_type: string;
   account_number: string | null;

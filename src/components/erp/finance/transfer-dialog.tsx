@@ -41,7 +41,7 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
   }, [open, brandId, brands]);
 
   const scopedAccounts = useMemo(
-    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId) : []),
+    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId || a.brand_id === null) : []),
     [accounts, effectiveBrandId],
   );
 
