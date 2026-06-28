@@ -51,6 +51,8 @@ export function WalletsPage() {
       const { data, error } = await applyBrandScope(
         supabase.from("erp_accounts").select("*"),
         brandIds,
+        "brand_id",
+        { includeNull: true },
       )
         .eq("is_active", true)
         .order("name");
