@@ -21,8 +21,10 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
   const showBrandPicker = !brandId && !editing && brands.length > 1;
+  const ALL = "__all__";
+  const isAllBrands = showBrandPicker && pickedBrandId === ALL;
   const effectiveBrandId: string | null =
-    brandId ?? editing?.brand_id ?? (pickedBrandId || null);
+    brandId ?? editing?.brand_id ?? (pickedBrandId && pickedBrandId !== ALL ? pickedBrandId : null);
 
   useEffect(() => {
     if (open) {
@@ -46,7 +48,6 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!effectiveBrandId) throw new Error("Select a brand");
       if (!name.trim()) throw new Error("Name required");
       const ob = Number(opening) || 0;
       if (editing) {
@@ -57,7 +58,23 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
           notes: notes || null,
         }).eq("id", editing.id);
         if (error) throw error;
+      } else if (isAllBrands) {
+        if (brands.length === 0) throw new Error("No brands available");
+        const rows = brands.map((b, idx) => ({
+          brand_id: b.id,
+          name: name.trim(),
+          account_type: type,
+          account_number: number || null,
+          // opening only on first brand to avoid double-counting a shared real-world account
+          opening_balance: idx === 0 ? ob : 0,
+          current_balance: idx === 0 ? ob : 0,
+          notes: notes ? `${notes}\n(Shared across brands)` : "(Shared across brands)",
+          is_active: true,
+        }));
+        const { error } = await supabase.from("erp_accounts").insert(rows);
+        if (error) throw error;
       } else {
+        if (!effectiveBrandId) throw new Error("Select a brand");
         const { error } = await supabase.from("erp_accounts").insert({
           brand_id: effectiveBrandId, name: name.trim(), account_type: type,
           account_number: number || null,
@@ -68,7 +85,7 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
       }
     },
     onSuccess: () => {
-      toast.success(editing ? "Account updated" : "Account created");
+      toast.success(editing ? "Account updated" : isAllBrands ? `Account created for ${brands.length} brands` : "Account created");
       invalidate();
       onClose();
     },
@@ -109,9 +126,15 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
               <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
                 <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={ALL}>🌐 All brands (shared)</SelectItem>
                   {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {isAllBrands && (
+                <p className="text-[11px] text-muted-foreground">
+                  Each brand pabe ekta separate account same name e. Opening balance shudhu prothom brand e boshbe (double-count eraate).
+                </p>
+              )}
             </div>
           )}
           <div className="space-y-1.5"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office Cash" /></div>
