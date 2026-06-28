@@ -46,7 +46,7 @@ function ReportsPage() {
       </header>
 
       <div className="flex flex-wrap gap-2 print:hidden">
-        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/wallets"><Wallet className="h-3.5 w-3.5 mr-1.5" />Wallets</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/erp/finance/accounts"><Wallet className="h-3.5 w-3.5 mr-1.5" />Accounts &amp; Wallets</Link></Button>
         <Button asChild variant="outline" size="sm"><Link to="/erp/finance/budgets"><Target className="h-3.5 w-3.5 mr-1.5" />Budgets</Link></Button>
         <Button asChild variant="outline" size="sm"><Link to="/erp/finance/taxes"><Scale className="h-3.5 w-3.5 mr-1.5" />Taxes</Link></Button>
         <Button asChild variant="outline" size="sm"><Link to="/erp/finance/product-profitability"><TrendingUp className="h-3.5 w-3.5 mr-1.5" />Profitability</Link></Button>
