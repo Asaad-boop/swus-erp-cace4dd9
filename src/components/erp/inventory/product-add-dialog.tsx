@@ -20,11 +20,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import {
   Package, Tag, Barcode, DollarSign, AlertTriangle, RotateCcw, ImagePlus,
-  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play,
+  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = { open: boolean; onClose: () => void };
+
+type ColorDraft = {
+  color_name: string;
+  color_hex: string;
+  sku: string;
+  image: string;
+  opening_stock: number;
+  reorder_point: number;
+};
+
+const SWATCHES = [
+  "#ef4444","#f97316","#f59e0b","#eab308","#84cc16","#22c55e","#10b981","#14b8a6",
+  "#06b6d4","#0ea5e9","#3b82f6","#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899",
+  "#f43f5e","#000000","#ffffff","#6b7280","#a3a3a3","#78350f","#1e3a8a","#365314",
+];
 
 type Form = {
   title: string;
@@ -52,6 +67,7 @@ type Form = {
   gallery: string[];
   video_url: string;
   age_group: string;
+  colors: ColorDraft[];
 };
 
 const empty = (brandId: string): Form => ({
@@ -66,6 +82,7 @@ const empty = (brandId: string): Form => ({
   benefits: [], specs: [],
   image: "", gallery: [], video_url: "",
   age_group: "",
+  colors: [],
 });
 
 const slugify = (s: string) =>
@@ -155,12 +172,13 @@ export function ProductAddDialog({ open, onClose }: Props) {
       };
       const { data, error } = await supabase.from("products").insert(payload as never).select("id").single();
       if (error) throw error;
+      const newProductId = (data as { id: string }).id;
 
       // Seed opening stock movement so weighted_avg_cost is correct
       const startStock = Number(f.initial_stock) || 0;
       if (startStock > 0) {
         await supabase.rpc("adjust_stock_v2", {
-          _product_id: (data as { id: string }).id,
+          _product_id: newProductId,
           _variant_id: null as unknown as string,
           _delta: startStock,
           _reason: "stock_in",
@@ -168,6 +186,40 @@ export function ProductAddDialog({ open, onClose }: Props) {
           _unit_cost: f.cost_price ? Number(f.cost_price) : undefined,
           _source: "manual",
         });
+      }
+
+      // Insert color variants
+      const validColors = f.colors.filter((c) => c.color_name.trim());
+      if (validColors.length > 0) {
+        const rows = validColors.map((c, idx) => ({
+          product_id: newProductId,
+          color_name: c.color_name.trim(),
+          color_hex: c.color_hex || null,
+          sku: c.sku || null,
+          image: c.image || null,
+          stock: Math.max(0, Math.floor(c.opening_stock || 0)),
+          reorder_point: Math.max(0, Math.floor(c.reorder_point || 0)),
+          is_active: true,
+          display_order: idx,
+        }));
+        const { data: inserted, error: vErr } = await supabase
+          .from("product_variants")
+          .insert(rows as never)
+          .select("id,color_name,stock");
+        if (vErr) throw vErr;
+        // Opening stock movements per variant
+        for (const v of (inserted ?? []) as { id: string; color_name: string; stock: number }[]) {
+          if (v.stock > 0) {
+            await supabase.from("stock_movements").insert({
+              product_id: newProductId,
+              variant_id: v.id,
+              delta: v.stock,
+              reason: "opening_stock",
+              note: `Opening stock for ${v.color_name}`,
+              movement_source: "manual",
+            } as never);
+          }
+        }
       }
       return data;
     },
@@ -194,10 +246,11 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
         <Tabs value={tab} onValueChange={setTab} className="flex flex-col">
           <div className="px-6 pt-3">
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className="grid grid-cols-6 w-full">
               <TabsTrigger value="basics" className="gap-1.5"><Info className="h-3.5 w-3.5" />Basics</TabsTrigger>
               <TabsTrigger value="images" className="gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Images</TabsTrigger>
               <TabsTrigger value="pricing" className="gap-1.5"><DollarSign className="h-3.5 w-3.5" />Pricing</TabsTrigger>
+              <TabsTrigger value="colors" className="gap-1.5"><Palette className="h-3.5 w-3.5" />Colors</TabsTrigger>
               <TabsTrigger value="shipping" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Shipping</TabsTrigger>
               <TabsTrigger value="details" className="gap-1.5"><Star className="h-3.5 w-3.5" />Details</TabsTrigger>
             </TabsList>
