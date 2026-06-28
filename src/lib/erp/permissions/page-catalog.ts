@@ -19,6 +19,7 @@ export const PAGE_CATALOG: PageEntry[] = [
 
   { group: "Sales", path: "/erp/orders/web", label: "Web Orders" },
   { group: "Sales", path: "/erp/orders/list", label: "Order List" },
+  { group: "Sales", path: "/erp/orders/pre-orders", label: "Pre-orders" },
   { group: "Sales", path: "/erp/orders/new", label: "Create Order" },
 
   { group: "Inventory", path: "/erp/inventory", label: "Stock" },
@@ -94,7 +95,7 @@ export function pathAllowedBy(allowed: string[] | null | undefined, pathname: st
   // (web / list / new). Same pattern for a few other modules that
   // expose `<list>/<id>` detail routes.
   const detailParents: Array<{ test: RegExp; anyOf: string[] }> = [
-    { test: /^\/erp\/orders\/[^/]+$/, anyOf: ["/erp/orders/web", "/erp/orders/list", "/erp/orders/new"] },
+    { test: /^\/erp\/orders\/[^/]+$/, anyOf: ["/erp/orders/web", "/erp/orders/list", "/erp/orders/new", "/erp/orders/pre-orders"] },
     { test: /^\/erp\/crm\/[^/]+$/, anyOf: ["/erp/crm"] },
     { test: /^\/erp\/purchase-orders\/[^/]+$/, anyOf: ["/erp/purchase-orders"] },
     { test: /^\/erp\/imports\/orders\/[^/]+$/, anyOf: ["/erp/imports"] },
