@@ -1063,20 +1063,27 @@ export const setPoCargoAgent = createServerFn({ method: "POST" })
 
 export const getCargoAgentDashboard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
+  .inputValidator((d: { brandId?: string | null; brandIds?: string[] }) =>
+    z.object({
+      brandId: z.string().uuid().nullable().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    const ids = (data.brandIds && data.brandIds.length > 0)
+      ? data.brandIds
+      : (data.brandId ? [data.brandId] : []);
+    if (ids.length === 0) return [];
     const [agentsRes, posRes] = await Promise.all([
       context.supabase
         .from("imp_cargo_agents")
         .select("id, name, phone, contact_person, is_active")
-        .eq("brand_id", data.brandId)
+        .in("brand_id", ids)
         .order("name"),
       context.supabase
         .from("imp_purchase_orders")
         .select("id, po_number, order_date, status, cargo_agent_id, shipping_total_bdt, shipping_cost_bdt, paid_bdt, grand_total_bdt, due_bdt")
-        .eq("brand_id", data.brandId)
+        .in("brand_id", ids)
         .not("cargo_agent_id", "is", null),
     ]);
     if (agentsRes.error) throw agentsRes.error;
