@@ -690,7 +690,14 @@ function InventoryPage() {
                             <TableCell className="pl-12 text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="text-indigo-500">↳</span>
-                                <span className="font-medium">{v.sku ?? v.id.slice(0, 8)}</span>
+                                {(v.color_hex || v.color_name) && (
+                                  <span
+                                    className="h-4 w-4 rounded-full border border-border shadow-sm shrink-0"
+                                    style={{ background: v.color_hex || "#e5e7eb" }}
+                                    title={v.color_name ?? ""}
+                                  />
+                                )}
+                                <span className="font-medium">{v.color_name ?? v.sku ?? v.id.slice(0, 8)}</span>
                                 {!v.is_active && <Badge variant="outline" className="h-4 px-1 text-[10px]">inactive</Badge>}
                               </div>
                             </TableCell>
