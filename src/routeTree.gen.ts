@@ -100,6 +100,7 @@ import { Route as AuthenticatedErpFinanceReceivablesRouteImport } from './routes
 import { Route as AuthenticatedErpFinanceProductProfitabilityRouteImport } from './routes/_authenticated/erp.finance.product-profitability'
 import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_authenticated/erp.finance.journal'
 import { Route as AuthenticatedErpFinanceDollarPurchaseRouteImport } from './routes/_authenticated/erp.finance.dollar-purchase'
+import { Route as AuthenticatedErpFinanceChartAccountsRouteImport } from './routes/_authenticated/erp.finance.chart-accounts'
 import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
 import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpCrmCustomerIdRouteImport } from './routes/_authenticated/erp.crm.$customerId'
@@ -642,6 +643,12 @@ const AuthenticatedErpFinanceDollarPurchaseRoute =
     path: '/dollar-purchase',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceChartAccountsRoute =
+  AuthenticatedErpFinanceChartAccountsRouteImport.update({
+    id: '/chart-accounts',
+    path: '/chart-accounts',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpFinanceBudgetsRoute =
   AuthenticatedErpFinanceBudgetsRouteImport.update({
     id: '/budgets',
@@ -799,6 +806,7 @@ export interface FileRoutesByFullPath {
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
@@ -901,6 +909,7 @@ export interface FileRoutesByTo {
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
@@ -1012,6 +1021,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
   '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
+  '/_authenticated/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/_authenticated/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
   '/_authenticated/erp/finance/journal': typeof AuthenticatedErpFinanceJournalRoute
   '/_authenticated/erp/finance/product-profitability': typeof AuthenticatedErpFinanceProductProfitabilityRoute
@@ -1126,6 +1136,7 @@ export interface FileRouteTypes {
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/budgets'
+    | '/erp/finance/chart-accounts'
     | '/erp/finance/dollar-purchase'
     | '/erp/finance/journal'
     | '/erp/finance/product-profitability'
@@ -1228,6 +1239,7 @@ export interface FileRouteTypes {
     | '/erp/crm/$customerId'
     | '/erp/finance/accounts'
     | '/erp/finance/budgets'
+    | '/erp/finance/chart-accounts'
     | '/erp/finance/dollar-purchase'
     | '/erp/finance/journal'
     | '/erp/finance/product-profitability'
@@ -1338,6 +1350,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/crm/$customerId'
     | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/budgets'
+    | '/_authenticated/erp/finance/chart-accounts'
     | '/_authenticated/erp/finance/dollar-purchase'
     | '/_authenticated/erp/finance/journal'
     | '/_authenticated/erp/finance/product-profitability'
@@ -2066,6 +2079,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceDollarPurchaseRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/chart-accounts': {
+      id: '/_authenticated/erp/finance/chart-accounts'
+      path: '/chart-accounts'
+      fullPath: '/erp/finance/chart-accounts'
+      preLoaderRoute: typeof AuthenticatedErpFinanceChartAccountsRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/finance/budgets': {
       id: '/_authenticated/erp/finance/budgets'
       path: '/budgets'
@@ -2225,6 +2245,7 @@ const AuthenticatedErpCrmRouteWithChildren =
 interface AuthenticatedErpFinanceRouteChildren {
   AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
   AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
+  AuthenticatedErpFinanceChartAccountsRoute: typeof AuthenticatedErpFinanceChartAccountsRoute
   AuthenticatedErpFinanceDollarPurchaseRoute: typeof AuthenticatedErpFinanceDollarPurchaseRoute
   AuthenticatedErpFinanceJournalRoute: typeof AuthenticatedErpFinanceJournalRoute
   AuthenticatedErpFinanceProductProfitabilityRoute: typeof AuthenticatedErpFinanceProductProfitabilityRoute
@@ -2240,6 +2261,8 @@ const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren
   {
     AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
     AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
+    AuthenticatedErpFinanceChartAccountsRoute:
+      AuthenticatedErpFinanceChartAccountsRoute,
     AuthenticatedErpFinanceDollarPurchaseRoute:
       AuthenticatedErpFinanceDollarPurchaseRoute,
     AuthenticatedErpFinanceJournalRoute: AuthenticatedErpFinanceJournalRoute,
