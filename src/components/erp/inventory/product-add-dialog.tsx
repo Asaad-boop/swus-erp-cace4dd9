@@ -400,8 +400,6 @@ export function ProductAddDialog({ open, onClose }: Props) {
               </TabsContent>
 
               {/* SHIPPING */}
-              <TabsContent value="shipping" className="mt-0 space-y-4">
-              </TabsContent>
               <TabsContent value="colors" className="mt-0 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
@@ -467,7 +465,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
                   ))}
                 </div>
               </TabsContent>
-              <TabsContent value="shipping-dup" className="hidden">
+              <TabsContent value="shipping" className="mt-0 space-y-4">
                 <p className="text-xs text-muted-foreground">Override default shipping rates for this product. Leave blank to use brand defaults.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Inside Dhaka (BDT)" icon={<Truck className="h-3.5 w-3.5" />}>
