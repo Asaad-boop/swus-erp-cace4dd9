@@ -23,6 +23,8 @@ import {
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
+import { supabase } from "@/integrations/supabase/client";
+import { Palette } from "lucide-react";
 import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/new")({
@@ -35,6 +37,7 @@ type ItemDraft = {
   picked: PickedProduct;
   quantity: number;
   unit_cost_foreign: number;
+  allocations?: Record<string, number>; // variant_id -> qty
 };
 
 type CartonDraft = {
