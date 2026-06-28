@@ -102,6 +102,7 @@ import { Route as AuthenticatedErpFinanceJournalRouteImport } from './routes/_au
 import { Route as AuthenticatedErpFinanceDollarPurchaseRouteImport } from './routes/_authenticated/erp.finance.dollar-purchase'
 import { Route as AuthenticatedErpFinanceChartAccountsRouteImport } from './routes/_authenticated/erp.finance.chart-accounts'
 import { Route as AuthenticatedErpFinanceBudgetsRouteImport } from './routes/_authenticated/erp.finance.budgets'
+import { Route as AuthenticatedErpFinanceAccountsRouteImport } from './routes/_authenticated/erp.finance.accounts'
 import { Route as AuthenticatedErpCrmCustomerIdRouteImport } from './routes/_authenticated/erp.crm.$customerId'
 import { Route as AuthenticatedErpAnalyticsLiveRouteImport } from './routes/_authenticated/erp.analytics.live'
 import { Route as AuthenticatedErpMarketingCampaignsIndexRouteImport } from './routes/_authenticated/erp.marketing.campaigns.index'
@@ -654,6 +655,12 @@ const AuthenticatedErpFinanceBudgetsRoute =
     path: '/budgets',
     getParentRoute: () => AuthenticatedErpFinanceRoute,
   } as any)
+const AuthenticatedErpFinanceAccountsRoute =
+  AuthenticatedErpFinanceAccountsRouteImport.update({
+    id: '/accounts',
+    path: '/accounts',
+    getParentRoute: () => AuthenticatedErpFinanceRoute,
+  } as any)
 const AuthenticatedErpCrmCustomerIdRoute =
   AuthenticatedErpCrmCustomerIdRouteImport.update({
     id: '/$customerId',
@@ -797,6 +804,7 @@ export interface FileRoutesByFullPath {
   '/me/': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
+  '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
@@ -899,6 +907,7 @@ export interface FileRoutesByTo {
   '/me': typeof AuthenticatedMeIndexRoute
   '/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
+  '/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
@@ -1010,6 +1019,7 @@ export interface FileRoutesById {
   '/_authenticated/me/': typeof AuthenticatedMeIndexRoute
   '/_authenticated/erp/analytics/live': typeof AuthenticatedErpAnalyticsLiveRoute
   '/_authenticated/erp/crm/$customerId': typeof AuthenticatedErpCrmCustomerIdRoute
+  '/_authenticated/erp/finance/accounts': typeof AuthenticatedErpFinanceAccountsRoute
   '/_authenticated/erp/finance/budgets': typeof AuthenticatedErpFinanceBudgetsRoute
   '/_authenticated/erp/finance/chart-accounts': typeof AuthenticatedErpFinanceChartAccountsRoute
   '/_authenticated/erp/finance/dollar-purchase': typeof AuthenticatedErpFinanceDollarPurchaseRoute
@@ -1124,6 +1134,7 @@ export interface FileRouteTypes {
     | '/me/'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
+    | '/erp/finance/accounts'
     | '/erp/finance/budgets'
     | '/erp/finance/chart-accounts'
     | '/erp/finance/dollar-purchase'
@@ -1226,6 +1237,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/erp/analytics/live'
     | '/erp/crm/$customerId'
+    | '/erp/finance/accounts'
     | '/erp/finance/budgets'
     | '/erp/finance/chart-accounts'
     | '/erp/finance/dollar-purchase'
@@ -1336,6 +1348,7 @@ export interface FileRouteTypes {
     | '/_authenticated/me/'
     | '/_authenticated/erp/analytics/live'
     | '/_authenticated/erp/crm/$customerId'
+    | '/_authenticated/erp/finance/accounts'
     | '/_authenticated/erp/finance/budgets'
     | '/_authenticated/erp/finance/chart-accounts'
     | '/_authenticated/erp/finance/dollar-purchase'
@@ -2080,6 +2093,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpFinanceBudgetsRouteImport
       parentRoute: typeof AuthenticatedErpFinanceRoute
     }
+    '/_authenticated/erp/finance/accounts': {
+      id: '/_authenticated/erp/finance/accounts'
+      path: '/accounts'
+      fullPath: '/erp/finance/accounts'
+      preLoaderRoute: typeof AuthenticatedErpFinanceAccountsRouteImport
+      parentRoute: typeof AuthenticatedErpFinanceRoute
+    }
     '/_authenticated/erp/crm/$customerId': {
       id: '/_authenticated/erp/crm/$customerId'
       path: '/$customerId'
@@ -2223,6 +2243,7 @@ const AuthenticatedErpCrmRouteWithChildren =
   AuthenticatedErpCrmRoute._addFileChildren(AuthenticatedErpCrmRouteChildren)
 
 interface AuthenticatedErpFinanceRouteChildren {
+  AuthenticatedErpFinanceAccountsRoute: typeof AuthenticatedErpFinanceAccountsRoute
   AuthenticatedErpFinanceBudgetsRoute: typeof AuthenticatedErpFinanceBudgetsRoute
   AuthenticatedErpFinanceChartAccountsRoute: typeof AuthenticatedErpFinanceChartAccountsRoute
   AuthenticatedErpFinanceDollarPurchaseRoute: typeof AuthenticatedErpFinanceDollarPurchaseRoute
@@ -2238,6 +2259,7 @@ interface AuthenticatedErpFinanceRouteChildren {
 
 const AuthenticatedErpFinanceRouteChildren: AuthenticatedErpFinanceRouteChildren =
   {
+    AuthenticatedErpFinanceAccountsRoute: AuthenticatedErpFinanceAccountsRoute,
     AuthenticatedErpFinanceBudgetsRoute: AuthenticatedErpFinanceBudgetsRoute,
     AuthenticatedErpFinanceChartAccountsRoute:
       AuthenticatedErpFinanceChartAccountsRoute,
