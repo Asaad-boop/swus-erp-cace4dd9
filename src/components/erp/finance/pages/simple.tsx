@@ -21,6 +21,7 @@ import { exportTransactionsCsv, fmtBdt, TXN_TYPE_LABEL, type TxnType } from "@/l
 import { downloadCsv } from "@/lib/erp/orders";
 import { TransactionForm } from "@/components/erp/finance/transaction-form";
 import { AccountForm } from "@/components/erp/finance/account-form";
+import { WalletsPage } from "@/components/erp/finance/pages/wallets";
 
 export function FinancePage() {
   const { activeBrand, brands, brandIds, isAllBrands } = useBrand();
@@ -58,33 +59,8 @@ export function FinancePage() {
           <TabsTrigger value="reports">P&amp;L Report</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="accounts" className="space-y-3 mt-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setAcctOpen(true)}><Plus className="h-4 w-4 mr-1" />New Account</Button>
-          </div>
-          {accountsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!accountsQ.isLoading && accounts.length === 0 && (
-            <div className="rounded-md border bg-card p-8 text-center text-muted-foreground">
-              No accounts yet. Create your first account (cash, bank, bKash, etc.).
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {accounts.map((a) => (
-              <Card key={a.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" />{a.name}</span>
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{a.account_type}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{fmtBdt(a.current_balance)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Opening: {fmtBdt(a.opening_balance)}</div>
-                  <AdjustButton accountId={a.id} />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <TabsContent value="accounts" className="mt-3 -mx-4 md:-mx-6">
+          <WalletsPage />
         </TabsContent>
 
         <TabsContent value="transactions" className="mt-3">
