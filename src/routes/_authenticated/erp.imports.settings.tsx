@@ -244,9 +244,7 @@ function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={async (p) => {
-            const targetBrand = editing?.brand_id ?? editing?.brand?.id ?? brandIds[0];
-            if (!targetBrand) { toast.error("No brand available"); return; }
-            await upsertFn({ data: { ...p, brandId: targetBrand } });
+            await upsertFn({ data: { ...p } });
             qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
             toast.success("Cargo agent saved");
             setEditing(null);
@@ -258,7 +256,11 @@ function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
 }
 
 function CargoAgentDialog({ initial, onClose, onSave }: { initial: any; onClose: () => void; onSave: (p: any) => Promise<void> }) {
+  const { brands } = useBrand();
   const [name, setName] = useState(initial?.name ?? "");
+  const [brandId, setBrandId] = useState<string>(
+    initial?.brand_id === null ? "__all__" : (initial?.brand_id ?? initial?.brand?.id ?? "__all__"),
+  );
   const [contact, setContact] = useState(initial?.contact_person ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
@@ -272,6 +274,18 @@ function CargoAgentDialog({ initial, onClose, onSave }: { initial: any; onClose:
         <DialogHeader><DialogTitle>{initial?.id ? "Edit" : "New"} Cargo Agent</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div>
+            <Label>Brand</Label>
+            <Select value={brandId} onValueChange={setBrandId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">🌐 All brands (shared)</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Contact person</Label><Input value={contact} onChange={(e) => setContact(e.target.value)} /></div>
             <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
@@ -289,6 +303,7 @@ function CargoAgentDialog({ initial, onClose, onSave }: { initial: any; onClose:
             try {
               await onSave({
                 id: initial?.id,
+                brandId: brandId === "__all__" ? null : brandId,
                 name,
                 contact_person: contact || undefined,
                 phone: phone || undefined,
