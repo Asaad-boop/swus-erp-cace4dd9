@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Wallet, Package, TrendingUp, TrendingDown, Banknote, Smartphone, Truck, Users,
   Receipt, AlertTriangle, FileText, ArrowRight, RotateCcw, Calendar, Building2,
-  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Landmark,
+  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Landmark, Plus, ArrowRightLeft,
 } from "lucide-react";
 import {
   AreaChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -14,11 +14,14 @@ import {
 import { useBrand } from "@/contexts/brand-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getFinanceOverview, type FinanceOverview } from "@/lib/erp/finance-overview.functions";
 import { FinanceDrilldownSheet } from "@/components/erp/finance/finance-drilldown-sheet";
 import { BdWalletsWidget } from "@/components/erp/finance/bd-wallets-widget";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
+import { useErpQuickActions } from "@/contexts/erp-quick-actions";
+import { AccountForm } from "@/components/erp/finance/account-form";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/")({
@@ -46,6 +49,8 @@ function OverviewPage() {
   const { from, to } = range;
 
   const fetchOverview = useServerFn(getFinanceOverview);
+  const { openTxn, openTransfer } = useErpQuickActions();
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
 
   const q = useQuery({
     queryKey: ["finance_overview", brandIds.join(","), from, to],
@@ -84,6 +89,54 @@ function OverviewPage() {
         <DateRangePicker value={range} onChange={setRange} />
       </header>
 
+      {/* ── Quick actions — always one click away ─────── */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Button
+          variant="outline"
+          className="h-auto py-3 justify-start gap-2 border-emerald-500/40 hover:bg-emerald-500/10 hover:border-emerald-500/60"
+          onClick={() => openTxn("income")}
+        >
+          <span className="rounded-md p-1.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"><ArrowDownRight className="size-4" /></span>
+          <span className="text-left">
+            <span className="block text-sm font-semibold">Add Income</span>
+            <span className="block text-[10px] text-muted-foreground font-normal">Deposit / receipt</span>
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-3 justify-start gap-2 border-rose-500/40 hover:bg-rose-500/10 hover:border-rose-500/60"
+          onClick={() => openTxn("expense")}
+        >
+          <span className="rounded-md p-1.5 bg-rose-500/15 text-rose-600 dark:text-rose-400"><ArrowUpRight className="size-4" /></span>
+          <span className="text-left">
+            <span className="block text-sm font-semibold">Add Expense</span>
+            <span className="block text-[10px] text-muted-foreground font-normal">Withdrawal / payment</span>
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-3 justify-start gap-2 border-sky-500/40 hover:bg-sky-500/10 hover:border-sky-500/60"
+          onClick={() => openTransfer()}
+        >
+          <span className="rounded-md p-1.5 bg-sky-500/15 text-sky-600 dark:text-sky-400"><ArrowRightLeft className="size-4" /></span>
+          <span className="text-left">
+            <span className="block text-sm font-semibold">Transfer</span>
+            <span className="block text-[10px] text-muted-foreground font-normal">Between wallets</span>
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-3 justify-start gap-2 border-primary/40 hover:bg-primary/10 hover:border-primary/60"
+          onClick={() => setAddAccountOpen(true)}
+        >
+          <span className="rounded-md p-1.5 bg-primary/15 text-primary"><Plus className="size-4" /></span>
+          <span className="text-left">
+            <span className="block text-sm font-semibold">New Account</span>
+            <span className="block text-[10px] text-muted-foreground font-normal">Cash · Bank · bKash …</span>
+          </span>
+        </Button>
+      </section>
+
       {q.isLoading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -118,6 +171,12 @@ function OverviewPage() {
         to={to}
         type={drill?.type}
         accountIds={drill?.accountIds}
+      />
+      <AccountForm
+        open={addAccountOpen}
+        onClose={() => setAddAccountOpen(false)}
+        brandId={isAllBrands ? null : activeBrand?.id ?? null}
+        brands={brands}
       />
     </div>
   );
