@@ -13,6 +13,7 @@ import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { TransferDialog } from "@/components/erp/finance/transfer-dialog";
 import { AccountForm } from "@/components/erp/finance/account-form";
 import { TransactionForm } from "@/components/erp/finance/transaction-form";
+import { DepositWithdrawDialog } from "@/components/erp/finance/deposit-withdraw-dialog";
 import { useCategories } from "@/hooks/erp/use-finance-query";
 import { cn } from "@/lib/utils";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -57,6 +58,7 @@ export function WalletsPage() {
   const [editWallet, setEditWallet] = useState<Wallet | null>(null);
   const [statementFor, setStatementFor] = useState<Wallet | null>(null);
   const [txnDialog, setTxnDialog] = useState<{ open: boolean; type: "income" | "expense"; accountId: string | null; brandId: string | null }>({ open: false, type: "income", accountId: null, brandId: null });
+  const [dwDialog, setDwDialog] = useState<{ open: boolean; mode: "deposit" | "withdraw"; account: Wallet | null }>({ open: false, mode: "deposit", account: null });
   const categoriesQ = useCategories(brandIds);
 
   const walletsQ = useQuery({
@@ -211,10 +213,10 @@ export function WalletsPage() {
                       <div className="text-[11px] text-muted-foreground">Opening: {fmtBdt(w.opening_balance)}</div>
                     )}
                     <div className="flex gap-1.5 pt-1">
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40" onClick={() => setTxnDialog({ open: true, type: "income", accountId: w.id, brandId: w.brand_id })}>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40" onClick={() => setDwDialog({ open: true, mode: "deposit", account: w })}>
                         <ArrowDownToLine className="h-3 w-3 mr-1" />Deposit
                       </Button>
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40" onClick={() => setTxnDialog({ open: true, type: "expense", accountId: w.id, brandId: w.brand_id })}>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs flex-1 text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40" onClick={() => setDwDialog({ open: true, mode: "withdraw", account: w })}>
                         <ArrowUpFromLine className="h-3 w-3 mr-1" />Withdraw
                       </Button>
                     </div>
@@ -263,6 +265,13 @@ export function WalletsPage() {
         />
       )}
       <StatementDialog wallet={statementFor} onClose={() => setStatementFor(null)} />
+      <DepositWithdrawDialog
+        open={dwDialog.open}
+        onClose={() => setDwDialog((s) => ({ ...s, open: false }))}
+        mode={dwDialog.mode}
+        account={dwDialog.account}
+        brandId={isAllBrands ? null : brandId}
+      />
     </div>
   );
 }
