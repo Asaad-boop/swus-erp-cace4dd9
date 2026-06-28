@@ -564,6 +564,11 @@ function InventoryPage() {
                                     <Layers className="h-2.5 w-2.5" />{variants.length}
                                   </span>
                                 )}
+                                {r.is_preorder && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 text-[10px] font-medium">
+                                    <Clock className="h-2.5 w-2.5" />Pre-order
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </button>
@@ -644,6 +649,24 @@ function InventoryPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setEditProduct(r)}>
                                 <AlertCircle className="h-4 w-4 mr-2 text-amber-600" />Set Reorder Point
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const next = !r.is_preorder;
+                                  const { error } = await supabase
+                                    .from("products")
+                                    .update({ is_preorder: next })
+                                    .eq("id", r.id);
+                                  if (error) toast.error(error.message);
+                                  else {
+                                    toast.success(next ? "Pre-order enabled" : "Pre-order disabled");
+                                    qc.invalidateQueries({ queryKey: ["inventory"] });
+                                  }
+                                }}
+                              >
+                                <Clock className="h-4 w-4 mr-2 text-violet-600" />
+                                {r.is_preorder ? "Disable Pre-order" : "Enable Pre-order"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

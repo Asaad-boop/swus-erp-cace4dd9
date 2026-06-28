@@ -22,6 +22,8 @@ export type ProductRow = {
   variant_skus?: string[];
   variants?: VariantRow[];
   incoming?: number;
+  is_preorder?: boolean | null;
+  preorder_expected_date?: string | null;
 };
 
 export type VariantRow = {
