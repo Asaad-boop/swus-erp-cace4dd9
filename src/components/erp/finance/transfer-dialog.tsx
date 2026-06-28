@@ -32,7 +32,9 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
   const [pickedBrandId, setPickedBrandId] = useState<string>("");
 
   const showBrandPicker = !brandId && brands.length > 1;
-  const effectiveBrandId = brandId ?? pickedBrandId ?? null;
+  const SHARED = "__shared__";
+  const effectiveBrandId = brandId ?? (pickedBrandId === SHARED ? null : pickedBrandId) ?? null;
+  const isShared = !brandId && pickedBrandId === SHARED;
 
   useEffect(() => {
     if (open) {
@@ -41,8 +43,12 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
   }, [open, brandId, brands]);
 
   const scopedAccounts = useMemo(
-    () => (effectiveBrandId ? accounts.filter((a) => a.brand_id === effectiveBrandId || a.brand_id === null) : []),
-    [accounts, effectiveBrandId],
+    () => {
+      if (isShared) return accounts; // All brands: show every account
+      if (effectiveBrandId) return accounts.filter((a) => a.brand_id === effectiveBrandId || a.brand_id === null);
+      return [];
+    },
+    [accounts, effectiveBrandId, isShared],
   );
 
   useEffect(() => {
@@ -56,15 +62,18 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!effectiveBrandId) throw new Error("Select a brand");
+      if (!effectiveBrandId && !isShared) throw new Error("Select a brand");
       if (!fromId || !toId) throw new Error("Select both accounts");
       if (fromId === toId) throw new Error("From and To must be different");
       if (!amt || amt <= 0) throw new Error("Amount must be > 0");
       if (from && amt > Number(from.current_balance)) {
         throw new Error(`Insufficient balance in ${from.name}. Available ${fmtBdt(from.current_balance)}`);
       }
+      // For shared/all-brands transfer, attribute txn to source account's brand (fallback to dest)
+      const txnBrandId = effectiveBrandId ?? from?.brand_id ?? to?.brand_id ?? null;
+      if (!txnBrandId) throw new Error("Selected accounts have no brand. Pick a brand.");
       const { error } = await supabase.from("erp_transactions").insert({
-        brand_id: effectiveBrandId,
+        brand_id: txnBrandId,
         txn_type: "transfer",
         account_id: fromId,
         to_account_id: toId,
@@ -99,6 +108,7 @@ export function TransferDialog({ open, onClose, brandId, accounts, defaultFromId
               <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
                 <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SHARED}>🌐 All brands (shared accounts)</SelectItem>
                   {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
