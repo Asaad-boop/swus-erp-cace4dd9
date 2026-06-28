@@ -126,14 +126,16 @@ function OverviewPage() {
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-3 justify-start gap-2 border-primary/40 hover:bg-primary/10 hover:border-primary/60"
-          onClick={() => setAddAccountOpen(true)}
+          className="h-auto py-3 justify-start gap-2 border-sky-500/40 hover:bg-sky-500/10 hover:border-sky-500/60"
+          asChild
         >
-          <span className="rounded-md p-1.5 bg-primary/15 text-primary"><Plus className="size-4" /></span>
-          <span className="text-left">
-            <span className="block text-sm font-semibold">New Account</span>
-            <span className="block text-[10px] text-muted-foreground font-normal">Cash · Bank · bKash …</span>
-          </span>
+          <Link to="/erp/finance/accounts">
+            <span className="rounded-md p-1.5 bg-sky-500/15 text-sky-600 dark:text-sky-400"><BookOpen className="size-4" /></span>
+            <span className="text-left">
+              <span className="block text-sm font-semibold">Manage Accounts</span>
+              <span className="block text-[10px] text-muted-foreground font-normal">Add / edit wallets</span>
+            </span>
+          </Link>
         </Button>
       </section>
 
