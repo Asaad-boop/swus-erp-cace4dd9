@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ACCOUNT_TYPES, type Account } from "@/lib/erp/finance";
+import { ACCOUNT_TYPE_CATALOG, ACCOUNT_GROUP_META, type Account, type AccountTypeMeta, fmtBdt } from "@/lib/erp/finance";
 import type { Brand } from "@/contexts/brand-context";
+import { cn } from "@/lib/utils";
 
 export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { open: boolean; onClose: () => void; brandId: string | null; editing?: Account | null; brands?: Brand[] }) {
   const qc = useQueryClient();
@@ -114,12 +115,18 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>{editing ? "Edit Account" : "New Account"}</DialogTitle></DialogHeader>
-        <div className="space-y-3 text-sm">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg">{editing ? "Edit Account" : "New Account"}</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            {editing ? "Update wallet details." : "Pick a type, give it a name, set opening balance. That's it."}
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm py-2">
           {showBrandPicker && (
-            <div className="space-y-1.5">
-              <Label>Brand *</Label>
+            <section className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Brand</Label>
               <Select value={pickedBrandId} onValueChange={setPickedBrandId}>
                 <SelectTrigger><SelectValue placeholder="Choose brand" /></SelectTrigger>
                 <SelectContent>
@@ -129,25 +136,42 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
               </Select>
               {isAllBrands && (
                 <p className="text-[11px] text-muted-foreground">
-                  Ekta single shared account banbe — sob brand e dekha jabe. Brand-wise report transactions theke ashbe (account na, transaction er brand count hoy).
+                  Shared account — sob brand e dekha jabe. Brand-wise report transactions theke ashbe.
                 </p>
               )}
-            </div>
+            </section>
           )}
-          <div className="space-y-1.5"><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office Cash" /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{ACCOUNT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-              </Select>
+
+          {/* Type picker grouped by category */}
+          <section className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Account Type</Label>
+            <TypePicker value={type} onChange={setType} />
+          </section>
+
+          {/* Basics */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Account name *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office Cash, City Bank Main, bKash Personal" />
             </div>
-            <div className="space-y-1.5"><Label>Account number</Label><Input value={number} onChange={(e) => setNumber(e.target.value)} /></div>
-          </div>
-          <div className="space-y-1.5"><Label>Opening balance</Label><Input type="number" value={opening} onChange={(e) => setOpening(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Account / wallet number</Label>
+              <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Optional" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Opening balance (BDT)</Label>
+              <Input type="number" inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} />
+              {Number(opening) > 0 && (
+                <p className="text-[11px] text-muted-foreground">Will start at {fmtBdt(Number(opening))}</p>
+              )}
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Notes</Label>
+              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Branch, account holder, anything useful…" />
+            </div>
+          </section>
         </div>
+
         <DialogFooter className="flex sm:justify-between gap-2">
           {editing ? (
             <Button
@@ -165,5 +189,53 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TypePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const groups = Array.from(new Set(ACCOUNT_TYPE_CATALOG.map((t) => t.group)));
+  return (
+    <div className="space-y-3">
+      {groups.map((g) => {
+        const meta = ACCOUNT_GROUP_META[g];
+        const items = ACCOUNT_TYPE_CATALOG.filter((t) => t.group === g);
+        return (
+          <div key={g} className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <span>{meta.icon}</span>
+              <span>{meta.label}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {items.map((t) => (
+                <TypeChip key={t.value} item={t} active={value === t.value} onClick={() => onChange(t.value)} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TypeChip({ item, active, onClick }: { item: AccountTypeMeta; active: boolean; onClick: () => void }) {
+  const meta = ACCOUNT_GROUP_META[item.group];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "text-left rounded-lg border px-3 py-2 transition-all",
+        "hover:border-primary/60 hover:bg-muted/50",
+        active
+          ? "border-primary bg-primary/5 ring-1 ring-primary/40 shadow-sm"
+          : "border-border bg-card",
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <span className={cn("text-sm", meta.accent)}>{meta.icon}</span>
+        <span className="text-sm font-medium truncate">{item.label}</span>
+      </div>
+      {item.hint && <div className="text-[11px] text-muted-foreground truncate mt-0.5">{item.hint}</div>}
+    </button>
   );
 }
