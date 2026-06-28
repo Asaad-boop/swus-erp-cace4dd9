@@ -495,6 +495,21 @@ function NewPoPage() {
                         </Button>
                       </div>
                     </div>
+                    {it.picked.id && (
+                      <div className="px-3 pb-3">
+                        <ImportColorAllocator
+                          productId={it.picked.id}
+                          allocations={it.allocations}
+                          onChange={(allocs) => {
+                            const total = Object.values(allocs).reduce((s, n) => s + n, 0);
+                            updItem(it.id, {
+                              allocations: Object.keys(allocs).length ? allocs : undefined,
+                              quantity: total > 0 ? total : it.quantity,
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
