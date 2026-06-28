@@ -204,7 +204,7 @@ function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  await upsertFn({ data: { id: a.id, brandId: a.brand_id ?? a.brand?.id ?? brandIds[0], name: a.name, contact_person: a.contact_person ?? undefined, phone: a.phone ?? undefined, address: a.address ?? undefined, notes: a.notes ?? undefined, is_active: !a.is_active } });
+                  await upsertFn({ data: { id: a.id, brandId: (a.brand_id ?? a.brand?.id) ?? null, name: a.name, contact_person: a.contact_person ?? undefined, phone: a.phone ?? undefined, address: a.address ?? undefined, notes: a.notes ?? undefined, is_active: !a.is_active } });
                   qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
                   toast.success(a.is_active ? "Deactivated" : "Activated");
                 }}
