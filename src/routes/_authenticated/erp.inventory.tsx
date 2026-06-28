@@ -645,6 +645,24 @@ function InventoryPage() {
                               <DropdownMenuItem onClick={() => setEditProduct(r)}>
                                 <AlertCircle className="h-4 w-4 mr-2 text-amber-600" />Set Reorder Point
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const next = !r.is_preorder;
+                                  const { error } = await supabase
+                                    .from("products")
+                                    .update({ is_preorder: next })
+                                    .eq("id", r.id);
+                                  if (error) toast.error(error.message);
+                                  else {
+                                    toast.success(next ? "Pre-order enabled" : "Pre-order disabled");
+                                    qc.invalidateQueries({ queryKey: ["inventory"] });
+                                  }
+                                }}
+                              >
+                                <Clock className="h-4 w-4 mr-2 text-violet-600" />
+                                {r.is_preorder ? "Disable Pre-order" : "Enable Pre-order"}
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
