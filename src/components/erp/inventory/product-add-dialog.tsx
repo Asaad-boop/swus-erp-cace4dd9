@@ -51,6 +51,7 @@ type Form = {
   image: string;
   gallery: string[];
   video_url: string;
+  age_group: string;
 };
 
 const empty = (brandId: string): Form => ({
@@ -64,6 +65,7 @@ const empty = (brandId: string): Form => ({
   is_active: true, is_featured: false, is_new_arrival: false,
   benefits: [], specs: [],
   image: "", gallery: [], video_url: "",
+  age_group: "",
 });
 
 const slugify = (s: string) =>
@@ -149,6 +151,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         image: f.image || null,
         gallery: f.gallery,
         video_url: f.video_url || null,
+        age_group: f.age_group || null,
       };
       const { data, error } = await supabase.from("products").insert(payload as never).select("id").single();
       if (error) throw error;
@@ -234,6 +237,19 @@ export function ProductAddDialog({ open, onClose }: Props) {
                     </Select>
                   </Field>
                 </div>
+                <Field label="Shop by Age" hint="Toyora storefront e age filter er jonno">
+                  <Select value={f.age_group || "none"} onValueChange={(v) => set("age_group", v === "none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="All ages" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">All ages</SelectItem>
+                      <SelectItem value="0-2">0 – 2 years</SelectItem>
+                      <SelectItem value="3-5">3 – 5 years</SelectItem>
+                      <SelectItem value="6-8">6 – 8 years</SelectItem>
+                      <SelectItem value="9-12">9 – 12 years</SelectItem>
+                      <SelectItem value="13+">13+ years</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
                 <Field label="Description">
                   <Textarea rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} placeholder="Short product description shown on storefront…" />
                 </Field>

@@ -50,6 +50,7 @@ type Form = {
   image: string;
   gallery: string[];
   video_url: string;
+  age_group: string;
 };
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -80,6 +81,7 @@ function toForm(p: Record<string, any>): Form {
     image: str(p.image),
     gallery: Array.isArray(p.gallery) ? p.gallery : [],
     video_url: str(p.video_url),
+    age_group: str(p.age_group),
   };
 }
 
@@ -163,6 +165,7 @@ export function ProductEditDialog({ product, onClose }: Props) {
         image: f.image || null,
         gallery: f.gallery,
         video_url: f.video_url || null,
+        age_group: f.age_group || null,
       };
       const { error } = await supabase
         .from("products")
@@ -249,6 +252,19 @@ export function ProductEditDialog({ product, onClose }: Props) {
                         <SelectContent>
                           <SelectItem value="none">Uncategorized</SelectItem>
                           {(categoriesQ.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Shop by Age" hint="Toyora storefront e age filter er jonno">
+                      <Select value={f.age_group || "none"} onValueChange={(v) => set("age_group", v === "none" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="All ages" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">All ages</SelectItem>
+                          <SelectItem value="0-2">0 – 2 years</SelectItem>
+                          <SelectItem value="3-5">3 – 5 years</SelectItem>
+                          <SelectItem value="6-8">6 – 8 years</SelectItem>
+                          <SelectItem value="9-12">9 – 12 years</SelectItem>
+                          <SelectItem value="13+">13+ years</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
