@@ -570,9 +570,7 @@ function _WebOrdersPageBody() {
         brandIds,
       ).eq("source", "website");
 
-      // Hide pre-orders from the Web Orders queue — managed on /erp/orders/pre-orders.
-      q = q.or("is_preorder.is.null,is_preorder.eq.false");
-
+      // Pre-orders also show in the Web Orders queue so they go to processing.
       // sort
       if (sort === "newest") q = q.order("created_at", { ascending: false });
       else if (sort === "oldest") q = q.order("created_at", { ascending: true });
