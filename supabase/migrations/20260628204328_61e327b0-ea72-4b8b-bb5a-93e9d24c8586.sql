@@ -1,0 +1,1 @@
+ALTER TABLE public.imp_cargo_agents ALTER COLUMN brand_id DROP NOT NULL;

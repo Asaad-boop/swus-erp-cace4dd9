@@ -4370,7 +4370,7 @@ export type Database = {
       imp_cargo_agents: {
         Row: {
           address: string | null
-          brand_id: string
+          brand_id: string | null
           contact_person: string | null
           created_at: string
           created_by: string | null
@@ -4383,7 +4383,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          brand_id: string
+          brand_id?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
@@ -4396,7 +4396,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          brand_id?: string
+          brand_id?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
