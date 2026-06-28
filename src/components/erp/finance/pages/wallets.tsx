@@ -120,9 +120,9 @@ export function WalletsPage() {
     <div className="p-4 md:p-6 space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Wallets &amp; Accounts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Accounts &amp; Wallets</h1>
           <p className="text-sm text-muted-foreground">
-            {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
+            Cash, bank, mobile wallet, courier COD and owner accounts · {isAllBrands ? `All brands (${brands.length})` : activeBrand?.name} · Liquid: <span className="font-semibold text-foreground">{fmtBdt(totals.liquid)}</span> · Net worth: <span className="font-semibold text-foreground">{fmtBdt(netWorth)}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -130,7 +130,7 @@ export function WalletsPage() {
             <ArrowRightLeft className="h-4 w-4 mr-1.5" /> Transfer
           </Button>
           <Button size="sm" onClick={() => setNewAcctOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Wallet
+            <Plus className="h-4 w-4 mr-1.5" /> New Account / Wallet
           </Button>
         </div>
       </header>
@@ -143,8 +143,8 @@ export function WalletsPage() {
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <WalletIcon className="h-10 w-10 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No wallets yet. Create cash, bank, or mobile wallet accounts to start tracking balances.</p>
-            <Button size="sm" onClick={() => setNewAcctOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create first wallet</Button>
+            <p className="text-sm text-muted-foreground">No accounts yet. Create cash, bank, mobile wallet, courier COD, loan, or owner accounts here.</p>
+            <Button size="sm" onClick={() => setNewAcctOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create first account</Button>
           </CardContent>
         </Card>
       )}

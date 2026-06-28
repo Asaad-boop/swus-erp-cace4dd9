@@ -100,9 +100,9 @@ export function BdWalletsWidget() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold flex items-center gap-1.5">
-            <WalletIcon className="h-4 w-4 text-muted-foreground" /> BD Wallets · Today
+            <WalletIcon className="h-4 w-4 text-muted-foreground" /> Accounts &amp; Wallets · Today
           </h3>
-          <Link to="/erp/finance/wallets" className="text-xs text-primary hover:underline">View all →</Link>
+          <Link to="/erp/finance/accounts" className="text-xs text-primary hover:underline">View all →</Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {buckets.map((b) => {

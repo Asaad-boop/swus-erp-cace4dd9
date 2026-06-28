@@ -36,8 +36,7 @@ export const PAGE_CATALOG: PageEntry[] = [
   { group: "Supply Chain", path: "/erp/imports", label: "Imports" },
 
   { group: "Finance", path: "/erp/finance", label: "Overview" },
-  { group: "Finance", path: "/erp/finance/accounts", label: "Chart of Accounts" },
-  { group: "Finance", path: "/erp/finance/wallets", label: "Wallets" },
+  { group: "Finance", path: "/erp/finance/accounts", label: "Accounts & Wallets" },
   { group: "Finance", path: "/erp/finance/journal", label: "Journal" },
   { group: "Finance", path: "/erp/finance/receivables", label: "AR / AP" },
   { group: "Finance", path: "/erp/finance/budgets", label: "Budgets" },

@@ -267,7 +267,7 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
             <AccountCombo label={type === "expense" ? "Pay from" : type === "income" ? "Receive in" : "Account"} value={accountId} onChange={setAccountId} accounts={scopedAccounts} disabled={!effectiveBrandId} />
           )}
           {effectiveBrandId && scopedAccounts.length === 0 && (
-            <p className="text-xs text-muted-foreground -mt-2">No wallets in this brand yet. Add one in Wallets first.</p>
+            <p className="text-xs text-muted-foreground -mt-2">No account/wallet in this brand yet. Add one from Finance → Accounts first.</p>
           )}
 
           {/* Transfer preview */}
