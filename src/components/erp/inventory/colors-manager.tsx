@@ -155,12 +155,19 @@ export function ColorsManager({ productId, productSku, baseImage }: { productId:
     mutationFn: async (idx: number) => {
       const r = rows[idx];
       if (!r.id) { setRows((p) => p.filter((_, i) => i !== idx)); return; }
-      // Soft delete: deactivate
-      const { error } = await supabase
-        .from("product_variants")
-        .update({ is_active: false } as never)
-        .eq("id", r.id);
-      if (error) throw error;
+      // Try hard delete first; if blocked by FK (orders/stock history), soft-delete instead.
+      const del = await supabase.from("product_variants").delete().eq("id", r.id);
+      if (del.error) {
+        const msg = del.error.message?.toLowerCase() ?? "";
+        const isFk = msg.includes("foreign key") || msg.includes("violates") || del.error.code === "23503";
+        if (!isFk) throw del.error;
+        const { error: upErr } = await supabase
+          .from("product_variants")
+          .update({ is_active: false } as never)
+          .eq("id", r.id);
+        if (upErr) throw upErr;
+      }
+      setRows((p) => p.filter((_, i) => i !== idx));
     },
     onSuccess: () => {
       toast.success("Color removed");
