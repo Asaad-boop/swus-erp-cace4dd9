@@ -1,78 +1,62 @@
+## Goal
 
-## Recommendation: Hybrid CAPI (best of both)
+Product-er multiple color variant support — protita color-er nijoshto stock, jate inventory te color-wise stock dekha jay ar Purchase Order (local) ebong Imports (China PO) e color-wise quantity dewa jay.
 
-Website browser pixel theke PageView/ViewContent/AddToCart fire korbe (real-time, user behavior). **Purchase event ERP server theke CAPI te pathabe** — karon:
-- ERP e order confirmed/paid status authoritative (refund/return handle hoy)
-- Browser blocked (adblock, iOS) hole o Purchase event miss hobe na
-- `event_id` diye dedup — same event browser pixel o server CAPI duitai pathale Meta automatic merge kore
-- Result: ROAS data 30-40% beshi accurate
+## Approach
 
-## Scope (4 items confirmed)
+Existing `product_variants` table already ache (stock, reserved_stock, available_stock, weighted_avg_cost, sku) — eta-i color variant-er base hobe. Notun column add korbo `color_name` + `color_hex` + `image` (color-specific photo, optional). Tarpor product edit e ekta clean "Colors" section, inventory list e expandable color breakdown, ar PO/Import item rows e color picker.
 
-### 1. Per-brand Pixel + CAPI config
-**New page**: `/erp/settings/tracking` (brand-scoped)
-- Per brand (Hobbyshop / Toyora) alada row:
-  - Meta Pixel ID
-  - CAPI Access Token (secret, masked input)
-  - Test Event Code (optional, for debugging)
-  - Domain verification status
-  - Enable/Disable toggle per event type (PageView, ViewContent, AddToCart, InitiateCheckout, Purchase)
-- Save via `setBrandTrackingConfig` server fn → `app_settings` key `tracking:meta:{brand_id}`
-- Tokens stored in secrets (`META_CAPI_TOKEN_HOBBYSHOP`, `META_CAPI_TOKEN_TOYORA`)
+## Scope — what gets built
 
-### 2. Live status / health dashboard
-Top of same page:
-- Per brand KPI cards: Last event time, Events today, Match quality score, Error count (24h)
-- Pulled from new `meta_capi_log` table (server fn logs every send)
-- Color: green (<5min ago), amber (<1h), red (>1h or errors)
+### 1. Schema (migration)
+- `product_variants` table e add: `color_name text`, `color_hex text`, `image text`, `sort_order int default 0`
+- `local_po_items` e add: `variant_id uuid references product_variants(id)` (nullable, backward-compat)
+- `imp_po_items` e add: `variant_id uuid references product_variants(id)` (nullable)
+- `imp_carton_items` already variant aware kina check; na thakle `variant_id` add
+- Receive flow update: local PO + import receive stock movement variant_id sathe likhbe (already partial support thakle just wire korbo)
 
-### 3. UTM capture & attribution view
-- Web orders e already `attribution` jsonb ache — verify utm_source/medium/campaign/content/term + fbclid/fbc/fbp capture hocche kina
-- New tab in `/erp/marketing/attribution`: brand filter + UTM breakdown table (source/medium → orders, revenue, AOV)
-- Top campaigns by brand (last 7/30 days)
+### 2. Product Edit dialog — "Colors" tab
+- `src/components/erp/inventory/product-edit-dialog.tsx` e existing form sections-er pashe notun **Colors** section
+- Add color row: name (Red/Blue/...), color swatch picker (hex), optional photo upload, opening stock, low-stock threshold, SKU suffix auto
+- Delete (soft via is_active=false jodi stock movements thake), reorder via drag handle
+- Save: bulk upsert via server fn
 
-### 4. Test event sender + CAPI ping
-- "Send Test Event" button per brand → server fn `sendCapiTestEvent`
-- Fires `TestEvent` to Meta CAPI with current config + test_event_code
-- Shows response: ✅ events_received:1 or ❌ error message + invalid params
-- "Verify Pixel" button → opens Meta's Pixel Helper docs link with brand pixel id pre-filled
+### 3. Inventory list — color breakdown
+- `erp.inventory.tsx` row expandable: jodi product-er variants ache, color swatches + per-color stock chip dekhabe ("🔴 Red 12 • 🔵 Blue 5")
+- Filter: "has colors" toggle
+- Low-stock alert per variant
 
-## Server-side Purchase CAPI (the firing part)
+### 4. Local Purchase Order (new + edit)
+- `erp.purchase-orders.new.tsx` ItemDraft e `variants: { variant_id, qty }[]` add
+- Product pick korar por jodi colors thake → row expand hoye color rows dekhabe with qty input + swatch
+- Total qty = sum of color qty; cost x qty calc okay
+- Receive flow color-wise stock add korbe
 
-- New server fn `sendOrderPurchaseToCapi(orderId)` 
-- Auto-trigger: when order transitions to `paid`/`delivered` status (hook into existing `transition_order_status` flow via DB trigger calling pg_net, OR via existing order update mutation in ERP)
-- Payload includes: hashed email/phone, fbp/fbc from `attribution`, order value (BDT→USD via existing fx rate), event_id = order_id (for dedup with browser pixel)
-- Logs to `meta_capi_log` table for status dashboard
+### 5. Import (China) PO
+- `erp.imports.orders.new.tsx` item row e same color breakdown
+- Carton allocation: kon carton e kon color koto — optional, default flat distribute
+- Receive (carton-in) stock movement variant-aware
 
-## Database
+### 6. Reorder queue / low-stock
+- Variant-level low-stock surface korbe (just label "Product — Red")
 
-New tables:
-- `meta_tracking_config` (brand_id, pixel_id, capi_enabled, test_event_code, enabled_events jsonb, updated_at) — token in secrets
-- `meta_capi_log` (id, brand_id, event_name, event_id, status, response jsonb, error, created_at) + index on (brand_id, created_at DESC)
+## Out of scope (this round)
+- Size/material multi-axis variants (color-only ekhon)
+- Web storefront-side color picker UI (frontend public site)
+- Migrating historical movements to variants
 
-## Files to create/modify
+## Technical notes
+- Existing `recompute_reserved_stock` trigger variant_id already handle kore kina check kore tarpor migration
+- All grants + RLS existing patterns follow
+- Color hex validation: regex `^#[0-9a-fA-F]{6}$`
 
-**New:**
-- `supabase/migrations/*_meta_tracking.sql` (2 tables + RLS + GRANT)
-- `src/lib/erp/tracking/meta-capi.functions.ts` — `getBrandTrackingConfig`, `saveBrandTrackingConfig`, `sendCapiTestEvent`, `sendOrderPurchaseToCapi`, `getCapiStatus`, `getUtmBreakdown`
-- `src/lib/erp/tracking/meta-capi.server.ts` — actual fetch to `graph.facebook.com/v21.0/{pixel}/events`, SHA-256 hashing helpers
-- `src/routes/_authenticated/erp.settings.tracking.tsx` — main UI (config + status + test)
-- `src/components/erp/settings/tracking/` — brand-config-card, status-strip, test-event-button, utm-breakdown-table
+## Build order
+1. Migration (schema + grants)
+2. Server fns: `upsertProductColors`, update PO/import create+receive
+3. Product edit Colors UI
+4. Inventory list expand
+5. Local PO color allocation UI
+6. Imports PO color allocation UI
+7. Smoke test each flow
 
-**Modify:**
-- `src/components/erp/erp-sidebar.tsx` — Settings sub-link "Tracking & Pixels"
-- `src/routes/_authenticated/erp.marketing.attribution.tsx` — add brand filter + UTM breakdown tab
-- Order paid transition handler — call `sendOrderPurchaseToCapi` async
-
-## Secrets needed
-
-- `META_CAPI_TOKEN_HOBBYSHOP`
-- `META_CAPI_TOKEN_TOYORA`
-
-(User add korbe via add_secret tool when ready)
-
-## Out of scope (ask later if needed)
-
-- GA4 server-side / Measurement Protocol
-- TikTok Events API (separate phase)
-- Browser pixel snippet injection in Hobbyshop/Toyora websites (already there ba alada repo te — ekhane shudhu ERP side)
+Approve korle ami step-by-step build korbo, prottek major step-er por verify korbo.

@@ -564,6 +564,14 @@ function InventoryPage() {
                                     <Layers className="h-2.5 w-2.5" />{variants.length}
                                   </span>
                                 )}
+                                {variants.filter((v) => v.color_hex || v.color_name).slice(0, 6).map((v) => (
+                                  <span
+                                    key={v.id}
+                                    title={`${v.color_name ?? ""} · ${v.stock} in stock`}
+                                    className="h-3.5 w-3.5 rounded-full border border-border shadow-sm"
+                                    style={{ background: v.color_hex || "#e5e7eb" }}
+                                  />
+                                ))}
                                 {r.is_preorder && (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 text-[10px] font-medium">
                                     <Clock className="h-2.5 w-2.5" />Pre-order
@@ -682,7 +690,14 @@ function InventoryPage() {
                             <TableCell className="pl-12 text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="text-indigo-500">↳</span>
-                                <span className="font-medium">{v.sku ?? v.id.slice(0, 8)}</span>
+                                {(v.color_hex || v.color_name) && (
+                                  <span
+                                    className="h-4 w-4 rounded-full border border-border shadow-sm shrink-0"
+                                    style={{ background: v.color_hex || "#e5e7eb" }}
+                                    title={v.color_name ?? ""}
+                                  />
+                                )}
+                                <span className="font-medium">{v.color_name ?? v.sku ?? v.id.slice(0, 8)}</span>
                                 {!v.is_active && <Badge variant="outline" className="h-4 px-1 text-[10px]">inactive</Badge>}
                               </div>
                             </TableCell>

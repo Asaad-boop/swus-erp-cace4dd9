@@ -14,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createLocalPo, listLocalSuppliers } from "@/lib/erp/local-po/local-po.functions";
 import { fmtBdt } from "@/lib/erp/local-po/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Palette } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/purchase-orders/new")({
   head: () => ({ meta: [{ title: "New Purchase Order — ERP" }] }),
@@ -26,6 +30,9 @@ type ItemDraft = {
   description: string;
   ordered_qty: number;
   unit_cost: number;
+  // Per-color allocation: when product has variants, user assigns qty per color.
+  // When non-empty, `ordered_qty` becomes the sum and payload expands to N rows.
+  allocations?: Record<string, number>; // variant_id -> qty
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -102,6 +109,25 @@ function NewLocalPoPage() {
       if (items.some((i) => (!i.picked.title.trim() && !i.description.trim()) || i.ordered_qty <= 0)) {
         throw new Error("Each item needs a name & qty > 0");
       }
+      // Expand color allocations into one row per variant
+      const expandedItems = items.flatMap((it) => {
+        const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
+        if (allocs.length > 0) {
+          return allocs.map(([variant_id, qty]) => ({
+            product_id: it.picked.id ?? undefined,
+            variant_id,
+            description: it.description || it.picked.title,
+            ordered_qty: qty,
+            unit_cost: it.unit_cost,
+          }));
+        }
+        return [{
+          product_id: it.picked.id ?? undefined,
+          description: it.description || it.picked.title,
+          ordered_qty: it.ordered_qty,
+          unit_cost: it.unit_cost,
+        }];
+      });
       const payload = {
         brand_id: brandId,
         supplier_id: supplierId,
@@ -109,12 +135,7 @@ function NewLocalPoPage() {
         expected_date: expectedDate || undefined,
         discount, tax, shipping_cost: shipping,
         notes: notes || undefined,
-        items: items.map((it) => ({
-          product_id: it.picked.id ?? undefined,
-          description: it.description || it.picked.title,
-          ordered_qty: it.ordered_qty,
-          unit_cost: it.unit_cost,
-        })),
+        items: expandedItems,
       };
       return await createFn({ data: payload });
     },
@@ -215,11 +236,12 @@ function NewLocalPoPage() {
                   <div key={it.id} className="grid grid-cols-12 gap-2 items-end p-3 rounded-md border border-border bg-card/50">
                     <div className="col-span-12 md:col-span-5">
                       <Label className="text-xs">Product</Label>
-                      <ProductPicker brandId={brandId} value={it.picked} onChange={(p) => updItem(it.id, { picked: p, description: p.title })} />
+                      <ProductPicker brandId={brandId} value={it.picked} onChange={(p) => updItem(it.id, { picked: p, description: p.title, allocations: undefined })} />
                     </div>
                     <div className="col-span-4 md:col-span-2">
                       <Label className="text-xs">Qty</Label>
                       <Input type="number" min={1} value={it.ordered_qty}
+                        disabled={!!it.allocations}
                         onChange={(e) => updItem(it.id, { ordered_qty: Math.max(1, Number(e.target.value) || 1) })} />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -236,6 +258,21 @@ function NewLocalPoPage() {
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
+                    {it.picked.id && (
+                      <div className="col-span-12">
+                        <ColorAllocator
+                          productId={it.picked.id}
+                          allocations={it.allocations}
+                          onChange={(allocs) => {
+                            const total = Object.values(allocs).reduce((s, n) => s + n, 0);
+                            updItem(it.id, {
+                              allocations: Object.keys(allocs).length ? allocs : undefined,
+                              ordered_qty: total > 0 ? total : it.ordered_qty,
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -275,6 +312,81 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums font-medium">{value}</span>
+    </div>
+  );
+}
+
+/* ----------- ColorAllocator ----------- */
+
+function ColorAllocator({
+  productId, allocations, onChange,
+}: {
+  productId: string;
+  allocations?: Record<string, number>;
+  onChange: (a: Record<string, number>) => void;
+}) {
+  const { data: variants = [], isLoading } = useQuery({
+    queryKey: ["product-variants-active", productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id,color_name,color_hex,image,stock,available_stock")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) throw error;
+      return (data ?? []).filter((v: any) => v.color_name);
+    },
+  });
+
+  if (isLoading || variants.length === 0) return null;
+
+  const set = (vid: string, qty: number) => {
+    const next = { ...(allocations ?? {}) };
+    if (qty > 0) next[vid] = qty;
+    else delete next[vid];
+    onChange(next);
+  };
+
+  const totalAlloc = Object.values(allocations ?? {}).reduce((s, n) => s + n, 0);
+
+  return (
+    <div className="mt-1 rounded-lg border border-dashed border-border bg-muted/20 p-2.5 space-y-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+          <Palette className="h-3.5 w-3.5" />
+          Allocate by color
+        </span>
+        {totalAlloc > 0 && <Badge variant="secondary" className="tabular-nums">Total: {totalAlloc}</Badge>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {variants.map((v: any) => {
+          const cur = allocations?.[v.id] ?? 0;
+          return (
+            <div
+              key={v.id}
+              className={cn(
+                "flex items-center gap-2 rounded-md border bg-card/70 p-1.5 transition",
+                cur > 0 && "ring-1 ring-primary/50 border-primary/40",
+              )}
+            >
+              <div className="h-8 w-8 rounded shrink-0 border" style={{ background: v.color_hex || "#e5e7eb" }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">{v.color_name}</div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">In stock: {v.stock ?? 0}</div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                value={cur || ""}
+                placeholder="0"
+                onChange={(e) => set(v.id, Math.max(0, Number(e.target.value) || 0))}
+                className="h-7 w-14 text-xs text-center tabular-nums"
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export function useInventoryQuery(filter: InventoryFilter) {
       let q = supabase
         .from("products")
         .select(
-          "id,title,slug,image,video_url,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,reorder_qty,reserved_stock,available_stock,weighted_avg_cost,is_preorder,preorder_expected_date,product_variants(id,product_id,sku,stock,reserved_stock,available_stock,reorder_point,weighted_avg_cost,is_active)",
+          "id,title,slug,image,video_url,price,stock,low_stock_threshold,is_active,brand_id,category_id,updated_at,cost_price,sku,barcode,reorder_point,reorder_qty,reserved_stock,available_stock,weighted_avg_cost,is_preorder,preorder_expected_date,product_variants(id,product_id,sku,stock,reserved_stock,available_stock,reorder_point,weighted_avg_cost,is_active,color_name,color_hex,image,display_order)",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false });
@@ -49,6 +49,10 @@ export function useInventoryQuery(filter: InventoryFilter) {
           reorder_point: Number(v.reorder_point ?? 0),
           weighted_avg_cost: Number(v.weighted_avg_cost ?? 0),
           is_active: (v.is_active as boolean | null) ?? true,
+          color_name: (v.color_name as string | null) ?? null,
+          color_hex: (v.color_hex as string | null) ?? null,
+          image: (v.image as string | null) ?? null,
+          display_order: Number(v.display_order ?? 0),
         }));
         const variant_skus = variants.map((v) => v.sku).filter((s): s is string => !!s);
         const { product_variants: _pv, ...rest } = d;

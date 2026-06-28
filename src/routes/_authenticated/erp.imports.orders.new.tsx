@@ -23,6 +23,8 @@ import {
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt, newIdemKey } from "@/lib/erp/imports/types";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
+import { supabase } from "@/integrations/supabase/client";
+import { Palette } from "lucide-react";
 import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 
 export const Route = createFileRoute("/_authenticated/erp/imports/orders/new")({
@@ -35,6 +37,7 @@ type ItemDraft = {
   picked: PickedProduct;
   quantity: number;
   unit_cost_foreign: number;
+  allocations?: Record<string, number>; // variant_id -> qty
 };
 
 type CartonDraft = {
@@ -157,22 +160,72 @@ function NewPoPage() {
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
 
-      const itemList = items.map((it) => ({
-        product_id: it.picked.id ?? undefined,
-        name_snapshot: it.picked.title.trim(),
-        sku_snapshot: it.picked.sku ?? undefined,
-        image_snapshot: it.picked.image ?? undefined,
-        quantity: it.quantity,
-        unit_cost_foreign: it.unit_cost_foreign,
-      }));
+      // Expand color allocations into per-variant items.
+      // Track parent draft -> expanded index range so cartons can map proportionally.
+      const itemList: any[] = [];
+      const expansionMap: Array<{ draftId: string; indexes: number[]; weights: number[]; totalQty: number }> = [];
+      items.forEach((it) => {
+        const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
+        const startIdx = itemList.length;
+        if (allocs.length > 0) {
+          const weights: number[] = [];
+          allocs.forEach(([variant_id, qty]) => {
+            itemList.push({
+              product_id: it.picked.id ?? undefined,
+              variant_id,
+              name_snapshot: it.picked.title.trim(),
+              sku_snapshot: it.picked.sku ?? undefined,
+              image_snapshot: it.picked.image ?? undefined,
+              quantity: qty,
+              unit_cost_foreign: it.unit_cost_foreign,
+            });
+            weights.push(qty);
+          });
+          expansionMap.push({
+            draftId: it.id,
+            indexes: weights.map((_, i) => startIdx + i),
+            weights,
+            totalQty: weights.reduce((s, n) => s + n, 0),
+          });
+        } else {
+          itemList.push({
+            product_id: it.picked.id ?? undefined,
+            name_snapshot: it.picked.title.trim(),
+            sku_snapshot: it.picked.sku ?? undefined,
+            image_snapshot: it.picked.image ?? undefined,
+            quantity: it.quantity,
+            unit_cost_foreign: it.unit_cost_foreign,
+          });
+          expansionMap.push({ draftId: it.id, indexes: [startIdx], weights: [it.quantity], totalQty: it.quantity });
+        }
+      });
 
-      const cartonList = cartons.map((c) => ({
-        carton_number: c.carton_number,
-        weight_kg: c.weight_kg || 0,
-        allocations: items
-          .map((it, idx) => ({ item_index: idx, quantity: c.allocations[it.id] ?? 0 }))
-          .filter((a) => a.quantity > 0),
-      }));
+      const cartonList = cartons.map((c) => {
+        const allocs: { item_index: number; quantity: number }[] = [];
+        for (const exp of expansionMap) {
+          const total = c.allocations[exp.draftId] ?? 0;
+          if (total <= 0) continue;
+          if (exp.indexes.length === 1) {
+            allocs.push({ item_index: exp.indexes[0], quantity: total });
+          } else {
+            // Proportional split with remainder going to first
+            let assigned = 0;
+            exp.indexes.forEach((idx, i) => {
+              const isLast = i === exp.indexes.length - 1;
+              const share = isLast
+                ? total - assigned
+                : Math.floor((total * exp.weights[i]) / exp.totalQty);
+              if (share > 0) allocs.push({ item_index: idx, quantity: share });
+              assigned += share;
+            });
+          }
+        }
+        return {
+          carton_number: c.carton_number,
+          weight_kg: c.weight_kg || 0,
+          allocations: allocs,
+        };
+      });
 
       const payload: any = {
         brand_id: brandId,
@@ -400,6 +453,7 @@ function NewPoPage() {
                           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                           <Input
                             type="number" min={1} value={it.quantity}
+                            disabled={!!it.allocations}
                             onChange={(e) => updItem(it.id, { quantity: Math.max(1, Number(e.target.value) || 1) })}
                             className="h-9 text-center font-semibold tabular-nums"
                           />
@@ -441,6 +495,21 @@ function NewPoPage() {
                         </Button>
                       </div>
                     </div>
+                    {it.picked.id && (
+                      <div className="px-3 pb-3">
+                        <ImportColorAllocator
+                          productId={it.picked.id}
+                          allocations={it.allocations}
+                          onChange={(allocs) => {
+                            const total = Object.values(allocs).reduce((s, n) => s + n, 0);
+                            updItem(it.id, {
+                              allocations: Object.keys(allocs).length ? allocs : undefined,
+                              quantity: total > 0 ? total : it.quantity,
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -643,6 +712,79 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
     <div className="flex items-center gap-2">
       <Icon className="h-4 w-4 text-primary" />
       <h3 className="font-semibold">{title}</h3>
+    </div>
+  );
+}
+
+function ImportColorAllocator({
+  productId, allocations, onChange,
+}: {
+  productId: string;
+  allocations?: Record<string, number>;
+  onChange: (a: Record<string, number>) => void;
+}) {
+  const { data: variants = [], isLoading } = useQuery({
+    queryKey: ["product-variants-active", productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id,color_name,color_hex,image,stock")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) throw error;
+      return ((data ?? []) as any[]).filter((v) => v.color_name);
+    },
+  });
+
+  if (isLoading || variants.length === 0) return null;
+
+  const set = (vid: string, qty: number) => {
+    const next: Record<string, number> = { ...(allocations ?? {}) };
+    if (qty > 0) next[vid] = qty;
+    else delete next[vid];
+    onChange(next);
+  };
+
+  const totalAlloc = Object.values(allocations ?? {}).reduce((s: number, n: number) => s + n, 0);
+
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-2.5 space-y-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+          <Palette className="h-3.5 w-3.5" />
+          Allocate by color
+        </span>
+        {totalAlloc > 0 && <Badge variant="secondary" className="tabular-nums">Total: {totalAlloc}</Badge>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {variants.map((v: any) => {
+          const cur = allocations?.[v.id] ?? 0;
+          return (
+            <div
+              key={v.id}
+              className={cn(
+                "flex items-center gap-2 rounded-md border bg-card/70 p-1.5 transition",
+                cur > 0 && "ring-1 ring-primary/50 border-primary/40",
+              )}
+            >
+              <div className="h-8 w-8 rounded shrink-0 border" style={{ background: v.color_hex || "#e5e7eb" }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">{v.color_name}</div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">Stock: {v.stock ?? 0}</div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                value={cur || ""}
+                placeholder="0"
+                onChange={(e) => set(v.id, Math.max(0, Number(e.target.value) || 0))}
+                className="h-7 w-14 text-xs text-center tabular-nums"
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

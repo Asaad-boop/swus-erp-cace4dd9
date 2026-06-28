@@ -37,6 +37,10 @@ export type VariantRow = {
   weighted_avg_cost: number;
   is_active: boolean;
   label?: string | null;
+  color_name?: string | null;
+  color_hex?: string | null;
+  image?: string | null;
+  display_order?: number;
 };
 
 export type StockMovementRow = {
