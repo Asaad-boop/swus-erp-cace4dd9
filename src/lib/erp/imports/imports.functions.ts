@@ -990,8 +990,12 @@ export const listCargoAgents = createServerFn({ method: "POST" })
       .select("id, brand_id, name, contact_person, phone, address, notes, is_active, created_at, brand:brand_id ( id, name, slug )")
       .order("is_active", { ascending: false })
       .order("name");
-    if (data.brandIds && data.brandIds.length > 0) q = q.in("brand_id", data.brandIds);
-    else if (data.brandId) q = q.eq("brand_id", data.brandId);
+    if (data.brandIds && data.brandIds.length > 0) {
+      const inList = data.brandIds.map((id) => `brand_id.eq.${id}`).join(",");
+      q = q.or(`${inList},brand_id.is.null`);
+    } else if (data.brandId) {
+      q = q.or(`brand_id.eq.${data.brandId},brand_id.is.null`);
+    }
     if (data.activeOnly) q = q.eq("is_active", true);
     const { data: rows, error } = await q;
     if (error) throw error;
@@ -1002,7 +1006,7 @@ export const upsertCargoAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: {
     id?: string;
-    brandId: string;
+    brandId: string | null;
     name: string;
     contact_person?: string;
     phone?: string;
@@ -1012,7 +1016,7 @@ export const upsertCargoAgent = createServerFn({ method: "POST" })
   }) =>
     z.object({
       id: z.string().uuid().optional(),
-      brandId: z.string().uuid(),
+      brandId: z.string().uuid().nullable(),
       name: z.string().min(1).max(160),
       contact_person: z.string().optional(),
       phone: z.string().optional(),
