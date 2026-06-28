@@ -401,6 +401,73 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
               {/* SHIPPING */}
               <TabsContent value="shipping" className="mt-0 space-y-4">
+              </TabsContent>
+              <TabsContent value="colors" className="mt-0 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Add color variants — protita color e separate stock track hobe. Khali rakhle single product (no colors).
+                  </p>
+                  <Button type="button" size="sm" variant="outline" onClick={() => {
+                    const n = f.colors.length + 1;
+                    const suffix = (f.sku ? f.sku + "-" : "") + `C${String(n).padStart(2, "0")}`;
+                    set("colors", [...f.colors, {
+                      color_name: "", color_hex: SWATCHES[(n - 1) % SWATCHES.length],
+                      sku: suffix, image: "", opening_stock: 0, reorder_point: 0,
+                    }]);
+                  }} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />Add color
+                  </Button>
+                </div>
+                {f.colors.length === 0 && (
+                  <div className="rounded-xl border-2 border-dashed py-8 grid place-items-center text-muted-foreground">
+                    <Palette className="h-7 w-7 mb-2" />
+                    <div className="text-sm font-medium">No colors</div>
+                    <div className="text-[11px] mt-0.5">Add color hole opening stock e color-wise distribute hobe</div>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {f.colors.map((c, i) => (
+                    <div key={i} className="rounded-xl border bg-card/40 p-3 space-y-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="color"
+                          value={c.color_hex || "#000000"}
+                          onChange={(e) => set("colors", f.colors.map((x, idx) => idx === i ? { ...x, color_hex: e.target.value } : x))}
+                          className="h-9 w-9 rounded-lg border-2 cursor-pointer bg-transparent shrink-0"
+                        />
+                        <Input
+                          value={c.color_name}
+                          onChange={(e) => set("colors", f.colors.map((x, idx) => idx === i ? { ...x, color_name: e.target.value } : x))}
+                          placeholder="Color name (e.g. Red)"
+                          className="font-medium"
+                        />
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0"
+                          onClick={() => set("colors", f.colors.filter((_, idx) => idx !== i))}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pl-11">
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">SKU</Label>
+                          <Input value={c.sku} className="h-8 text-xs"
+                            onChange={(e) => set("colors", f.colors.map((x, idx) => idx === i ? { ...x, sku: e.target.value } : x))} />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Opening stock</Label>
+                          <Input type="number" min={0} value={c.opening_stock} className="h-8 text-xs"
+                            onChange={(e) => set("colors", f.colors.map((x, idx) => idx === i ? { ...x, opening_stock: Math.max(0, Number(e.target.value) || 0) } : x))} />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Low stock at</Label>
+                          <Input type="number" min={0} value={c.reorder_point} className="h-8 text-xs"
+                            onChange={(e) => set("colors", f.colors.map((x, idx) => idx === i ? { ...x, reorder_point: Math.max(0, Number(e.target.value) || 0) } : x))} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="shipping-dup" className="hidden">
                 <p className="text-xs text-muted-foreground">Override default shipping rates for this product. Leave blank to use brand defaults.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Inside Dhaka (BDT)" icon={<Truck className="h-3.5 w-3.5" />}>
