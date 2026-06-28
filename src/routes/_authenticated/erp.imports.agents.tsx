@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Truck, ChevronDown, ChevronRight } from "lucide-react";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,21 +16,23 @@ export const Route = createFileRoute("/_authenticated/erp/imports/agents")({
 });
 
 function CargoAgentsDashboard() {
-  const { brandId, picker } = useBrandPicker();
+  const { brandIds, isAllBrands, activeBrand } = useBrand();
   const dashFn = useServerFn(getCargoAgentDashboard);
   const { data = [], isLoading } = useQuery({
-    queryKey: ["imp-cargo-dashboard", brandId],
-    queryFn: () => dashFn({ data: { brandId } }),
-    enabled: !!brandId,
+    queryKey: ["imp-cargo-dashboard", brandIds.join(",")],
+    queryFn: () => dashFn({ data: { brandIds } }),
+    enabled: brandIds.length > 0,
   });
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex items-center gap-2">
         <Truck className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold">Cargo Agents Dashboard</h2>
+        <span className="ml-2 text-xs text-muted-foreground">
+          {isAllBrands ? "All brands" : activeBrand?.name}
+        </span>
       </div>
 
       {isLoading && <Card className="p-8 text-sm text-muted-foreground text-center">Loading…</Card>}
