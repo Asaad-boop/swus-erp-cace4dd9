@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
 
-export const Route = createFileRoute("/_authenticated/erp/finance/accounts")({
+export const Route = createFileRoute("/_authenticated/erp/finance/chart-accounts")({
   head: () => ({ meta: [{ title: "Chart of Accounts — ERP" }] }),
   component: AccountsPage,
 });
