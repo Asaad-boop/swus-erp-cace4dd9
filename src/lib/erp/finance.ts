@@ -10,6 +10,8 @@ export type Account = {
   current_balance: number;
   is_active: boolean;
   notes: string | null;
+  wallet_type?: string;
+  account_subtype?: string | null;
 };
 
 export type Category = {

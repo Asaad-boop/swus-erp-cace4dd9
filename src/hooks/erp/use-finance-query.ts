@@ -13,7 +13,7 @@ export function useAccounts(brandIds: string[]) {
       const { data, error } = await applyBrandScope(
         supabase
           .from("erp_accounts")
-          .select("id,brand_id,name,account_type,account_number,opening_balance,current_balance,is_active,notes"),
+          .select("id,brand_id,name,account_type,account_subtype,wallet_type,account_number,opening_balance,current_balance,is_active,notes"),
         brandIds,
         "brand_id",
         { includeNull: true },

@@ -31,6 +31,15 @@ function subtypeOf(w: Wallet): string {
   return (w.account_subtype ?? w.account_type ?? "").toLowerCase();
 }
 
+function bucketKeyFor(w: Wallet): string | null {
+  const sub = subtypeOf(w);
+  if (["cash", "petty_cash"].includes(sub)) return "cash";
+  if (["bkash"].includes(sub)) return "bkash";
+  if (["nagad", "rocket", "upay"].includes(sub)) return "nagad";
+  if (["bank", "bank_savings", "bank_current"].includes(sub)) return "bank";
+  return null;
+}
+
 export function BdWalletsWidget() {
   const { brandIds } = useBrand();
   const today = new Date().toISOString().slice(0, 10);
@@ -69,11 +78,11 @@ export function BdWalletsWidget() {
     const walletBucket = new Map<string, string>();
     for (const w of wallets) {
       const sub = subtypeOf(w);
-      const bucket = BUCKETS.find((b) => b.subtypes.includes(sub));
-      if (bucket) walletBucket.set(w.id, bucket.key);
+      const bucket = bucketKeyFor(w);
+      if (bucket) walletBucket.set(w.id, bucket);
     }
     return BUCKETS.map((b) => {
-      const wallets_ = wallets.filter((w) => b.subtypes.includes(subtypeOf(w)) || (b.key === "bank" && ["bank_savings", "bank_current"].includes(subtypeOf(w))) || (b.key === "cash" && subtypeOf(w) === "petty_cash"));
+      const wallets_ = wallets.filter((w) => bucketKeyFor(w) === b.key);
       const balance = wallets_.reduce((s, w) => s + Number(w.current_balance || 0), 0);
       let inflow = 0, outflow = 0;
       for (const t of txns) {

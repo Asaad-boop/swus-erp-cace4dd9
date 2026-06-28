@@ -12,6 +12,16 @@ import { ACCOUNT_TYPE_CATALOG, ACCOUNT_GROUP_META, type Account, type AccountTyp
 import type { Brand } from "@/contexts/brand-context";
 import { cn } from "@/lib/utils";
 
+function walletTypeFor(accountType: string) {
+  if (["cash", "petty_cash"].includes(accountType)) return "cash";
+  if (["bank", "bank_savings", "bank_current"].includes(accountType)) return "bank";
+  if (["bkash", "nagad", "rocket", "upay"].includes(accountType)) return "mfs";
+  if (accountType === "courier_wallet") return "courier_wallet";
+  if (["loan", "credit_card"].includes(accountType)) return "loan";
+  if (accountType === "equity") return "equity";
+  return "other";
+}
+
 export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { open: boolean; onClose: () => void; brandId: string | null; editing?: Account | null; brands?: Brand[] }) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
@@ -31,7 +41,7 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
     if (open) {
       if (editing) {
         setName(editing.name ?? "");
-        setType(editing.account_type ?? "cash");
+        setType(editing.account_subtype ?? editing.account_type ?? "cash");
         setNumber(editing.account_number ?? "");
         setOpening(String(editing.opening_balance ?? 0));
         setNotes(editing.notes ?? "");
@@ -51,9 +61,12 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
     mutationFn: async () => {
       if (!name.trim()) throw new Error("Name required");
       const ob = Number(opening) || 0;
+      const walletType = walletTypeFor(type);
       if (editing) {
         const { error } = await supabase.from("erp_accounts").update({
           name: name.trim(), account_type: type,
+          account_subtype: type,
+          wallet_type: walletType,
           account_number: number || null,
           opening_balance: ob,
           notes: notes || null,
@@ -64,6 +77,8 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
           brand_id: null,
           name: name.trim(),
           account_type: type,
+          account_subtype: type,
+          wallet_type: walletType,
           account_number: number || null,
           opening_balance: ob,
           current_balance: ob,
@@ -75,6 +90,7 @@ export function AccountForm({ open, onClose, brandId, editing, brands = [] }: { 
         if (!effectiveBrandId) throw new Error("Select a brand");
         const { error } = await supabase.from("erp_accounts").insert({
           brand_id: effectiveBrandId, name: name.trim(), account_type: type,
+          account_subtype: type, wallet_type: walletType,
           account_number: number || null,
           opening_balance: ob, current_balance: ob,
           notes: notes || null, is_active: true,

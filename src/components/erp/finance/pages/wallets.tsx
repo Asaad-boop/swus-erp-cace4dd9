@@ -25,6 +25,17 @@ function subtypeStyle(w: Wallet): { ring?: string; bg?: string; accent?: string 
   return {};
 }
 
+function walletGroup(w: Wallet) {
+  const sub = (w.account_subtype ?? w.account_type ?? "").toLowerCase();
+  if (["cash", "petty_cash"].includes(sub)) return "cash";
+  if (["bank", "bank_savings", "bank_current"].includes(sub)) return "bank";
+  if (["bkash", "nagad", "rocket", "upay"].includes(sub)) return "mfs";
+  if (sub === "courier_wallet") return "courier_wallet";
+  if (["loan", "credit_card"].includes(sub)) return "loan";
+  if (sub === "equity") return "equity";
+  return w.wallet_type || "other";
+}
+
 const GROUPS: Array<{ key: string; label: string; icon: typeof WalletIcon; color: string }> = [
   { key: "cash",           label: "Cash in Hand",   icon: Coins,      color: "text-emerald-600" },
   { key: "bank",           label: "Bank Accounts",  icon: Landmark,   color: "text-blue-600" },
@@ -104,7 +115,7 @@ export function WalletsPage() {
     const t: Record<string, number> = {};
     let liquid = 0;
     for (const w of wallets) {
-      const k = w.wallet_type || "other";
+      const k = walletGroup(w);
       t[k] = (t[k] ?? 0) + Number(w.current_balance || 0);
       if (["cash", "bank", "mfs"].includes(k)) liquid += Number(w.current_balance || 0);
     }
@@ -113,7 +124,7 @@ export function WalletsPage() {
 
   const netWorth = wallets.reduce((s, w) => {
     const v = Number(w.current_balance || 0);
-    return s + (w.wallet_type === "loan" ? -v : v);
+    return s + (walletGroup(w) === "loan" ? -v : v);
   }, 0);
 
   return (
@@ -150,7 +161,7 @@ export function WalletsPage() {
       )}
 
       {GROUPS.map((g) => {
-        const items = wallets.filter((w) => (w.wallet_type || "other") === g.key);
+        const items = wallets.filter((w) => walletGroup(w) === g.key);
         if (items.length === 0) return null;
         const Icon = g.icon;
         const subtotal = totals.byType[g.key] ?? 0;
