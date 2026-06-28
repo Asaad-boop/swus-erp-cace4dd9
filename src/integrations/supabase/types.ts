@@ -7546,6 +7546,7 @@ export type Database = {
       }
       products: {
         Row: {
+          age_group: string | null
           available_stock: number | null
           barcode: string | null
           benefits: Json
@@ -7585,6 +7586,7 @@ export type Database = {
           weighted_avg_cost: number
         }
         Insert: {
+          age_group?: string | null
           available_stock?: number | null
           barcode?: string | null
           benefits?: Json
@@ -7624,6 +7626,7 @@ export type Database = {
           weighted_avg_cost?: number
         }
         Update: {
+          age_group?: string | null
           available_stock?: number | null
           barcode?: string | null
           benefits?: Json
