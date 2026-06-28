@@ -22,6 +22,7 @@ type Props = {
   accounts: Account[];
   categories: Category[];
   defaultType?: TxnType;
+  defaultAccountId?: string | null;
   // When brandId is null and brands.length > 1, dialog shows a Brand picker.
   brands?: Brand[];
 };
@@ -45,7 +46,7 @@ function accountIcon(t: string) {
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function yesterdayIso() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
 
-export function TransactionForm({ open, onClose, brandId, accounts, categories, defaultType = "income", brands = [] }: Props) {
+export function TransactionForm({ open, onClose, brandId, accounts, categories, defaultType = "income", defaultAccountId = null, brands = [] }: Props) {
   const qc = useQueryClient();
   const [type, setType] = useState<TxnType>(defaultType);
   const [amount, setAmount] = useState("");
@@ -81,7 +82,12 @@ export function TransactionForm({ open, onClose, brandId, accounts, categories, 
   }, [effectiveBrandId]);
 
   // When dialog opens, reset type to caller's default
-  useEffect(() => { if (open) setType(defaultType); }, [open, defaultType]);
+  useEffect(() => {
+    if (open) {
+      setType(defaultType);
+      if (defaultAccountId) setAccountId(defaultAccountId);
+    }
+  }, [open, defaultType, defaultAccountId]);
 
   const reset = () => {
     setAmount(""); setAccountId(""); setToAccountId(""); setCategoryId("");
