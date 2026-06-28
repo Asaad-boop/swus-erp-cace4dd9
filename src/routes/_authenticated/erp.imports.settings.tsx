@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   listImportSuppliers, upsertImportSupplier,
   listCargoAgents, upsertCargoAgent,
+  deleteCargoAgent,
 } from "@/lib/erp/imports/imports.functions";
 import { fmtBdt } from "@/lib/erp/imports/types";
 
@@ -162,6 +163,7 @@ function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listCargoAgents);
   const upsertFn = useServerFn(upsertCargoAgent);
+  const deleteFn = useServerFn(deleteCargoAgent);
   const brandKey = brandIds.join(",");
   const { data: agents = [] } = useQuery({
     queryKey: ["imp-cargo-agents", brandKey],
@@ -208,6 +210,30 @@ function CargoAgentsSection({ brandIds }: { brandIds: string[] }) {
                 }}
               >
                 {a.is_active ? "Deactivate" : "Activate"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={async () => {
+                  if (!confirm(`Delete cargo agent "${a.name}"?`)) return;
+                  try {
+                    await deleteFn({ data: { id: a.id } });
+                    qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
+                    toast.success("Deleted");
+                  } catch (e: any) {
+                    const msg = e?.message ?? "Failed";
+                    if (msg.includes("Cannot delete") && confirm(`${msg}\n\nForce delete (detach from POs)?`)) {
+                      try {
+                        await deleteFn({ data: { id: a.id, force: true } });
+                        qc.invalidateQueries({ queryKey: ["imp-cargo-agents", brandKey] });
+                        toast.success("Force deleted");
+                      } catch (e2: any) { toast.error(e2?.message ?? "Failed"); }
+                    } else toast.error(msg);
+                  }
+                }}
+              >
+                Delete
               </Button>
             </div>
           </Card>
