@@ -7488,6 +7488,8 @@ export type Database = {
       product_variants: {
         Row: {
           available_stock: number | null
+          color_hex: string | null
+          color_name: string | null
           created_at: string
           display_order: number
           id: string
@@ -7504,6 +7506,8 @@ export type Database = {
         }
         Insert: {
           available_stock?: number | null
+          color_hex?: string | null
+          color_name?: string | null
           created_at?: string
           display_order?: number
           id?: string
@@ -7520,6 +7524,8 @@ export type Database = {
         }
         Update: {
           available_stock?: number | null
+          color_hex?: string | null
+          color_name?: string | null
           created_at?: string
           display_order?: number
           id?: string
