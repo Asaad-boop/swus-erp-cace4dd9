@@ -564,6 +564,14 @@ function InventoryPage() {
                                     <Layers className="h-2.5 w-2.5" />{variants.length}
                                   </span>
                                 )}
+                                {variants.filter((v) => v.color_hex || v.color_name).slice(0, 6).map((v) => (
+                                  <span
+                                    key={v.id}
+                                    title={`${v.color_name ?? ""} · ${v.stock} in stock`}
+                                    className="h-3.5 w-3.5 rounded-full border border-border shadow-sm"
+                                    style={{ background: v.color_hex || "#e5e7eb" }}
+                                  />
+                                ))}
                                 {r.is_preorder && (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 text-[10px] font-medium">
                                     <Clock className="h-2.5 w-2.5" />Pre-order
