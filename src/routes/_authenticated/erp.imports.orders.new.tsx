@@ -715,3 +715,76 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
     </div>
   );
 }
+
+function ImportColorAllocator({
+  productId, allocations, onChange,
+}: {
+  productId: string;
+  allocations?: Record<string, number>;
+  onChange: (a: Record<string, number>) => void;
+}) {
+  const { data: variants = [], isLoading } = useQuery({
+    queryKey: ["product-variants-active", productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id,color_name,color_hex,image,stock")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) throw error;
+      return ((data ?? []) as any[]).filter((v) => v.color_name);
+    },
+  });
+
+  if (isLoading || variants.length === 0) return null;
+
+  const set = (vid: string, qty: number) => {
+    const next: Record<string, number> = { ...(allocations ?? {}) };
+    if (qty > 0) next[vid] = qty;
+    else delete next[vid];
+    onChange(next);
+  };
+
+  const totalAlloc = Object.values(allocations ?? {}).reduce((s: number, n: number) => s + n, 0);
+
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-2.5 space-y-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+          <Palette className="h-3.5 w-3.5" />
+          Allocate by color
+        </span>
+        {totalAlloc > 0 && <Badge variant="secondary" className="tabular-nums">Total: {totalAlloc}</Badge>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {variants.map((v: any) => {
+          const cur = allocations?.[v.id] ?? 0;
+          return (
+            <div
+              key={v.id}
+              className={cn(
+                "flex items-center gap-2 rounded-md border bg-card/70 p-1.5 transition",
+                cur > 0 && "ring-1 ring-primary/50 border-primary/40",
+              )}
+            >
+              <div className="h-8 w-8 rounded shrink-0 border" style={{ background: v.color_hex || "#e5e7eb" }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">{v.color_name}</div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">Stock: {v.stock ?? 0}</div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                value={cur || ""}
+                placeholder="0"
+                onChange={(e) => set(v.id, Math.max(0, Number(e.target.value) || 0))}
+                className="h-7 w-14 text-xs text-center tabular-nums"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
