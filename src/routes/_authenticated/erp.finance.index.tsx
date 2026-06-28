@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Wallet, Package, TrendingUp, TrendingDown, Banknote, Smartphone, Truck, Users,
   Receipt, AlertTriangle, FileText, ArrowRight, RotateCcw, Calendar, Building2,
-  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Landmark, Plus, ArrowRightLeft,
+  PiggyBank, Activity, ArrowDownRight, ArrowUpRight, Landmark, Plus, ArrowRightLeft, BookOpen,
 } from "lucide-react";
 import {
   AreaChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
