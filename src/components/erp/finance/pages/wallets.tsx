@@ -174,7 +174,7 @@ export function WalletsPage() {
                       <Icon className={cn("h-4 w-4 shrink-0", style.accent ?? g.color)} />
                     </div>
                     {isAllBrands && (
-                      <p className="text-[11px] text-muted-foreground truncate">{brandMap.get(w.brand_id) ?? "—"}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{w.brand_id ? (brandMap.get(w.brand_id) ?? "—") : "🌐 Shared (all brands)"}</p>
                     )}
                     {w.account_number && (
                       <p className="text-[11px] text-muted-foreground font-mono truncate">{w.account_number}</p>
