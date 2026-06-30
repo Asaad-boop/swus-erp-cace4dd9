@@ -325,7 +325,9 @@ function PoDetailPage() {
               poItems={items}
               brandId={brandId}
               poDue={Number(po.due_bdt)}
-              poPaid={Number(po.paid_bdt ?? 0)}
+              poPaid={payments
+                .filter((p: any) => !p.is_reversed && ["supplier_advance", "supplier_payment", "supplier_balance"].includes(p.payment_type))
+                .reduce((s: number, p: any) => s + Number(p.amount_bdt || 0), 0)}
               poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
             />
