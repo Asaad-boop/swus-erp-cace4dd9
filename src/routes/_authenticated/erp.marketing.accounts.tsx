@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +131,11 @@ function statusPill(status: string) {
 
 function AdAccountsPage() {
   const qc = useQueryClient();
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brands, brandIds } = useBrand();
+  const brandNameMap = useMemo(
+    () => new Map(brands.map((b) => [b.id, b.name])),
+    [brands],
+  );
 
   const listFn = useServerFn(listConnectedAdAccounts);
   const toggleFn = useServerFn(toggleAdAccountStatus);
@@ -141,12 +145,10 @@ function AdAccountsPage() {
   const syncInsightsFn = useServerFn(syncAdAccountInsights);
   const repostFn = useServerFn(repostMetaSpendToFinance);
 
-  const walletsQ = useBrandWallets(brandId);
-
   const q = useQuery({
-    queryKey: ["mkt", "accounts", brandId],
-    queryFn: () => listFn({ data: { brandId: brandId! } }),
-    enabled: !!brandId,
+    queryKey: ["mkt", "accounts", brandIds.join(",")],
+    queryFn: () => listFn({ data: { brandIds } }),
+    enabled: brandIds.length > 0,
   });
 
   const [editorOpen, setEditorOpen] = useState(false);
@@ -158,7 +160,7 @@ function AdAccountsPage() {
     mutationFn: (v: { id: string; active: boolean }) =>
       toggleFn({ data: { accountId: v.id, active: v.active } }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Toggle failed"),
   });
@@ -168,7 +170,7 @@ function AdAccountsPage() {
     onSuccess: () => {
       toast.success("Account removed");
       setConfirmDel(null);
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
   });
@@ -178,7 +180,7 @@ function AdAccountsPage() {
     try {
       const res = await testFn({ data: { accountId: acc.id } });
       toast.success(`Connected • ${res.info.name} • ${res.info.currency}`);
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Connection failed");
     } finally {
@@ -198,7 +200,7 @@ function AdAccountsPage() {
           ? " • wallet set korun"
           : "";
       toast.success(`Synced • structure ${s.rows} • insights ${i.rows}${finMsg}`);
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
       qc.invalidateQueries({ queryKey: ["finance"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Sync failed");
@@ -223,7 +225,7 @@ function AdAccountsPage() {
           `Finance e posted • ৳${Number((res as any)?.total_bdt ?? 0).toLocaleString("en-BD")} (FX ${(res as any)?.fx})`,
         );
       }
-      qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+      qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
       qc.invalidateQueries({ queryKey: ["finance"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Repost failed");
@@ -236,13 +238,11 @@ function AdAccountsPage() {
 
   return (
     <div className="space-y-6">
-      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Meta Ads API Accounts</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your Meta Ads API accounts for{" "}
-            <span className="font-medium">{effectiveBrand?.name}</span>. Per-account credentials (App
+            Manage your Meta Ads API accounts across all brands. Per-account credentials (App
             ID/Secret, Access Token, Ad Account ID, USD→BDT rate).
           </p>
         </div>
@@ -287,7 +287,12 @@ function AdAccountsPage() {
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-semibold text-base truncate">{acc.name}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="font-semibold text-base truncate">{acc.name}</div>
+                      <Badge variant="outline" className="text-[10px] font-medium">
+                        {brandNameMap.get((acc as any).brand_id) ?? "—"}
+                      </Badge>
+                    </div>
                     <div className="text-xs font-mono text-muted-foreground truncate">
                       {acc.external_id}
                     </div>
@@ -354,7 +359,9 @@ function AdAccountsPage() {
                   </span>
                   <span className="text-muted-foreground">Wallet:</span>
                   <span className="text-right text-xs text-muted-foreground truncate">
-                    {walletsQ.data?.find((w) => w.id === acc.finance_wallet_id)?.name ?? (
+                    {acc.finance_wallet_id ? (
+                      "Custom wallet"
+                    ) : (
                       <span className="text-amber-600">Auto (1st wallet)</span>
                     )}
                   </span>
@@ -399,13 +406,11 @@ function AdAccountsPage() {
       <AccountEditor
         open={editorOpen}
         onOpenChange={setEditorOpen}
-        brandId={brandId}
         editing={editing}
-        wallets={walletsQ.data ?? []}
         onSaved={() => {
           setEditorOpen(false);
           setEditing(null);
-          qc.invalidateQueries({ queryKey: ["mkt", "accounts", brandId] });
+          qc.invalidateQueries({ queryKey: ["mkt", "accounts"] });
         }}
       />
 
