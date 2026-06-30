@@ -16,16 +16,27 @@ async function assertMktRole(supabase: any, userId: string) {
 
 export const listConnectedAdAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
+  .inputValidator((d: { brandId?: string; brandIds?: string[] }) =>
+    z
+      .object({
+        brandId: z.string().uuid().optional(),
+        brandIds: z.array(z.string().uuid()).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const ids = data.brandIds && data.brandIds.length
+      ? data.brandIds
+      : data.brandId
+        ? [data.brandId]
+        : [];
+    if (ids.length === 0) return [];
     const { data: rows, error } = await context.supabase
       .from("mkt_ad_accounts")
       .select(
         "id,brand_id,external_id,name,currency,timezone,status,business_id,app_id,usd_to_bdt_rate,auto_post_to_finance,finance_wallet_id,last_structure_sync_at,last_insights_sync_at,last_error,created_at,updated_at",
       )
-      .eq("brand_id", data.brandId)
+      .in("brand_id", ids)
       .order("created_at", { ascending: false });
     if (error) throw error;
     // Surface whether credentials are present without leaking values.
