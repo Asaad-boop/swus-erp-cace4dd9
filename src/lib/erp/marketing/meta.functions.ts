@@ -25,18 +25,18 @@ export const listConnectedAdAccounts = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const ids = data.brandIds && data.brandIds.length
+    const brandIdList = data.brandIds && data.brandIds.length
       ? data.brandIds
       : data.brandId
         ? [data.brandId]
         : [];
-    if (ids.length === 0) return [];
+    if (brandIdList.length === 0) return [];
     const { data: rows, error } = await context.supabase
       .from("mkt_ad_accounts")
       .select(
         "id,brand_id,external_id,name,currency,timezone,status,business_id,app_id,usd_to_bdt_rate,auto_post_to_finance,finance_wallet_id,last_structure_sync_at,last_insights_sync_at,last_error,created_at,updated_at",
       )
-      .in("brand_id", ids)
+      .in("brand_id", brandIdList)
       .order("created_at", { ascending: false });
     if (error) throw error;
     // Surface whether credentials are present without leaking values.
