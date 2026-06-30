@@ -596,7 +596,7 @@ function AccountEditor({
         </DialogHeader>
 
         <div className="space-y-4">
-          {!isEdit && (
+          {(
             <div>
               <Label>Brand</Label>
               <Select
@@ -615,7 +615,7 @@ function AccountEditor({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Ei account kon brand er under add hobe
+                {isEdit ? "Brand change korte parba" : "Ei account kon brand er under add hobe"}
               </p>
             </div>
           )}
