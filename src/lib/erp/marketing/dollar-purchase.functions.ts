@@ -67,12 +67,19 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
       .select("id, name, account_type, current_balance, brand_id, is_active")
       .eq("is_active", true)
       .order("name");
-    if (data.brandIds?.length) accQ = accQ.in("brand_id", data.brandIds);
+    // Include shared accounts (brand_id IS NULL) alongside brand-scoped ones
+    if (data.brandIds?.length) {
+      const ids = data.brandIds.map((b) => `"${b}"`).join(",");
+      accQ = accQ.or(`brand_id.in.(${ids}),brand_id.is.null`);
+    }
     let adQ = context.supabase
       .from("mkt_ad_accounts")
       .select("id, name, external_id, brand_id, currency, usd_to_bdt_rate")
       .order("name");
-    if (data.brandIds?.length) adQ = adQ.in("brand_id", data.brandIds);
+    if (data.brandIds?.length) {
+      const ids = data.brandIds.map((b) => `"${b}"`).join(",");
+      adQ = adQ.or(`brand_id.in.(${ids}),brand_id.is.null`);
+    }
     const [{ data: accounts }, { data: adAccounts }, { data: brands }, { data: fx }] = await Promise.all([
       accQ,
       adQ,
