@@ -54,6 +54,19 @@ function PoDetailPage() {
   const qc = useQueryClient();
   const detailFn = useServerFn(getPurchaseOrderDetail);
   const stageFn = useServerFn(updateCartonStage);
+  const navigate = useNavigate();
+  const deleteFn = useServerFn(deleteImportPo);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const deleteMut = useMutation({
+    mutationFn: () => deleteFn({ data: { poId: orderId, confirm: "DELETE" } }),
+    onSuccess: () => {
+      toast.success("Purchase Order deleted; transactions reversed");
+      qc.invalidateQueries({ queryKey: ["imp-pos"] });
+      navigate({ to: "/erp/imports/orders" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["imp-po", orderId],
