@@ -131,7 +131,9 @@ function statusPill(status: string) {
 
 function AdAccountsPage() {
   const qc = useQueryClient();
-  const { brands, brandIds } = useBrand();
+  const { brands } = useBrand();
+  // Always show accounts from all brands; selected brand is just a header context.
+  const allBrandIds = useMemo(() => brands.map((b) => b.id), [brands]);
   const brandNameMap = useMemo(
     () => new Map(brands.map((b) => [b.id, b.name])),
     [brands],
@@ -146,9 +148,9 @@ function AdAccountsPage() {
   const repostFn = useServerFn(repostMetaSpendToFinance);
 
   const q = useQuery({
-    queryKey: ["mkt", "accounts", brandIds.join(",")],
-    queryFn: () => listFn({ data: { brandIds } }),
-    enabled: brandIds.length > 0,
+    queryKey: ["mkt", "accounts", "all", allBrandIds.join(",")],
+    queryFn: () => listFn({ data: { brandIds: allBrandIds } }),
+    enabled: allBrandIds.length > 0,
   });
 
   const [editorOpen, setEditorOpen] = useState(false);
