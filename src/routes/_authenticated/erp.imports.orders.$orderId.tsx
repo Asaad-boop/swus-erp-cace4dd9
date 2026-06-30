@@ -226,13 +226,17 @@ function PoDetailPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((it) => (
+            {items.map((it: any) => {
+              const liveImg = it.product?.image ?? it.image_snapshot;
+              const liveName = it.product?.title ?? it.name_snapshot;
+              const liveSku = it.product?.sku ?? it.sku_snapshot;
+              return (
               <TableRow key={it.id}>
                 <TableCell className="py-2">
-                  {it.image_snapshot ? (
+                  {liveImg ? (
                     <img
-                      src={it.image_snapshot}
-                      alt={it.name_snapshot ?? ""}
+                      src={liveImg}
+                      alt={liveName ?? ""}
                       className="h-12 w-12 rounded-md object-cover border border-border bg-muted"
                     />
                   ) : (
@@ -242,17 +246,17 @@ function PoDetailPage() {
                   )}
                 </TableCell>
                 <TableCell className="font-medium max-w-[420px]">
-                  <div className="truncate" title={it.name_snapshot ?? ""}>{it.name_snapshot}</div>
+                  <div className="truncate" title={liveName ?? ""}>{liveName}</div>
                   {it.product_id && (
                     <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Inventory linked</div>
                   )}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{it.sku_snapshot ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{liveSku ?? "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
                 <TableCell className="text-right tabular-nums">{Number(it.unit_cost_foreign).toFixed(2)}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtBdt(it.subtotal_bdt)}</TableCell>
               </TableRow>
-            ))}
+            );})}
           </TableBody>
         </Table>
       </Card>
