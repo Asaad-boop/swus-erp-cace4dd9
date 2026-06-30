@@ -8988,6 +8988,7 @@ export type Database = {
       }
       hr_next_employee_code: { Args: never; Returns: string }
       imp_create_po: { Args: { _payload: Json }; Returns: Json }
+      imp_delete_po: { Args: { _po_id: string }; Returns: Json }
       imp_get_or_create_account: {
         Args: {
           _brand: string
