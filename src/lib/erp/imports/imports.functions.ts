@@ -45,7 +45,7 @@ export const listPurchaseOrders = createServerFn({ method: "POST" })
         grand_total_bdt, paid_bdt, due_bdt, status, notes, created_at,
         supplier:supplier_id ( id, name ),
         brand:brand_id ( id, name, slug ),
-        items:imp_po_items ( id, name_snapshot, image_snapshot, quantity )
+        items:imp_po_items ( id, name_snapshot, image_snapshot, quantity, product:product_id ( title, image ) )
       `)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -82,7 +82,8 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
       context.supabase.from("imp_po_items").select(`
         id, product_id, variant_id, sku_snapshot, name_snapshot, image_snapshot,
         quantity, unit_cost_foreign, unit_cost_bdt, subtotal_bdt,
-        unit_cost_cny, landed_cost_bdt
+        unit_cost_cny, landed_cost_bdt,
+        product:product_id ( id, title, image, sku )
       `).eq("po_id", data.poId).order("created_at"),
       context.supabase.from("imp_cartons").select(`
         id, carton_number, barcode, expected_quantity,
