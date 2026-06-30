@@ -399,6 +399,34 @@ function PoDetailPage() {
           onClose={() => setPaymentOpen(false)}
         />
       )}
+
+      <Dialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setDeleteConfirm(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete this Purchase Order?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes <b>{po.po_number}</b>, all its cartons & items,
+              reverses every recorded payment (wallet balance restored, journal entries removed),
+              and rolls back any stock that was posted to inventory from this PO. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Type <code className="font-mono font-bold text-foreground">DELETE</code> to confirm</Label>
+            <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="DELETE" />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== "DELETE" || deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+            >
+              {deleteMut.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete forever
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
