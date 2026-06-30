@@ -548,6 +548,7 @@ function AccountEditor({
         await updateMut({
           data: {
             accountId: editing.id,
+            brandId: form.brandId,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
@@ -596,7 +597,7 @@ function AccountEditor({
         </DialogHeader>
 
         <div className="space-y-4">
-          {!isEdit && (
+          {(
             <div>
               <Label>Brand</Label>
               <Select
@@ -615,7 +616,7 @@ function AccountEditor({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Ei account kon brand er under add hobe
+                {isEdit ? "Brand change korte parba" : "Ei account kon brand er under add hobe"}
               </p>
             </div>
           )}
