@@ -157,6 +157,9 @@ function PoDetailPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setPaymentOpen(true)}><Wallet className="h-4 w-4 mr-1" />Record Payment</Button>
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-1" />Delete PO
+            </Button>
           </div>
         </div>
 
