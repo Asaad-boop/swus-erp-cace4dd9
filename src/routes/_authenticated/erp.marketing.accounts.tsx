@@ -382,6 +382,16 @@ function AdAccountsPage() {
                     />
                     Toggle status
                   </label>
+                  <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => { setEditing(acc); setEditorOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -394,8 +404,9 @@ function AdAccountsPage() {
                     ) : (
                       <Wifi className="h-3.5 w-3.5" />
                     )}
-                    Test Connection
+                    Test
                   </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
