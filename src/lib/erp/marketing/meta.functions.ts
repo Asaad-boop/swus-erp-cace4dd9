@@ -112,6 +112,7 @@ export const updateAdAccount = createServerFn({ method: "POST" })
     z
       .object({
         accountId: z.string().uuid(),
+          brandId: z.string().uuid().optional(),
         name: z.string().min(1),
         appId: z.string().trim().optional().nullable(),
         appSecret: z.string().trim().optional().nullable(),
@@ -134,6 +135,9 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       usd_to_bdt_rate: data.usdToBdtRate,
       status: data.active ? "active" : "paused",
     };
+    if (data.brandId) {
+      patch.brand_id = data.brandId;
+    }
     if (typeof data.autoPostToFinance === "boolean") {
       patch.auto_post_to_finance = data.autoPostToFinance;
     }
