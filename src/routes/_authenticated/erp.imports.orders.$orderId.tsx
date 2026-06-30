@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
   AlertTriangle, Wallet, ClipboardCheck, ChevronDown, Loader2, ShoppingCart,
-  PackageCheck, Receipt, Send,
+  PackageCheck, Receipt, Send, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAccounts } from "@/hooks/erp/use-finance-query";
@@ -25,6 +25,7 @@ import { AmountPercentInput } from "@/components/erp/amount-percent-input";
 import {
   getPurchaseOrderDetail, updateCartonStage, markArrivedInBd,
   releaseCarton, postCartonToInventory, recordImportPayment, listWarehouses,
+  deleteImportPo,
 } from "@/lib/erp/imports/imports.functions";
 import {
   PO_STATUS_LABEL, CARTON_STATUS_LABEL, fmtBdt, newIdemKey,
@@ -53,6 +54,19 @@ function PoDetailPage() {
   const qc = useQueryClient();
   const detailFn = useServerFn(getPurchaseOrderDetail);
   const stageFn = useServerFn(updateCartonStage);
+  const navigate = useNavigate();
+  const deleteFn = useServerFn(deleteImportPo);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const deleteMut = useMutation({
+    mutationFn: () => deleteFn({ data: { poId: orderId, confirm: "DELETE" } }),
+    onSuccess: () => {
+      toast.success("Purchase Order deleted; transactions reversed");
+      qc.invalidateQueries({ queryKey: ["imp-pos"] });
+      navigate({ to: "/erp/imports/orders" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["imp-po", orderId],
@@ -143,6 +157,9 @@ function PoDetailPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setPaymentOpen(true)}><Wallet className="h-4 w-4 mr-1" />Record Payment</Button>
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-1" />Delete PO
+            </Button>
           </div>
         </div>
 
@@ -382,6 +399,34 @@ function PoDetailPage() {
           onClose={() => setPaymentOpen(false)}
         />
       )}
+
+      <Dialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setDeleteConfirm(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete this Purchase Order?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes <b>{po.po_number}</b>, all its cartons & items,
+              reverses every recorded payment (wallet balance restored, journal entries removed),
+              and rolls back any stock that was posted to inventory from this PO. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Type <code className="font-mono font-bold text-foreground">DELETE</code> to confirm</Label>
+            <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="DELETE" />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== "DELETE" || deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+            >
+              {deleteMut.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete forever
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

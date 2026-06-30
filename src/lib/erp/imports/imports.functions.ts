@@ -20,6 +20,23 @@ async function assertAnyRole(
 }
 
 /* ============================================================
+   DELETE Import PO (admin only — reverses payments + stock)
+   ============================================================ */
+export const deleteImportPo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { poId: string; confirm: string }) =>
+    z.object({
+      poId: z.string().uuid(),
+      confirm: z.literal("DELETE"),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("imp_delete_po", { _po_id: data.poId });
+    if (error) throw error;
+    return { ok: true };
+  });
+
+/* ============================================================
    READ-side server functions
    ============================================================ */
 
