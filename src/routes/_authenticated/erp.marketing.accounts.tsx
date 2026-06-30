@@ -441,24 +441,22 @@ function AdAccountsPage() {
 function AccountEditor({
   open,
   onOpenChange,
-  brandId,
   editing,
-  wallets,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  brandId: string;
   editing: AccountRow | null;
-  wallets: WalletOption[];
   onSaved: () => void;
 }) {
+  const { brands } = useBrand();
   const isEdit = !!editing;
   const createMut = useServerFn(createAdAccount);
   const updateMut = useServerFn(updateAdAccount);
   const testMut = useServerFn(testAdAccountConnection);
 
   const [form, setForm] = useState({
+    brandId: "",
     name: "",
     appId: "",
     appSecret: "",
@@ -475,6 +473,7 @@ function AccountEditor({
   useEffect(() => {
     if (open) {
       setForm({
+        brandId: (editing as any)?.brand_id ?? (brands[0]?.id ?? ""),
         name: editing?.name ?? "",
         appId: editing?.app_id ?? "",
         appSecret: "",
@@ -486,9 +485,13 @@ function AccountEditor({
         financeWalletId: editing?.finance_wallet_id ?? "",
       });
     }
-  }, [open, editing]);
+  }, [open, editing, brands]);
+
+  const walletsQ = useBrandWallets(form.brandId || null);
+  const wallets = walletsQ.data ?? [];
 
   const canSubmit = useMemo(() => {
+    if (!isEdit && !form.brandId) return false;
     if (!form.name.trim() || !form.adAccountId.trim()) return false;
     if (!isEdit && form.accessToken.trim().length < 20) return false;
     if (!/^\d+$/.test(form.adAccountId.trim())) return false;
@@ -549,7 +552,7 @@ function AccountEditor({
       } else {
         await createMut({
           data: {
-            brandId,
+            brandId: form.brandId,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
@@ -582,6 +585,29 @@ function AccountEditor({
         </DialogHeader>
 
         <div className="space-y-4">
+          {!isEdit && (
+            <div>
+              <Label>Brand</Label>
+              <Select
+                value={form.brandId}
+                onValueChange={(v) => setForm((f) => ({ ...f, brandId: v, financeWalletId: "" }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select brand" />
+                </SelectTrigger>
+                <SelectContent>
+                  {brands.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ei account kon brand er under add hobe
+              </p>
+            </div>
+          )}
           <div>
             <Label htmlFor="name">Account Name</Label>
             <Input
