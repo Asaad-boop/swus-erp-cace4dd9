@@ -548,6 +548,7 @@ function AccountEditor({
         await updateMut({
           data: {
             accountId: editing.id,
+            brandId: form.brandId,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
