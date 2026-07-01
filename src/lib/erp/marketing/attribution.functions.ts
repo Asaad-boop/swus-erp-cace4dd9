@@ -47,7 +47,7 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
 }> {
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, brand_id, customer_phone, utm_campaign, utm_source, utm_medium, utm_content, utm_term, fbclid")
+    .select("id, brand_id, shipping_phone, guest_phone, utm_campaign, utm_source, utm_medium, utm_content, utm_term, fbclid")
     .eq("id", orderId)
     .single();
   if (error || !order) throw error || new Error("order_not_found");
@@ -99,8 +99,9 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
   }
 
   // 3) phone match in tracking events
-  if (order.customer_phone) {
-    const phone = String(order.customer_phone).replace(/\D/g, "").slice(-11);
+  const phoneRaw = order.shipping_phone || order.guest_phone;
+  if (phoneRaw) {
+    const phone = String(phoneRaw).replace(/\D/g, "").slice(-11);
     if (phone) {
       const { data: ev } = await supabase
         .from("mkt_tracking_events")
@@ -285,14 +286,21 @@ export const listAttributionOrders = createServerFn({ method: "POST" })
 
     const { data: orders } = await supabase
       .from("orders")
-      .select("id, order_number, created_at, status, total_amount, customer_phone, customer_name, utm_campaign, utm_source, fbclid")
+      .select("id, invoice_no, created_at, status, total, shipping_phone, guest_phone, shipping_name, guest_name, utm_campaign, utm_source, fbclid")
       .eq("brand_id", data.brandId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(500);
 
     const rows = (orders ?? [])
-      .map((o: any) => ({ ...o, attribution: attrMap.get(o.id) ?? null }))
+      .map((o: any) => ({
+        ...o,
+        order_number: o.invoice_no,
+        total_amount: o.total,
+        customer_phone: o.shipping_phone || o.guest_phone,
+        customer_name: o.shipping_name || o.guest_name,
+        attribution: attrMap.get(o.id) ?? null,
+      }))
       .filter((o: any) =>
         data.mode === "unattributed" ? !o.attribution : !!o.attribution,
       );
