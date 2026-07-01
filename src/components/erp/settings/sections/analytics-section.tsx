@@ -65,6 +65,7 @@ export function AnalyticsSection({ brandId }: { brandId: string }) {
         event_name: "test_event",
         session_id: `test-${Date.now()}`,
         path: "/erp/settings",
+        brand_id: brandId,
         metadata: { source: "settings_test_button", brand_id: brandId } as any,
       } as any);
       if (error) throw error;
