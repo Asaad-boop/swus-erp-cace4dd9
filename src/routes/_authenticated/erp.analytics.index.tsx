@@ -105,14 +105,14 @@ function HistoricalAnalyticsPage() {
           <OrdersTrendCard range={range} brandIds={brandIds} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2"><SourcesAreaCard range={range} /></div>
-          <DeviceCard range={range} />
+          <div className="lg:col-span-2"><SourcesAreaCard range={range} brandIds={brandIds} /></div>
+          <DeviceCard range={range} brandIds={brandIds} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TopProductsBarCard range={range} brandIds={brandIds} />
-          <FunnelCard range={range} />
+          <FunnelCard range={range} brandIds={brandIds} />
         </div>
-        <HeatmapCard range={range} />
+        <HeatmapCard range={range} brandIds={brandIds} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TopProductsTable range={range} brandIds={brandIds} />
           <SourcesTable range={range} brandIds={brandIds} />
@@ -172,12 +172,13 @@ function useKpis(range: Range, brandIds: string[]) {
       const toIso = range.to.toISOString();
 
       // Visitors = distinct session_id from analytics_events
-      const { data: sessRows } = await supabase
+      let sq = supabase
         .from("analytics_events")
         .select("session_id")
         .gte("created_at", fromIso).lte("created_at", toIso)
-        .not("session_id", "is", null)
-        .limit(50000);
+        .not("session_id", "is", null);
+      if (brandIds.length > 0) sq = sq.in("brand_id", brandIds);
+      const { data: sessRows } = await sq.limit(50000);
       const visitors = new Set((sessRows ?? []).map((r: { session_id: string | null }) => r.session_id)).size;
 
       // Orders
@@ -338,17 +339,18 @@ function OrdersTrendCard({ range, brandIds }: { range: Range; brandIds: string[]
 }
 
 // -------- Sources Stacked Area --------
-function SourcesAreaCard({ range }: { range: Range }) {
+function SourcesAreaCard({ range, brandIds }: { range: Range; brandIds: string[] }) {
   const { data } = useQuery({
-    queryKey: ["sources-area", range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["sources-area", range.from.toISOString(), range.to.toISOString(), brandIds],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("created_at, utm_source, referrer, session_id")
         .eq("event_name", "page_view")
         .gte("created_at", range.from.toISOString())
-        .lte("created_at", range.to.toISOString())
-        .limit(50000);
+        .lte("created_at", range.to.toISOString());
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(50000);
       const dayMap = new Map<string, Map<string, Set<string>>>();
       const sources = new Set<string>();
       for (const r of (data ?? []) as { created_at: string; utm_source: string | null; referrer: string | null; session_id: string | null }[]) {
@@ -405,17 +407,18 @@ function SourcesAreaCard({ range }: { range: Range }) {
 }
 
 // -------- Device --------
-function DeviceCard({ range }: { range: Range }) {
+function DeviceCard({ range, brandIds }: { range: Range; brandIds: string[] }) {
   const { data = [] } = useQuery({
-    queryKey: ["device-mix", range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["device-mix", range.from.toISOString(), range.to.toISOString(), brandIds],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("device_type, session_id")
         .eq("event_name", "page_view")
         .gte("created_at", range.from.toISOString())
-        .lte("created_at", range.to.toISOString())
-        .limit(50000);
+        .lte("created_at", range.to.toISOString());
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(50000);
       const map = new Map<string, Set<string>>();
       for (const r of (data ?? []) as { device_type: string | null; session_id: string | null }[]) {
         const d = (r.device_type || "unknown").toLowerCase();
@@ -541,19 +544,21 @@ function TopProductsBarCard({ range, brandIds }: { range: Range; brandIds: strin
 }
 
 // -------- Funnel (period total) --------
-function FunnelCard({ range }: { range: Range }) {
+function FunnelCard({ range, brandIds }: { range: Range; brandIds: string[] }) {
   const { data } = useQuery({
-    queryKey: ["funnel-period", range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["funnel-period", range.from.toISOString(), range.to.toISOString(), brandIds],
     queryFn: async () => {
       const names = ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"] as const;
       const counts: Record<string, number> = {};
       await Promise.all(names.map(async (n) => {
-        const { count } = await supabase
+        let q = supabase
           .from("analytics_events")
           .select("id", { count: "exact", head: true })
           .eq("event_name", n)
           .gte("created_at", range.from.toISOString())
           .lte("created_at", range.to.toISOString());
+        if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+        const { count } = await q;
         counts[n] = count ?? 0;
       }));
       return [
@@ -598,7 +603,7 @@ function FunnelCard({ range }: { range: Range }) {
 }
 
 // -------- Heatmap (day × hour) --------
-function HeatmapCard({ range }: { range: Range }) {
+function HeatmapCard({ range, brandIds }: { range: Range; brandIds: string[] }) {
   // Use last 7 days of range (or whole if shorter)
   const sevenStart = useMemo(() => {
     const diff = (range.to.getTime() - range.from.getTime()) / 86_400_000;
@@ -607,15 +612,16 @@ function HeatmapCard({ range }: { range: Range }) {
   }, [range.from, range.to]);
 
   const { data } = useQuery({
-    queryKey: ["heatmap", sevenStart.toISOString(), range.to.toISOString()],
+    queryKey: ["heatmap", sevenStart.toISOString(), range.to.toISOString(), brandIds],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("created_at")
         .eq("event_name", "page_view")
         .gte("created_at", sevenStart.toISOString())
-        .lte("created_at", range.to.toISOString())
-        .limit(50000);
+        .lte("created_at", range.to.toISOString());
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(50000);
       const days = eachDayOfInterval({ start: sevenStart, end: range.to });
       const grid: Record<string, number[]> = {};
       for (const d of days) grid[format(d, "yyyy-MM-dd")] = Array(24).fill(0);
@@ -731,18 +737,18 @@ function TopProductsTable({ range, brandIds }: { range: Range; brandIds: string[
 }
 
 function SourcesTable({ range, brandIds }: { range: Range; brandIds: string[] }) {
-  void brandIds;
   const { data = [] } = useQuery({
-    queryKey: ["sources-table", range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["sources-table", range.from.toISOString(), range.to.toISOString(), brandIds],
     queryFn: async () => {
       // Sessions per source
-      const { data: pv } = await supabase
+      let pvq = supabase
         .from("analytics_events")
         .select("session_id, utm_source, referrer")
         .eq("event_name", "page_view")
         .gte("created_at", range.from.toISOString())
-        .lte("created_at", range.to.toISOString())
-        .limit(50000);
+        .lte("created_at", range.to.toISOString());
+      if (brandIds.length > 0) pvq = pvq.in("brand_id", brandIds);
+      const { data: pv } = await pvq.limit(50000);
       const sessBySource = new Map<string, Set<string>>();
       const sourceBySession = new Map<string, string>();
       for (const r of (pv ?? []) as { session_id: string | null; utm_source: string | null; referrer: string | null }[]) {
@@ -753,13 +759,14 @@ function SourcesTable({ range, brandIds }: { range: Range; brandIds: string[] })
         if (!sourceBySession.has(r.session_id)) sourceBySession.set(r.session_id, src);
       }
       // Purchases per source — from analytics_events purchase rows
-      const { data: purs } = await supabase
+      let puq = supabase
         .from("analytics_events")
         .select("session_id, value, utm_source, referrer")
         .eq("event_name", "purchase")
         .gte("created_at", range.from.toISOString())
-        .lte("created_at", range.to.toISOString())
-        .limit(20000);
+        .lte("created_at", range.to.toISOString());
+      if (brandIds.length > 0) puq = puq.in("brand_id", brandIds);
+      const { data: purs } = await puq.limit(20000);
       const ordBySource = new Map<string, { orders: number; revenue: number }>();
       for (const r of (purs ?? []) as { session_id: string | null; value: number | null; utm_source: string | null; referrer: string | null }[]) {
         const src = (r.session_id && sourceBySession.get(r.session_id)) || classifySource(r.utm_source, r.referrer);
