@@ -334,44 +334,18 @@ function PoDetailPage() {
 
       {/* Cartons */}
       <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <Checkbox
-              checked={
-                cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length > 0 &&
-                cartons
-                  .filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status))
-                  .every((c) => selectedCartons.has(c.id))
-              }
-              onCheckedChange={(v) => {
-                const eligible = cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
-                if (v) setSelectedCartons(new Set(eligible.map((c) => c.id)));
-                else setSelectedCartons(new Set());
-              }}
-              aria-label="Select all cartons"
-            />
-            <h3 className="font-semibold inline-flex items-center gap-2">Cartons <Badge variant="outline" className="text-[11px]">{cartons.length}</Badge></h3>
-            {selectedCartons.size > 0 && (
-              <Badge variant="secondary" className="text-[11px]">{selectedCartons.size} selected</Badge>
-            )}
-          </div>
-          {selectedCartons.size > 0 ? (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Bulk mark selected:</span>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("ordered", cartons)}>Ordered</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("at_china_warehouse", cartons)}>At China WH</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("in_transit", cartons)}>In Transit</Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedCartons(new Set())}>Clear</Button>
-            </div>
-          ) : cartons.some((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)) && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Mark all {cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length}:</span>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("ordered", cartons)}>Ordered</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("at_china_warehouse", cartons)}>At China WH</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkMarkAll("in_transit", cartons)}>In Transit</Button>
-            </div>
-          )}
-        </div>
+        <CartonsHeader
+          cartons={cartons}
+          selected={selectedCartons}
+          setSelected={setSelectedCartons}
+          onBulkStage={(s) => bulkMarkSelected(s, cartons)}
+          onBulkStageAll={(s) => bulkMarkAll(s, cartons)}
+          onBulkRelease={() => setBulkReleaseOpen(true)}
+          poPaid={payments
+            .filter((p: any) => !p.is_reversed && ["supplier_advance", "supplier_payment", "supplier_balance"].includes(p.payment_type))
+            .reduce((s: number, p: any) => s + Number(p.amount_bdt || 0), 0)}
+          poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
+        />
         <div className="divide-y divide-border">
           {cartons.map((c) => (
             <CartonRow
