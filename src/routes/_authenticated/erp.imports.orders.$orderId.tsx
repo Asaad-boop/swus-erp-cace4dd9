@@ -552,14 +552,31 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
 
   return (
     <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10", selected && "bg-primary/5")}>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((o) => !o)}
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent/40 text-left"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent/40 text-left cursor-pointer"
       >
         {selectable && onToggleSelect && (
-          <span onClick={(e) => { e.stopPropagation(); onToggleSelect(); }} className="inline-flex">
-            <Checkbox checked={!!selected} onCheckedChange={() => onToggleSelect()} aria-label="Select carton" />
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="inline-flex"
+          >
+            <Checkbox
+              checked={!!selected}
+              onCheckedChange={(checked) => {
+                if (checked !== selected) onToggleSelect();
+              }}
+              aria-label="Select carton"
+            />
           </span>
         )}
         <Badge variant="secondary" className={cn("font-medium", meta?.tone)}>{meta?.label}</Badge>
@@ -584,7 +601,7 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
           </div>
         )}
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button>
+      </div>
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
           {status === "arrived_bd" && brandId && (
