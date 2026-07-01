@@ -1079,6 +1079,7 @@ function _WebOrdersPageBody() {
         <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <IncompleteOrdersTable
             brandId={activeBrand?.id ?? null}
+            brandIds={isAllBrands ? brandIds : activeBrand ? [activeBrand.id] : undefined}
             search={debouncedSearch}
             page={incompletePage}
             pageSize={50}
