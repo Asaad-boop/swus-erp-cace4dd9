@@ -623,6 +623,7 @@ function GalleryUploader({ items, onAdd, onRemove }: {
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState("");
   const onFiles = async (files: FileList) => {
     setBusy(true);
     try {
@@ -631,8 +632,16 @@ function GalleryUploader({ items, onAdd, onRemove }: {
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
+  const addUrl = () => {
+    const v = url.trim();
+    if (!v) return;
+    if (!/^https?:\/\//i.test(v)) { toast.error("URL must start with http(s)://"); return; }
+    onAdd(v);
+    setUrl("");
+  };
   return (
-    <div className="mt-2 grid grid-cols-3 gap-2">
+    <div className="mt-2 space-y-2">
+      <div className="grid grid-cols-3 gap-2">
       {items.map((url, i) => (
         <div key={i} className="relative aspect-square rounded-lg overflow-hidden border">
           <img src={url} alt="" className="h-full w-full object-cover" />
@@ -647,6 +656,19 @@ function GalleryUploader({ items, onAdd, onRemove }: {
         {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
       </button>
       <input ref={ref} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && onFiles(e.target.files)} />
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }}
+          placeholder="Paste image URL and press Enter"
+          className="h-8 text-xs"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={addUrl} className="h-8">
+          <Plus className="h-3.5 w-3.5" /> Add URL
+        </Button>
+      </div>
     </div>
   );
 }
