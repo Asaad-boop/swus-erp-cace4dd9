@@ -1114,8 +1114,9 @@ function CartonsHeader({
               </div>
               <div className="mt-3 flex items-center justify-end gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
-                <Button size="sm" onClick={onBulkRelease}>
-                  <Send className="h-4 w-4 mr-1" />Bulk Release ({arrived.length})
+                <Button size="sm" onClick={onBulkRelease} className="bg-orange-600 hover:bg-orange-700 text-white shadow-md">
+                  <Send className="h-4 w-4 mr-1" />
+                  Pay {fmtBdt(totalBill)} & Release {arrived.length}
                 </Button>
               </div>
             </div>
