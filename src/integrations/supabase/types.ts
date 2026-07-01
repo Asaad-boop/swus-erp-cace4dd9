@@ -273,6 +273,7 @@ export type Database = {
       }
       analytics_events: {
         Row: {
+          brand_id: string | null
           created_at: string
           currency: string | null
           device_type: string | null
@@ -299,6 +300,7 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
           currency?: string | null
           device_type?: string | null
@@ -325,6 +327,7 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
           currency?: string | null
           device_type?: string | null
@@ -350,7 +353,15 @@ export type Database = {
           utm_term?: string | null
           value?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       app_settings: {
         Row: {
@@ -7348,6 +7359,7 @@ export type Database = {
       }
       page_views: {
         Row: {
+          brand_id: string | null
           country: string | null
           created_at: string
           device_type: string | null
@@ -7361,6 +7373,7 @@ export type Database = {
           utm_source: string | null
         }
         Insert: {
+          brand_id?: string | null
           country?: string | null
           created_at?: string
           device_type?: string | null
@@ -7374,6 +7387,7 @@ export type Database = {
           utm_source?: string | null
         }
         Update: {
+          brand_id?: string | null
           country?: string | null
           created_at?: string
           device_type?: string | null
@@ -7386,7 +7400,15 @@ export type Database = {
           user_id?: string | null
           utm_source?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "page_views_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_option_types: {
         Row: {

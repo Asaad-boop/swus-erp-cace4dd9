@@ -278,14 +278,16 @@ function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange })
 
   // Add to carts (selected window)
   const { data: atcCount = 0 } = useQuery({
-    queryKey: ["live-atc", range],
+    queryKey: ["live-atc", range, brandIds],
     queryFn: async () => {
       const since = new Date(Date.now() - windowMs).toISOString();
-      const { count } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
         .eq("event_name", "add_to_cart")
         .gte("created_at", since);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { count } = await q;
       return count ?? 0;
     },
     refetchInterval: 5000,
@@ -293,14 +295,16 @@ function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange })
 
   // Page views (selected window)
   const { data: pvWindow = 0 } = useQuery({
-    queryKey: ["live-pv-window", range],
+    queryKey: ["live-pv-window", range, brandIds],
     queryFn: async () => {
       const since = new Date(Date.now() - windowMs).toISOString();
-      const { count } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
         .eq("event_name", "page_view")
         .gte("created_at", since);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { count } = await q;
       return count ?? 0;
     },
     refetchInterval: 5000,
@@ -452,7 +456,6 @@ function ActiveSessionsPanel() {
 
 // ---------------- Event Stream ----------------
 function EventStreamPanel({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
-  void brandIds;
   useTicker(15000);
   const meta = rangeMeta(range);
   const windowMs = meta.seconds * 1000;
@@ -463,29 +466,32 @@ function EventStreamPanel({ brandIds, range }: { brandIds: string[]; range: Time
     let cancel = false;
     (async () => {
       const since = new Date(Date.now() - windowMs).toISOString();
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("id, event_name, product_name, product_id, order_id, value, currency, utm_source, referrer, path, device_type, created_at")
         .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .order("created_at", { ascending: false });
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(50);
       if (cancel) return;
       setEvents((data ?? []) as AnalyticsEvent[]);
       initialized.current = true;
     })();
     return () => { cancel = true; };
-  }, [range, windowMs]);
+  }, [range, windowMs, brandIds.join(",")]);
 
   useEffect(() => {
     const ch = supabase
       .channel("rt-analytics-events")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "analytics_events" }, (payload) => {
         const row = payload.new as AnalyticsEvent;
+        const rowBrand = (payload.new as { brand_id?: string | null }).brand_id ?? null;
+        if (brandIds.length > 0 && rowBrand && !brandIds.includes(rowBrand)) return;
         setEvents((prev) => [row, ...prev].slice(0, 50));
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [brandIds.join(",")]);
 
   const visibleEvents = useMemo(() => {
     const cutoff = Date.now() - windowMs;
@@ -529,25 +535,26 @@ function EventStreamPanel({ brandIds, range }: { brandIds: string[]; range: Time
 function TodaysChartsGrid({ brandIds }: { brandIds: string[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <HourlyTrafficCard />
-      <FunnelCard />
-      <SourcesCard />
+      <HourlyTrafficCard brandIds={brandIds} />
+      <FunnelCard brandIds={brandIds} />
+      <SourcesCard brandIds={brandIds} />
       <TopProductsCard brandIds={brandIds} />
     </div>
   );
 }
 
-function HourlyTrafficCard() {
+function HourlyTrafficCard({ brandIds }: { brandIds: string[] }) {
   const { data = [] } = useQuery({
-    queryKey: ["hourly-traffic"],
+    queryKey: ["hourly-traffic", brandIds],
     queryFn: async () => {
       const start = startOfDayISO();
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("created_at")
         .eq("event_name", "page_view")
-        .gte("created_at", start)
-        .limit(10000);
+        .gte("created_at", start);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(10000);
       const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, views: 0, label: `${h}:00` }));
       for (const r of (data ?? []) as { created_at: string }[]) {
         const h = new Date(r.created_at).getHours();
@@ -581,20 +588,22 @@ function HourlyTrafficCard() {
   );
 }
 
-function FunnelCard() {
+function FunnelCard({ brandIds }: { brandIds: string[] }) {
   const { data } = useQuery({
-    queryKey: ["funnel-today"],
+    queryKey: ["funnel-today", brandIds],
     queryFn: async () => {
       const start = startOfDayISO();
       const names = ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"] as const;
       const counts: Record<string, number> = {};
       await Promise.all(
         names.map(async (n) => {
-          const { count } = await supabase
+          let q = supabase
             .from("analytics_events")
             .select("id", { count: "exact", head: true })
             .eq("event_name", n)
             .gte("created_at", start);
+          if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+          const { count } = await q;
           counts[n] = count ?? 0;
         }),
       );
@@ -640,17 +649,18 @@ function FunnelCard() {
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ef4444", "#6366f1"];
 
-function SourcesCard() {
+function SourcesCard({ brandIds }: { brandIds: string[] }) {
   const { data = [] } = useQuery({
-    queryKey: ["sources-today"],
+    queryKey: ["sources-today", brandIds],
     queryFn: async () => {
       const start = startOfDayISO();
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("utm_source, referrer")
         .eq("event_name", "page_view")
-        .gte("created_at", start)
-        .limit(10000);
+        .gte("created_at", start);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(10000);
       const map = new Map<string, number>();
       for (const r of (data ?? []) as { utm_source: string | null; referrer: string | null }[]) {
         const s = classifySource(r.utm_source, r.referrer);
@@ -701,19 +711,19 @@ function SourcesCard() {
 }
 
 function TopProductsCard({ brandIds }: { brandIds: string[] }) {
-  void brandIds;
   const [metric, setMetric] = useState<"view_item" | "add_to_cart" | "purchase">("view_item");
   const { data = [] } = useQuery({
-    queryKey: ["top-products-today", metric],
+    queryKey: ["top-products-today", metric, brandIds],
     queryFn: async () => {
       const start = startOfDayISO();
-      const { data } = await supabase
+      let q = supabase
         .from("analytics_events")
         .select("product_name, product_id")
         .eq("event_name", metric)
         .gte("created_at", start)
-        .not("product_name", "is", null)
-        .limit(5000);
+        .not("product_name", "is", null);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data } = await q.limit(5000);
       const map = new Map<string, number>();
       for (const r of (data ?? []) as { product_name: string | null }[]) {
         if (!r.product_name) continue;
