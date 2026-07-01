@@ -545,7 +545,7 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
 
   // expand by default if action is required (arrived_bd or released)
   const needsAction = status === "arrived_bd" || status === "released";
-  const selectable = ["ordered", "at_china_warehouse", "in_transit"].includes(status);
+  const selectable = ["ordered", "at_china_warehouse", "in_transit", "arrived_bd"].includes(status);
 
   return (
     <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10", selected && "bg-primary/5")}>
