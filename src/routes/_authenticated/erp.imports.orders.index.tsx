@@ -2,16 +2,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Plus, Search, Filter, Package, Wallet, AlertTriangle, TrendingUp, X, ArrowUpDown, Boxes } from "lucide-react";
+import { Plus, Search, Filter, Package, Wallet, AlertTriangle, TrendingUp, X, ArrowUpDown, Boxes, Trash2, Download, CheckSquare, Loader2 } from "lucide-react";
 import { useBrand } from "@/contexts/brand-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { listPurchaseOrders } from "@/lib/erp/imports/imports.functions";
+import { listPurchaseOrders, deleteImportPo } from "@/lib/erp/imports/imports.functions";
 import { PO_STATUS_LABEL, fmtBdt, type ImpPoStatus } from "@/lib/erp/imports/types";
 import { ProductThumbStack } from "./erp.imports.index";
 
@@ -30,6 +34,26 @@ function PoListPage() {
   const [payState, setPayState] = useState<"all" | "paid" | "partial" | "unpaid">("all");
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const qc = useQueryClient();
+  const deleteFn = useServerFn(deleteImportPo);
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        await deleteFn({ data: { poId: id, confirm: "DELETE" } });
+      }
+    },
+    onSuccess: () => {
+      toast.success(`Deleted ${selected.size} POs; transactions reversed`);
+      qc.invalidateQueries({ queryKey: ["imp-pos"] });
+      setSelected(new Set());
+      setDeleteOpen(false);
+      setDeleteConfirm("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const listFn = useServerFn(listPurchaseOrders);
   const { data = [], isLoading } = useQuery({
@@ -85,6 +109,62 @@ function PoListPage() {
 
   const clearFilters = () => { setQ(""); setStatus("all"); setPayState("all"); };
   const hasFilters = q.trim() || status !== "all" || payState !== "all";
+
+  const toggleRow = (id: string) => {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const allSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const toggleAll = () => {
+    setSelected((s) => {
+      if (allSelected) {
+        const n = new Set(s);
+        filtered.forEach((r) => n.delete(r.id));
+        return n;
+      }
+      const n = new Set(s);
+      filtered.forEach((r) => n.add(r.id));
+      return n;
+    });
+  };
+
+  const selectedRows = rows.filter((r) => selected.has(r.id));
+  const selectedTotals = selectedRows.reduce(
+    (a, r) => ({
+      total: a.total + Number(r.grand_total_bdt || 0),
+      paid: a.paid + Number(r.paid_bdt || 0),
+      due: a.due + Number(r.due_bdt || 0),
+    }),
+    { total: 0, paid: 0, due: 0 },
+  );
+
+  const exportSelected = () => {
+    const header = ["PO Number", "Date", "Brand", "Supplier", "Agent", "Status", "Total", "Paid", "Due"];
+    const lines = [header.join(",")];
+    for (const r of selectedRows) {
+      lines.push([
+        r.po_number,
+        r.order_date ?? "",
+        r.brand?.name ?? "",
+        (r.supplier?.name ?? "").replace(/,/g, " "),
+        (r.agent?.name ?? "").replace(/,/g, " "),
+        r.status,
+        r.grand_total_bdt ?? 0,
+        r.paid_bdt ?? 0,
+        r.due_bdt ?? 0,
+      ].join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `purchase-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
@@ -147,6 +227,14 @@ function PoListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all"
+                  disabled={filtered.length === 0}
+                />
+              </TableHead>
               <TableHead>PO Number</TableHead>
               <TableHead>Products</TableHead>
               <TableHead>Brand</TableHead>
@@ -160,9 +248,9 @@ function PoListPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="py-16">
+              <TableRow><TableCell colSpan={10} className="py-16">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>
                   <div>
@@ -185,8 +273,12 @@ function PoListPage() {
                 const supplier = p.supplier?.name ?? "—";
                 const agentName = p.agent?.name ?? "No agent";
                 const initials = (p.agent?.name ?? supplier).split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || "?";
+                const isSel = selected.has(p.id);
                 return (
-                  <TableRow key={p.id} className="hover:bg-accent/40">
+                  <TableRow key={p.id} className={cn("hover:bg-accent/40", isSel && "bg-primary/5")}>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox checked={isSel} onCheckedChange={() => toggleRow(p.id)} aria-label={`Select ${p.po_number}`} />
+                    </TableCell>
                     <TableCell>
                       <Link to="/erp/imports/orders/$orderId" params={{ orderId: p.id }} className="font-mono text-sm font-semibold text-primary hover:underline">
                         {p.po_number}
@@ -247,6 +339,60 @@ function PoListPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Floating bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-card shadow-2xl shadow-black/20 px-3 py-2 backdrop-blur">
+            <div className="inline-flex items-center gap-2 pl-1 pr-3 text-xs font-semibold">
+              <CheckSquare className="h-4 w-4 text-primary" />
+              <span className="tabular-nums">{selected.size}</span> selected
+              <span className="text-muted-foreground font-normal ml-1">
+                · {fmtBdt(selectedTotals.total)} total · <span className="text-orange-600">{fmtBdt(selectedTotals.due)} due</span>
+              </span>
+            </div>
+            <span className="h-5 w-px bg-border" />
+            <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs" onClick={exportSelected}>
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+            <span className="h-5 w-px bg-border" />
+            <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs text-muted-foreground" onClick={() => setSelected(new Set())}>
+              <X className="h-3.5 w-3.5" /> Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setDeleteConfirm(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete {selected.size} Purchase Orders?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes <b>{selected.size}</b> POs, all their cartons & items,
+              reverses every recorded payment (wallet balances restored, journal entries removed),
+              and rolls back any stock that was posted to inventory. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Type <code className="font-mono font-bold text-foreground">DELETE</code> to confirm</label>
+            <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="DELETE" />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== "DELETE" || bulkDeleteMut.isPending}
+              onClick={() => bulkDeleteMut.mutate(Array.from(selected))}
+            >
+              {bulkDeleteMut.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete {selected.size} forever
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
