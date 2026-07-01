@@ -83,16 +83,6 @@ function PoDetailPage() {
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
-  const bulkMarkAll = async (stage: ImpCartonStatus, cartons: any[]) => {
-    const targets = cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
-    if (targets.length === 0) { toast.info("No cartons to update at this stage"); return; }
-    try {
-      await Promise.all(targets.map((c) => stageFn({ data: { carton_id: c.id, new_stage: stage, idempotency_key: newIdemKey("stage") } as any })));
-      toast.success(`Marked ${targets.length} cartons as ${CARTON_STATUS_LABEL[stage].label}`);
-      qc.invalidateQueries({ queryKey: ["imp-po", orderId] });
-    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
-  };
-
   const [selectedCartons, setSelectedCartons] = useState<Set<string>>(new Set());
   const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
   const bulkMarkSelected = async (stage: ImpCartonStatus, cartons: any[]) => {
@@ -339,7 +329,6 @@ function PoDetailPage() {
           selected={selectedCartons}
           setSelected={setSelectedCartons}
           onBulkStage={(s) => bulkMarkSelected(s, cartons)}
-          onBulkStageAll={(s) => bulkMarkAll(s, cartons)}
           onBulkRelease={() => setBulkReleaseOpen(true)}
           poPaid={payments
             .filter((p: any) => !p.is_reversed && ["supplier_advance", "supplier_payment", "supplier_balance"].includes(p.payment_type))
@@ -1038,13 +1027,12 @@ function PaymentDialog({ poId, brandId, grandTotal, dueAmount, onClose }: { poId
 /* ============== Cartons header with bulk selection + total bill ============== */
 
 function CartonsHeader({
-  cartons, selected, setSelected, onBulkStage, onBulkStageAll, onBulkRelease, poPaid, poSupplierTotal,
+  cartons, selected, setSelected, onBulkStage, onBulkRelease, poPaid, poSupplierTotal,
 }: {
   cartons: any[];
   selected: Set<string>;
   setSelected: (s: Set<string>) => void;
   onBulkStage: (s: ImpCartonStatus) => void;
-  onBulkStageAll: (s: ImpCartonStatus) => void;
   onBulkRelease: () => void;
   poPaid: number;
   poSupplierTotal: number;
