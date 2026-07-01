@@ -93,6 +93,18 @@ function PoDetailPage() {
     } catch (e: any) { toast.error(e?.message ?? "Failed"); }
   };
 
+  const [selectedCartons, setSelectedCartons] = useState<Set<string>>(new Set());
+  const bulkMarkSelected = async (stage: ImpCartonStatus, cartons: any[]) => {
+    const targets = cartons.filter((c) => selectedCartons.has(c.id) && ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
+    if (targets.length === 0) { toast.info("No selected cartons can move to this stage"); return; }
+    try {
+      await Promise.all(targets.map((c) => stageFn({ data: { carton_id: c.id, new_stage: stage, idempotency_key: newIdemKey("stage") } as any })));
+      toast.success(`Marked ${targets.length} cartons as ${CARTON_STATUS_LABEL[stage].label}`);
+      setSelectedCartons(new Set());
+      qc.invalidateQueries({ queryKey: ["imp-po", orderId] });
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+  };
+
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!data?.po) return <div className="p-6 text-sm text-muted-foreground">Purchase order not found.</div>;
 
@@ -322,10 +334,37 @@ function PoDetailPage() {
       {/* Cartons */}
       <Card className="overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-3">
-          <h3 className="font-semibold inline-flex items-center gap-2">Cartons <Badge variant="outline" className="text-[11px]">{cartons.length}</Badge></h3>
-          {cartons.some((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)) && (
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={
+                cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length > 0 &&
+                cartons
+                  .filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status))
+                  .every((c) => selectedCartons.has(c.id))
+              }
+              onCheckedChange={(v) => {
+                const eligible = cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
+                if (v) setSelectedCartons(new Set(eligible.map((c) => c.id)));
+                else setSelectedCartons(new Set());
+              }}
+              aria-label="Select all cartons"
+            />
+            <h3 className="font-semibold inline-flex items-center gap-2">Cartons <Badge variant="outline" className="text-[11px]">{cartons.length}</Badge></h3>
+            {selectedCartons.size > 0 && (
+              <Badge variant="secondary" className="text-[11px]">{selectedCartons.size} selected</Badge>
+            )}
+          </div>
+          {selectedCartons.size > 0 ? (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Bulk mark {cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length}:</span>
+              <span className="text-muted-foreground">Bulk mark selected:</span>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("ordered", cartons)}>Ordered</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("at_china_warehouse", cartons)}>At China WH</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkMarkSelected("in_transit", cartons)}>In Transit</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedCartons(new Set())}>Clear</Button>
+            </div>
+          ) : cartons.some((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)) && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Mark all {cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status)).length}:</span>
               <Button size="sm" variant="outline" onClick={() => bulkMarkAll("ordered", cartons)}>Ordered</Button>
               <Button size="sm" variant="outline" onClick={() => bulkMarkAll("at_china_warehouse", cartons)}>At China WH</Button>
               <Button size="sm" variant="outline" onClick={() => bulkMarkAll("in_transit", cartons)}>In Transit</Button>
@@ -347,6 +386,14 @@ function PoDetailPage() {
                 .reduce((s: number, p: any) => s + Number(p.amount_bdt || 0), 0)}
               poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
               onStage={(stage) => stageMut.mutate({ carton_id: c.id, new_stage: stage })}
+              selected={selectedCartons.has(c.id)}
+              onToggleSelect={() => {
+                setSelectedCartons((s) => {
+                  const n = new Set(s);
+                  if (n.has(c.id)) n.delete(c.id); else n.add(c.id);
+                  return n;
+                });
+              }}
             />
           ))}
         </div>
