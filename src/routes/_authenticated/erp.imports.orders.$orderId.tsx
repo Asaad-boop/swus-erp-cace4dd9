@@ -1034,3 +1034,241 @@ function PaymentDialog({ poId, brandId, grandTotal, dueAmount, onClose }: { poId
     </Dialog>
   );
 }
+
+/* ============== Cartons header with bulk selection + total bill ============== */
+
+function CartonsHeader({
+  cartons, selected, setSelected, onBulkStage, onBulkStageAll, onBulkRelease, poPaid, poSupplierTotal,
+}: {
+  cartons: any[];
+  selected: Set<string>;
+  setSelected: (s: Set<string>) => void;
+  onBulkStage: (s: ImpCartonStatus) => void;
+  onBulkStageAll: (s: ImpCartonStatus) => void;
+  onBulkRelease: () => void;
+  poPaid: number;
+  poSupplierTotal: number;
+}) {
+  const SELECTABLE = ["ordered", "at_china_warehouse", "in_transit", "arrived_bd"];
+  const eligible = cartons.filter((c) => SELECTABLE.includes(c.status));
+  const selCartons = cartons.filter((c) => selected.has(c.id));
+  const anyMovable = selCartons.some((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
+  const arrived = selCartons.filter((c) => c.status === "arrived_bd");
+
+  // Bill for selected arrived_bd cartons (prorated supplier advance)
+  const supplierCost = arrived.reduce((s, c) => s + Number(c.supplier_cost_bdt || 0), 0);
+  const shipping = arrived.reduce((s, c) => s + Number(c.shipping_charge_bdt || 0), 0);
+  const advanceShare = poSupplierTotal > 0 ? (poPaid * supplierCost) / poSupplierTotal : 0;
+  const supplierDue = Math.max(0, supplierCost - advanceShare);
+  const totalBill = Math.round((supplierDue + shipping) * 100) / 100;
+
+  const allSelected = eligible.length > 0 && eligible.every((c) => selected.has(c.id));
+  const movableAll = cartons.filter((c) => ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
+
+  return (
+    <div className="border-b border-border">
+      <div className="p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={(v) => {
+              if (v) setSelected(new Set(eligible.map((c) => c.id)));
+              else setSelected(new Set());
+            }}
+            aria-label="Select all cartons"
+          />
+          <h3 className="font-semibold inline-flex items-center gap-2">
+            Cartons <Badge variant="outline" className="text-[11px]">{cartons.length}</Badge>
+          </h3>
+          {selected.size > 0 && (
+            <Badge variant="secondary" className="text-[11px]">{selected.size} selected</Badge>
+          )}
+        </div>
+        {selected.size === 0 && movableAll.length > 0 && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Mark all {movableAll.length}:</span>
+            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("ordered")}>Ordered</Button>
+            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("at_china_warehouse")}>At China WH</Button>
+            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("in_transit")}>In Transit</Button>
+          </div>
+        )}
+      </div>
+
+      {selected.size > 0 && (
+        <div className="px-4 pb-4 -mt-1 space-y-3">
+          {arrived.length > 0 && (
+            <div className="rounded-lg border border-orange-200 dark:border-orange-900/40 bg-orange-50/60 dark:bg-orange-950/20 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="h-4 w-4 text-orange-600" />
+                <div className="text-[11px] font-semibold tracking-wider text-orange-800 dark:text-orange-200 uppercase">
+                  Bulk Release Bill — {arrived.length} arrived carton{arrived.length > 1 ? "s" : ""}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <BillTile label="Supplier cost" value={fmtBdt(supplierCost)} />
+                <BillTile label="Advance share" value={`− ${fmtBdt(advanceShare)}`} valueClass="text-emerald-700 dark:text-emerald-400" />
+                <BillTile label="Shipping (CN→BD)" value={fmtBdt(shipping)} />
+                <BillTile label="Total to pay" value={fmtBdt(totalBill)} valueClass="text-orange-700 dark:text-orange-300 text-base" />
+              </div>
+              <div className="mt-3 flex items-center justify-end gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+                <Button size="sm" onClick={onBulkRelease}>
+                  <Send className="h-4 w-4 mr-1" />Bulk Release ({arrived.length})
+                </Button>
+              </div>
+            </div>
+          )}
+          {anyMovable && (
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              <span className="text-muted-foreground">Bulk stage:</span>
+              <Button size="sm" variant="outline" onClick={() => onBulkStage("ordered")}>Ordered</Button>
+              <Button size="sm" variant="outline" onClick={() => onBulkStage("at_china_warehouse")}>At China WH</Button>
+              <Button size="sm" variant="outline" onClick={() => onBulkStage("in_transit")}>In Transit</Button>
+              {arrived.length === 0 && (
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BillTile({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="rounded-md bg-background/60 border border-border/60 px-3 py-2">
+      <div className="text-[10px] tracking-wider font-semibold text-muted-foreground uppercase">{label}</div>
+      <div className={cn("font-bold tabular-nums text-sm mt-0.5", valueClass)}>{value}</div>
+    </div>
+  );
+}
+
+/* ============== Bulk Release Dialog — pay once, release many ============== */
+
+function BulkReleaseDialog({
+  poId, brandId, cartons, poPaid, poSupplierTotal, onClose, onDone,
+}: {
+  poId: string; brandId: string; cartons: any[];
+  poPaid: number; poSupplierTotal: number;
+  onClose: () => void; onDone: () => void;
+}) {
+  const fn = useServerFn(releaseCarton);
+  const qc = useQueryClient();
+  const { data: wallets = [] } = useAccounts([brandId]);
+
+  const supplierCost = cartons.reduce((s, c) => s + Number(c.supplier_cost_bdt || 0), 0);
+  const shipping = cartons.reduce((s, c) => s + Number(c.shipping_charge_bdt || 0), 0);
+  const advanceShare = poSupplierTotal > 0 ? (poPaid * supplierCost) / poSupplierTotal : 0;
+  const supplierDue = Math.max(0, supplierCost - advanceShare);
+  const defaultTotal = Math.round((supplierDue + shipping) * 100) / 100;
+
+  const [amount, setAmount] = useState<number>(defaultTotal);
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+  const [withoutPay, setWithoutPay] = useState(false);
+
+  // per-carton bill for proportional split
+  const perCarton = cartons.map((c) => {
+    const sc = Number(c.supplier_cost_bdt || 0);
+    const sh = Number(c.shipping_charge_bdt || 0);
+    const adv = poSupplierTotal > 0 ? (poPaid * sc) / poSupplierTotal : 0;
+    const bill = Math.max(0, sc - adv) + sh;
+    return { carton: c, bill };
+  });
+  const billSum = perCarton.reduce((s, r) => s + r.bill, 0);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      if (!withoutPay) {
+        if (amount <= 0) throw new Error("Pay amount required");
+        if (!walletId) throw new Error("Pick a wallet");
+      }
+      // Split the payment amount proportionally by each carton's bill share.
+      let assigned = 0;
+      for (let i = 0; i < perCarton.length; i++) {
+        const { carton, bill } = perCarton[i];
+        const payload: any = { carton_id: carton.id, idempotency_key: newIdemKey("brel") };
+        if (withoutPay) {
+          payload.release_without_payment = true;
+        } else {
+          const isLast = i === perCarton.length - 1;
+          const share = isLast
+            ? Math.max(0, Math.round((amount - assigned) * 100) / 100)
+            : Math.round(((billSum > 0 ? (bill / billSum) * amount : amount / perCarton.length)) * 100) / 100;
+          assigned += share;
+          if (share > 0) {
+            payload.payment = {
+              amount: share,
+              wallet_id: walletId,
+              payment_date: new Date().toISOString().slice(0, 10),
+              reference: ref || undefined,
+              idempotency_key: newIdemKey("pay"),
+            };
+          } else {
+            payload.release_without_payment = true;
+          }
+        }
+        await fn({ data: payload });
+      }
+    },
+    onSuccess: () => {
+      toast.success(`Released ${cartons.length} carton${cartons.length > 1 ? "s" : ""}`);
+      qc.invalidateQueries({ queryKey: ["imp-po", poId] });
+      onDone();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Bulk release failed"),
+  });
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Bulk Release — {cartons.length} carton{cartons.length > 1 ? "s" : ""}</DialogTitle>
+          <DialogDescription>Pay once from a single wallet — payment auto-splits across selected cartons by their bill share.</DialogDescription>
+        </DialogHeader>
+
+        <Card className="p-3 bg-muted/30 border-0">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <BillTile label="Supplier cost" value={fmtBdt(supplierCost)} />
+            <BillTile label="Advance share" value={`− ${fmtBdt(advanceShare)}`} valueClass="text-emerald-700 dark:text-emerald-400" />
+            <BillTile label="Shipping (CN→BD)" value={fmtBdt(shipping)} />
+            <BillTile label="Total to pay" value={fmtBdt(defaultTotal)} valueClass="text-orange-700 dark:text-orange-300 text-base" />
+          </div>
+        </Card>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Pay amount</Label>
+              <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} disabled={withoutPay} />
+            </div>
+            <div>
+              <Label className="text-xs">Wallet</Label>
+              <Select value={walletId} onValueChange={setWalletId} disabled={withoutPay}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Reference</Label>
+            <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" disabled={withoutPay} />
+          </div>
+          <label className="inline-flex items-center gap-2 text-xs">
+            <Checkbox checked={withoutPay} onCheckedChange={(v) => setWithoutPay(!!v)} />
+            Release without payment (carry as PO due)
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Send className="h-4 w-4 mr-1" />Release {cartons.length}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
