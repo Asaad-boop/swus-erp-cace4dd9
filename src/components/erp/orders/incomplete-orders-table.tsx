@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CopyIconBtn, PhoneActions } from "@/components/erp/orders/contact-actions";
 import { CourierRateBadge } from "@/components/erp/orders/orders-table";
+import { BrandBadge } from "@/components/erp/brand-badge";
 import { cn } from "@/lib/utils";
 import { useAbandonedCartsQuery } from "@/hooks/erp/use-abandoned-carts-query";
 import {
@@ -49,6 +50,7 @@ import {
 
 type Props = {
   brandId: string | null;
+  brandIds?: string[];
   search: string;
   page: number;
   pageSize: number;
@@ -58,6 +60,7 @@ type Props = {
 
 export function IncompleteOrdersTable({
   brandId,
+  brandIds,
   search,
   page,
   pageSize,
@@ -69,6 +72,7 @@ export function IncompleteOrdersTable({
   const deleteAbandonedCart = useServerFn(deleteAbandonedCartFn);
   const { data, isLoading, isFetching, error } = useAbandonedCartsQuery({
     brandId,
+    brandIds,
     search,
     page,
     pageSize,
@@ -123,6 +127,7 @@ export function IncompleteOrdersTable({
           <TableRow className="hover:bg-transparent border-b">
             {[
               "Date",
+              "Brand",
               "Products",
               "Customer",
               "Status",
@@ -146,7 +151,7 @@ export function IncompleteOrdersTable({
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 7 }).map((_c, j) => (
+                {Array.from({ length: 8 }).map((_c, j) => (
                   <TableCell key={j} className="py-3 px-3">
                     <Skeleton className="h-5 w-full" />
                   </TableCell>
@@ -155,14 +160,14 @@ export function IncompleteOrdersTable({
             ))
           ) : error ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-12 text-destructive">
+              <TableCell colSpan={8} className="text-center py-12 text-destructive">
                 <AlertCircle className="inline h-5 w-5 mr-2 opacity-80" />
                 {error.message}
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                 <ShoppingCart className="inline h-5 w-5 mr-2 opacity-60" />
                 Kono incomplete checkout nai
               </TableCell>
@@ -198,6 +203,10 @@ export function IncompleteOrdersTable({
                         {relTime(r.updated_at)}
                       </div>
                     </div>
+                  </TableCell>
+
+                  <TableCell className="py-3 px-3 align-middle">
+                    <BrandBadge brandId={r.brand_id} />
                   </TableCell>
 
                   <TableCell className="py-3 px-3 align-middle">

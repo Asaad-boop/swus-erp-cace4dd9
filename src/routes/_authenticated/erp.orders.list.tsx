@@ -50,7 +50,7 @@ function OrdersPage() {
 
   const { data, isLoading, isFetching } = useOrdersQuery(effective);
   const { data: countsData } = useOrderStatusCounts(effective);
-  const { data: incompleteCount } = useAbandonedCartCount(effective.brandId);
+  const { data: incompleteCount } = useAbandonedCartCount(effective.brandId, effective.brandIds);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
@@ -409,6 +409,7 @@ function OrdersPage() {
             <OrdersToolbar filter={effective} onChange={setFilter} />
             <IncompleteOrdersTable
               brandId={effective.brandId}
+              brandIds={effective.brandIds}
               search={effective.search}
               page={incompletePage}
               pageSize={50}
