@@ -151,7 +151,7 @@ export function IncompleteOrdersTable({
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 7 }).map((_c, j) => (
+                {Array.from({ length: 8 }).map((_c, j) => (
                   <TableCell key={j} className="py-3 px-3">
                     <Skeleton className="h-5 w-full" />
                   </TableCell>
