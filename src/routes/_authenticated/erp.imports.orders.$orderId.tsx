@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Truck, Warehouse as WarehouseIcon, Plane, CheckCircle2,
   AlertTriangle, Wallet, ClipboardCheck, ChevronDown, Loader2, ShoppingCart,
-  PackageCheck, Receipt, Send, Trash2,
+  PackageCheck, Receipt, Send, Trash2, Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAccounts } from "@/hooks/erp/use-finance-query";
@@ -94,6 +94,7 @@ function PoDetailPage() {
   };
 
   const [selectedCartons, setSelectedCartons] = useState<Set<string>>(new Set());
+  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
   const bulkMarkSelected = async (stage: ImpCartonStatus, cartons: any[]) => {
     const targets = cartons.filter((c) => selectedCartons.has(c.id) && ["ordered", "at_china_warehouse", "in_transit"].includes(c.status));
     if (targets.length === 0) { toast.info("No selected cartons can move to this stage"); return; }
