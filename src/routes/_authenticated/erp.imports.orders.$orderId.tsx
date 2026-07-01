@@ -558,9 +558,11 @@ function PipelineStrip({ stages, activeStatus }: { stages: any[]; activeStatus: 
 
 /* ============== Carton row (inline accordion: STEP 1 / STEP 2) ============== */
 
-function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage }: {
+function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage, selected, onToggleSelect }: {
   carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
   onStage: (s: ImpCartonStatus) => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const status = carton.status as ImpCartonStatus;
@@ -568,14 +570,20 @@ function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, po
 
   // expand by default if action is required (arrived_bd or released)
   const needsAction = status === "arrived_bd" || status === "released";
+  const selectable = ["ordered", "at_china_warehouse", "in_transit"].includes(status);
 
   return (
-    <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10")}>
+    <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10", selected && "bg-primary/5")}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent/40 text-left"
       >
+        {selectable && onToggleSelect && (
+          <span onClick={(e) => { e.stopPropagation(); onToggleSelect(); }} className="inline-flex">
+            <Checkbox checked={!!selected} onCheckedChange={() => onToggleSelect()} aria-label="Select carton" />
+          </span>
+        )}
         <Badge variant="secondary" className={cn("font-medium", meta?.tone)}>{meta?.label}</Badge>
         <div className="flex-1 min-w-0">
           <div className="font-mono text-sm font-semibold">{poNumber}-C{carton.carton_number}</div>
