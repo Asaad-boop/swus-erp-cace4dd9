@@ -422,6 +422,20 @@ function PoDetailPage() {
         />
       )}
 
+      {bulkReleaseOpen && brandId && (
+        <BulkReleaseDialog
+          poId={po.id}
+          brandId={brandId}
+          cartons={cartons.filter((c) => selectedCartons.has(c.id) && c.status === "arrived_bd")}
+          poPaid={payments
+            .filter((p: any) => !p.is_reversed && ["supplier_advance", "supplier_payment", "supplier_balance"].includes(p.payment_type))
+            .reduce((s: number, p: any) => s + Number(p.amount_bdt || 0), 0)}
+          poSupplierTotal={Number(po.product_subtotal_bdt ?? 0)}
+          onClose={() => setBulkReleaseOpen(false)}
+          onDone={() => { setBulkReleaseOpen(false); setSelectedCartons(new Set()); }}
+        />
+      )}
+
       <Dialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setDeleteConfirm(""); }}>
         <DialogContent>
           <DialogHeader>
