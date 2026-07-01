@@ -1084,12 +1084,9 @@ function CartonsHeader({
             <Badge variant="secondary" className="text-[11px]">{selected.size} selected</Badge>
           )}
         </div>
-        {selected.size === 0 && movableAll.length > 0 && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Mark all {movableAll.length}:</span>
-            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("ordered")}>Ordered</Button>
-            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("at_china_warehouse")}>At China WH</Button>
-            <Button size="sm" variant="outline" onClick={() => onBulkStageAll("in_transit")}>In Transit</Button>
+        {selected.size === 0 && eligible.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            Select cartons to bulk update stage or release
           </div>
         )}
       </div>
