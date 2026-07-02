@@ -182,7 +182,7 @@ function MarketingCommandCenter() {
         totalRows += res.rows ?? 0;
       }
       toast.success(`Meta synced · ${totalRows} rows (${brandIds.length} brand${brandIds.length > 1 ? "s" : ""})`);
-      await Promise.all([perfQ.refetch(), summaryQ.refetch()]);
+      await Promise.all(isTodayRange ? [perfQ.refetch(), summaryQ.refetch()] : [perfQ.refetch()]);
     } catch (e: any) {
       toast.error(e?.message ?? "Meta sync failed");
     } finally {
