@@ -31,17 +31,26 @@ export const listConnectedAdAccounts = createServerFn({ method: "POST" })
         ? [data.brandId]
         : [];
     if (brandIdList.length === 0) return [];
+    // Find ad account ids linked to any of the requested brands via junction.
+    const { data: links, error: linkErr } = await context.supabase
+      .from("mkt_ad_account_brands")
+      .select("ad_account_id")
+      .in("brand_id", brandIdList);
+    if (linkErr) throw linkErr;
+    const linkedIds = Array.from(new Set((links ?? []).map((r: any) => r.ad_account_id)));
+    if (linkedIds.length === 0) return [];
     const { data: rows, error } = await context.supabase
       .from("mkt_ad_accounts")
       .select(
         "id,brand_id,external_id,name,currency,timezone,status,business_id,app_id,usd_to_bdt_rate,auto_post_to_finance,finance_wallet_id,last_structure_sync_at,last_insights_sync_at,last_error,created_at,updated_at",
       )
-      .in("brand_id", brandIdList)
+      .in("id", linkedIds)
       .order("created_at", { ascending: false });
     if (error) throw error;
     // Surface whether credentials are present without leaking values.
     const ids = (rows ?? []).map((r: any) => r.id);
     let credMap = new Map<string, { hasToken: boolean; hasSecret: boolean }>();
+    let brandMap = new Map<string, { brand_ids: string[]; primary_brand_id: string | null }>();
     if (ids.length) {
       const { data: creds } = await context.supabase
         .from("mkt_ad_accounts")
@@ -53,11 +62,23 @@ export const listConnectedAdAccounts = createServerFn({ method: "POST" })
           { hasToken: !!r.access_token, hasSecret: !!r.app_secret },
         ]),
       );
+      const { data: allLinks } = await context.supabase
+        .from("mkt_ad_account_brands")
+        .select("ad_account_id, brand_id, is_primary")
+        .in("ad_account_id", ids);
+      for (const l of allLinks ?? []) {
+        const cur = brandMap.get(l.ad_account_id) ?? { brand_ids: [], primary_brand_id: null };
+        cur.brand_ids.push(l.brand_id);
+        if (l.is_primary) cur.primary_brand_id = l.brand_id;
+        brandMap.set(l.ad_account_id, cur);
+      }
     }
     return (rows ?? []).map((r: any) => ({
       ...r,
       has_access_token: credMap.get(r.id)?.hasToken ?? false,
       has_app_secret: credMap.get(r.id)?.hasSecret ?? false,
+      brand_ids: brandMap.get(r.id)?.brand_ids ?? (r.brand_id ? [r.brand_id] : []),
+      primary_brand_id: brandMap.get(r.id)?.primary_brand_id ?? r.brand_id ?? null,
     }));
   });
 
@@ -82,13 +103,23 @@ const accountInput = z.object({
 export const createAdAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: any) =>
-    accountInput.extend({ brandId: z.string().uuid() }).parse(d),
+    accountInput
+      .extend({
+        brandId: z.string().uuid().optional(),
+        brandIds: z.array(z.string().uuid()).min(1).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertMktRole(context.supabase, context.userId);
-    const { error } = await context.supabase.from("mkt_ad_accounts").upsert(
+    const brandIds: string[] = Array.from(
+      new Set((data.brandIds && data.brandIds.length ? data.brandIds : data.brandId ? [data.brandId] : [])),
+    );
+    if (brandIds.length === 0) throw new Error("Kompokkho ekta brand select korun");
+    const primaryBrandId = brandIds[0];
+    const { data: upserted, error } = await context.supabase.from("mkt_ad_accounts").upsert(
       {
-        brand_id: data.brandId,
+        brand_id: primaryBrandId,
         external_id: data.adAccountId,
         name: data.name,
         app_id: data.appId ?? null,
@@ -101,8 +132,9 @@ export const createAdAccount = createServerFn({ method: "POST" })
         last_error: null,
       },
       { onConflict: "brand_id,external_id" },
-    );
+    ).select("id").single();
     if (error) throw error;
+    await syncAdAccountBrandLinks(context.supabase, upserted.id, brandIds, primaryBrandId);
     return { ok: true };
   });
 
@@ -113,6 +145,7 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       .object({
         accountId: z.string().uuid(),
           brandId: z.string().uuid().optional(),
+          brandIds: z.array(z.string().uuid()).min(1).optional(),
         name: z.string().min(1),
         appId: z.string().trim().optional().nullable(),
         appSecret: z.string().trim().optional().nullable(),
@@ -128,6 +161,16 @@ export const updateAdAccount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertMktRole(context.supabase, context.userId);
+    const brandIds: string[] = Array.from(
+      new Set(
+        (data.brandIds && data.brandIds.length
+          ? data.brandIds
+          : data.brandId
+            ? [data.brandId]
+            : []) as string[],
+      ),
+    );
+    const primaryBrandId = brandIds[0] ?? data.brandId ?? null;
     const patch: any = {
       name: data.name,
       external_id: data.adAccountId,
@@ -135,8 +178,8 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       usd_to_bdt_rate: data.usdToBdtRate,
       status: data.active ? "active" : "paused",
     };
-    if (data.brandId) {
-      patch.brand_id = data.brandId;
+    if (primaryBrandId) {
+      patch.brand_id = primaryBrandId;
     }
     if (typeof data.autoPostToFinance === "boolean") {
       patch.auto_post_to_finance = data.autoPostToFinance;
@@ -156,8 +199,38 @@ export const updateAdAccount = createServerFn({ method: "POST" })
       .update(patch)
       .eq("id", data.accountId);
     if (error) throw error;
+    if (brandIds.length > 0 && primaryBrandId) {
+      await syncAdAccountBrandLinks(context.supabase, data.accountId, brandIds, primaryBrandId);
+    }
     return { ok: true };
   });
+
+async function syncAdAccountBrandLinks(
+  supabase: any,
+  adAccountId: string,
+  brandIds: string[],
+  primaryBrandId: string,
+) {
+  // Delete links no longer selected
+  await supabase
+    .from("mkt_ad_account_brands")
+    .delete()
+    .eq("ad_account_id", adAccountId)
+    .not("brand_id", "in", `(${brandIds.map((b) => `"${b}"`).join(",")})`);
+  // Upsert each selected brand (primary flag only true for primary)
+  for (const bid of brandIds) {
+    await supabase.from("mkt_ad_account_brands").upsert(
+      { ad_account_id: adAccountId, brand_id: bid, is_primary: bid === primaryBrandId },
+      { onConflict: "ad_account_id,brand_id" },
+    );
+  }
+  // Ensure only one primary — clear other primary flags
+  await supabase
+    .from("mkt_ad_account_brands")
+    .update({ is_primary: false })
+    .eq("ad_account_id", adAccountId)
+    .neq("brand_id", primaryBrandId);
+}
 
 // ---- Manually re-post Meta spend to finance for a window ----
 export const repostMetaSpendToFinance = createServerFn({ method: "POST" })
