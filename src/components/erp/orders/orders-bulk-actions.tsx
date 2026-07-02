@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown, Phone } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,16 @@ type Props = {
 export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onClear, onStatus, onExport, onSendToPathao, onSyncCourier, onPhoneHistory, onPrint, isPending }: Props) {
   const disabled = selectedCount === 0;
   const [open, setOpen] = useState(false);
+  const prevCountRef = useRef(0);
 
-  // Auto-open when user selects rows; auto-close when selection cleared.
+  // Auto-open only on the 0 -> >0 transition (first selection).
+  // Auto-close only on >0 -> 0 transition (all cleared).
+  // Otherwise respect user's manual open/close.
   useEffect(() => {
-    if (selectedCount > 0) setOpen(true);
-    else setOpen(false);
+    const prev = prevCountRef.current;
+    if (prev === 0 && selectedCount > 0) setOpen(true);
+    else if (prev > 0 && selectedCount === 0) setOpen(false);
+    prevCountRef.current = selectedCount;
   }, [selectedCount]);
 
   return (
@@ -40,17 +45,22 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0 overflow-hidden">
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        className="w-80 p-0 overflow-hidden rounded-lg shadow-lg max-h-[min(80vh,640px)] flex flex-col"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40">
           <span className="text-xs font-semibold">
             {selectedCount > 0 ? `${selectedCount} selected` : "No selection"}
           </span>
           {selectedCount > 0 ? (
-            <button onClick={onClear} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => { onClear(); setOpen(false); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
               <X className="h-3 w-3" /> Clear
             </button>
           ) : (
-            <button onClick={onSelectAll} className="inline-flex items-center gap-1 text-xs text-primary hover:underline" disabled={!totalCount}>
+            <button type="button" onClick={onSelectAll} className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50" disabled={!totalCount}>
               <CheckCheck className="h-3.5 w-3.5" /> Select All
             </button>
           )}
@@ -62,6 +72,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
           </div>
         )}
 
+        <div className="flex-1 overflow-y-auto">
         <Section label="Print Options">
           <div className="grid grid-cols-2 gap-1.5">
             <ActionTile icon={Printer} label="Invoice" onClick={() => onPrint("invoice")} disabled={disabled} />
@@ -86,6 +97,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
             />
           ))}
           <button
+            type="button"
             onClick={() => onStatus("cancelled")}
             disabled={disabled}
             className="w-full flex items-center gap-2.5 px-2 h-9 mt-1 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -107,6 +119,7 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
             <ActionTile icon={Copy} label="Duplicates" disabled />
           </div>
         </Section>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -124,6 +137,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function ActionRow({ icon: Icon, label, onClick, disabled, tone }: { icon: React.ElementType; label: string; onClick?: () => void; disabled?: boolean; tone?: "destructive" }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       className={`w-full flex items-center gap-2.5 px-2 h-9 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -139,9 +153,10 @@ function ActionRow({ icon: Icon, label, onClick, disabled, tone }: { icon: React
 function ActionTile({ icon: Icon, label, onClick, disabled }: { icon: React.ElementType; label: string; onClick?: () => void; disabled?: boolean }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-2.5 h-9 rounded-md border bg-card text-xs font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-2 px-2.5 h-9 rounded-md border bg-card text-xs font-medium hover:bg-muted hover:border-primary/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
       {label}
