@@ -259,7 +259,13 @@ function DollarPurchasePage() {
                   <div className="font-medium">{r.mkt_ad_accounts?.name ?? "—"}</div>
                   <div className="text-xs text-muted-foreground">{r.mkt_ad_accounts?.external_id}</div>
                 </TableCell>
-                <TableCell className="text-sm">{r.brands?.name ?? <span className="text-muted-foreground">All</span>}</TableCell>
+                <TableCell className="text-sm">
+                  {r.brands?.name ?? (
+                    <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 bg-violet-50">
+                      🌐 Shared
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtUSD(r.usd_amount)}</TableCell>
                 <TableCell className="text-right tabular-nums">{Number(r.usd_rate).toFixed(2)}</TableCell>
                 <TableCell className="text-right tabular-nums text-amber-700">{r.fee_bdt > 0 ? fmtBDT(r.fee_bdt) : "—"}</TableCell>
