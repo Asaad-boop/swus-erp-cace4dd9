@@ -12,6 +12,7 @@ export type PerfRow = {
   status: string | null;
   effective_status: string | null;
   account_id: string;
+  brand_id: string;
   account_name: string | null;
   account_currency: string;
   fx_rate: number; // 1 unit account currency in BDT
@@ -353,6 +354,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         status: c.status,
         effective_status: c.effective_status,
         account_id: c.account_id,
+        brand_id: c.brand_id,
         account_name: acc?.name ?? null,
         account_currency: currency,
         fx_rate: fx,
