@@ -34,8 +34,13 @@ export function StaffDashboard() {
   // ops/customer_service → assigned_to; packer/warehouse → packaged_by; fallback → created_by.
   const has = (r: string) => roles.includes(r as any);
   const scopeParts: string[] = [];
-  if (userId) {
-    if (has("operations") || has("customer_service") || roles.length === 0) {
+  // Only per-user scoping for roles that actually get assigned work.
+  // Supervisor-ish roles (moderator, marketing_manager, accountant, etc.)
+  // see all brand-scoped orders — no self-filter.
+  const isScopedStaff =
+    has("operations") || has("customer_service") || has("packer") || has("warehouse_staff");
+  if (userId && isScopedStaff) {
+    if (has("operations") || has("customer_service")) {
       scopeParts.push(`assigned_to.eq.${userId}`);
     }
     if (has("packer") || has("warehouse_staff") || has("operations")) {
