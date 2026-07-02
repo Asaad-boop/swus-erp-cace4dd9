@@ -354,6 +354,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         status: c.status,
         effective_status: c.effective_status,
         account_id: c.account_id,
+        brand_id: c.brand_id,
         account_name: acc?.name ?? null,
         account_currency: currency,
         fx_rate: fx,
