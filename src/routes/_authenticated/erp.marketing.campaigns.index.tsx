@@ -6,7 +6,7 @@ import {
   Loader2, Search, ArrowRight, Wallet, Receipt, Activity, Target, Package, Download,
 } from "lucide-react";
 
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useMultiBrandPicker } from "@/components/erp/brand-picker-gate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,8 @@ function CostSourceBadge({ source, estimated }: { source: CampaignRollupRow["cos
 }
 
 function CampaignsPage() {
-  const { brandId, picker } = useBrandPicker();
+  const { brandIds, picker } = useMultiBrandPicker();
+  const hasBrand = brandIds.length > 0;
   const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -54,9 +55,9 @@ function CampaignsPage() {
 
   const list = useServerFn(listCampaignsRollup);
   const rollup = useQuery({
-    queryKey: ["mkt", "campaigns", brandId, from, to],
-    queryFn: () => list({ data: { brandId: brandId!, from, to } }),
-    enabled: !!brandId,
+    queryKey: ["mkt", "campaigns", brandIds.slice().sort().join(","), from, to],
+    queryFn: () => list({ data: { brandIds, from, to } }),
+    enabled: hasBrand,
   });
 
   const filtered: CampaignRollupRow[] = useMemo(() => {
