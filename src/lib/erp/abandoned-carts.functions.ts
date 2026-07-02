@@ -433,17 +433,21 @@ export const incompleteReportsFn = createServerFn({ method: "POST" })
 
     const totalCarts = list.length;
     const totalRevenue = list.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
-    const converted = list.filter((c) => c.is_converted);
-    const convertedCarts = converted.length;
-    const convertedRevenue = converted.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
-    const lostRevenue = totalRevenue - convertedRevenue;
-    const recoveryRate = totalCarts > 0 ? (convertedCarts / totalCarts) * 100 : 0;
-    const avgCartValue = totalCarts > 0 ? totalRevenue / totalCarts : 0;
+    // "Recovered" = cart that we actually contacted (followup sent) AND then got converted.
+    // Auto-conversion without any follow-up is NOT a recovery — the customer would have placed the order anyway.
+    const recovered = list.filter((c) => c.is_converted && (c.followup_count ?? 0) > 0);
+    const convertedCarts = recovered.length;
+    const convertedRevenue = recovered.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
     const contactedCount = list.filter((c) => (c.followup_count ?? 0) > 0).length;
     const messagesSent = list.reduce((s, c) => s + (c.followup_count ?? 0), 0);
-    const responseRate = contactedCount > 0
-      ? (list.filter((c) => c.is_converted && (c.followup_count ?? 0) > 0).length / contactedCount) * 100
-      : 0;
+    // Lost revenue = carts that stayed abandoned (never converted).
+    const lostRevenue = list
+      .filter((c) => !c.is_converted)
+      .reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
+    // Recovery rate = of the ones we contacted, how many converted.
+    const recoveryRate = contactedCount > 0 ? (convertedCarts / contactedCount) * 100 : 0;
+    const avgCartValue = totalCarts > 0 ? totalRevenue / totalCarts : 0;
+    const responseRate = recoveryRate;
     const stepMap = new Map<string, number>();
     list.forEach((c) => {
       const k = c.last_step ?? "unknown";
