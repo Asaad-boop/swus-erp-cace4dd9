@@ -234,8 +234,10 @@ function KpiStrip({
       const [cur, prev, confirmed, inTransit, codPending, attention, cancelled, items, users] = await Promise.all([
         inRange(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
         inPrev(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
-        inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
-          .in("status", ["confirmed", "packaging", "packed", "ready_to_ship", "shipped", "delivered"]),
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+          .not("confirmed_at", "is", null)
+          .gte("confirmed_at", range.from.toISOString())
+          .lte("confirmed_at", range.to.toISOString()),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["shipped", "in_transit"]),
         applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds)
