@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
 import { cn } from "@/lib/utils";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useMultiBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
   getPerformanceDashboard,
   type PerfRow,
@@ -128,7 +128,14 @@ const DECISIONS: Record<
 // ─────────────────────────── page ───────────────────────────
 
 function MarketingCommandCenter() {
-  const { brandId, effectiveBrand, picker } = useBrandPicker();
+  const { brandIds, selectedBrands, picker } = useMultiBrandPicker();
+  const hasBrand = brandIds.length > 0;
+  const brandLabel =
+    selectedBrands.length === 0
+      ? "—"
+      : selectedBrands.length === 1
+        ? selectedBrands[0].name
+        : `${selectedBrands.length} brands`;
   const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -145,24 +152,28 @@ function MarketingCommandCenter() {
   const qc = useQueryClient();
 
   const perfQ = useQuery({
-    queryKey: ["mkt-performance", brandId, r.from, r.to],
-    queryFn: () => perfFn({ data: { brandId: brandId!, ...r } }),
-    enabled: !!brandId,
+    queryKey: ["mkt-performance", brandIds.slice().sort().join(","), r.from, r.to],
+    queryFn: () => perfFn({ data: { brandIds, ...r } }),
+    enabled: hasBrand,
     staleTime: 30_000,
   });
   const summaryQ = useQuery({
-    queryKey: ["mkt", "dashboard-summary", brandId],
-    queryFn: () => summaryFn({ data: { brandId: brandId! } }),
-    enabled: !!brandId,
+    queryKey: ["mkt", "dashboard-summary", brandIds.slice().sort().join(",")],
+    queryFn: () => summaryFn({ data: { brandIds } }),
+    enabled: hasBrand,
     refetchInterval: 5 * 60 * 1000,
   });
 
   async function syncMeta() {
-    if (!brandId) return;
+    if (!hasBrand) return;
     setIsSyncing(true);
     try {
-      const res = await syncRangeFn({ data: { brandId, since: r.from, until: r.to } });
-      toast.success(`Meta synced · ${res.rows} rows`);
+      let totalRows = 0;
+      for (const bid of brandIds) {
+        const res = await syncRangeFn({ data: { brandId: bid, since: r.from, until: r.to } });
+        totalRows += res.rows ?? 0;
+      }
+      toast.success(`Meta synced · ${totalRows} rows (${brandIds.length} brand${brandIds.length > 1 ? "s" : ""})`);
       await Promise.all([perfQ.refetch(), summaryQ.refetch()]);
     } catch (e: any) {
       toast.error(e?.message ?? "Meta sync failed");
@@ -172,8 +183,8 @@ function MarketingCommandCenter() {
   }
 
   async function refreshData() {
-    await qc.invalidateQueries({ queryKey: ["mkt-performance", brandId] });
-    await qc.invalidateQueries({ queryKey: ["mkt", "dashboard-summary", brandId] });
+    await qc.invalidateQueries({ queryKey: ["mkt-performance"] });
+    await qc.invalidateQueries({ queryKey: ["mkt", "dashboard-summary"] });
     toast.success("Refreshed");
   }
 
@@ -240,7 +251,7 @@ function MarketingCommandCenter() {
     rows: allRows.filter((row) => row.decision === b),
   }));
 
-  const isLoading = perfQ.isLoading || (!!brandId && !summary && summaryQ.isLoading);
+  const isLoading = perfQ.isLoading || (hasBrand && !summary && summaryQ.isLoading);
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -256,7 +267,7 @@ function MarketingCommandCenter() {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold tracking-tight">Marketing Command Center</h1>
                 <p className="text-sm text-muted-foreground mt-0.5 truncate">
-                  {effectiveBrand?.name ?? "—"} · Live KPIs, true ROAS & per-campaign budget pacing.
+                  {brandLabel} · Live KPIs, true ROAS & per-campaign budget pacing.
                 </p>
               </div>
             </div>
@@ -265,7 +276,7 @@ function MarketingCommandCenter() {
               <DateRangePicker value={dateRange} onChange={setDateRange} />
               <Button
                 onClick={syncMeta}
-                disabled={perfQ.isFetching || isSyncing || !brandId}
+                disabled={perfQ.isFetching || isSyncing || !hasBrand}
                 className="gap-2 bg-[#1877F2] hover:bg-[#1877F2]/90"
               >
                 <RefreshCw className={cn("h-4 w-4", (perfQ.isFetching || isSyncing) && "animate-spin")} />
@@ -461,7 +472,7 @@ function MarketingCommandCenter() {
         </p>
       </div>
 
-      {manageProductsFor && brandId && (
+      {manageProductsFor && brandIds.length === 1 && (
         <ManageCampaignProductsDialog
           open={!!manageProductsFor}
           onOpenChange={(o) => {
@@ -469,7 +480,7 @@ function MarketingCommandCenter() {
           }}
           campaignId={manageProductsFor.campaign_id}
           campaignName={manageProductsFor.name}
-          brandId={brandId}
+          brandId={brandIds[0]}
           status={manageProductsFor.effective_status ?? manageProductsFor.status}
         />
       )}
