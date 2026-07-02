@@ -217,7 +217,7 @@ function StickerSheet({ orders, brandName, cfg }: { orders: any[]; brandName: st
 
 function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; itemsByOrder: Map<string, any[]>; brandName: string }) {
   // Build flat lines: one per order_item, enriched with order context
-  type Line = { sku: string; name: string; variant: string; qty: number; order: any };
+  type Line = { sku: string; name: string; variant: string; qty: number; image: string | null; order: any };
   const lines: Line[] = [];
   for (const o of orders) {
     for (const it of itemsByOrder.get(o.id) ?? []) {
@@ -226,21 +226,24 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
         name: it.name ?? "",
         variant: it.variant_label ?? "",
         qty: Number(it.quantity || 0),
+        image: it.image ?? null,
         order: o,
       });
     }
   }
 
   // Group by product name, then split into variant sub-groups
-  type Variant = { sku: string; variant: string; lines: Line[]; qty: number };
-  type Group = { name: string; variants: Map<string, Variant>; totalQty: number; orderIds: Set<string> };
+  type Variant = { sku: string; variant: string; lines: Line[]; qty: number; image: string | null };
+  type Group = { name: string; variants: Map<string, Variant>; totalQty: number; orderIds: Set<string>; image: string | null };
   const groups = new Map<string, Group>();
   for (const l of lines) {
     let g = groups.get(l.name);
-    if (!g) { g = { name: l.name, variants: new Map(), totalQty: 0, orderIds: new Set() }; groups.set(l.name, g); }
+    if (!g) { g = { name: l.name, variants: new Map(), totalQty: 0, orderIds: new Set(), image: l.image }; groups.set(l.name, g); }
+    if (!g.image && l.image) g.image = l.image;
     const vKey = `${l.sku}::${l.variant}`;
     let v = g.variants.get(vKey);
-    if (!v) { v = { sku: l.sku, variant: l.variant, lines: [], qty: 0 }; g.variants.set(vKey, v); }
+    if (!v) { v = { sku: l.sku, variant: l.variant, lines: [], qty: 0, image: l.image }; g.variants.set(vKey, v); }
+    if (!v.image && l.image) v.image = l.image;
     v.lines.push(l);
     v.qty += l.qty;
     g.totalQty += l.qty;
@@ -257,7 +260,7 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
 
   return (
     <>
-      <style>{`@media print { @page { size: A4; margin: 12mm; } .pk-row,.pk-group{break-inside:avoid;} }`}</style>
+      <style>{`@media print { @page { size: A4; margin: 12mm; } .pk-row,.pk-group{break-inside:avoid;} img{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }`}</style>
       <div style={{ color: "#000", background: "#fff", padding: "18mm 14mm", fontSize: 12, lineHeight: 1.35, fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "2px solid #000", paddingBottom: 10, marginBottom: 14 }}>
@@ -297,8 +300,13 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
           return (
             <div key={g.name} className="pk-group" style={{ marginBottom: 14, border: "1px solid #bbb", borderRadius: 6, overflow: "hidden" }}>
               {/* Product header */}
-              <div style={{ background: "#111", color: "#fff", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0 }}>
+              <div style={{ background: "#111", color: "#fff", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
+                  {g.image ? (
+                    <img src={g.image} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, background: "#fff", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: 4, background: "#333", flexShrink: 0 }} />
+                  )}
                   <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11, color: "#9ca3af", fontWeight: 700 }}>
                     {String(gi + 1).padStart(2, "0")}
                   </span>
@@ -314,8 +322,11 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
               {variants.map((v, vi) => (
                 <div key={vi}>
                   {/* Variant subheader */}
-                  <div style={{ background: "#f3f4f6", padding: "5px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: vi === 0 ? undefined : "1px solid #ddd" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 11 }}>
+                  <div style={{ background: "#f3f4f6", padding: "6px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: vi === 0 ? undefined : "1px solid #ddd", gap: 10 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 11, minWidth: 0 }}>
+                      {v.image ? (
+                        <img src={v.image} alt="" style={{ width: 28, height: 28, objectFit: "cover", borderRadius: 3, border: "1px solid #ddd", background: "#fff", flexShrink: 0 }} />
+                      ) : null}
                       <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 700, color: "#111" }}>{v.sku || "—"}</span>
                       {v.variant && <span style={{ color: "#444" }}>↳ {v.variant}</span>}
                     </div>
