@@ -240,7 +240,7 @@ function KpiStrip({
           .in("status", ["shipped", "in_transit"]),
         applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds)
           .eq("payment_method", "cod").neq("payment_status", "paid")
-          .in("status", ["shipped", "in_transit", "out_for_delivery", "delivered", "partial_delivered"]),
+          .in("status", ["shipped", "in_transit", "delivered", "partial_delivered"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["new" as any, "processing" as any]).lt("created_at", new Date(Date.now() - 3*86400e3).toISOString()),
         inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
