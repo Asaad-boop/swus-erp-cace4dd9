@@ -472,7 +472,7 @@ function MarketingCommandCenter() {
         </p>
       </div>
 
-      {manageProductsFor && brandId && (
+      {manageProductsFor && brandIds.length === 1 && (
         <ManageCampaignProductsDialog
           open={!!manageProductsFor}
           onOpenChange={(o) => {
@@ -480,7 +480,7 @@ function MarketingCommandCenter() {
           }}
           campaignId={manageProductsFor.campaign_id}
           campaignName={manageProductsFor.name}
-          brandId={brandId}
+          brandId={brandIds[0]}
           status={manageProductsFor.effective_status ?? manageProductsFor.status}
         />
       )}
