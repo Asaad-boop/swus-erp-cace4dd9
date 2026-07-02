@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrand } from "@/contexts/brand-context";
+import { useBrand, type Brand } from "@/contexts/brand-context";
 
 export const Route = createFileRoute("/_authenticated/erp/analytics/live")({
   head: () => ({ meta: [{ title: "Live Analytics — ERP" }] }),
@@ -260,19 +260,30 @@ function Header({ brandLabel, range, onRangeChange }: { brandLabel: string; rang
 }
 
 // ---------------- Pulse Bar ----------------
-function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange }) {
+function PulseBar({ brandIds, range, brands }: { brandIds: string[]; range: TimeRange; brands: Brand[] }) {
   const meta = rangeMeta(range);
   const windowMs = meta.seconds * 1000;
-  // Active visitors (selected window)
-  const { data: liveVisitors = 0 } = useQuery({
-    queryKey: ["live-visitors", range],
+  // Active visitors (selected window) with per-brand breakdown
+  const { data: visitorsData = { total: 0, byBrand: {} as Record<string, number>, unknown: 0 } } = useQuery({
+    queryKey: ["live-visitors", range, brandIds.join(",")],
     queryFn: async () => {
       const since = new Date(Date.now() - windowMs).toISOString();
-      const { count } = await supabase
+      const { data } = await supabase
         .from("active_sessions")
-        .select("session_id", { count: "exact", head: true })
-        .gte("last_seen_at", since);
-      return count ?? 0;
+        .select("session_id, brand_id")
+        .gte("last_seen_at", since)
+        .limit(5000);
+      const rows = (data ?? []) as { session_id: string; brand_id: string | null }[];
+      const filtered = brandIds.length > 0
+        ? rows.filter((r) => r.brand_id && brandIds.includes(r.brand_id))
+        : rows;
+      const byBrand: Record<string, number> = {};
+      let unknown = 0;
+      for (const r of filtered) {
+        if (r.brand_id) byBrand[r.brand_id] = (byBrand[r.brand_id] ?? 0) + 1;
+        else unknown += 1;
+      }
+      return { total: filtered.length, byBrand, unknown };
     },
     refetchInterval: 5000,
   });
@@ -328,8 +339,13 @@ function PulseBar({ brandIds, range }: { brandIds: string[]; range: TimeRange })
     refetchInterval: 5000,
   });
 
+  const brandBreakdown = Object.entries(visitorsData.byBrand)
+    .map(([id, n]) => ({ id, name: brands.find((b) => b.id === id)?.name ?? "—", n }))
+    .sort((a, b) => b.n - a.n);
+  if (visitorsData.unknown > 0) brandBreakdown.push({ id: "unknown", name: "Other", n: visitorsData.unknown });
+
   const cards = [
-    { label: `Live Visitors (${meta.label})`, value: num(liveVisitors), icon: Users, accent: "emerald", live: true },
+    { label: `Live Visitors (${meta.label})`, value: num(visitorsData.total), icon: Users, accent: "emerald", live: true, breakdown: brandBreakdown },
     { label: `Add to Cart (${meta.label})`, value: num(atcCount), icon: ShoppingCart, accent: "amber" },
     { label: "Orders Today", value: num(ordersToday.count), icon: Package, accent: "blue" },
     { label: "Revenue Today", value: BDT.format(ordersToday.revenue), icon: DollarSign, accent: "green" },
@@ -353,7 +369,7 @@ const ACCENT_MAP: Record<string, { ring: string; bg: string; icon: string; dot: 
   purple:  { ring: "ring-purple-200/70",  bg: "from-purple-50/70 via-card to-card",  icon: "text-purple-600 bg-purple-100/70", dot: "bg-purple-500" },
 };
 
-function PulseCard({ label, value, icon: Icon, accent, live }: { label: string; value: string; icon: typeof Users; accent: string; live?: boolean }) {
+function PulseCard({ label, value, icon: Icon, accent, live, breakdown }: { label: string; value: string; icon: typeof Users; accent: string; live?: boolean; breakdown?: readonly { id: string; name: string; n: number }[] }) {
   const a = ACCENT_MAP[accent] ?? ACCENT_MAP.blue;
   return (
     <div className={cn("relative rounded-xl ring-1 bg-gradient-to-br p-4 shadow-sm hover:shadow-md transition-all", a.ring, a.bg)}>
@@ -366,6 +382,20 @@ function PulseCard({ label, value, icon: Icon, accent, live }: { label: string; 
           <Icon className="h-4.5 w-4.5" />
         </div>
       </div>
+      {breakdown && breakdown.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {breakdown.map((b) => (
+            <span
+              key={b.id}
+              className="inline-flex items-center gap-1 rounded-full bg-background/70 border px-1.5 py-0.5 text-[10px] font-medium"
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", a.dot)} />
+              <span className="text-foreground">{b.name}</span>
+              <span className="tabular-nums text-muted-foreground">{b.n}</span>
+            </span>
+          ))}
+        </div>
+      )}
       {live && (
         <div className="absolute top-2 right-2 flex items-center gap-1">
           <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", a.dot)} />
@@ -382,18 +412,20 @@ function startOfDayISO() {
 }
 
 // ---------------- Active Sessions Panel ----------------
-function ActiveSessionsPanel() {
+function ActiveSessionsPanel({ brandIds, brands }: { brandIds: string[]; brands: Brand[] }) {
   useTicker(15000);
   const { data: rows = [], refetch } = useQuery({
-    queryKey: ["active-sessions"],
+    queryKey: ["active-sessions", brandIds.join(",")],
     queryFn: async () => {
       const since = new Date(Date.now() - 2 * 60_000).toISOString();
-      const { data, error } = await supabase
+      let q = supabase
         .from("active_sessions")
-        .select("session_id, path, referrer, country, user_agent, first_seen_at, last_seen_at")
+        .select("session_id, path, referrer, country, user_agent, first_seen_at, last_seen_at, brand_id")
         .gte("last_seen_at", since)
         .order("last_seen_at", { ascending: false })
-        .limit(20);
+        .limit(40);
+      if (brandIds.length > 0) q = q.in("brand_id", brandIds);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as ActiveSession[];
     },
@@ -428,6 +460,11 @@ function ActiveSessionsPanel() {
                 const device = deviceFromUA(s.user_agent);
                 const idle = Date.now() - new Date(s.last_seen_at).getTime() > 60_000;
                 const src = classifySource(null, s.referrer);
+                const brand = s.brand_id ? brands.find((b) => b.id === s.brand_id) : null;
+                const brandTone =
+                  brand?.slug === "toyora" ? "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200"
+                  : brand?.slug === "hobby-shop" ? "bg-sky-100 text-sky-700 border-sky-200"
+                  : "bg-muted text-muted-foreground border-border";
                 return (
                   <li key={s.session_id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/40 transition-colors">
                     <span className={cn("h-2 w-2 rounded-full shrink-0", idle ? "bg-amber-400" : "bg-emerald-500 animate-pulse")} />
@@ -435,6 +472,9 @@ function ActiveSessionsPanel() {
                       <div className="flex items-center gap-2 text-sm font-medium truncate">
                         <span className="text-muted-foreground"><DeviceIcon type={device} /></span>
                         <span className="truncate">{pathLabel(s.path)}</span>
+                        <span className={cn("ml-auto text-[10px] font-semibold uppercase tracking-wider rounded-full border px-1.5 py-0.5 shrink-0", brandTone)}>
+                          {brand?.name ?? "Other"}
+                        </span>
                       </div>
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
                         <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{s.country || "Bangladesh"}</span>
