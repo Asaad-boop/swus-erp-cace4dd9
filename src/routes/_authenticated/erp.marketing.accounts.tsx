@@ -89,6 +89,9 @@ type AccountRow = {
   last_error: string | null;
   auto_post_to_finance: boolean;
   finance_wallet_id: string | null;
+  brand_id?: string | null;
+  brand_ids?: string[];
+  primary_brand_id?: string | null;
 };
 
 type WalletOption = { id: string; name: string; wallet_type: string };
@@ -291,9 +294,24 @@ function AdAccountsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="font-semibold text-base truncate">{acc.name}</div>
-                      <Badge variant="outline" className="text-[10px] font-medium">
-                        {brandNameMap.get((acc as any).brand_id) ?? "—"}
-                      </Badge>
+                      {(acc.brand_ids && acc.brand_ids.length > 0
+                        ? acc.brand_ids
+                        : acc.brand_id
+                          ? [acc.brand_id]
+                          : []
+                      ).map((bid) => {
+                        const isPrimary = bid === (acc.primary_brand_id ?? acc.brand_id);
+                        return (
+                          <Badge
+                            key={bid}
+                            variant="outline"
+                            className={`text-[10px] font-medium ${isPrimary ? "border-primary/60 bg-primary/5" : ""}`}
+                          >
+                            {brandNameMap.get(bid) ?? "—"}
+                            {isPrimary && (acc.brand_ids?.length ?? 0) > 1 ? " ★" : ""}
+                          </Badge>
+                        );
+                      })}
                     </div>
                     <div className="text-xs font-mono text-muted-foreground truncate">
                       {acc.external_id}
