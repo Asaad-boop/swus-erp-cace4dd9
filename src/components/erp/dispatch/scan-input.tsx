@@ -19,11 +19,33 @@ export const ScanInput = forwardRef<ScanInputHandle, Props>(function ScanInput(
   const [value, setValue] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSubmittedRef = useRef<string>("");
+  const stickyRef = useRef(true);
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
     clear: () => setValue(""),
   }));
+
+  // Keep focus sticky: whenever disabled flips off, re-focus the input.
+  useEffect(() => {
+    if (!disabled) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [disabled]);
+
+  // Refocus if focus is lost (dialog/toast/mutation re-render steals it).
+  function onBlur() {
+    if (!stickyRef.current) return;
+    setTimeout(() => {
+      if (disabled) return;
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      // Don't steal focus from other real inputs the user clicked into.
+      if (tag === "INPUT" || tag === "TEXTAREA" || (active as HTMLElement)?.isContentEditable) return;
+      inputRef.current?.focus();
+    }, 100);
+  }
 
   function submit() {
     const v = value.trim();
@@ -69,6 +91,7 @@ export const ScanInput = forwardRef<ScanInputHandle, Props>(function ScanInput(
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKey}
+          onBlur={onBlur}
           placeholder={placeholder ?? "Scan or type invoice number…"}
           disabled={disabled}
           className="pl-10 h-14 text-lg font-mono"
