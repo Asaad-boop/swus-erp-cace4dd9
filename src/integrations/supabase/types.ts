@@ -87,6 +87,7 @@ export type Database = {
       }
       active_sessions: {
         Row: {
+          brand_id: string | null
           country: string | null
           first_seen_at: string
           last_seen_at: string
@@ -96,6 +97,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          brand_id?: string | null
           country?: string | null
           first_seen_at?: string
           last_seen_at?: string
@@ -105,6 +107,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          brand_id?: string | null
           country?: string | null
           first_seen_at?: string
           last_seen_at?: string
@@ -113,7 +116,15 @@ export type Database = {
           session_id?: string
           user_agent?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "active_sessions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       activity_log: {
         Row: {
