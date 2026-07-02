@@ -30,28 +30,10 @@ export function StaffDashboard() {
   const { roles, userId, isAdmin } = useCurrentRole();
   const enabled = brandIds.length > 0 && !!userId;
 
-  // Build a per-staff OR filter so KPIs only count orders this user touches.
-  // ops/customer_service → assigned_to; packer/warehouse → packaged_by; fallback → created_by.
+  // Staff dashboard should show the orders the current role is allowed to see.
+  // Do not add extra client-side staff filters here: RLS already controls access,
+  // and older filters referenced a non-existent `created_by` column, causing zero KPIs.
   const has = (r: string) => roles.includes(r as any);
-  const scopeParts: string[] = [];
-  // Only per-user scoping for roles that actually get assigned work.
-  // Supervisor-ish roles (moderator, marketing_manager, accountant, etc.)
-  // see all brand-scoped orders — no self-filter.
-  const isScopedStaff =
-    has("operations") || has("customer_service") || has("packer") || has("warehouse_staff");
-  if (userId && isScopedStaff) {
-    if (has("operations") || has("customer_service")) {
-      scopeParts.push(`assigned_to.eq.${userId}`);
-    }
-    if (has("packer") || has("warehouse_staff") || has("operations")) {
-      scopeParts.push(`packaged_by.eq.${userId}`);
-    }
-    scopeParts.push(`created_by.eq.${userId}`);
-  }
-  const staffOr = Array.from(new Set(scopeParts)).join(",");
-  // Admins see everything; staff scoped to their own assignments.
-  const scopeOrders = <T,>(q: T): T =>
-    (!isAdmin && staffOr ? (q as any).or(staffOr) : q) as T;
 
   const { data: me } = useQuery({
     queryKey: ["me-profile-staff"],
@@ -68,36 +50,39 @@ export function StaffDashboard() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["staff-dash", userId, isAdmin, staffOr, brandIds.join(",")],
+    queryKey: ["staff-dash", userId, isAdmin, roles.join(","), brandIds.join(",")],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
       const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"] as const;
       const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent, pendingByBrand] = await Promise.all([
-        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .gte("created_at", todayStart.toISOString()),
-        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", pendingStatuses),
-        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", pendingStatuses)
           .gte("created_at", todayStart.toISOString()),
-        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["shipped", "in_transit"]),
-        scopeOrders(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["new" as any])
           .lt("created_at", new Date(Date.now() - 3 * 86400e3).toISOString()),
         applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds)
           .eq("is_resolved", false),
-        scopeOrders(applyBrandScope(
+        applyBrandScope(
           supabase.from("orders").select("id,order_number,status,created_at,customer_name,total"),
           brandIds,
-        )).order("created_at", { ascending: false }).limit(8),
-        scopeOrders(applyBrandScope(
+        ).order("created_at", { ascending: false }).limit(8),
+        applyBrandScope(
           supabase.from("orders").select("brand_id"),
           brandIds,
-        )).in("status", pendingStatuses).limit(5000),
+        ).in("status", pendingStatuses).limit(5000),
       ]);
+      const failed = [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent, pendingByBrand]
+        .find((res) => res.error);
+      if (failed?.error) throw failed.error;
       const brandCounts: Record<string, number> = {};
       for (const r of (pendingByBrand.data ?? []) as { brand_id: string | null }[]) {
         const k = r.brand_id ?? "—";
