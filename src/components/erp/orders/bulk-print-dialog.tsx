@@ -217,7 +217,7 @@ function StickerSheet({ orders, brandName, cfg }: { orders: any[]; brandName: st
 
 function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; itemsByOrder: Map<string, any[]>; brandName: string }) {
   // Build flat lines: one per order_item, enriched with order context
-  type Line = { sku: string; name: string; variant: string; qty: number; order: any };
+  type Line = { sku: string; name: string; variant: string; qty: number; image: string | null; order: any };
   const lines: Line[] = [];
   for (const o of orders) {
     for (const it of itemsByOrder.get(o.id) ?? []) {
@@ -226,21 +226,24 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
         name: it.name ?? "",
         variant: it.variant_label ?? "",
         qty: Number(it.quantity || 0),
+        image: it.image ?? null,
         order: o,
       });
     }
   }
 
   // Group by product name, then split into variant sub-groups
-  type Variant = { sku: string; variant: string; lines: Line[]; qty: number };
-  type Group = { name: string; variants: Map<string, Variant>; totalQty: number; orderIds: Set<string> };
+  type Variant = { sku: string; variant: string; lines: Line[]; qty: number; image: string | null };
+  type Group = { name: string; variants: Map<string, Variant>; totalQty: number; orderIds: Set<string>; image: string | null };
   const groups = new Map<string, Group>();
   for (const l of lines) {
     let g = groups.get(l.name);
-    if (!g) { g = { name: l.name, variants: new Map(), totalQty: 0, orderIds: new Set() }; groups.set(l.name, g); }
+    if (!g) { g = { name: l.name, variants: new Map(), totalQty: 0, orderIds: new Set(), image: l.image }; groups.set(l.name, g); }
+    if (!g.image && l.image) g.image = l.image;
     const vKey = `${l.sku}::${l.variant}`;
     let v = g.variants.get(vKey);
-    if (!v) { v = { sku: l.sku, variant: l.variant, lines: [], qty: 0 }; g.variants.set(vKey, v); }
+    if (!v) { v = { sku: l.sku, variant: l.variant, lines: [], qty: 0, image: l.image }; g.variants.set(vKey, v); }
+    if (!v.image && l.image) v.image = l.image;
     v.lines.push(l);
     v.qty += l.qty;
     g.totalQty += l.qty;
