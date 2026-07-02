@@ -1,3 +1,4 @@
+import * as React from "react";
 import { format } from "date-fns";
 
 type Item = { name: string; variant_label?: string | null; quantity: number; sku?: string | null };
@@ -243,8 +244,4 @@ const td = (align: "left" | "right" | "center" = "left"): React.CSSProperties =>
   verticalAlign: "top",
 });
 
-// Keep JSX Fragment import unnecessary — using shorthand <></>.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _ = React.ReactNode;
-import * as React from "react";
 }
