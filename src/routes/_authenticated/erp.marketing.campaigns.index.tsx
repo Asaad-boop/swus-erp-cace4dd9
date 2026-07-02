@@ -16,6 +16,7 @@ import { MktKpiCard } from "@/components/erp/marketing/_ui/MktKpiCard";
 import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
 import { MktStatusBadge } from "@/components/erp/marketing/_ui/MktBadges";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
+import { LastSyncedBadge } from "@/components/erp/marketing/last-synced-badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/campaigns/")({
@@ -118,6 +119,7 @@ function CampaignsPage() {
         actions={
           <>
             <DateRangePicker value={range} onChange={setRange} />
+            <LastSyncedBadge brandIds={brandIds} />
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="bg-white gap-1.5">
               <Download className="h-3.5 w-3.5" /> Export
             </Button>
