@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
+import { useBrand } from "@/contexts/brand-context";
 import {
   getCampaignDetail,
   listCampaignProducts,
@@ -672,15 +673,20 @@ function ProductPicker({
 }) {
   const searchFn = useServerFn(searchBrandProducts);
   const [query, setQuery] = useState("");
+  const { brands } = useBrand();
+  const [scope, setScope] = useState<string>(brandId); // brandId | "all"
+  const activeBrandIds =
+    scope === "all" ? brands.map((b) => b.id) : [scope];
 
   const q = useQuery({
-    queryKey: ["mkt", "brand-products", brandId, query],
-    queryFn: () => searchFn({ data: { brandId, query, limit: 30 } }),
+    queryKey: ["mkt", "brand-products", activeBrandIds.slice().sort().join(","), query],
+    queryFn: () => searchFn({ data: { brandIds: activeBrandIds, query, limit: 50 } }),
     enabled: open,
   });
 
   const taken = new Set(excludeIds);
   const rows = ((q.data ?? []) as any[]).filter((p) => !taken.has(p.id));
+  const brandNameById = new Map(brands.map((b) => [b.id, b.name] as const));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -691,14 +697,27 @@ function ProductPicker({
             Brand er product gulo theke select korun. Linked products attribution fallback ar product profit allocation e use hobe.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title or SKU…"
-            className="pl-9"
-          />
+        <div className="flex gap-2 items-center">
+          <Select value={scope} onValueChange={setScope}>
+            <SelectTrigger className="w-[180px] h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}{b.id === brandId ? " (campaign)" : ""}</SelectItem>
+              ))}
+              <SelectItem value="all">All brands</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by title or SKU…"
+              className="pl-9"
+            />
+          </div>
         </div>
         <div className="max-h-[55vh] overflow-y-auto rounded-md border">
           {q.isLoading ? (
@@ -712,6 +731,7 @@ function ProductPicker({
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead></TableHead>
@@ -733,6 +753,7 @@ function ProductPicker({
                         {!p.is_active ? <Badge variant="outline" className="text-xs">Inactive</Badge> : null}
                       </div>
                     </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{brandNameById.get(p.brand_id) ?? "—"}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{p.sku ?? "—"}</TableCell>
                     <TableCell className="text-right">{p.price ? `BDT ${Number(p.price).toLocaleString()}` : "—"}</TableCell>
                     <TableCell className="text-right">
