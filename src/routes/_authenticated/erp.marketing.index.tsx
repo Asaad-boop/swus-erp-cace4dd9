@@ -83,6 +83,12 @@ const fmtNum = (n: number) =>
 const fmtPct = (n: number | null, digits = 2) =>
   n == null ? "—" : `${n.toFixed(digits)}%`;
 const fmtMult = (n: number | null) => (n == null ? "—" : `${n.toFixed(2)}×`);
+const localYmd = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 // ─────────────────────────── decision config ───────────────────────────
 const DECISIONS: Record<
@@ -146,6 +152,7 @@ function MarketingCommandCenter() {
   const [manageProductsFor, setManageProductsFor] = useState<PerfRow | null>(null);
 
   const r = useMemo(() => ({ from: dateRange.from, to: dateRange.to }), [dateRange.from, dateRange.to]);
+  const isTodayRange = dateRange.from === localYmd(new Date()) && dateRange.to === localYmd(new Date());
 
   const perfFn = useServerFn(getPerformanceDashboard);
   const summaryFn = useServerFn(getDashboardSummary);
@@ -161,7 +168,7 @@ function MarketingCommandCenter() {
   const summaryQ = useQuery({
     queryKey: ["mkt", "dashboard-summary", brandIds.slice().sort().join(",")],
     queryFn: () => summaryFn({ data: { brandIds } }),
-    enabled: hasBrand,
+    enabled: hasBrand && isTodayRange,
     refetchInterval: 5 * 60 * 1000,
   });
 
@@ -175,7 +182,7 @@ function MarketingCommandCenter() {
         totalRows += res.rows ?? 0;
       }
       toast.success(`Meta synced · ${totalRows} rows (${brandIds.length} brand${brandIds.length > 1 ? "s" : ""})`);
-      await Promise.all([perfQ.refetch(), summaryQ.refetch()]);
+      await Promise.all(isTodayRange ? [perfQ.refetch(), summaryQ.refetch()] : [perfQ.refetch()]);
     } catch (e: any) {
       toast.error(e?.message ?? "Meta sync failed");
     } finally {
@@ -199,14 +206,15 @@ function MarketingCommandCenter() {
 
   const allRows = perfQ.data?.rows ?? [];
   const totals = perfQ.data?.totals;
-  const summary = summaryQ.data;
+  const summary = isTodayRange ? summaryQ.data : undefined;
 
   // Index budget pacing by campaign_id
   const pacingMap = useMemo(() => {
     const m = new Map<string, DashboardSummary["budgetPacing"][number]>();
+    if (!isTodayRange) return m;
     summary?.budgetPacing.forEach((p) => m.set(p.campaign_id, p));
     return m;
-  }, [summary]);
+  }, [summary, isTodayRange]);
 
   const filtered = useMemo(() => {
     let rows = allRows.filter((row) => {
@@ -247,12 +255,12 @@ function MarketingCommandCenter() {
     return rows;
   }, [allRows, search, statusFilter, bucketFilter, sortBy]);
 
-  const buckets = (["scale", "monitor", "optimize", "kill"] as DecisionBucket[]).map((b) => ({
+  const buckets = (["scale", "monitor", "optimize", "kill", "insufficient"] as DecisionBucket[]).map((b) => ({
     key: b,
     rows: allRows.filter((row) => row.decision === b),
   }));
 
-  const isLoading = perfQ.isLoading || (hasBrand && !summary && summaryQ.isLoading);
+  const isLoading = perfQ.isLoading || (hasBrand && isTodayRange && !summary && summaryQ.isLoading);
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -348,7 +356,7 @@ function MarketingCommandCenter() {
         </div>
 
         {/* ── TODAY + ROAS REALITY ────────────────────────────────── */}
-        {summary && (summary.today.spend_bdt > 0 || summary.today.attributed_orders > 0) && (
+        {isTodayRange && summary && (summary.today.spend_bdt > 0 || summary.today.attributed_orders > 0) && (
           <Card className="p-4 rounded-2xl border-gray-100 shadow-sm bg-gradient-to-br from-emerald-50/40 via-card to-card">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -464,6 +472,7 @@ function MarketingCommandCenter() {
               key={row.campaign_id}
               row={row}
               pacing={pacingMap.get(row.campaign_id)}
+              showPacing={isTodayRange}
               onManageProducts={() => setManageProductsFor(row)}
             />
           ))}
@@ -578,10 +587,12 @@ function TodayKpi({
 function CampaignBeastCard({
   row,
   pacing,
+  showPacing,
   onManageProducts,
 }: {
   row: PerfRow;
   pacing?: DashboardSummary["budgetPacing"][number];
+  showPacing: boolean;
   onManageProducts: () => void;
 }) {
   const d = DECISIONS[row.decision];
@@ -743,21 +754,23 @@ function CampaignBeastCard({
         </div>
 
         {/* RIGHT: BUDGET PACING PANEL */}
-        <div className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gradient-to-br from-muted/30 to-transparent p-4 lg:w-[300px] flex flex-col justify-center">
-          {pacing ? (
+        {showPacing && (
+          <div className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gradient-to-br from-muted/30 to-transparent p-4 lg:w-[300px] flex flex-col justify-center">
+            {pacing ? (
             <BudgetPanel pacing={pacing} />
-          ) : isActive ? (
+            ) : isActive ? (
             <div className="text-xs text-muted-foreground text-center py-4">
               <Zap className="h-4 w-4 mx-auto mb-1 opacity-50" />
               No budget data
               <div className="text-[10px] mt-0.5">ABO/CBO not synced</div>
             </div>
-          ) : (
+            ) : (
             <div className="text-xs text-muted-foreground text-center py-4">
               <span className="opacity-50">Paused — no live budget</span>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
