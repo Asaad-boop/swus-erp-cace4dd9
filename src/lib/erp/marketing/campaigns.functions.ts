@@ -379,20 +379,27 @@ export const listCampaignProducts = createServerFn({ method: "POST" })
 
 export const searchBrandProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; query?: string; limit?: number }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; query?: string; limit?: number }) =>
     z
       .object({
-        brandId: z.string().uuid(),
+        brandId: z.string().uuid().optional(),
+        brandIds: z.array(z.string().uuid()).optional(),
         query: z.string().optional(),
         limit: z.number().int().min(1).max(50).optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const ids = data.brandIds && data.brandIds.length > 0
+      ? data.brandIds
+      : data.brandId
+        ? [data.brandId]
+        : [];
+    if (ids.length === 0) return [];
     let q = context.supabase
       .from("products")
       .select("id, title, sku, price, image, is_active")
-      .eq("brand_id", data.brandId)
+      .in("brand_id", ids)
       .order("title", { ascending: true })
       .limit(data.limit ?? 25);
     if (data.query && data.query.trim()) {
