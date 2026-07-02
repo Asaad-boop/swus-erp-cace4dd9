@@ -450,18 +450,18 @@ export const getLastSyncStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("mkt_sync_log")
-      .select("started_at, completed_at, status, rows_upserted, error_message, brand_id")
+      .select("started_at, finished_at, status, rows_processed, error, brand_id")
       .in("brand_id", data.brandIds)
       .order("started_at", { ascending: false })
       .limit(50);
     if (error) throw error;
     const list = rows ?? [];
-    const lastCompleted = list.find((r) => r.status === "completed" || r.completed_at);
+    const lastCompleted = list.find((r) => r.status === "success" && r.finished_at);
     const lastAny = list[0] ?? null;
     return {
-      lastCompletedAt: lastCompleted?.completed_at ?? lastCompleted?.started_at ?? null,
+      lastCompletedAt: lastCompleted?.finished_at ?? lastCompleted?.started_at ?? null,
       lastStatus: lastAny?.status ?? null,
-      lastError: lastAny?.error_message ?? null,
+      lastError: lastAny?.error ?? null,
       lastStartedAt: lastAny?.started_at ?? null,
     };
   });
