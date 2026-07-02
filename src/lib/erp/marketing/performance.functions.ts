@@ -12,6 +12,7 @@ export type PerfRow = {
   status: string | null;
   effective_status: string | null;
   account_id: string;
+  brand_id: string;
   account_name: string | null;
   account_currency: string;
   fx_rate: number; // 1 unit account currency in BDT
