@@ -30,7 +30,7 @@ export function BulkPrintDialog({
   mode: PrintMode;
   orderIds: string[];
 }) {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brands } = useBrand();
   const { data: cfg } = useInvoiceConfig(activeBrand?.id);
   const config = cfg ?? DEFAULT_INVOICE_CONFIG;
 
@@ -73,6 +73,20 @@ export function BulkPrintDialog({
   const itemsByOrder = data?.itemsByOrder ?? new Map<string, any[]>();
   const ready = !isLoading && orders.length > 0;
 
+  // Per-brand breakdown of selected orders (works across "All brands" view too)
+  const brandBreakdown = (() => {
+    const counts = new Map<string, number>();
+    for (const o of orders) {
+      const key = (o as any).brand_id ?? "unknown";
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([id, count]) => ({
+      id,
+      count,
+      name: brands.find((b) => b.id === id)?.name ?? "Unknown",
+    })).sort((a, b) => b.count - a.count);
+  })();
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,10 +103,22 @@ export function BulkPrintDialog({
               {mode === "sheet" && " One condensed table of all selected orders."}
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Brand</span>
-              <span className="font-medium">{activeBrand?.name ?? "—"}</span>
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-muted-foreground pt-0.5">Brands</span>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {isLoading && <span className="text-muted-foreground">…</span>}
+                {!isLoading && brandBreakdown.length === 0 && <span className="font-medium">—</span>}
+                {!isLoading && brandBreakdown.map((b) => (
+                  <span
+                    key={b.id}
+                    className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 font-medium"
+                  >
+                    {b.name}
+                    <span className="tabular-nums text-muted-foreground">× {b.count}</span>
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>
@@ -100,6 +126,11 @@ export function BulkPrintDialog({
                 {isLoading ? "Loading order data…" : `${orders.length} order${orders.length === 1 ? "" : "s"} ready`}
               </span>
             </div>
+            {!isLoading && brandBreakdown.length > 1 && (
+              <div className="text-[10px] text-muted-foreground pt-1 border-t">
+                Each invoice uses its own brand's invoice settings.
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 mt-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
