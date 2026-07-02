@@ -398,7 +398,7 @@ export const searchBrandProducts = createServerFn({ method: "POST" })
     if (ids.length === 0) return [];
     let q = context.supabase
       .from("products")
-      .select("id, title, sku, price, image, is_active")
+      .select("id, title, sku, price, image, is_active, brand_id")
       .in("brand_id", ids)
       .order("title", { ascending: true })
       .limit(data.limit ?? 25);
