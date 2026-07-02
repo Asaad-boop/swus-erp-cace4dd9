@@ -637,24 +637,56 @@ function AccountEditor({
         <div className="space-y-4">
           {(
             <div>
-              <Label>Brand</Label>
-              <Select
-                value={form.brandId}
-                onValueChange={(v) => setForm((f) => ({ ...f, brandId: v, financeWalletId: "" }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Brands (multi-select)</Label>
+              <div className="mt-1 rounded-md border p-2 space-y-1 max-h-44 overflow-y-auto">
+                {brands.map((b) => {
+                  const checked = form.brandIds.includes(b.id);
+                  const isPrimary = form.brandId === b.id;
+                  return (
+                    <div key={b.id} className="flex items-center justify-between gap-2 py-1">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer flex-1">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setForm((f) => {
+                              const next = v
+                                ? Array.from(new Set([...f.brandIds, b.id]))
+                                : f.brandIds.filter((x) => x !== b.id);
+                              const nextPrimary =
+                                next.includes(f.brandId) ? f.brandId : next[0] ?? "";
+                              return {
+                                ...f,
+                                brandIds: next,
+                                brandId: nextPrimary,
+                                financeWalletId:
+                                  nextPrimary === f.brandId ? f.financeWalletId : "",
+                              };
+                            });
+                          }}
+                        />
+                        <span>{b.name}</span>
+                      </label>
+                      {checked && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({ ...f, brandId: b.id, financeWalletId: "" }))
+                          }
+                          className={`text-[11px] px-2 py-0.5 rounded border ${
+                            isPrimary
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {isPrimary ? "★ Primary" : "Set primary"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isEdit ? "Brand change korte parba" : "Ei account kon brand er under add hobe"}
+                Ekta ad account e multiple brand er campaign run korte parbe. Primary brand = default owner (finance wallet, new campaign fallback).
               </p>
             </div>
           )}
