@@ -192,6 +192,7 @@ function StatusGroupCollapsible({
             const b = statusBadge(s);
             return (
               <button
+                type="button"
                 key={s}
                 onClick={() => onStatus(s)}
                 disabled={disabled}
