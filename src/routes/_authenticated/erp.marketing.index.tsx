@@ -318,7 +318,13 @@ function MarketingCommandCenter() {
         {/* ── HERO KPIs ───────────────────────────────────────────── */}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           <HeroKpi icon={Wallet} label="Spend" value={totals ? fmtBDT(totals.total_spend_bdt) : "—"} sub={totals ? fmtUSD(totals.total_spend_usd) : ""} tone="sky" />
-          <HeroKpi icon={Receipt} label="Revenue" value={totals ? fmtBDT(totals.delivered_revenue_bdt) : "—"} sub="delivered" tone="violet" />
+          <HeroKpi
+            icon={Receipt}
+            label="Confirmed Revenue"
+            value={totals ? fmtBDT(totals.confirmed_revenue_bdt) : "—"}
+            sub={totals ? `${totals.confirmed_orders} confirmed · ${fmtBDT(totals.delivered_revenue_bdt)} delivered` : ""}
+            tone="violet"
+          />
           <HeroKpi
             icon={totals && totals.profit_bdt >= 0 ? TrendingUp : TrendingDown}
             label="Profit"
@@ -329,10 +335,10 @@ function MarketingCommandCenter() {
           />
           <HeroKpi
             icon={Target}
-            label="True ROAS"
-            value={totals ? fmtMult(totals.true_roas) : "—"}
-            sub={totals ? `Meta ${fmtMult(totals.meta_roas)}` : ""}
-            tone={!totals || totals.true_roas == null ? "indigo" : totals.true_roas >= 2 ? "emerald" : totals.true_roas >= 1 ? "amber" : "rose"}
+            label="Real ROAS"
+            value={totals ? fmtMult(totals.confirmed_roas) : "—"}
+            sub={totals ? `True ${fmtMult(totals.true_roas)} · Meta ${fmtMult(totals.meta_roas)}` : ""}
+            tone={!totals || totals.confirmed_roas == null ? "indigo" : totals.confirmed_roas >= 2 ? "emerald" : totals.confirmed_roas >= 1 ? "amber" : "rose"}
             emphasize
           />
           <HeroKpi
