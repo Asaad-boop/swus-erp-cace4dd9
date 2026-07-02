@@ -439,3 +439,29 @@ export const listSyncLog = createServerFn({ method: "POST" })
     if (error) throw error;
     return rows ?? [];
   });
+
+// ---- 8. Last sync status (across brands) ----
+
+export const getLastSyncStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandIds: string[] }) =>
+    z.object({ brandIds: z.array(z.string().uuid()).min(1) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("mkt_sync_log")
+      .select("started_at, completed_at, status, rows_upserted, error_message, brand_id")
+      .in("brand_id", data.brandIds)
+      .order("started_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    const list = rows ?? [];
+    const lastCompleted = list.find((r) => r.status === "completed" || r.completed_at);
+    const lastAny = list[0] ?? null;
+    return {
+      lastCompletedAt: lastCompleted?.completed_at ?? lastCompleted?.started_at ?? null,
+      lastStatus: lastAny?.status ?? null,
+      lastError: lastAny?.error_message ?? null,
+      lastStartedAt: lastAny?.started_at ?? null,
+    };
+  });
