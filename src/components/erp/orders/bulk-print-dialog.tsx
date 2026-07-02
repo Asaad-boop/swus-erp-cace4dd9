@@ -217,13 +217,7 @@ function StickerSheet({ orders, brandName, cfg }: { orders: any[]; brandName: st
 
 function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; itemsByOrder: Map<string, any[]>; brandName: string }) {
   // Build flat lines: one per order_item, enriched with order context
-  type Line = {
-    sku: string;
-    name: string;
-    variant: string;
-    qty: number;
-    order: any;
-  };
+  type Line = { sku: string; name: string; variant: string; qty: number; order: any };
   const lines: Line[] = [];
   for (const o of orders) {
     for (const it of itemsByOrder.get(o.id) ?? []) {
@@ -237,117 +231,152 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
     }
   }
 
-  // Group by SKU (fallback to name+variant when SKU missing)
-  const groupKey = (l: Line) => l.sku || `${l.name}::${l.variant}`;
-  const groups = new Map<string, { key: string; sku: string; name: string; variant: string; lines: Line[]; totalQty: number }>();
+  // Group by product name, then split into variant sub-groups
+  type Variant = { sku: string; variant: string; lines: Line[]; qty: number };
+  type Group = { name: string; variants: Map<string, Variant>; totalQty: number; orderIds: Set<string> };
+  const groups = new Map<string, Group>();
   for (const l of lines) {
-    const k = groupKey(l);
-    let g = groups.get(k);
-    if (!g) {
-      g = { key: k, sku: l.sku, name: l.name, variant: l.variant, lines: [], totalQty: 0 };
-      groups.set(k, g);
-    }
-    g.lines.push(l);
+    let g = groups.get(l.name);
+    if (!g) { g = { name: l.name, variants: new Map(), totalQty: 0, orderIds: new Set() }; groups.set(l.name, g); }
+    const vKey = `${l.sku}::${l.variant}`;
+    let v = g.variants.get(vKey);
+    if (!v) { v = { sku: l.sku, variant: l.variant, lines: [], qty: 0 }; g.variants.set(vKey, v); }
+    v.lines.push(l);
+    v.qty += l.qty;
     g.totalQty += l.qty;
+    g.orderIds.add(l.order.id);
   }
-  // Sort SKU groups by total qty desc, then SKU asc for stability
-  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
-    if (b.totalQty !== a.totalQty) return b.totalQty - a.totalQty;
-    return (a.sku || a.name).localeCompare(b.sku || b.name);
-  });
-  // Within each group split by qty>=2 (multi) and qty==1 (single); multi first, sorted qty desc
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => b.totalQty - a.totalQty);
   for (const g of sortedGroups) {
-    g.lines.sort((a, b) => b.qty - a.qty);
+    for (const v of g.variants.values()) v.lines.sort((a, b) => b.qty - a.qty);
   }
-
   const grandQty = sortedGroups.reduce((s, g) => s + g.totalQty, 0);
+  const totalSkus = sortedGroups.reduce((s, g) => s + g.variants.size, 0);
+  const genId = `PICK-${format(new Date(), "yyMMdd-HHmm")}`;
   let serial = 0;
 
   return (
     <>
-      <style>{`@media print { @page { size: A4; margin: 10mm; } .pk-row{break-inside:avoid;} .pk-group{break-inside:avoid;} }`}</style>
-      <div style={{ color: "#000", background: "#fff", padding: 14, fontSize: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "2px solid #000", paddingBottom: 6, marginBottom: 10 }}>
+      <style>{`@media print { @page { size: A4; margin: 12mm; } .pk-row,.pk-group{break-inside:avoid;} }`}</style>
+      <div style={{ color: "#000", background: "#fff", padding: "18mm 14mm", fontSize: 12, lineHeight: 1.35, fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "2px solid #000", paddingBottom: 10, marginBottom: 14 }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>{brandName} — Picking List</div>
-            <div style={{ fontSize: 11, color: "#555" }}>
-              {orders.length} orders · {sortedGroups.length} SKUs · {grandQty} pcs · {format(new Date(), "dd MMM yyyy HH:mm")}
+            <div style={{ fontSize: 10, letterSpacing: 3, fontWeight: 700, color: "#555" }}>
+              {brandName ? `${brandName.toUpperCase()} · ` : ""}WAREHOUSE · PICK SHEET
             </div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, margin: "4px 0 0", letterSpacing: -0.5 }}>Picking List</h1>
           </div>
-          <div style={{ fontSize: 10, color: "#555", textAlign: "right" }}>
-            Grouped by SKU · sorted by quantity (high → low)<br />
-            Multi-qty rows printed before single-qty rows in each group.
+          <div style={{ textAlign: "right", fontSize: 11 }}>
+            <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 700 }}>{genId}</div>
+            <div style={{ color: "#555" }}>{format(new Date(), "PPP · p")}</div>
+            <div style={{ marginTop: 6, fontSize: 10, color: "#555" }}>
+              Picker: ______________ &nbsp;·&nbsp; Checker: ______________
+            </div>
           </div>
         </div>
 
-        {sortedGroups.map((g) => {
-          const multi = g.lines.filter((l) => l.qty >= 2);
-          const single = g.lines.filter((l) => l.qty < 2);
+        {/* KPI strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 14 }}>
+          {[
+            { label: "Orders", value: orders.length },
+            { label: "Products", value: sortedGroups.length },
+            { label: "Unique SKUs", value: totalSkus },
+            { label: "Total Units", value: grandQty },
+          ].map((k) => (
+            <div key={k.label} style={{ border: "1px solid #ddd", borderRadius: 6, padding: "8px 10px" }}>
+              <div style={{ fontSize: 9, letterSpacing: 1.5, color: "#666", fontWeight: 700 }}>{k.label.toUpperCase()}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{k.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Groups */}
+        {sortedGroups.map((g, gi) => {
+          const variants = Array.from(g.variants.values()).sort((a, b) => b.qty - a.qty);
           return (
-            <div key={g.key} className="pk-group" style={{ marginBottom: 10, border: "1px solid #ccc", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ background: "#111", color: "#fff", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-                  <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13 }}>{g.sku || "—"}</span>
-                  <span style={{ fontSize: 12 }}>{g.name}</span>
-                  {g.variant && <span style={{ fontSize: 11, opacity: 0.8 }}>({g.variant})</span>}
+            <div key={g.name} className="pk-group" style={{ marginBottom: 14, border: "1px solid #bbb", borderRadius: 6, overflow: "hidden" }}>
+              {/* Product header */}
+              <div style={{ background: "#111", color: "#fff", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0 }}>
+                  <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11, color: "#9ca3af", fontWeight: 700 }}>
+                    {String(gi + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: -0.2 }}>{g.name}</span>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>
-                  Total: {g.totalQty} pc · {g.lines.length} order{g.lines.length === 1 ? "" : "s"}
+                <div style={{ display: "flex", gap: 14, alignItems: "baseline", fontSize: 11, whiteSpace: "nowrap" }}>
+                  <span style={{ opacity: 0.8 }}>{g.orderIds.size} order{g.orderIds.size === 1 ? "" : "s"}</span>
+                  <span style={{ opacity: 0.8 }}>{variants.length} SKU{variants.length === 1 ? "" : "s"}</span>
+                  <span style={{ fontWeight: 800, fontSize: 16, fontVariantNumeric: "tabular-nums" }}>{g.totalQty} pc</span>
                 </div>
               </div>
 
-              {renderBucket("Multi-Qty (2+)", multi)}
-              {renderBucket("Single Qty", single)}
+              {variants.map((v, vi) => (
+                <div key={vi}>
+                  {/* Variant subheader */}
+                  <div style={{ background: "#f3f4f6", padding: "5px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: vi === 0 ? undefined : "1px solid #ddd" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 11 }}>
+                      <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 700, color: "#111" }}>{v.sku || "—"}</span>
+                      {v.variant && <span style={{ color: "#444" }}>↳ {v.variant}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                      {v.lines.length} line{v.lines.length === 1 ? "" : "s"} · {v.qty} pc
+                    </div>
+                  </div>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#fafafa" }}>
+                        <th style={{ ...th, width: 26, textAlign: "center" }}>✓</th>
+                        <th style={{ ...th, width: 32 }}>#</th>
+                        <th style={{ ...th, width: 110 }}>Invoice</th>
+                        <th style={th}>Customer</th>
+                        <th style={{ ...th, width: 110 }}>Phone</th>
+                        <th style={th}>Area</th>
+                        <th style={{ ...th, textAlign: "right", width: 50 }}>Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {v.lines.map((l, li) => {
+                        serial += 1;
+                        return (
+                          <tr key={`${l.order.id}-${li}`} className="pk-row" style={{ borderTop: "1px dashed #eee", background: li % 2 === 0 ? "#fff" : "#fcfcfc" }}>
+                            <td style={{ ...td, textAlign: "center" }}>
+                              <span style={{ display: "inline-block", width: 12, height: 12, border: "1.5px solid #111", borderRadius: 2, verticalAlign: "middle" }} />
+                            </td>
+                            <td style={{ ...td, fontFamily: "ui-monospace, Menlo, monospace", color: "#666" }}>{serial}</td>
+                            <td style={{ ...td, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11 }}>#{invoiceDisplay(l.order)}</td>
+                            <td style={{ ...td, fontWeight: 600 }}>{customerName(l.order)}</td>
+                            <td style={{ ...td, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11 }}>{customerPhone(l.order)}</td>
+                            <td style={{ ...td, fontSize: 10, color: "#555" }}>
+                              {[l.order.shipping_thana, l.order.shipping_city].filter(Boolean).join(", ")}
+                            </td>
+                            <td style={{ ...td, textAlign: "right", fontWeight: 800, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{l.qty}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           );
         })}
+
+        {/* Grand total */}
+        <div style={{ marginTop: 6, padding: "10px 12px", borderTop: "2px solid #000", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: "#333" }}>GRAND TOTAL</div>
+          <div style={{ fontSize: 22, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{grandQty} pc</div>
+        </div>
+
+        {/* Signatures */}
+        <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, fontSize: 10, color: "#555" }}>
+          {["Picked by", "Checked by", "Dispatched by"].map((l) => (
+            <div key={l} style={{ borderTop: "1px solid #000", paddingTop: 4, textAlign: "center" }}>{l}</div>
+          ))}
+        </div>
       </div>
     </>
   );
-
-  function renderBucket(label: string, bucket: Line[]) {
-    if (!bucket.length) return null;
-    return (
-      <div>
-        <div style={{ background: "#f3f4f6", padding: "3px 10px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#444", borderTop: "1px solid #ddd" }}>
-          {label} · {bucket.length} order{bucket.length === 1 ? "" : "s"} · {bucket.reduce((s, l) => s + l.qty, 0)} pcs
-        </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#fafafa" }}>
-              <th style={{ ...th, width: 30 }}>#</th>
-              <th style={{ ...th, width: 110 }}>Invoice</th>
-              <th style={th}>Customer</th>
-              <th style={th}>Phone</th>
-              <th style={th}>Area</th>
-              <th style={{ ...th, textAlign: "center", width: 50 }}>Qty</th>
-              <th style={{ ...th, width: 28 }}>✓</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bucket.map((l) => {
-              serial += 1;
-              return (
-                <tr key={`${l.order.id}-${serial}`} className="pk-row" style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={td}>{serial}</td>
-                  <td style={{ ...td, fontFamily: "monospace", fontSize: 11 }}>#{invoiceDisplay(l.order)}</td>
-                  <td style={{ ...td, fontWeight: 600 }}>{customerName(l.order)}</td>
-                  <td style={td}>{customerPhone(l.order)}</td>
-                  <td style={{ ...td, fontSize: 10, color: "#555" }}>
-                    {[l.order.shipping_thana, l.order.shipping_city].filter(Boolean).join(", ")}
-                  </td>
-                  <td style={{ ...td, textAlign: "center", fontWeight: 800, fontSize: 13 }}>{l.qty}</td>
-                  <td style={td}>
-                    <div style={{ width: 14, height: 14, border: "1.5px solid #000", borderRadius: 2 }} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
 }
 
 /* ---------------------------- Order Sheet ---------------------------- */
