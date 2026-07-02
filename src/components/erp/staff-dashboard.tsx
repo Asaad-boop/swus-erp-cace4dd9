@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { cn } from "@/lib/utils";
 import { AttendancePunchCard } from "@/components/erp/hr/attendance-punch-card";
+import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 
 function greeting() {
   const h = new Date().getHours();
@@ -35,6 +36,10 @@ export function StaffDashboard() {
   // and older filters referenced a non-existent `created_by` column, causing zero KPIs.
   const has = (r: string) => roles.includes(r as any);
 
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("today"));
+  const rangeStartISO = new Date(`${range.from}T00:00:00`).toISOString();
+  const rangeEndISO = new Date(`${range.to}T23:59:59.999`).toISOString();
+
   const { data: me } = useQuery({
     queryKey: ["me-profile-staff"],
     queryFn: async () => {
@@ -47,10 +52,8 @@ export function StaffDashboard() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["staff-dash", userId, isAdmin, roles.join(","), brandIds.join(",")],
+    queryKey: ["staff-dash", userId, isAdmin, roles.join(","), brandIds.join(","), range.from, range.to],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
@@ -58,12 +61,12 @@ export function StaffDashboard() {
       const pendingStatuses = ["new", "confirmed", "packaging", "packed", "ready_to_ship"] as const;
       const [todayOrders, pending, todayPending, inTransit, attention, lowStock, recent, pendingByBrand] = await Promise.all([
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .gte("created_at", todayStart.toISOString()),
+          .gte("created_at", rangeStartISO).lte("created_at", rangeEndISO),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", pendingStatuses),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", pendingStatuses)
-          .gte("created_at", todayStart.toISOString()),
+          .gte("created_at", rangeStartISO).lte("created_at", rangeEndISO),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
           .in("status", ["shipped", "in_transit"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
@@ -126,8 +129,8 @@ export function StaffDashboard() {
   ].filter(l => l.show);
 
   const kpis = [
-    { icon: ShoppingCart, label: "Today's orders", value: data?.todayOrders ?? 0, tone: "indigo", to: "/erp/orders/web" },
-    { icon: ClipboardList, label: "Today pending", value: data?.todayPending ?? 0, tone: "amber", to: "/erp/orders/web" },
+    { icon: ShoppingCart, label: `${range.label} orders`, value: data?.todayOrders ?? 0, tone: "indigo", to: "/erp/orders/web" },
+    { icon: ClipboardList, label: `${range.label} pending`, value: data?.todayPending ?? 0, tone: "amber", to: "/erp/orders/web" },
     { icon: ClipboardList, label: "Total pending", value: data?.pending ?? 0, tone: "amber", to: "/erp/orders/web" },
     { icon: Truck, label: "In transit", value: data?.inTransit ?? 0, tone: "blue", to: "/erp/courier" },
     { icon: AlertTriangle, label: "Needs attention", value: data?.attention ?? 0, tone: "rose", to: "/erp/orders/web" },
@@ -153,9 +156,12 @@ export function StaffDashboard() {
                 </span>
               </p>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
-              <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} /> Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <DateRangePicker value={range} onChange={setRange} className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
+              <Button size="sm" variant="secondary" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
+                <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} /> Refresh
+              </Button>
+            </div>
           </div>
         </div>
       </div>
