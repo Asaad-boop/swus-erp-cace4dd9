@@ -68,6 +68,7 @@ type ActiveSession = {
   user_agent: string | null;
   first_seen_at: string;
   last_seen_at: string;
+  brand_id: string | null;
 };
 
 type AnalyticsEvent = {
@@ -206,7 +207,7 @@ function useTicker(ms: number = 5000) {
 
 // ---------------- Main Page ----------------
 function LiveAnalyticsPage() {
-  const { brandIds, isAllBrands, activeBrand } = useBrand();
+  const { brandIds, isAllBrands, activeBrand, brands } = useBrand();
   const brandLabel = isAllBrands ? "All Brands" : (activeBrand?.name ?? "—");
   const [range, setRange] = useState<TimeRange>("15m");
 
@@ -214,9 +215,9 @@ function LiveAnalyticsPage() {
     <div className="min-h-screen bg-gradient-to-b from-muted/20 via-background to-background">
       <div className="px-4 lg:px-6 py-5 space-y-5 max-w-[1600px] mx-auto">
         <Header brandLabel={brandLabel} range={range} onRangeChange={setRange} />
-        <PulseBar brandIds={brandIds} range={range} />
+        <PulseBar brandIds={brandIds} range={range} brands={brands} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ActiveSessionsPanel />
+          <ActiveSessionsPanel brandIds={brandIds} brands={brands} />
           <EventStreamPanel brandIds={brandIds} range={range} />
         </div>
         <TodaysChartsGrid brandIds={brandIds} />
