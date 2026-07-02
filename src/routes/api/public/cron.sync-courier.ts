@@ -15,14 +15,15 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Auth: accept either the Supabase anon key (pg_cron pattern) or the
+        // optional CRON_SECRET header. `/api/public/*` bypasses edge auth, so
+        // we still gate the endpoint here.
         const expected = process.env.CRON_SECRET;
-        if (!expected) {
-          return Response.json({ checked: 0, updated: 0, skipped: true, reason: "Cron not configured" });
-        }
-        const provided = request.headers.get("x-cron-secret");
-        if (!provided || provided !== expected) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const apikey = request.headers.get("apikey") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+        const cronHeader = request.headers.get("x-cron-secret");
+        const ok = (anon && apikey && apikey === anon) || (expected && cronHeader === expected);
+        if (!ok) return new Response("Unauthorized", { status: 401 });
 
         let body: { brandId?: string; limit?: number } = {};
         try {
