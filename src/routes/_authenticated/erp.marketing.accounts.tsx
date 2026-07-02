@@ -511,12 +511,11 @@ function AccountEditor({
         (editing as any)?.brand_id ??
         brands[0]?.id ??
         "";
+      // New account default: all brands selected. Edit: keep existing links.
       const initialBrandIds =
         existingBrandIds.length > 0
           ? [primary, ...existingBrandIds.filter((b) => b !== primary)]
-          : primary
-            ? [primary]
-            : [];
+          : brands.map((b) => b.id);
       setForm({
         brandId: primary,
         brandIds: initialBrandIds,
