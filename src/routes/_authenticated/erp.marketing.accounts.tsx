@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -488,6 +489,7 @@ function AccountEditor({
 
   const [form, setForm] = useState({
     brandId: "",
+    brandIds: [] as string[],
     name: "",
     appId: "",
     appSecret: "",
@@ -503,8 +505,21 @@ function AccountEditor({
 
   useEffect(() => {
     if (open) {
+      const existingBrandIds = ((editing as any)?.brand_ids as string[] | undefined) ?? [];
+      const primary =
+        (editing as any)?.primary_brand_id ??
+        (editing as any)?.brand_id ??
+        brands[0]?.id ??
+        "";
+      const initialBrandIds =
+        existingBrandIds.length > 0
+          ? [primary, ...existingBrandIds.filter((b) => b !== primary)]
+          : primary
+            ? [primary]
+            : [];
       setForm({
-        brandId: (editing as any)?.brand_id ?? (brands[0]?.id ?? ""),
+        brandId: primary,
+        brandIds: initialBrandIds,
         name: editing?.name ?? "",
         appId: editing?.app_id ?? "",
         appSecret: "",
@@ -522,7 +537,8 @@ function AccountEditor({
   const wallets = walletsQ.data ?? [];
 
   const canSubmit = useMemo(() => {
-    if (!isEdit && !form.brandId) return false;
+    if (form.brandIds.length === 0) return false;
+    if (!form.brandId) return false;
     if (!form.name.trim() || !form.adAccountId.trim()) return false;
     if (!isEdit && form.accessToken.trim().length < 20) return false;
     if (!/^\d+$/.test(form.adAccountId.trim())) return false;
@@ -569,6 +585,7 @@ function AccountEditor({
           data: {
             accountId: editing.id,
             brandId: form.brandId,
+            brandIds: form.brandIds,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
@@ -585,6 +602,7 @@ function AccountEditor({
         await createMut({
           data: {
             brandId: form.brandId,
+            brandIds: form.brandIds,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
