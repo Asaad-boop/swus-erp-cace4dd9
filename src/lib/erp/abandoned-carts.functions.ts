@@ -281,3 +281,189 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
 
     return { orderId: order.id, invoiceNo: order.invoice_no };
   });
+
+export const bulkDeleteAbandonedCartsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { error, count } = await context.supabase
+      .from("abandoned_carts")
+      .delete({ count: "exact" })
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { deleted: count ?? 0 };
+  });
+
+export const logCartMessageFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      cartId: z.string().uuid(),
+      channel: z.enum(["whatsapp", "sms", "manual", "call"]),
+      messageBody: z.string().max(2000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { data: cart, error: cErr } = await context.supabase
+      .from("abandoned_carts")
+      .select("id, brand_id, followup_count")
+      .eq("id", data.cartId)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!cart) throw new Error("Cart not found");
+
+    const { error: msgErr } = await context.supabase
+      .from("abandoned_cart_messages")
+      .insert({
+        cart_id: data.cartId,
+        brand_id: cart.brand_id,
+        channel: data.channel,
+        message_body: data.messageBody ?? null,
+        sent_by: context.userId,
+      });
+    if (msgErr) throw new Error(msgErr.message);
+
+    const { error: uErr } = await context.supabase
+      .from("abandoned_carts")
+      .update({
+        followup_status: "contacted",
+        followup_count: (cart.followup_count ?? 0) + 1,
+        last_followup_at: new Date().toISOString(),
+        last_followup_channel: data.channel,
+      })
+      .eq("id", data.cartId);
+    if (uErr) throw new Error(uErr.message);
+    return { ok: true };
+  });
+
+export const bulkLogCartMessagesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      cartIds: z.array(z.string().uuid()).min(1).max(200),
+      channel: z.enum(["whatsapp", "sms", "manual", "call"]),
+      messageBody: z.string().max(2000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { data: carts, error: cErr } = await context.supabase
+      .from("abandoned_carts")
+      .select("id, brand_id, followup_count")
+      .in("id", data.cartIds);
+    if (cErr) throw new Error(cErr.message);
+    const rows = (carts ?? []).map((c: any) => ({
+      cart_id: c.id,
+      brand_id: c.brand_id,
+      channel: data.channel,
+      message_body: data.messageBody ?? null,
+      sent_by: context.userId,
+    }));
+    if (rows.length === 0) return { logged: 0 };
+    const { error: mErr } = await context.supabase.from("abandoned_cart_messages").insert(rows);
+    if (mErr) throw new Error(mErr.message);
+
+    // Bump followup counters individually (small batch, ok)
+    await Promise.all(
+      (carts ?? []).map((c: any) =>
+        context.supabase
+          .from("abandoned_carts")
+          .update({
+            followup_status: "contacted",
+            followup_count: (c.followup_count ?? 0) + 1,
+            last_followup_at: new Date().toISOString(),
+            last_followup_channel: data.channel,
+          })
+          .eq("id", c.id),
+      ),
+    );
+    return { logged: rows.length };
+  });
+
+export type IncompleteReport = {
+  totalCarts: number;
+  totalRevenue: number;
+  convertedCarts: number;
+  convertedRevenue: number;
+  recoveryRate: number;
+  lostRevenue: number;
+  avgCartValue: number;
+  contactedCount: number;
+  messagesSent: number;
+  responseRate: number;
+  byLastStep: { step: string; count: number }[];
+};
+
+export const incompleteReportsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      brandId: z.string().uuid().nullable().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+      dateFrom: z.string(),
+      dateTo: z.string(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    let q = context.supabase
+      .from("abandoned_carts")
+      .select("id, subtotal, is_converted, last_step, followup_status, followup_count")
+      .gte("updated_at", data.dateFrom)
+      .lte("updated_at", data.dateTo)
+      .not("customer_phone", "is", null)
+      .gt("subtotal", 0);
+    if (data.brandIds && data.brandIds.length > 0) {
+      q = applyBrandScope(q, data.brandIds);
+    } else if (data.brandId) {
+      q = q.eq("brand_id", data.brandId);
+    }
+    const { data: carts, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const list = (carts ?? []) as Array<{
+      subtotal: number;
+      is_converted: boolean;
+      last_step: string | null;
+      followup_status: string | null;
+      followup_count: number | null;
+    }>;
+
+    const totalCarts = list.length;
+    const totalRevenue = list.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
+    const converted = list.filter((c) => c.is_converted);
+    const convertedCarts = converted.length;
+    const convertedRevenue = converted.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
+    const lostRevenue = totalRevenue - convertedRevenue;
+    const recoveryRate = totalCarts > 0 ? (convertedCarts / totalCarts) * 100 : 0;
+    const avgCartValue = totalCarts > 0 ? totalRevenue / totalCarts : 0;
+    const contactedCount = list.filter((c) => (c.followup_count ?? 0) > 0).length;
+    const messagesSent = list.reduce((s, c) => s + (c.followup_count ?? 0), 0);
+    const responseRate = contactedCount > 0
+      ? (list.filter((c) => c.is_converted && (c.followup_count ?? 0) > 0).length / contactedCount) * 100
+      : 0;
+    const stepMap = new Map<string, number>();
+    list.forEach((c) => {
+      const k = c.last_step ?? "unknown";
+      stepMap.set(k, (stepMap.get(k) ?? 0) + 1);
+    });
+    const byLastStep = Array.from(stepMap.entries())
+      .map(([step, count]) => ({ step, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalCarts,
+      totalRevenue,
+      convertedCarts,
+      convertedRevenue,
+      recoveryRate,
+      lostRevenue,
+      avgCartValue,
+      contactedCount,
+      messagesSent,
+      responseRate,
+      byLastStep,
+    } satisfies IncompleteReport;
+  });
