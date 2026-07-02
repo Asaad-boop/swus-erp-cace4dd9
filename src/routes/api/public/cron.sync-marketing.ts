@@ -9,8 +9,17 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = request.headers.get('x-cron-secret');
-        if (!secret || secret !== process.env.CRON_SECRET) {
+        // Auth: allow either x-cron-secret (legacy) or Supabase apikey header
+        // (pg_cron canonical pattern). /api/public/* already bypasses edge auth.
+        const cronSecret = request.headers.get('x-cron-secret');
+        const apikey = request.headers.get('apikey');
+        const expectedSecret = process.env.CRON_SECRET;
+        const expectedApiKey =
+          process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const ok =
+          (expectedSecret && cronSecret === expectedSecret) ||
+          (expectedApiKey && apikey === expectedApiKey);
+        if (!ok) {
           return new Response('Unauthorized', { status: 401 });
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
