@@ -76,40 +76,47 @@ function bdDayUtcRange(dateStr: string): { startUtc: string; endUtc: string } {
 
 export const getDashboardSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string }) =>
-    z.object({ brandId: z.string().uuid() }).parse(d),
+  .inputValidator((d: { brandId?: string; brandIds?: string[] }) =>
+    z
+      .object({
+        brandId: z.string().uuid().optional(),
+        brandIds: z.array(z.string().uuid()).min(1).optional(),
+      })
+      .refine((v) => !!v.brandId || (v.brandIds && v.brandIds.length > 0), {
+        message: "brandId or brandIds required",
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<DashboardSummary> => {
     const supabase = context.supabase;
-    const brandId = data.brandId;
+    const brandIds = data.brandIds && data.brandIds.length ? data.brandIds : [data.brandId!];
 
     const now = new Date();
     const todayBD = bdDateStr(now);
     const sevenAgoBD = bdDateStr(new Date(now.getTime() - 6 * 24 * 3600 * 1000));
 
-    // Brand-level USD→BDT fallback rate, pulled live from erp_fx_rates.
-    // No hardcoded fallback — when no rate exists yet, conversion uses 0
-    // until the user adds one in Finance → FX.
-    const { data: fxRow } = await supabase
-      .from("erp_fx_rates")
-      .select("rate")
-      .eq("brand_id", brandId)
-      .eq("from_ccy", "USD")
-      .eq("to_ccy", "BDT")
-      .order("rate_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const brandUsdBdt = Number(fxRow?.rate) || 0;
+    // Per-brand USD→BDT fallback map (0 when no rate yet).
+    const { getBrandUsdBdtMap } = await import("./fx.server");
+    const fxByBrand = await getBrandUsdBdtMap(supabase, brandIds);
+    // Default fallback = first available brand rate (used when account has no brand_id linkage in local scope)
+    const brandUsdBdt = (() => {
+      for (const id of brandIds) {
+        const r = fxByBrand.get(id) ?? 0;
+        if (r > 0) return r;
+      }
+      return 0;
+    })();
 
     // 1. Active accounts → FX map
     const { data: accounts } = await supabase
       .from("mkt_ad_accounts")
-      .select("id, currency, usd_to_bdt_rate")
-      .eq("brand_id", brandId);
+      .select("id, currency, usd_to_bdt_rate, brand_id")
+      .in("brand_id", brandIds);
     const accFx = new Map<string, number>();
     for (const a of accounts ?? []) {
       const cur = (a.currency ?? "USD").toUpperCase();
-      const rate = Number(a.usd_to_bdt_rate) || brandUsdBdt;
+      const rate =
+        Number(a.usd_to_bdt_rate) || (fxByBrand.get((a as any).brand_id) ?? brandUsdBdt);
       accFx.set(a.id, cur === "BDT" ? 1 : rate);
     }
 
@@ -119,7 +126,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       .select(
         "date, account_id, campaign_id, spend, meta_purchases, meta_purchase_value, spend_bdt_fifo, conversion_source, estimated_bdt_cost",
       )
-      .eq("brand_id", brandId)
+      .in("brand_id", brandIds)
       .gte("date", sevenAgoBD)
       .lte("date", todayBD);
 
@@ -127,9 +134,9 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: campaigns } = await supabase
       .from("mkt_campaigns")
       .select(
-        "id, name, account_id, daily_budget, lifetime_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
+        "id, name, account_id, brand_id, daily_budget, lifetime_budget, effective_status, status, mkt_ad_accounts(currency, usd_to_bdt_rate)",
       )
-      .eq("brand_id", brandId);
+      .in("brand_id", brandIds);
     const campMap = new Map<string, any>(
       (campaigns ?? []).map((c: any) => [c.id, c]),
     );
@@ -162,7 +169,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: attrToday } = await supabase
       .from("mkt_order_attributions")
       .select("campaign_id, orders!inner(id, status, total, created_at, brand_id)")
-      .eq("orders.brand_id", brandId)
+      .in("orders.brand_id", brandIds)
       .gte("orders.created_at", startUtc)
       .lt("orders.created_at", endUtc);
 
@@ -170,7 +177,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: attr7d } = await supabase
       .from("mkt_order_attributions")
       .select("campaign_id, orders!inner(status, total, created_at, brand_id)")
-      .eq("orders.brand_id", brandId)
+      .in("orders.brand_id", brandIds)
       .gte("orders.created_at", bdDayUtcRange(sevenAgoBD).startUtc)
       .lt("orders.created_at", endUtc);
 
@@ -331,7 +338,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     const { data: monthInsights } = await supabase
       .from("mkt_insights_daily")
       .select("account_id, campaign_id, spend")
-      .eq("brand_id", brandId)
+      .in("brand_id", brandIds)
       .gte("date", monthStartBD)
       .lte("date", todayBD);
     const spendMonthByCampaign = new Map<string, number>();
@@ -360,9 +367,10 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       if (!(rawBudget > 0)) continue;
       const acc = c.mkt_ad_accounts ?? {};
       const cur = (acc.currency ?? "USD").toUpperCase();
-      const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || brandUsdBdt;
+      const brandFallback = fxByBrand.get(c.brand_id) ?? brandUsdBdt;
+      const fx = cur === "BDT" ? 1 : Number(acc.usd_to_bdt_rate) || brandFallback;
       // Effective USD rate for converting BDT-side totals back to USD display.
-      const usdRate = cur === "USD" ? fx : Number(acc.usd_to_bdt_rate) || brandUsdBdt;
+      const usdRate = cur === "USD" ? fx : Number(acc.usd_to_bdt_rate) || brandFallback;
       // Budgets in DB are already in major units (USD or BDT) — sync divides /100 at ingest.
       const budgetBdt = rawBudget * fx;
       const budgetUsd = cur === "USD" ? rawBudget : rawBudget / usdRate;
