@@ -36,6 +36,19 @@ if (typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => {
     tryReloadForStaleChunk(e.reason);
   });
+  // Vite's official hook — fires when a module preload (dynamic chunk) fails,
+  // typically after a redeploy invalidates old hashed filenames. Preventing
+  // default stops the console error; we hard-reload to fetch fresh index.html.
+  window.addEventListener("vite:preloadError", (e: any) => {
+    e?.preventDefault?.();
+    try {
+      const KEY = "__chunk_reload_at";
+      const last = Number(sessionStorage.getItem(KEY) ?? 0);
+      if (Date.now() - last < 10_000) return;
+      sessionStorage.setItem(KEY, String(Date.now()));
+    } catch {}
+    window.location.reload();
+  });
 }
 
 export const getRouter = () => {
