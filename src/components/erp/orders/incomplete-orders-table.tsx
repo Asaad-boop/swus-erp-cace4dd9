@@ -854,3 +854,202 @@ function CartThumb({
     />
   );
 }
+
+function PriorityBadge({ tier }: { tier: "hot" | "warm" | "cold" | "done" }) {
+  if (tier === "hot") {
+    return (
+      <span className="inline-flex items-center gap-1 pl-1.5 pr-2 h-6 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+        <Flame className="h-3 w-3" /> Hot
+      </span>
+    );
+  }
+  if (tier === "warm") {
+    return (
+      <span className="inline-flex items-center gap-1 pl-1.5 pr-2 h-6 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+        <AlertTriangle className="h-3 w-3" /> Warm
+      </span>
+    );
+  }
+  if (tier === "done") {
+    return (
+      <span className="inline-flex items-center gap-1 pl-1.5 pr-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-muted text-muted-foreground border">
+        <CheckCircle2 className="h-3 w-3" /> Done
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 pl-1.5 pr-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800">
+      Cold
+    </span>
+  );
+}
+
+function FollowupBadge({ status, count, lastAt }: { status: string; count: number; lastAt: string | null }) {
+  const tone =
+    status === "responded"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+      : status === "contacted"
+        ? "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+        : status === "ignored"
+          ? "bg-zinc-100 text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-800"
+          : "bg-muted text-muted-foreground border";
+  const label = status === "pending" ? "Not sent" : status;
+  return (
+    <div className="text-xs leading-tight">
+      <span className={cn("inline-flex items-center px-2 h-5 rounded-full text-[10px] font-semibold uppercase tracking-wider border", tone)}>
+        {label}
+      </span>
+      {count > 0 && (
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          {count} msg{count === 1 ? "" : "s"}{lastAt ? ` · ${relTime(lastAt)}` : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FiltersPopover({
+  filters,
+  onChange,
+  activeCount,
+}: {
+  filters: IncompleteFilters;
+  onChange: (f: IncompleteFilters) => void;
+  activeCount: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<IncompleteFilters>(filters);
+
+  const toggleStep = (step: string) => {
+    const cur = new Set(draft.lastSteps ?? []);
+    if (cur.has(step)) cur.delete(step); else cur.add(step);
+    setDraft({ ...draft, lastSteps: Array.from(cur) });
+  };
+  const toggleFollowup = (s: string) => {
+    const cur = new Set(draft.followupStatuses ?? []);
+    if (cur.has(s)) cur.delete(s); else cur.add(s);
+    setDraft({ ...draft, followupStatuses: Array.from(cur) });
+  };
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(filters); }}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+          <Filter className="h-3.5 w-3.5" />
+          Filters
+          {activeCount > 0 && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] tabular-nums">
+              {activeCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[340px] p-3 space-y-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Date range (updated)</div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              type="date"
+              className="h-8 text-xs"
+              value={draft.dateFrom ? draft.dateFrom.slice(0, 10) : ""}
+              onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value ? new Date(e.target.value).toISOString() : null })}
+            />
+            <Input
+              type="date"
+              className="h-8 text-xs"
+              value={draft.dateTo ? draft.dateTo.slice(0, 10) : ""}
+              onChange={(e) => {
+                if (!e.target.value) { setDraft({ ...draft, dateTo: null }); return; }
+                const d = new Date(e.target.value);
+                d.setHours(23, 59, 59, 999);
+                setDraft({ ...draft, dateTo: d.toISOString() });
+              }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Cart value (৳)</div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              type="number"
+              placeholder="Min"
+              className="h-8 text-xs"
+              value={draft.subtotalMin ?? ""}
+              onChange={(e) => setDraft({ ...draft, subtotalMin: e.target.value ? Number(e.target.value) : null })}
+            />
+            <Input
+              type="number"
+              placeholder="Max"
+              className="h-8 text-xs"
+              value={draft.subtotalMax ?? ""}
+              onChange={(e) => setDraft({ ...draft, subtotalMax: e.target.value ? Number(e.target.value) : null })}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Last step</div>
+          <div className="flex flex-wrap gap-1.5">
+            {LAST_STEP_OPTIONS.map((step) => {
+              const active = (draft.lastSteps ?? []).includes(step);
+              return (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => toggleStep(step)}
+                  className={cn(
+                    "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors capitalize",
+                    active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border",
+                  )}
+                >
+                  {step}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Follow-up status</div>
+          <div className="flex flex-wrap gap-1.5">
+            {FOLLOWUP_OPTIONS.map((opt) => {
+              const active = (draft.followupStatuses ?? []).includes(opt.key);
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => toggleFollowup(opt.key)}
+                  className={cn(
+                    "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors",
+                    active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex justify-between pt-2 border-t">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={() => { setDraft({ sort: filters.sort ?? "newest" }); }}
+          >
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => { onChange({ ...draft, sort: filters.sort ?? "newest" }); setOpen(false); }}
+          >
+            Apply
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
