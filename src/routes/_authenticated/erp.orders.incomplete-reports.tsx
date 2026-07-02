@@ -155,7 +155,7 @@ function IncompleteReportsPage() {
               label="Recovered"
               value={data.convertedCarts.toLocaleString()}
               tone="emerald"
-              sub={`${data.recoveryRate.toFixed(1)}% recovery rate`}
+              sub="Contacted → converted"
             />
             <Kpi
               icon={<AlertTriangle className="h-4 w-4" />}
@@ -196,7 +196,7 @@ function IncompleteReportsPage() {
               label="Recovery Rate"
               value={`${data.recoveryRate.toFixed(1)}%`}
               tone="emerald"
-              sub={`${data.convertedCarts} of ${data.totalCarts}`}
+              sub={`${data.convertedCarts} of ${data.contactedCount} contacted`}
             />
           </div>
 
