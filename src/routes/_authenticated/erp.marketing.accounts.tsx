@@ -511,12 +511,11 @@ function AccountEditor({
         (editing as any)?.brand_id ??
         brands[0]?.id ??
         "";
+      // New account default: all brands selected. Edit: keep existing links.
       const initialBrandIds =
         existingBrandIds.length > 0
           ? [primary, ...existingBrandIds.filter((b) => b !== primary)]
-          : primary
-            ? [primary]
-            : [];
+          : brands.map((b) => b.id);
       setForm({
         brandId: primary,
         brandIds: initialBrandIds,
@@ -637,7 +636,25 @@ function AccountEditor({
         <div className="space-y-4">
           {(
             <div>
-              <Label>Brands (multi-select)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Brands (multi-select)</Label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-muted-foreground">
+                  <Checkbox
+                    checked={form.brandIds.length === brands.length && brands.length > 0}
+                    onCheckedChange={(v) => {
+                      setForm((f) => {
+                        if (v) {
+                          const all = brands.map((b) => b.id);
+                          const primary = f.brandId && all.includes(f.brandId) ? f.brandId : all[0] ?? "";
+                          return { ...f, brandIds: all, brandId: primary };
+                        }
+                        return { ...f, brandIds: [], brandId: "" };
+                      });
+                    }}
+                  />
+                  Select all
+                </label>
+              </div>
               <div className="mt-1 rounded-md border p-2 space-y-1 max-h-44 overflow-y-auto">
                 {brands.map((b) => {
                   const checked = form.brandIds.includes(b.id);
