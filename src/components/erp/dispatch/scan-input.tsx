@@ -91,6 +91,7 @@ export const ScanInput = forwardRef<ScanInputHandle, Props>(function ScanInput(
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKey}
+          onBlur={onBlur}
           placeholder={placeholder ?? "Scan or type invoice number…"}
           disabled={disabled}
           className="pl-10 h-14 text-lg font-mono"
