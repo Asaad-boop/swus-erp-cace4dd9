@@ -33,7 +33,24 @@ export type AbandonedCartRow = {
   converted_order_id: string | null;
   created_at: string;
   updated_at: string;
+  followup_status?: string | null;
+  followup_count?: number | null;
+  last_followup_at?: string | null;
+  last_followup_channel?: string | null;
 };
+
+async function assertStaff(context: { supabase: any; userId: string }) {
+  const [admin, cs, ops] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+  ]);
+  const err = admin.error ?? cs.error ?? ops.error;
+  if (err) throw new Error(err.message);
+  if (!admin.data && !cs.data && !ops.data) {
+    throw new Error("Not authorized");
+  }
+}
 
 export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -44,20 +61,18 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       search: z.string().optional(),
       page: z.number().int().min(0).default(0),
       pageSize: z.number().int().min(1).max(200).default(50),
+      dateFrom: z.string().nullable().optional(),
+      dateTo: z.string().nullable().optional(),
+      subtotalMin: z.number().nullable().optional(),
+      subtotalMax: z.number().nullable().optional(),
+      lastSteps: z.array(z.string()).optional(),
+      followupStatuses: z.array(z.string()).optional(),
+      sort: z.enum(["newest","oldest","highest","lowest","priority"]).default("newest"),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [admin, customerService, operations] = await Promise.all([
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
-    ]);
-    const roleError = admin.error ?? customerService.error ?? operations.error;
-    if (roleError) throw new Error(roleError.message);
-    if (!admin.data && !customerService.data && !operations.data) {
-      throw new Error("Not authorized to view incomplete checkouts");
-    }
+    await assertStaff(context);
 
     const from = data.page * data.pageSize;
     const to = from + data.pageSize - 1;
@@ -67,8 +82,7 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       .select("*", { count: "exact" })
       .eq("is_converted", false)
       .not("customer_phone", "is", null)
-      .gt("subtotal", 0)
-      .order("updated_at", { ascending: false });
+      .gt("subtotal", 0);
 
     if (data.brandIds && data.brandIds.length > 0) {
       q = applyBrandScope(q, data.brandIds);
@@ -81,6 +95,25 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       q = q.or(
         `customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,customer_email.ilike.%${s}%`,
       );
+    }
+
+    if (data.dateFrom) q = q.gte("updated_at", data.dateFrom);
+    if (data.dateTo) q = q.lte("updated_at", data.dateTo);
+    if (typeof data.subtotalMin === "number") q = q.gte("subtotal", data.subtotalMin);
+    if (typeof data.subtotalMax === "number") q = q.lte("subtotal", data.subtotalMax);
+    if (data.lastSteps && data.lastSteps.length > 0) q = q.in("last_step", data.lastSteps);
+    if (data.followupStatuses && data.followupStatuses.length > 0) {
+      q = q.in("followup_status", data.followupStatuses);
+    }
+
+    // Sort
+    switch (data.sort) {
+      case "oldest": q = q.order("updated_at", { ascending: true }); break;
+      case "highest": q = q.order("subtotal", { ascending: false }); break;
+      case "lowest": q = q.order("subtotal", { ascending: true }); break;
+      case "priority": q = q.order("subtotal", { ascending: false }).order("updated_at", { ascending: false }); break;
+      case "newest":
+      default: q = q.order("updated_at", { ascending: false });
     }
 
     q = q.range(from, to);
