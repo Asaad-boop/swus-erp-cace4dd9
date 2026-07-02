@@ -259,7 +259,13 @@ function DollarPurchasePage() {
                   <div className="font-medium">{r.mkt_ad_accounts?.name ?? "—"}</div>
                   <div className="text-xs text-muted-foreground">{r.mkt_ad_accounts?.external_id}</div>
                 </TableCell>
-                <TableCell className="text-sm">{r.brands?.name ?? <span className="text-muted-foreground">All</span>}</TableCell>
+                <TableCell className="text-sm">
+                  {r.brands?.name ?? (
+                    <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 bg-violet-50">
+                      🌐 Shared
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{fmtUSD(r.usd_amount)}</TableCell>
                 <TableCell className="text-right tabular-nums">{Number(r.usd_rate).toFixed(2)}</TableCell>
                 <TableCell className="text-right tabular-nums text-amber-700">{r.fee_bdt > 0 ? fmtBDT(r.fee_bdt) : "—"}</TableCell>
@@ -412,12 +418,23 @@ function PurchaseDialog({
           <Field label="Purchase Date" required>
             <Input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} />
           </Field>
-          <Field label="Brand">
-            <Select value={form.brandId ?? "all"} onValueChange={(v) => setForm({ ...form, brandId: v === "all" ? null : v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+          <Field label="Brand Allocation" hint="FIFO ay spend hobei brand-wise attribute">
+            <Select value={form.brandId ?? "shared"} onValueChange={(v) => setForm({ ...form, brandId: v === "shared" ? null : v })}>
+              <SelectTrigger>
+                <SelectValue>
+                  {form.brandId
+                    ? opts?.brands.find((b) => b.id === form.brandId)?.name ?? "—"
+                    : "🌐 Shared (multi-brand) — recommended"}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Brands</SelectItem>
-                {opts?.brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                <SelectItem value="shared">
+                  <div className="flex flex-col">
+                    <span className="font-medium">🌐 Shared (multi-brand)</span>
+                    <span className="text-xs text-muted-foreground">Ad account er sob brand-e FIFO consume hobe</span>
+                  </div>
+                </SelectItem>
+                {opts?.brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} <span className="text-muted-foreground">(single brand tag)</span></SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
@@ -426,10 +443,34 @@ function PurchaseDialog({
               <SelectTrigger><SelectValue placeholder="Select ad account" /></SelectTrigger>
               <SelectContent>
                 {opts?.adAccounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} <span className="text-muted-foreground">— {a.external_id}</span></SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name} <span className="text-muted-foreground">— {a.external_id}</span>
+                    {a.mkt_ad_account_brands && a.mkt_ad_account_brands.length > 1 && (
+                      <span className="ml-2 text-[10px] text-violet-700 font-medium">
+                        · {a.mkt_ad_account_brands.length} brands
+                      </span>
+                    )}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {(() => {
+              const acc = opts?.adAccounts.find((a: any) => a.id === form.adAccountId);
+              const linked = acc?.mkt_ad_account_brands ?? [];
+              if (linked.length > 1) {
+                const names = linked
+                  .map((l: any) => opts?.brands.find((b) => b.id === l.brand_id)?.name)
+                  .filter(Boolean)
+                  .join(", ");
+                return (
+                  <div className="text-xs text-violet-700 mt-1 flex items-start gap-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>Ei ad account <b>{linked.length}</b> brand-er sathe linked ({names}). Shared allocation e rakhle FIFO automatic prottek brand-e cost attribute korbe.</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </Field>
           <Field label="USD Amount" required>
             <Input type="number" step="0.01" min={0} value={form.usdAmount || ""} onChange={(e) => setForm({ ...form, usdAmount: parseFloat(e.target.value) || 0 })} />

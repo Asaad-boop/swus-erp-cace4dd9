@@ -74,11 +74,18 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
     }
     let adQ = context.supabase
       .from("mkt_ad_accounts")
-      .select("id, name, external_id, brand_id, currency, usd_to_bdt_rate")
+      .select("id, name, external_id, brand_id, currency, usd_to_bdt_rate, mkt_ad_account_brands(brand_id, is_primary)")
       .order("name");
     if (data.brandIds?.length) {
+      // Find ad accounts linked to any of the selected brands via junction (or legacy brand_id)
+      const { data: links } = await context.supabase
+        .from("mkt_ad_account_brands")
+        .select("ad_account_id")
+        .in("brand_id", data.brandIds);
+      const linkedIds = Array.from(new Set((links ?? []).map((r: any) => r.ad_account_id)));
       const ids = data.brandIds.map((b) => `"${b}"`).join(",");
-      adQ = adQ.or(`brand_id.in.(${ids}),brand_id.is.null`);
+      const linkedFilter = linkedIds.length ? `,id.in.(${linkedIds.map((i) => `"${i}"`).join(",")})` : "";
+      adQ = adQ.or(`brand_id.in.(${ids}),brand_id.is.null${linkedFilter}`);
     }
     const [{ data: accounts }, { data: adAccounts }, { data: brands }, { data: fx }] = await Promise.all([
       accQ,
