@@ -7,6 +7,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 
 function relTime(iso: string | null): string {
@@ -60,7 +61,8 @@ export function LastSyncedBadge({
     : `Last synced ${relTime(when)}`;
 
   return (
-    <Tooltip>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
       <TooltipTrigger asChild>
         <div
           className={cn(
@@ -91,6 +93,7 @@ export function LastSyncedBadge({
           </div>
         </div>
       </TooltipContent>
-    </Tooltip>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
