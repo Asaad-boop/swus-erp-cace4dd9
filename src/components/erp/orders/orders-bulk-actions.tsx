@@ -105,6 +105,25 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin">
+          {/* 1. Quick Status — daily-flow, most frequent */}
+          <Section label="Quick Status" hint="One-tap common transitions">
+            <div className="grid grid-cols-3 gap-1">
+              <QuickStatusTile color="#16a34a" icon={CheckCheck} label="RTS" onClick={() => onStatus("ready_to_ship")} disabled={disabled} />
+              <QuickStatusTile color="#0284c7" icon={Truck} label="Shipped" onClick={() => onStatus("shipped")} disabled={disabled} />
+              <QuickStatusTile color="#dc2626" icon={X} label="Cancel" onClick={() => onStatus("cancelled")} disabled={disabled} />
+            </div>
+          </Section>
+
+          {/* 2. Courier — happens right after RTS */}
+          <Section label="Courier">
+            <div className="grid grid-cols-2 gap-1 mb-1">
+              <IconTile icon={Truck} label="Send Pathao" tone="rose" onClick={onSendToPathao} disabled={disabled} />
+              <IconTile icon={RefreshCw} label="Sync Status" tone="blue" onClick={onSyncCourier} disabled={disabled} />
+            </div>
+            <ActionRow icon={Phone} label="Match by Phone (History)" onClick={onPhoneHistory} disabled={disabled} />
+          </Section>
+
+          {/* 3. Print — after courier booked */}
           <Section label="Print">
             <div className="grid grid-cols-4 gap-1">
               <IconTile icon={Printer} label="Invoice" tone="blue" onClick={() => onPrint("invoice")} disabled={disabled} />
@@ -114,14 +133,8 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
             </div>
           </Section>
 
-          <Section label="Quick Status">
-            <div className="grid grid-cols-2 gap-1">
-              <QuickStatusTile color="#16a34a" icon={CheckCheck} label="Mark RTS" onClick={() => onStatus("ready_to_ship")} disabled={disabled} />
-              <QuickStatusTile color="#0284c7" icon={Truck} label="Mark Shipped" onClick={() => onStatus("shipped")} disabled={disabled} />
-            </div>
-          </Section>
-
-          <Section label="Change Status">
+          {/* 4. Detailed status — less frequent, collapsible */}
+          <Section label="More Status Options">
             {STATUS_GROUPS.map((g) => (
               <StatusGroupCollapsible
                 key={g.key}
@@ -133,23 +146,9 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
                 forceOpen={!!query}
               />
             ))}
-            <button
-              type="button"
-              onClick={() => onStatus("cancelled")}
-              disabled={disabled}
-              className="w-full flex items-center gap-2.5 px-2.5 h-8 mt-1.5 rounded-md text-[13px] font-medium text-destructive border border-destructive/20 bg-destructive/5 hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-              <span className="flex-1 text-left">Cancel Selected Orders</span>
-            </button>
           </Section>
 
-          <Section label="Courier">
-            <ActionRow icon={Truck} label="Send to Pathao" onClick={onSendToPathao} disabled={disabled} />
-            <ActionRow icon={RefreshCw} label="Sync Courier Status" onClick={onSyncCourier} disabled={disabled} />
-            <ActionRow icon={Phone} label="Match by Phone (History)" onClick={onPhoneHistory} disabled={disabled} />
-          </Section>
-
+          {/* 5. Export — rarely used */}
           <Section label="Export">
             <div className="grid grid-cols-2 gap-1">
               <IconTile icon={Download} label="Excel" tone="emerald" onClick={onExport} />
@@ -162,10 +161,13 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="px-2.5 py-2 border-b last:border-b-0">
-      <div className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</div>
+      <div className="px-1 pb-1.5 flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</span>
+        {hint && <span className="text-[9.5px] text-muted-foreground/60 truncate">{hint}</span>}
+      </div>
       <div className="space-y-0.5">{children}</div>
     </div>
   );
@@ -193,6 +195,7 @@ const TONE_MAP: Record<string, string> = {
   amber: "text-amber-600 dark:text-amber-400 bg-amber-500/10 group-hover:bg-amber-500/20",
   emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 group-hover:bg-emerald-500/20",
   slate: "text-slate-600 dark:text-slate-400 bg-slate-500/10 group-hover:bg-slate-500/20",
+  rose: "text-rose-600 dark:text-rose-400 bg-rose-500/10 group-hover:bg-rose-500/20",
 };
 
 function IconTile({ icon: Icon, label, onClick, disabled, tone = "slate" }: { icon: React.ElementType; label: string; onClick?: () => void; disabled?: boolean; tone?: keyof typeof TONE_MAP }) {
