@@ -2,6 +2,42 @@ import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
+// Auto-recover from stale chunk hashes after a fresh deploy.
+// Old client references chunk URLs that no longer exist → dynamic import fails.
+// Reload once (guarded via sessionStorage) to pull fresh index.html + new hashes.
+function isChunkLoadError(err: unknown): boolean {
+  const msg = (err as any)?.message ?? String(err ?? "");
+  return (
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Importing a module script failed/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg) ||
+    /ChunkLoadError/i.test(msg) ||
+    /Loading chunk [\w-]+ failed/i.test(msg)
+  );
+}
+
+function tryReloadForStaleChunk(err: unknown): boolean {
+  if (typeof window === "undefined") return false;
+  if (!isChunkLoadError(err)) return false;
+  try {
+    const KEY = "__chunk_reload_at";
+    const last = Number(sessionStorage.getItem(KEY) ?? 0);
+    if (Date.now() - last < 10_000) return false; // avoid reload loop
+    sessionStorage.setItem(KEY, String(Date.now()));
+  } catch {}
+  window.location.reload();
+  return true;
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (e) => {
+    tryReloadForStaleChunk(e.error ?? e.message);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    tryReloadForStaleChunk(e.reason);
+  });
+}
+
 export const getRouter = () => {
   const queryClient = new QueryClient();
 
@@ -10,7 +46,15 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultErrorComponent: ({ error }) => (
+    defaultErrorComponent: ({ error }) => {
+      if (tryReloadForStaleChunk(error)) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="text-sm text-gray-500">Updating…</div>
+          </div>
+        );
+      }
+      return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8 bg-white rounded-xl shadow-sm max-w-md">
           <div className="text-4xl mb-4">⚠️</div>
@@ -28,7 +72,8 @@ export const getRouter = () => {
           </button>
         </div>
       </div>
-    ),
+      );
+    },
     defaultNotFoundComponent: () => (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
