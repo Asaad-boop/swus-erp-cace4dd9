@@ -481,6 +481,18 @@ export function AttributionPanel({ orderId }: { orderId: string }) {
         <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
         <Megaphone className="h-3.5 w-3.5 text-rose-600" />
         <h3 className="text-[13px] font-semibold">Attribution</h3>
+        {!isLoading && (() => {
+          const isPaid = Boolean(
+            data?.attr?.campaign_id || data?.attr?.ad_id || data?.attr?.adset_id || data?.attr?.fbclid,
+          );
+          const hasAny = Boolean(data?.attr || data?.fallback);
+          if (!hasAny) return null;
+          return isPaid ? (
+            <Badge className="ml-auto bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200 text-[10px]">Paid</Badge>
+          ) : (
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 text-[10px]">Organic</Badge>
+          );
+        })()}
       </header>
       <div className="p-4 text-xs space-y-2">
         {isLoading ? (
