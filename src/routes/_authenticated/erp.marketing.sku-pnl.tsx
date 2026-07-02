@@ -28,7 +28,7 @@ const fmtNum = (n: number) => Number(n).toLocaleString();
 
 function SkuPnlPage() {
   const { brandId, picker } = useBrandPicker();
-  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("today"));
   const [q, setQ] = useState("");
 
   const { from, to } = range;
