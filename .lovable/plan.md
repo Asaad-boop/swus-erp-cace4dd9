@@ -1,62 +1,115 @@
-## Goal
+## Incomplete Orders — Advanced Upgrade
 
-Product-er multiple color variant support — protita color-er nijoshto stock, jate inventory te color-wise stock dekha jay ar Purchase Order (local) ebong Imports (China PO) e color-wise quantity dewa jay.
+Ekta full feature-set boshabo. 3 phase e delivery, protita self-contained shipping unit.
 
-## Approach
+---
 
-Existing `product_variants` table already ache (stock, reserved_stock, available_stock, weighted_avg_cost, sku) — eta-i color variant-er base hobe. Notun column add korbo `color_name` + `color_hex` + `image` (color-specific photo, optional). Tarpor product edit e ekta clean "Colors" section, inventory list e expandable color breakdown, ar PO/Import item rows e color picker.
+### Phase 1 — Table upgrade (advanced filters + bulk actions)
 
-## Scope — what gets built
+**Advanced filters bar** (existing search er pashe):
+- Date range picker (advanced variant — presets sidebar, typeable From/To, 2-month calendar — same as marketing date picker)
+- Subtotal min/max (৳)
+- Last step multi-select: cart / shipping / checkout
+- City multi-select (distinct list from data)
+- Item count range (1–20+)
+- Follow-up status: not-sent / sent / responded (new column)
 
-### 1. Schema (migration)
-- `product_variants` table e add: `color_name text`, `color_hex text`, `image text`, `sort_order int default 0`
-- `local_po_items` e add: `variant_id uuid references product_variants(id)` (nullable, backward-compat)
-- `imp_po_items` e add: `variant_id uuid references product_variants(id)` (nullable)
-- `imp_carton_items` already variant aware kina check; na thakle `variant_id` add
-- Receive flow update: local PO + import receive stock movement variant_id sathe likhbe (already partial support thakle just wire korbo)
+**Bulk actions** (row checkbox + header checkbox):
+- Bulk delete (with confirm)
+- Bulk WhatsApp send (opens template preview → sends to all selected)
+- Bulk SMS send
+- Bulk mark "contacted"
+- Bulk convert (only for rows with valid phone+address)
+- Bulk export CSV
 
-### 2. Product Edit dialog — "Colors" tab
-- `src/components/erp/inventory/product-edit-dialog.tsx` e existing form sections-er pashe notun **Colors** section
-- Add color row: name (Red/Blue/...), color swatch picker (hex), optional photo upload, opening stock, low-stock threshold, SKU suffix auto
-- Delete (soft via is_active=false jodi stock movements thake), reorder via drag handle
-- Save: bulk upsert via server fn
+**Row-level quick actions** (icon toolbar):
+- WhatsApp icon → opens `wa.me/<phone>?text=<template>` in new tab (client-side, no API cost)
+- SMS icon → server fn call to send via chosen provider
+- Copy phone/address
+- View cart items (expand row)
 
-### 3. Inventory list — color breakdown
-- `erp.inventory.tsx` row expandable: jodi product-er variants ache, color swatches + per-color stock chip dekhabe ("🔴 Red 12 • 🔵 Blue 5")
-- Filter: "has colors" toggle
-- Low-stock alert per variant
+---
 
-### 4. Local Purchase Order (new + edit)
-- `erp.purchase-orders.new.tsx` ItemDraft e `variants: { variant_id, qty }[]` add
-- Product pick korar por jodi colors thake → row expand hoye color rows dekhabe with qty input + swatch
-- Total qty = sum of color qty; cost x qty calc okay
-- Receive flow color-wise stock add korbe
+### Phase 2 — WhatsApp/SMS recovery infrastructure
 
-### 5. Import (China) PO
-- `erp.imports.orders.new.tsx` item row e same color breakdown
-- Carton allocation: kon carton e kon color koto — optional, default flat distribute
-- Receive (carton-in) stock movement variant-aware
+**DB additions:**
+- `abandoned_carts.followup_status` enum: `pending | sent | responded | ignored`
+- `abandoned_carts.followup_sent_at` timestamp
+- `abandoned_carts.followup_count` int (0–3)
+- `abandoned_carts.last_followup_channel` text (`whatsapp | sms | manual`)
+- `abandoned_cart_messages` table (history: id, cart_id, channel, template, message_body, sent_at, sent_by, delivery_status)
+- `abandoned_cart_templates` table (id, brand_id, name, channel, body with `{{name}} {{cart_total}} {{brand}}` placeholders)
 
-### 6. Reorder queue / low-stock
-- Variant-level low-stock surface korbe (just label "Product — Red")
+**Server fns:**
+- `sendCartRecoveryMessageFn` — takes cart_id + template_id + channel; renders template, sends via SMS provider or logs WhatsApp click-to-send URL, inserts into messages table, updates cart status
+- `listCartMessagesFn` — history for a cart
+- `manageTemplatesFn` — CRUD for templates
 
-## Out of scope (this round)
-- Size/material multi-axis variants (color-only ekhon)
-- Web storefront-side color picker UI (frontend public site)
-- Migrating historical movements to variants
+**SMS provider:** Ask user which BD provider (SSL Wireless / Alpha Net / bulkSMSbd) — for now scaffold with generic HTTP client + `SMS_API_URL` + `SMS_API_KEY` secrets. WhatsApp shall be click-to-send `wa.me` link (no API cost, works instantly).
 
-## Technical notes
-- Existing `recompute_reserved_stock` trigger variant_id already handle kore kina check kore tarpor migration
-- All grants + RLS existing patterns follow
-- Color hex validation: regex `^#[0-9a-fA-F]{6}$`
+**Settings page tab:** `/erp/settings` → "Cart Recovery" tab
+- Template editor (per brand)
+- SMS provider config
+- Auto follow-up toggle + rules (1h/6h/24h)
 
-## Build order
-1. Migration (schema + grants)
-2. Server fns: `upsertProductColors`, update PO/import create+receive
-3. Product edit Colors UI
-4. Inventory list expand
-5. Local PO color allocation UI
-6. Imports PO color allocation UI
-7. Smoke test each flow
+---
 
-Approve korle ami step-by-step build korbo, prottek major step-er por verify korbo.
+### Phase 3 — Auto follow-up cron + Reports page
+
+**Cron endpoint** `/api/public/cron/cart-recovery-followup`:
+- Runs every 30 min
+- Finds unconverted carts with valid phone where:
+  - `followup_count = 0` AND `updated_at < now() - 1h` → send 1st reminder
+  - `followup_count = 1` AND `last_followup_sent_at < now() - 6h` → send 2nd
+  - `followup_count = 2` AND `last_followup_sent_at < now() - 24h` → send 3rd (final)
+- Only when settings toggle is enabled per brand
+- pg_cron schedule: `*/30 * * * *`
+
+**Reports page** at `/erp/orders/incomplete-reports` (last 30 days default, date picker for custom):
+- **KPI cards:**
+  - Total incomplete carts
+  - Converted (auto + manual) count + recovery rate %
+  - Lost revenue (৳) — sum of unconverted subtotals
+  - Recovered revenue (৳) — sum of converted subtotals
+  - Avg cart value
+  - Messages sent count + response rate
+- No charts / funnels / top products (user selected KPIs only)
+- Brand-scoped (respects current brand filter)
+- Export button (CSV of daily breakdown)
+
+---
+
+### Technical notes
+
+```text
+src/
+├── routes/_authenticated/
+│   ├── erp.orders.incomplete-reports.tsx       (new — Phase 3)
+│   └── erp.settings.tsx                        (add "Cart Recovery" tab — Phase 2)
+├── components/erp/orders/
+│   ├── incomplete-orders-table.tsx             (upgrade — Phase 1)
+│   ├── incomplete-filters-bar.tsx              (new — Phase 1)
+│   ├── incomplete-bulk-actions.tsx             (new — Phase 1)
+│   ├── send-recovery-dialog.tsx                (new — Phase 2)
+│   └── cart-messages-history.tsx               (new — Phase 2)
+├── components/erp/settings/
+│   └── cart-recovery-settings.tsx              (new — Phase 2)
+├── lib/erp/
+│   ├── abandoned-carts.functions.ts            (extend)
+│   ├── cart-recovery.functions.ts              (new — Phase 2)
+│   └── incomplete-reports.functions.ts         (new — Phase 3)
+└── routes/api/public/
+    └── cron.cart-recovery-followup.ts          (new — Phase 3)
+```
+
+DB migrations: 2 total (Phase 2 schema; Phase 3 pg_cron schedule via insert tool).
+
+---
+
+### 2 tini din-of clarifications
+
+1. **"Other" advanced feature** — kichu specific chaao ki? (e.g. cart items expand row, customer purchase history link, priority scoring by cart value, duplicate cart detection)
+2. **SMS provider** — kon service use korbo? (SSL Wireless / bulkSMSbd / Alpha Net / onno kichu) — na thakle WhatsApp click-to-send diye shuru kori, SMS pore add korbo.
+3. **Delivery order** — Phase 1 (filters+bulk) prothome ship kori, tarpor 2, tarpor 3? Naki ekshate?
+
+Confirm korle shuru kori.

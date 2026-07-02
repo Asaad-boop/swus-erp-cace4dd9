@@ -70,6 +70,7 @@ import { Route as AuthenticatedErpOrdersWebRouteImport } from './routes/_authent
 import { Route as AuthenticatedErpOrdersPreOrdersRouteImport } from './routes/_authenticated/erp.orders.pre-orders'
 import { Route as AuthenticatedErpOrdersNewRouteImport } from './routes/_authenticated/erp.orders.new'
 import { Route as AuthenticatedErpOrdersListRouteImport } from './routes/_authenticated/erp.orders.list'
+import { Route as AuthenticatedErpOrdersIncompleteReportsRouteImport } from './routes/_authenticated/erp.orders.incomplete-reports'
 import { Route as AuthenticatedErpOrdersOrderIdRouteImport } from './routes/_authenticated/erp.orders.$orderId'
 import { Route as AuthenticatedErpMarketingSyncRouteImport } from './routes/_authenticated/erp.marketing.sync'
 import { Route as AuthenticatedErpMarketingSkuPnlRouteImport } from './routes/_authenticated/erp.marketing.sku-pnl'
@@ -465,6 +466,12 @@ const AuthenticatedErpOrdersListRoute =
     path: '/list',
     getParentRoute: () => AuthenticatedErpOrdersRoute,
   } as any)
+const AuthenticatedErpOrdersIncompleteReportsRoute =
+  AuthenticatedErpOrdersIncompleteReportsRouteImport.update({
+    id: '/incomplete-reports',
+    path: '/incomplete-reports',
+    getParentRoute: () => AuthenticatedErpOrdersRoute,
+  } as any)
 const AuthenticatedErpOrdersOrderIdRoute =
   AuthenticatedErpOrdersOrderIdRouteImport.update({
     id: '/$orderId',
@@ -837,6 +844,7 @@ export interface FileRoutesByFullPath {
   '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
+  '/erp/orders/incomplete-reports': typeof AuthenticatedErpOrdersIncompleteReportsRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
@@ -937,6 +945,7 @@ export interface FileRoutesByTo {
   '/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
+  '/erp/orders/incomplete-reports': typeof AuthenticatedErpOrdersIncompleteReportsRoute
   '/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
@@ -1052,6 +1061,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/marketing/sku-pnl': typeof AuthenticatedErpMarketingSkuPnlRoute
   '/_authenticated/erp/marketing/sync': typeof AuthenticatedErpMarketingSyncRoute
   '/_authenticated/erp/orders/$orderId': typeof AuthenticatedErpOrdersOrderIdRoute
+  '/_authenticated/erp/orders/incomplete-reports': typeof AuthenticatedErpOrdersIncompleteReportsRoute
   '/_authenticated/erp/orders/list': typeof AuthenticatedErpOrdersListRoute
   '/_authenticated/erp/orders/new': typeof AuthenticatedErpOrdersNewRoute
   '/_authenticated/erp/orders/pre-orders': typeof AuthenticatedErpOrdersPreOrdersRoute
@@ -1167,6 +1177,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
     | '/erp/orders/$orderId'
+    | '/erp/orders/incomplete-reports'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/pre-orders'
@@ -1267,6 +1278,7 @@ export interface FileRouteTypes {
     | '/erp/marketing/sku-pnl'
     | '/erp/marketing/sync'
     | '/erp/orders/$orderId'
+    | '/erp/orders/incomplete-reports'
     | '/erp/orders/list'
     | '/erp/orders/new'
     | '/erp/orders/pre-orders'
@@ -1381,6 +1393,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/marketing/sku-pnl'
     | '/_authenticated/erp/marketing/sync'
     | '/_authenticated/erp/orders/$orderId'
+    | '/_authenticated/erp/orders/incomplete-reports'
     | '/_authenticated/erp/orders/list'
     | '/_authenticated/erp/orders/new'
     | '/_authenticated/erp/orders/pre-orders'
@@ -1867,6 +1880,13 @@ declare module '@tanstack/react-router' {
       path: '/list'
       fullPath: '/erp/orders/list'
       preLoaderRoute: typeof AuthenticatedErpOrdersListRouteImport
+      parentRoute: typeof AuthenticatedErpOrdersRoute
+    }
+    '/_authenticated/erp/orders/incomplete-reports': {
+      id: '/_authenticated/erp/orders/incomplete-reports'
+      path: '/incomplete-reports'
+      fullPath: '/erp/orders/incomplete-reports'
+      preLoaderRoute: typeof AuthenticatedErpOrdersIncompleteReportsRouteImport
       parentRoute: typeof AuthenticatedErpOrdersRoute
     }
     '/_authenticated/erp/orders/$orderId': {
@@ -2458,6 +2478,7 @@ const AuthenticatedErpMarketingRouteWithChildren =
 
 interface AuthenticatedErpOrdersRouteChildren {
   AuthenticatedErpOrdersOrderIdRoute: typeof AuthenticatedErpOrdersOrderIdRoute
+  AuthenticatedErpOrdersIncompleteReportsRoute: typeof AuthenticatedErpOrdersIncompleteReportsRoute
   AuthenticatedErpOrdersListRoute: typeof AuthenticatedErpOrdersListRoute
   AuthenticatedErpOrdersNewRoute: typeof AuthenticatedErpOrdersNewRoute
   AuthenticatedErpOrdersPreOrdersRoute: typeof AuthenticatedErpOrdersPreOrdersRoute
@@ -2468,6 +2489,8 @@ interface AuthenticatedErpOrdersRouteChildren {
 const AuthenticatedErpOrdersRouteChildren: AuthenticatedErpOrdersRouteChildren =
   {
     AuthenticatedErpOrdersOrderIdRoute: AuthenticatedErpOrdersOrderIdRoute,
+    AuthenticatedErpOrdersIncompleteReportsRoute:
+      AuthenticatedErpOrdersIncompleteReportsRoute,
     AuthenticatedErpOrdersListRoute: AuthenticatedErpOrdersListRoute,
     AuthenticatedErpOrdersNewRoute: AuthenticatedErpOrdersNewRoute,
     AuthenticatedErpOrdersPreOrdersRoute: AuthenticatedErpOrdersPreOrdersRoute,

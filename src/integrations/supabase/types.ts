@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_cart_messages: {
+        Row: {
+          brand_id: string | null
+          cart_id: string
+          channel: string
+          delivery_status: string
+          id: string
+          message_body: string | null
+          meta: Json
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          cart_id: string
+          channel: string
+          delivery_status?: string
+          id?: string
+          message_body?: string | null
+          meta?: Json
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          cart_id?: string
+          channel?: string
+          delivery_status?: string
+          id?: string
+          message_body?: string | null
+          meta?: Json
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_cart_messages_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "abandoned_carts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       abandoned_carts: {
         Row: {
           brand_id: string | null
@@ -23,8 +67,12 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          followup_count: number
+          followup_status: string
           id: string
           is_converted: boolean
+          last_followup_at: string | null
+          last_followup_channel: string | null
           last_step: string | null
           session_id: string | null
           shipping_address: string | null
@@ -43,8 +91,12 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          followup_count?: number
+          followup_status?: string
           id?: string
           is_converted?: boolean
+          last_followup_at?: string | null
+          last_followup_channel?: string | null
           last_step?: string | null
           session_id?: string | null
           shipping_address?: string | null
@@ -63,8 +115,12 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          followup_count?: number
+          followup_status?: string
           id?: string
           is_converted?: boolean
+          last_followup_at?: string | null
+          last_followup_channel?: string | null
           last_step?: string | null
           session_id?: string | null
           shipping_address?: string | null

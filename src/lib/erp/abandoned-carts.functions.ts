@@ -33,7 +33,24 @@ export type AbandonedCartRow = {
   converted_order_id: string | null;
   created_at: string;
   updated_at: string;
+  followup_status?: string | null;
+  followup_count?: number | null;
+  last_followup_at?: string | null;
+  last_followup_channel?: string | null;
 };
+
+async function assertStaff(context: { supabase: any; userId: string }) {
+  const [admin, cs, ops] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
+  ]);
+  const err = admin.error ?? cs.error ?? ops.error;
+  if (err) throw new Error(err.message);
+  if (!admin.data && !cs.data && !ops.data) {
+    throw new Error("Not authorized");
+  }
+}
 
 export const listAbandonedCartsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -44,20 +61,18 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       search: z.string().optional(),
       page: z.number().int().min(0).default(0),
       pageSize: z.number().int().min(1).max(200).default(50),
+      dateFrom: z.string().nullable().optional(),
+      dateTo: z.string().nullable().optional(),
+      subtotalMin: z.number().nullable().optional(),
+      subtotalMax: z.number().nullable().optional(),
+      lastSteps: z.array(z.string()).optional(),
+      followupStatuses: z.array(z.string()).optional(),
+      sort: z.enum(["newest","oldest","highest","lowest","priority"]).default("newest"),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [admin, customerService, operations] = await Promise.all([
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "customer_service" }),
-      supabase.rpc("has_role", { _user_id: context.userId, _role: "operations" }),
-    ]);
-    const roleError = admin.error ?? customerService.error ?? operations.error;
-    if (roleError) throw new Error(roleError.message);
-    if (!admin.data && !customerService.data && !operations.data) {
-      throw new Error("Not authorized to view incomplete checkouts");
-    }
+    await assertStaff(context);
 
     const from = data.page * data.pageSize;
     const to = from + data.pageSize - 1;
@@ -67,8 +82,7 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       .select("*", { count: "exact" })
       .eq("is_converted", false)
       .not("customer_phone", "is", null)
-      .gt("subtotal", 0)
-      .order("updated_at", { ascending: false });
+      .gt("subtotal", 0);
 
     if (data.brandIds && data.brandIds.length > 0) {
       q = applyBrandScope(q, data.brandIds);
@@ -81,6 +95,25 @@ export const listAbandonedCartsFn = createServerFn({ method: "POST" })
       q = q.or(
         `customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,customer_email.ilike.%${s}%`,
       );
+    }
+
+    if (data.dateFrom) q = q.gte("updated_at", data.dateFrom);
+    if (data.dateTo) q = q.lte("updated_at", data.dateTo);
+    if (typeof data.subtotalMin === "number") q = q.gte("subtotal", data.subtotalMin);
+    if (typeof data.subtotalMax === "number") q = q.lte("subtotal", data.subtotalMax);
+    if (data.lastSteps && data.lastSteps.length > 0) q = q.in("last_step", data.lastSteps);
+    if (data.followupStatuses && data.followupStatuses.length > 0) {
+      q = q.in("followup_status", data.followupStatuses);
+    }
+
+    // Sort
+    switch (data.sort) {
+      case "oldest": q = q.order("updated_at", { ascending: true }); break;
+      case "highest": q = q.order("subtotal", { ascending: false }); break;
+      case "lowest": q = q.order("subtotal", { ascending: true }); break;
+      case "priority": q = q.order("subtotal", { ascending: false }).order("updated_at", { ascending: false }); break;
+      case "newest":
+      default: q = q.order("updated_at", { ascending: false });
     }
 
     q = q.range(from, to);
@@ -247,4 +280,190 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
     });
 
     return { orderId: order.id, invoiceNo: order.invoice_no };
+  });
+
+export const bulkDeleteAbandonedCartsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { error, count } = await context.supabase
+      .from("abandoned_carts")
+      .delete({ count: "exact" })
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { deleted: count ?? 0 };
+  });
+
+export const logCartMessageFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      cartId: z.string().uuid(),
+      channel: z.enum(["whatsapp", "sms", "manual", "call"]),
+      messageBody: z.string().max(2000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { data: cart, error: cErr } = await context.supabase
+      .from("abandoned_carts")
+      .select("id, brand_id, followup_count")
+      .eq("id", data.cartId)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!cart) throw new Error("Cart not found");
+
+    const { error: msgErr } = await context.supabase
+      .from("abandoned_cart_messages")
+      .insert({
+        cart_id: data.cartId,
+        brand_id: cart.brand_id,
+        channel: data.channel,
+        message_body: data.messageBody ?? null,
+        sent_by: context.userId,
+      });
+    if (msgErr) throw new Error(msgErr.message);
+
+    const { error: uErr } = await context.supabase
+      .from("abandoned_carts")
+      .update({
+        followup_status: "contacted",
+        followup_count: (cart.followup_count ?? 0) + 1,
+        last_followup_at: new Date().toISOString(),
+        last_followup_channel: data.channel,
+      })
+      .eq("id", data.cartId);
+    if (uErr) throw new Error(uErr.message);
+    return { ok: true };
+  });
+
+export const bulkLogCartMessagesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      cartIds: z.array(z.string().uuid()).min(1).max(200),
+      channel: z.enum(["whatsapp", "sms", "manual", "call"]),
+      messageBody: z.string().max(2000).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const { data: carts, error: cErr } = await context.supabase
+      .from("abandoned_carts")
+      .select("id, brand_id, followup_count")
+      .in("id", data.cartIds);
+    if (cErr) throw new Error(cErr.message);
+    const rows = (carts ?? []).map((c: any) => ({
+      cart_id: c.id,
+      brand_id: c.brand_id,
+      channel: data.channel,
+      message_body: data.messageBody ?? null,
+      sent_by: context.userId,
+    }));
+    if (rows.length === 0) return { logged: 0 };
+    const { error: mErr } = await context.supabase.from("abandoned_cart_messages").insert(rows);
+    if (mErr) throw new Error(mErr.message);
+
+    // Bump followup counters individually (small batch, ok)
+    await Promise.all(
+      (carts ?? []).map((c: any) =>
+        context.supabase
+          .from("abandoned_carts")
+          .update({
+            followup_status: "contacted",
+            followup_count: (c.followup_count ?? 0) + 1,
+            last_followup_at: new Date().toISOString(),
+            last_followup_channel: data.channel,
+          })
+          .eq("id", c.id),
+      ),
+    );
+    return { logged: rows.length };
+  });
+
+export type IncompleteReport = {
+  totalCarts: number;
+  totalRevenue: number;
+  convertedCarts: number;
+  convertedRevenue: number;
+  recoveryRate: number;
+  lostRevenue: number;
+  avgCartValue: number;
+  contactedCount: number;
+  messagesSent: number;
+  responseRate: number;
+  byLastStep: { step: string; count: number }[];
+};
+
+export const incompleteReportsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      brandId: z.string().uuid().nullable().optional(),
+      brandIds: z.array(z.string().uuid()).optional(),
+      dateFrom: z.string(),
+      dateTo: z.string(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    let q = context.supabase
+      .from("abandoned_carts")
+      .select("id, subtotal, is_converted, last_step, followup_status, followup_count")
+      .gte("updated_at", data.dateFrom)
+      .lte("updated_at", data.dateTo)
+      .not("customer_phone", "is", null)
+      .gt("subtotal", 0);
+    if (data.brandIds && data.brandIds.length > 0) {
+      q = applyBrandScope(q, data.brandIds);
+    } else if (data.brandId) {
+      q = q.eq("brand_id", data.brandId);
+    }
+    const { data: carts, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const list = (carts ?? []) as Array<{
+      subtotal: number;
+      is_converted: boolean;
+      last_step: string | null;
+      followup_status: string | null;
+      followup_count: number | null;
+    }>;
+
+    const totalCarts = list.length;
+    const totalRevenue = list.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
+    const converted = list.filter((c) => c.is_converted);
+    const convertedCarts = converted.length;
+    const convertedRevenue = converted.reduce((s, c) => s + Number(c.subtotal ?? 0), 0);
+    const lostRevenue = totalRevenue - convertedRevenue;
+    const recoveryRate = totalCarts > 0 ? (convertedCarts / totalCarts) * 100 : 0;
+    const avgCartValue = totalCarts > 0 ? totalRevenue / totalCarts : 0;
+    const contactedCount = list.filter((c) => (c.followup_count ?? 0) > 0).length;
+    const messagesSent = list.reduce((s, c) => s + (c.followup_count ?? 0), 0);
+    const responseRate = contactedCount > 0
+      ? (list.filter((c) => c.is_converted && (c.followup_count ?? 0) > 0).length / contactedCount) * 100
+      : 0;
+    const stepMap = new Map<string, number>();
+    list.forEach((c) => {
+      const k = c.last_step ?? "unknown";
+      stepMap.set(k, (stepMap.get(k) ?? 0) + 1);
+    });
+    const byLastStep = Array.from(stepMap.entries())
+      .map(([step, count]) => ({ step, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalCarts,
+      totalRevenue,
+      convertedCarts,
+      convertedRevenue,
+      recoveryRate,
+      lostRevenue,
+      avgCartValue,
+      contactedCount,
+      messagesSent,
+      responseRate,
+      byLastStep,
+    } satisfies IncompleteReport;
   });

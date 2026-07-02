@@ -5,6 +5,16 @@ import {
   listAbandonedCartsFn,
 } from "@/lib/erp/abandoned-carts.functions";
 
+export type IncompleteFilters = {
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  subtotalMin?: number | null;
+  subtotalMax?: number | null;
+  lastSteps?: string[];
+  followupStatuses?: string[];
+  sort?: "newest" | "oldest" | "highest" | "lowest" | "priority";
+};
+
 export function useAbandonedCartsQuery(args: {
   brandId: string | null;
   brandIds?: string[];
@@ -12,7 +22,7 @@ export function useAbandonedCartsQuery(args: {
   page: number;
   pageSize: number;
   enabled: boolean;
-}) {
+} & IncompleteFilters) {
   const listAbandonedCarts = useServerFn(listAbandonedCartsFn);
 
   return useQuery({
@@ -23,6 +33,13 @@ export function useAbandonedCartsQuery(args: {
       args.search,
       args.page,
       args.pageSize,
+      args.dateFrom ?? null,
+      args.dateTo ?? null,
+      args.subtotalMin ?? null,
+      args.subtotalMax ?? null,
+      (args.lastSteps ?? []).join(","),
+      (args.followupStatuses ?? []).join(","),
+      args.sort ?? "newest",
     ],
     enabled: args.enabled,
     queryFn: async () => {
@@ -33,6 +50,13 @@ export function useAbandonedCartsQuery(args: {
           search: args.search,
           page: args.page,
           pageSize: args.pageSize,
+          dateFrom: args.dateFrom ?? null,
+          dateTo: args.dateTo ?? null,
+          subtotalMin: args.subtotalMin ?? null,
+          subtotalMax: args.subtotalMax ?? null,
+          lastSteps: args.lastSteps,
+          followupStatuses: args.followupStatuses,
+          sort: args.sort ?? "newest",
         },
       });
     },
