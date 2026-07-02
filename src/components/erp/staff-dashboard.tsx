@@ -75,7 +75,7 @@ export function StaffDashboard() {
         applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds)
           .eq("is_resolved", false),
         applyBrandScope(
-          supabase.from("orders").select("id,order_number,status,created_at,customer_name,total"),
+          supabase.from("orders").select("id,invoice_no,status,created_at,shipping_name,guest_name,total"),
           brandIds,
         ).order("created_at", { ascending: false }).limit(8),
         applyBrandScope(
@@ -253,8 +253,8 @@ export function StaffDashboard() {
                   className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">#{o.order_number ?? o.id.slice(0, 8)}</div>
-                    <div className="text-xs text-muted-foreground truncate">{o.customer_name ?? "—"}</div>
+                    <div className="font-medium text-sm truncate">#{o.invoice_no ?? o.id.slice(0, 8)}</div>
+                    <div className="text-xs text-muted-foreground truncate">{o.shipping_name ?? o.guest_name ?? "—"}</div>
                   </div>
                   <Badge variant="outline" className="text-[10px] uppercase">{o.status}</Badge>
                   <div className="text-sm font-mono tabular-nums w-24 text-right">
