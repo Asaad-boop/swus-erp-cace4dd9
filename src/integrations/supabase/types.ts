@@ -5964,6 +5964,52 @@ export type Database = {
           },
         ]
       }
+      mkt_ad_account_brands: {
+        Row: {
+          ad_account_id: string
+          brand_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+        }
+        Insert: {
+          ad_account_id: string
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Update: {
+          ad_account_id?: string
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_ad_account_brands_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ad_account_brands_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
+            foreignKeyName: "mkt_ad_account_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mkt_ad_accounts: {
         Row: {
           access_token: string | null

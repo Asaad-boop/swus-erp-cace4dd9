@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -89,6 +90,9 @@ type AccountRow = {
   last_error: string | null;
   auto_post_to_finance: boolean;
   finance_wallet_id: string | null;
+  brand_id?: string | null;
+  brand_ids?: string[];
+  primary_brand_id?: string | null;
 };
 
 type WalletOption = { id: string; name: string; wallet_type: string };
@@ -291,9 +295,24 @@ function AdAccountsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="font-semibold text-base truncate">{acc.name}</div>
-                      <Badge variant="outline" className="text-[10px] font-medium">
-                        {brandNameMap.get((acc as any).brand_id) ?? "—"}
-                      </Badge>
+                      {(acc.brand_ids && acc.brand_ids.length > 0
+                        ? acc.brand_ids
+                        : acc.brand_id
+                          ? [acc.brand_id]
+                          : []
+                      ).map((bid) => {
+                        const isPrimary = bid === (acc.primary_brand_id ?? acc.brand_id);
+                        return (
+                          <Badge
+                            key={bid}
+                            variant="outline"
+                            className={`text-[10px] font-medium ${isPrimary ? "border-primary/60 bg-primary/5" : ""}`}
+                          >
+                            {brandNameMap.get(bid) ?? "—"}
+                            {isPrimary && (acc.brand_ids?.length ?? 0) > 1 ? " ★" : ""}
+                          </Badge>
+                        );
+                      })}
                     </div>
                     <div className="text-xs font-mono text-muted-foreground truncate">
                       {acc.external_id}
@@ -470,6 +489,7 @@ function AccountEditor({
 
   const [form, setForm] = useState({
     brandId: "",
+    brandIds: [] as string[],
     name: "",
     appId: "",
     appSecret: "",
@@ -485,8 +505,21 @@ function AccountEditor({
 
   useEffect(() => {
     if (open) {
+      const existingBrandIds = ((editing as any)?.brand_ids as string[] | undefined) ?? [];
+      const primary =
+        (editing as any)?.primary_brand_id ??
+        (editing as any)?.brand_id ??
+        brands[0]?.id ??
+        "";
+      const initialBrandIds =
+        existingBrandIds.length > 0
+          ? [primary, ...existingBrandIds.filter((b) => b !== primary)]
+          : primary
+            ? [primary]
+            : [];
       setForm({
-        brandId: (editing as any)?.brand_id ?? (brands[0]?.id ?? ""),
+        brandId: primary,
+        brandIds: initialBrandIds,
         name: editing?.name ?? "",
         appId: editing?.app_id ?? "",
         appSecret: "",
@@ -504,7 +537,8 @@ function AccountEditor({
   const wallets = walletsQ.data ?? [];
 
   const canSubmit = useMemo(() => {
-    if (!isEdit && !form.brandId) return false;
+    if (form.brandIds.length === 0) return false;
+    if (!form.brandId) return false;
     if (!form.name.trim() || !form.adAccountId.trim()) return false;
     if (!isEdit && form.accessToken.trim().length < 20) return false;
     if (!/^\d+$/.test(form.adAccountId.trim())) return false;
@@ -551,6 +585,7 @@ function AccountEditor({
           data: {
             accountId: editing.id,
             brandId: form.brandId,
+            brandIds: form.brandIds,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
@@ -567,6 +602,7 @@ function AccountEditor({
         await createMut({
           data: {
             brandId: form.brandId,
+            brandIds: form.brandIds,
             name: form.name.trim(),
             appId: form.appId.trim() || null,
             appSecret: form.appSecret.trim() || null,
@@ -601,24 +637,56 @@ function AccountEditor({
         <div className="space-y-4">
           {(
             <div>
-              <Label>Brand</Label>
-              <Select
-                value={form.brandId}
-                onValueChange={(v) => setForm((f) => ({ ...f, brandId: v, financeWalletId: "" }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Brands (multi-select)</Label>
+              <div className="mt-1 rounded-md border p-2 space-y-1 max-h-44 overflow-y-auto">
+                {brands.map((b) => {
+                  const checked = form.brandIds.includes(b.id);
+                  const isPrimary = form.brandId === b.id;
+                  return (
+                    <div key={b.id} className="flex items-center justify-between gap-2 py-1">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer flex-1">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setForm((f) => {
+                              const next = v
+                                ? Array.from(new Set([...f.brandIds, b.id]))
+                                : f.brandIds.filter((x) => x !== b.id);
+                              const nextPrimary =
+                                next.includes(f.brandId) ? f.brandId : next[0] ?? "";
+                              return {
+                                ...f,
+                                brandIds: next,
+                                brandId: nextPrimary,
+                                financeWalletId:
+                                  nextPrimary === f.brandId ? f.financeWalletId : "",
+                              };
+                            });
+                          }}
+                        />
+                        <span>{b.name}</span>
+                      </label>
+                      {checked && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({ ...f, brandId: b.id, financeWalletId: "" }))
+                          }
+                          className={`text-[11px] px-2 py-0.5 rounded border ${
+                            isPrimary
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {isPrimary ? "★ Primary" : "Set primary"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isEdit ? "Brand change korte parba" : "Ei account kon brand er under add hobe"}
+                Ekta ad account e multiple brand er campaign run korte parbe. Primary brand = default owner (finance wallet, new campaign fallback).
               </p>
             </div>
           )}
