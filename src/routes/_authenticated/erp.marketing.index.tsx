@@ -34,6 +34,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ManageCampaignProductsDialog } from "@/components/erp/marketing/manage-campaign-products-dialog";
+import { LastSyncedBadge } from "@/components/erp/marketing/last-synced-badge";
 import { cn } from "@/lib/utils";
 import { useMultiBrandPicker } from "@/components/erp/brand-picker-gate";
 import {
@@ -274,6 +275,7 @@ function MarketingCommandCenter() {
             <div className="flex items-center gap-2 flex-wrap">
               {picker}
               <DateRangePicker value={dateRange} onChange={setDateRange} />
+              <LastSyncedBadge brandIds={brandIds} />
               <Button
                 onClick={syncMeta}
                 disabled={perfQ.isFetching || isSyncing || !hasBrand}
