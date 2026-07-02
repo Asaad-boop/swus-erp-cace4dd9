@@ -158,7 +158,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
       const acc = c.mkt_ad_accounts ?? {};
       const currency: string = (acc.currency ?? "USD").toUpperCase();
-      const usdFx: number = Number(acc.usd_to_bdt_rate) || brandUsdBdt;
+      const usdFx: number = Number(acc.usd_to_bdt_rate) || (fxMap.get(c.brand_id) ?? 0);
       const fx: number = currency === "BDT" ? 1 : usdFx;
       const hasFifo = ins.spend_bdt_fifo > 0;
       const spend_bdt = hasFifo ? ins.spend_bdt_fifo : ins.spend * fx;
