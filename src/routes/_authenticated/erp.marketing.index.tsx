@@ -587,10 +587,12 @@ function TodayKpi({
 function CampaignBeastCard({
   row,
   pacing,
+  showPacing,
   onManageProducts,
 }: {
   row: PerfRow;
   pacing?: DashboardSummary["budgetPacing"][number];
+  showPacing: boolean;
   onManageProducts: () => void;
 }) {
   const d = DECISIONS[row.decision];
@@ -752,21 +754,23 @@ function CampaignBeastCard({
         </div>
 
         {/* RIGHT: BUDGET PACING PANEL */}
-        <div className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gradient-to-br from-muted/30 to-transparent p-4 lg:w-[300px] flex flex-col justify-center">
-          {pacing ? (
+        {showPacing && (
+          <div className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gradient-to-br from-muted/30 to-transparent p-4 lg:w-[300px] flex flex-col justify-center">
+            {pacing ? (
             <BudgetPanel pacing={pacing} />
-          ) : isActive ? (
+            ) : isActive ? (
             <div className="text-xs text-muted-foreground text-center py-4">
               <Zap className="h-4 w-4 mx-auto mb-1 opacity-50" />
               No budget data
               <div className="text-[10px] mt-0.5">ABO/CBO not synced</div>
             </div>
-          ) : (
+            ) : (
             <div className="text-xs text-muted-foreground text-center py-4">
               <span className="opacity-50">Paused — no live budget</span>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
