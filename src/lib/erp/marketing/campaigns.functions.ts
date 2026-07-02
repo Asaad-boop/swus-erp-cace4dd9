@@ -56,27 +56,32 @@ function dateRangeDefaults(input: { from?: string; to?: string }) {
 
 export const listCampaignsRollup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { brandId: string; from?: string; to?: string }) =>
+  .inputValidator((d: { brandId?: string; brandIds?: string[]; from?: string; to?: string }) =>
     z
       .object({
-        brandId: z.string().uuid(),
+        brandId: z.string().uuid().optional(),
+        brandIds: z.array(z.string().uuid()).min(1).optional(),
         from: z.string().optional(),
         to: z.string().optional(),
+      })
+      .refine((v) => !!v.brandId || (v.brandIds && v.brandIds.length > 0), {
+        message: "brandId or brandIds required",
       })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<CampaignRollupRow[]> => {
-    const { getBrandUsdBdt } = await import("./fx.server");
-    const brandUsdBdt = await getBrandUsdBdt(context.supabase, data.brandId);
+    const { getBrandUsdBdtMap } = await import("./fx.server");
+    const brandIds = data.brandIds && data.brandIds.length ? data.brandIds : [data.brandId!];
+    const fxMap = await getBrandUsdBdtMap(context.supabase, brandIds);
     const supabase = context.supabase;
     const { from, to } = dateRangeDefaults(data);
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
       .select(
-        "id,external_id,name,objective,status,effective_status,account_id,daily_budget,mkt_ad_accounts(name,currency,usd_to_bdt_rate)",
+        "id,external_id,name,objective,status,effective_status,account_id,brand_id,daily_budget,mkt_ad_accounts(name,currency,usd_to_bdt_rate)",
       )
-      .eq("brand_id", data.brandId)
+      .in("brand_id", brandIds)
       .order("name");
     if (cErr) throw cErr;
     if (!campaigns?.length) return [];
