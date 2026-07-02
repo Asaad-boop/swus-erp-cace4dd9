@@ -41,7 +41,7 @@ function fmtPct(n: number | null | undefined) {
 
 function RollupPage() {
   const { brandId: selectedBrandId, picker } = useBrandPicker();
-  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("today"));
   const [search, setSearch] = useState("");
 
   const campaignsFn = useServerFn(getCampaignProfitRollup);

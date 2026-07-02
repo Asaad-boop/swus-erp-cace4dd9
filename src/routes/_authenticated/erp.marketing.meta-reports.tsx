@@ -51,7 +51,7 @@ function downloadCsv(filename: string, header: string[], rows: (string | number 
 
 function MetaReportsPage() {
   const { brandId, picker } = useBrandPicker();
-  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("today"));
   const [accFilter, setAccFilter] = useState<string>("all");
   const [paidFromFilter, setPaidFromFilter] = useState<string>("all");
   const [campFilter, setCampFilter] = useState<string>("all");

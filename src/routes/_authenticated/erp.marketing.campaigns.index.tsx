@@ -47,7 +47,7 @@ function CostSourceBadge({ source, estimated }: { source: CampaignRollupRow["cos
 function CampaignsPage() {
   const { brandIds, picker } = useMultiBrandPicker();
   const hasBrand = brandIds.length > 0;
-  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("30d"));
+  const [range, setRange] = useState<MktRangeValue>(() => buildPreset("today"));
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 

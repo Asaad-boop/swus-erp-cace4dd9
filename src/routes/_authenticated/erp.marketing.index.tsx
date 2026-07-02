@@ -136,7 +136,7 @@ function MarketingCommandCenter() {
       : selectedBrands.length === 1
         ? selectedBrands[0].name
         : `${selectedBrands.length} brands`;
-  const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("7d"));
+  const [dateRange, setDateRange] = useState<MktRangeValue>(() => buildPreset("today"));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [bucketFilter, setBucketFilter] = useState<DecisionBucket | "all">("all");
@@ -193,7 +193,7 @@ function MarketingCommandCenter() {
     setStatusFilter("all");
     setBucketFilter("all");
     setSortBy("true_roas");
-    setDateRange(buildPreset("7d"));
+    setDateRange(buildPreset("today"));
   }
 
   const allRows = perfQ.data?.rows ?? [];
