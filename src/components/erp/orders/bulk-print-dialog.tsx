@@ -260,7 +260,7 @@ function PickingList({ orders, itemsByOrder, brandName }: { orders: any[]; items
 
   return (
     <>
-      <style>{`@media print { @page { size: A4; margin: 12mm; } .pk-row,.pk-group{break-inside:avoid;} }`}</style>
+      <style>{`@media print { @page { size: A4; margin: 12mm; } .pk-row,.pk-group{break-inside:avoid;} img{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }`}</style>
       <div style={{ color: "#000", background: "#fff", padding: "18mm 14mm", fontSize: 12, lineHeight: 1.35, fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "2px solid #000", paddingBottom: 10, marginBottom: 14 }}>
