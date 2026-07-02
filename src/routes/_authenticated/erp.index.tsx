@@ -1078,9 +1078,11 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
         valTotal += Number(r.meta_purchase_value ?? 0);
         const s = series.get(r.date); if (s) { s.spend += Number(r.spend ?? 0); s.revenue += Number(r.meta_purchase_value ?? 0); }
       }
-      const roas = spendTotal > 0 ? valTotal / (spendTotal * fx) : 0;
-      const cpo = purchTotal > 0 ? (spendTotal * fx) / purchTotal : 0;
-      return { spendToday: spendTotal, spendTodayBdt: spendTotal * fx, roas, purchToday: purchTotal, cpo, fx, series: Array.from(series.values()) };
+      // ROAS is unitless — both spend & value are in account currency (USD). No FX needed.
+      const roas = spendTotal > 0 ? valTotal / spendTotal : null;
+      const cpo = purchTotal > 0 && fx > 0 ? (spendTotal * fx) / purchTotal : null;
+      const spendBdt = fx > 0 ? spendTotal * fx : null;
+      return { spendToday: spendTotal, spendTodayBdt: spendBdt, roas, purchToday: purchTotal, cpo, fx, series: Array.from(series.values()) };
     },
   });
   return (
@@ -1089,10 +1091,17 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       <CardContent>
         {isLoading ? <Skeleton className="h-32" /> : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <KV label="Spend (Range)" v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${BDT(data?.spendTodayBdt ?? 0)}`} />
-            <KV label="ROAS" v={`${(data?.roas ?? 0).toFixed(2)}x`} tone="emerald" />
+            <KV
+              label="Spend (Range)"
+              v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${data?.spendTodayBdt != null ? BDT(data.spendTodayBdt) : "—"}`}
+            />
+            <KV
+              label="ROAS"
+              v={data?.roas != null && Number.isFinite(data.roas) ? `${data.roas.toFixed(2)}x` : "—"}
+              tone="emerald"
+            />
             <KV label="Meta Orders" v={String(data?.purchToday ?? 0)} />
-            <KV label="CPO" v={BDT(data?.cpo ?? 0)} />
+            <KV label="CPO" v={data?.cpo != null && Number.isFinite(data.cpo) ? BDT(data.cpo) : "—"} />
             <div className="md:col-span-1 h-20">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data?.series ?? []}>
