@@ -95,7 +95,7 @@ export function PickingListPrint({ orders }: { orders: Order[] }) {
         </thead>
         <tbody>
           {groups.map((g, gi) => (
-            <>
+            <React.Fragment key={gi}>
               {g.rows.map((r, ri) => {
                 const isFirst = ri === 0;
                 const isLast = ri === g.rows.length - 1;
@@ -162,7 +162,7 @@ export function PickingListPrint({ orders }: { orders: Order[] }) {
                   <td style={td()} />
                 </tr>
               )}
-            </>
+            </React.Fragment>
           ))}
         </tbody>
         <tfoot>
