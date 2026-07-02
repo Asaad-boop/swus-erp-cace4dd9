@@ -39,6 +39,7 @@ export type PerfRow = {
   confirmed_orders: number;
   delivered_orders: number;
   delivered_revenue_bdt: number;
+  confirmed_revenue_bdt: number;
   cogs_bdt: number;
   operating_cost_bdt: number;
   profit_bdt: number;
@@ -46,6 +47,7 @@ export type PerfRow = {
   breakeven_revenue_bdt: number;
   is_breakeven: boolean;
   true_roas: number | null;
+  confirmed_roas: number | null;
   actual_cost_per_purchase_bdt: number | null;
   // Decision
   decision: DecisionBucket;
@@ -66,11 +68,14 @@ export type PerfTotals = {
   meta_roas: number | null;
   delivered_orders: number;
   delivered_revenue_bdt: number;
+  confirmed_orders: number;
+  confirmed_revenue_bdt: number;
   cogs_bdt: number;
   operating_cost_bdt: number;
   profit_bdt: number;
   margin_pct: number | null;
   true_roas: number | null;
+  confirmed_roas: number | null;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
@@ -245,6 +250,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       confirmed_orders: number;
       delivered_orders: number;
       delivered_revenue: number;
+      confirmed_revenue: number;
       cogs: number;
       operating_cost: number;
     };
@@ -257,10 +263,14 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         confirmed_orders: 0,
         delivered_orders: 0,
         delivered_revenue: 0,
+        confirmed_revenue: 0,
         cogs: 0,
         operating_cost: 0,
       };
-      if (status !== "cancelled" && status !== "returned") cur.confirmed_orders += 1;
+      if (status !== "cancelled" && status !== "returned") {
+        cur.confirmed_orders += 1;
+        cur.confirmed_revenue += Number(o.total) || 0;
+      }
       if (status === "delivered") {
         cur.delivered_orders += 1;
         cur.delivered_revenue += Number(o.total) || 0;
@@ -317,6 +327,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
           confirmed_orders: 0,
           delivered_orders: 0,
           delivered_revenue: 0,
+          confirmed_revenue: 0,
           cogs: 0,
           operating_cost: 0,
         };
@@ -340,6 +351,8 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       const margin = agg.delivered_revenue > 0 ? profit / agg.delivered_revenue : null;
       const breakeven_revenue = agg.cogs + agg.operating_cost + total_spend_bdt;
       const true_roas = total_spend_bdt > 0 ? agg.delivered_revenue / total_spend_bdt : null;
+      const confirmed_roas =
+        total_spend_bdt > 0 ? agg.confirmed_revenue / total_spend_bdt : null;
       const dec = classify({
         spend_bdt: total_spend_bdt,
         delivered_orders: agg.delivered_orders,
@@ -378,6 +391,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         confirmed_orders: agg.confirmed_orders,
         delivered_orders: agg.delivered_orders,
         delivered_revenue_bdt: agg.delivered_revenue,
+        confirmed_revenue_bdt: agg.confirmed_revenue,
         cogs_bdt: agg.cogs,
         operating_cost_bdt: agg.operating_cost,
         profit_bdt: profit,
@@ -385,6 +399,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         breakeven_revenue_bdt: breakeven_revenue,
         is_breakeven: agg.delivered_revenue >= breakeven_revenue && total_spend_bdt > 0,
         true_roas,
+        confirmed_roas,
         actual_cost_per_purchase_bdt:
           agg.delivered_orders > 0 ? total_spend_bdt / agg.delivered_orders : null,
         decision: dec.decision,
@@ -405,6 +420,8 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         t.meta_purchase_value_usd += r.meta_purchase_value_usd;
         t.delivered_orders += r.delivered_orders;
         t.delivered_revenue_bdt += r.delivered_revenue_bdt;
+        t.confirmed_orders += r.confirmed_orders;
+        t.confirmed_revenue_bdt += r.confirmed_revenue_bdt;
         t.cogs_bdt += r.cogs_bdt;
         t.operating_cost_bdt += r.operating_cost_bdt;
         t.profit_bdt += r.profit_bdt;
@@ -417,6 +434,8 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       totals.total_spend_usd > 0 ? totals.meta_purchase_value_usd / totals.total_spend_usd : null;
     totals.true_roas =
       totals.total_spend_bdt > 0 ? totals.delivered_revenue_bdt / totals.total_spend_bdt : null;
+    totals.confirmed_roas =
+      totals.total_spend_bdt > 0 ? totals.confirmed_revenue_bdt / totals.total_spend_bdt : null;
     totals.margin_pct =
       totals.delivered_revenue_bdt > 0 ? totals.profit_bdt / totals.delivered_revenue_bdt : null;
 
@@ -436,10 +455,13 @@ function emptyTotals(): PerfTotals {
     meta_roas: null,
     delivered_orders: 0,
     delivered_revenue_bdt: 0,
+    confirmed_orders: 0,
+    confirmed_revenue_bdt: 0,
     cogs_bdt: 0,
     operating_cost_bdt: 0,
     profit_bdt: 0,
     margin_pct: null,
     true_roas: null,
+    confirmed_roas: null,
   };
 }
