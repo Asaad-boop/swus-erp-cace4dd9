@@ -243,5 +243,3 @@ const td = (align: "left" | "right" | "center" = "left"): React.CSSProperties =>
   textAlign: align,
   verticalAlign: "top",
 });
-
-}
