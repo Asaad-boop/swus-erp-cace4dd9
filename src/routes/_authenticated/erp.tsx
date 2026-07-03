@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { GlobalNewOrderNotifier } from "@/components/erp/global-new-order-notifier";
+import { UpdateNotice } from "@/components/erp/update-notice";
 
 export const Route = createFileRoute("/_authenticated/erp")({
   component: ErpLayout,
@@ -51,6 +52,7 @@ function ErpLayout() {
             <div className="flex-1" />
             <div className="flex items-center gap-2">
               <HeaderQuickActions />
+              <UpdateNotice />
               <BrandSwitcher />
               <div className="mx-2 hidden sm:block h-5 w-px bg-border" />
               <div className="hidden sm:block text-xs text-muted-foreground truncate max-w-[180px]">{email}</div>
