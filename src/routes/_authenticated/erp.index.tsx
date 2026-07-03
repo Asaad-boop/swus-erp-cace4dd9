@@ -151,32 +151,48 @@ function AdminDashboard() {
       </div>
 
       <div className="px-4 md:px-8 py-6 max-w-[1600px] mx-auto space-y-6">
-        {/* Command grid: KPIs + Today panel + Live visitors */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-          <div className="space-y-3">
-            <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <ProfitQuality brandIds={brandIds} enabled={enabled} range={range} />
-              <LiveVisitors />
-            </div>
-          </div>
-          <TodayCommandPanel brandIds={brandIds} enabled={enabled} />
+        {/* KPI strip */}
+        <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+
+        {/* MUST-HAVE row 1: Profit + Cash */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <NetProfitCard brandIds={brandIds} enabled={enabled} range={range} />
+          <CashPositionCard brandIds={brandIds} enabled={enabled} />
         </div>
 
-        {/* Admin self-attendance widget */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-          <div className="hidden xl:block" />
-          <AttendancePunchCard />
+        {/* MUST-HAVE row 2: COD Remittance + ROAS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <CodRemittancePipelineCard brandIds={brandIds} enabled={enabled} range={range} />
+          <RoasComparisonCard brandIds={brandIds} enabled={enabled} range={range} />
         </div>
+
+        {/* MUST-HAVE row 3: Ad Wallet + Stuck Orders */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <AdWalletBalanceCard brandIds={brandIds} enabled={enabled} />
+          <StuckOrdersCard brandIds={brandIds} enabled={enabled} />
+        </div>
+
+        {/* MUST-HAVE row 4: Courier perf + Return-rate SKUs */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <CourierPerformanceCard brandIds={brandIds} enabled={enabled} range={range} />
+          <ReturnRateByProductCard brandIds={brandIds} enabled={enabled} range={range} />
+        </div>
+
+        {/* GOOD-TO-HAVE — trend + segmentation */}
+        <TrendChart brandIds={brandIds} enabled={enabled} range={range} brands={brands} isAllBrands={isAllBrands} />
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <NewVsReturningCard brandIds={brandIds} enabled={enabled} range={range} />
+          <AbandonedCartRecoveryCard brandIds={brandIds} enabled={enabled} />
+        </div>
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
         )}
 
-        <TrendChart brandIds={brandIds} enabled={enabled} range={range} brands={brands} isAllBrands={isAllBrands} />
-
+        {/* Supporting existing cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <CourierCard brandIds={brandIds} enabled={enabled} range={range} />
           <CodOutstandingCard brandIds={brandIds} enabled={enabled} range={range} />
@@ -185,8 +201,6 @@ function AdminDashboard() {
         </div>
 
         <FinanceSection brandIds={brandIds} enabled={enabled} range={range} />
-
-        <ProductDangerZone brandIds={brandIds} enabled={enabled} range={range} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <InventoryHealth brandIds={brandIds} enabled={enabled} />
