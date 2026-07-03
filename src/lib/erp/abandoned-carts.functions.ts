@@ -243,7 +243,6 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
         guest_name: cart.customer_name,
         guest_phone: cart.customer_phone,
         payment_method: "cod",
-        created_by: context.userId,
       })
       .select("id, invoice_no")
       .single();
