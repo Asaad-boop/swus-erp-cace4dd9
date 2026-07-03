@@ -130,9 +130,10 @@ type OrderRow = {
 };
 
 const ORDER_SEARCH_SELECT = "id, invoice_no, shipping_name, shipping_phone, alternate_phone, guest_name, guest_phone, shipping_city, shipping_district, shipping_thana, shipping_address, total, status, web_status, source, tracking_number, created_at, items:order_items(id, name, quantity, variant_label, image, price, line_total)";
+const WEB_ORDER_SOURCES = new Set(["website", "pixel", "utm"]);
 
 function primaryStatus(order: OrderRow) {
-  return order.source === "website" && order.web_status ? order.web_status : order.status;
+  return order.source && WEB_ORDER_SOURCES.has(order.source) && order.web_status ? order.web_status : order.status;
 }
 
 function prettyStatus(s: string | null | undefined) {
