@@ -119,9 +119,10 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const updateWebStatus = useMutation({
     mutationFn: async ({ web_status, extra }: { web_status: string; extra?: Record<string, unknown> }) => {
       const now = new Date().toISOString();
-      const patch = web_status === "complete"
+      const isNewOrder = order?.status === "new";
+      const patch = web_status === "complete" && isNewOrder
         ? { web_status: web_status as never, status: "confirmed" as never, confirmation_status: "pending" as never, confirmed_at: now, ...(extra ?? {}) }
-        : web_status === "cancelled"
+        : web_status === "cancelled" && isNewOrder
           ? { web_status: web_status as never, status: "cancelled" as never, cancelled_at: now, ...(extra ?? {}) }
           : { web_status: web_status as never, ...(extra ?? {}) };
       const { error } = await supabase
