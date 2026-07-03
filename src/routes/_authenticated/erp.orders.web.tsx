@@ -571,7 +571,7 @@ function _WebOrdersPageBody() {
             { count: "exact" },
           ),
         brandIds,
-      ).eq("source", "website");
+      ).in("source", WEB_SOURCES as unknown as string[]);
 
       // Pre-orders also show in the Web Orders queue so they go to processing.
       // sort
@@ -678,13 +678,13 @@ function _WebOrdersPageBody() {
         const { count } = await applyBrandScope(
           supabase.from("orders").select("id", { count: "exact", head: true }),
           brandIds,
-        ).eq("source", "website").eq("web_status", st);
+        ).in("source", WEB_SOURCES as unknown as string[]).eq("web_status", st);
         return [st, count ?? 0] as const;
       });
       const allQ = applyBrandScope(
         supabase.from("orders").select("id", { count: "exact", head: true }),
         brandIds,
-      ).eq("source", "website");
+      ).in("source", WEB_SOURCES as unknown as string[]);
       const [allRes, ...stRes] = await Promise.all([allQ, ...queries]);
       const result: Record<string, number> = { all: allRes.count ?? 0 };
       stRes.forEach(([k, v]) => { result[k] = v; });
