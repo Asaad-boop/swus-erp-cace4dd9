@@ -41,6 +41,9 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
 const DEFAULT_PAGE_SIZE = 25;
 const COURIER_HISTORY_BATCH_SIZE = 100;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
+// All order sources that represent orders placed through the website
+// (direct checkout, pixel-tracked, UTM-tagged). All appear in Web Orders.
+const WEB_SOURCES: Array<"website" | "pixel" | "utm"> = ["website", "pixel", "utm"];
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -568,7 +571,7 @@ function _WebOrdersPageBody() {
             { count: "exact" },
           ),
         brandIds,
-      ).eq("source", "website");
+      ).in("source", WEB_SOURCES);
 
       // Pre-orders also show in the Web Orders queue so they go to processing.
       // sort
@@ -675,13 +678,13 @@ function _WebOrdersPageBody() {
         const { count } = await applyBrandScope(
           supabase.from("orders").select("id", { count: "exact", head: true }),
           brandIds,
-        ).eq("source", "website").eq("web_status", st);
+        ).in("source", WEB_SOURCES).eq("web_status", st);
         return [st, count ?? 0] as const;
       });
       const allQ = applyBrandScope(
         supabase.from("orders").select("id", { count: "exact", head: true }),
         brandIds,
-      ).eq("source", "website");
+      ).in("source", WEB_SOURCES);
       const [allRes, ...stRes] = await Promise.all([allQ, ...queries]);
       const result: Record<string, number> = { all: allRes.count ?? 0 };
       stRes.forEach(([k, v]) => { result[k] = v; });
@@ -696,7 +699,7 @@ function _WebOrdersPageBody() {
       .channel(`web-orders-realtime-${brandsKey}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `source=eq.website` },
+        { event: "INSERT", schema: "public", table: "orders", filter: `source=in.(${WEB_SOURCES.join(",")})` },
         (payload) => {
           const row = payload.new as { id: string; brand_id: string | null; total: number; shipping_name: string | null; guest_name: string | null; shipping_city: string | null };
           if (!row.brand_id || !brandIds.includes(row.brand_id)) return;
