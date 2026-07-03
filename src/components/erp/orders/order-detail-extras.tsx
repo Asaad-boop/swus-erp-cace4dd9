@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,7 +10,7 @@ import {
   Target, Layers, Image as ImageIcon, MousePointerClick, Smartphone, Link as LinkIcon,
   History, CheckCircle2, XCircle, Clock, StickyNote,
 } from "lucide-react";
-import { useEffect } from "react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
