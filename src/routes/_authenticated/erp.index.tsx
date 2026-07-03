@@ -1706,7 +1706,7 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
               </div>
 
               {/* Hourly / daily bar */}
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-5 lg:col-span-2">
                 <div
                   className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
                   style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
@@ -1716,9 +1716,9 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} interval={xInterval} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
                       <Tooltip />
                       <Bar dataKey="created" radius={[3, 3, 0, 0]}>
                         {series.map((b) => (
@@ -1729,42 +1729,6 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         ))}
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Created vs Confirmed line */}
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
-                <div
-                  className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
-                  style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
-                >
-                  Created vs Confirmed
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
-                      <Tooltip content={({ active, payload, label }) => {
-                        if (!active || !payload?.length) return null;
-                        const created = Number(payload.find((p: any) => p.dataKey === "created")?.value ?? 0);
-                        const confirmed = Number(payload.find((p: any) => p.dataKey === "confirmed")?.value ?? 0);
-                        const rate = created > 0 ? Math.round((confirmed / created) * 100) : 0;
-                        return (
-                          <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
-                            <div className="font-semibold mb-1">{label}</div>
-                            <div className="text-muted-foreground">Created: <span className="text-foreground font-semibold tabular-nums">{created}</span></div>
-                            <div className="text-muted-foreground">Confirmed: <span className="text-foreground font-semibold tabular-nums">{confirmed}</span></div>
-                            <div className="text-muted-foreground mt-0.5">Rate: {rate}%</div>
-                          </div>
-                        );
-                      }} />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }} />
-                      <Line type="monotone" dataKey="created" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} name="Created" />
-                      <Line type="monotone" dataKey="confirmed" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 3, fill: "hsl(var(--card))", stroke: "hsl(var(--foreground))", strokeWidth: 2 }} name="Confirmed" />
-                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
