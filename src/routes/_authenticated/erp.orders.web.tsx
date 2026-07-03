@@ -41,6 +41,9 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500, 0] as const; // 0 = All
 const DEFAULT_PAGE_SIZE = 25;
 const COURIER_HISTORY_BATCH_SIZE = 100;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
+// All order sources that represent orders placed through the website
+// (direct checkout, pixel-tracked, UTM-tagged). All appear in Web Orders.
+const WEB_SOURCES = ["website", "pixel", "utm"] as const;
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
