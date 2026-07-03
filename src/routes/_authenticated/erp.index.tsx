@@ -1709,7 +1709,7 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         {series.map((b) => (
                           <Cell
                             key={b.key}
-                            fill={b.isPeak ? "hsl(var(--foreground))" : b.isCurrent ? "hsl(var(--foreground) / 0.7)" : "hsl(var(--muted-foreground) / 0.5)"}
+                            fill={b.isPeak ? "#6366f1" : b.isCurrent ? "#818cf8" : "#c7d2fe"}
                           />
                         ))}
                       </Bar>
