@@ -44,9 +44,9 @@ export function useOrdersQuery(filter: OrdersFilter) {
           q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
         }
       } else {
-        // Web orders stay in Web Orders until staff confirms them there.
-        // In Order List, "Pending" means confirmed operational queue.
-        q = q.neq("status", "new");
+        // Only website-source new orders belong in Web Orders tab.
+        // Manual/other-source new orders must stay visible in Order List.
+        q = q.or("status.neq.new,source.is.null,source.neq.website");
         q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
       }
       if (filter.source) q = q.eq("source", filter.source as never);
@@ -127,7 +127,7 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
         supabase.from("orders").select("status", { count: "exact" }),
         brandIds,
       )
-        .neq("status", "new")
+        .or("status.neq.new,source.is.null,source.neq.website")
         .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
         .limit(10000);
 
