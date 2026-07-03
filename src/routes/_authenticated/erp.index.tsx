@@ -403,7 +403,8 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", b.id)
           .in("status", ["new","confirmed","packaging","packed","ready_to_ship"]),
         inR(supabase.from("orders").select("id", { count: "exact", head: true })).eq("brand_id", b.id).eq("status","delivered"),
-        inR(supabase.from("orders").select("total")).eq("brand_id", b.id).eq("status","delivered"),
+        // Revenue = all in-range orders except cancelled/returned (matches top KPI Revenue card).
+        inR(supabase.from("orders").select("total")).eq("brand_id", b.id).not("status","in","(cancelled,returned)"),
         supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).eq("brand_id", b.id).eq("is_resolved", false),
         inR(supabase.from("orders").select("id", { count: "exact", head: true })).eq("brand_id", b.id).eq("status","returned"),
       ]);
