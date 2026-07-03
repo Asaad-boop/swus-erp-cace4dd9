@@ -560,14 +560,14 @@ export function IncompleteOrdersTable({
                         className="h-8 gap-1"
                         disabled={busy || !(r.brand_id ?? brandId)}
                         onClick={() => setConfirmCart(r)}
-                        title="Confirm as order"
+                        title="Open & edit as order"
                       >
                         {busy && convertMut.isPending ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <CheckCircle2 className="h-3.5 w-3.5" />
                         )}
-                        Confirm
+                        Open
                       </Button>
                       <Button
                         variant="ghost"
