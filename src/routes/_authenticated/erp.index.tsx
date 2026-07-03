@@ -634,13 +634,13 @@ function TrendChart({
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
-                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={56} />
-                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={36} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} width={56} />
+                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} width={36} />
                 <Tooltip
-                  cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
                   labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]}
                 />
