@@ -1102,9 +1102,11 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       }
       // ROAS is unitless — both spend & value are in account currency (USD). No FX needed.
       const roas = spendTotal > 0 ? valTotal / spendTotal : null;
-      const cpo = purchTotal > 0 && fx > 0 ? (spendTotal * fx) / purchTotal : null;
+      // CPO in BDT if FX is set, else raw USD per order.
+      const cpo = purchTotal > 0 ? (spendTotal * (fx > 0 ? fx : 1)) / purchTotal : null;
+      const cpoIsBdt = fx > 0;
       const spendBdt = fx > 0 ? spendTotal * fx : null;
-      return { spendToday: spendTotal, spendTodayBdt: spendBdt, roas, purchToday: purchTotal, cpo, fx, series: Array.from(series.values()) };
+      return { spendToday: spendTotal, spendTodayBdt: spendBdt, roas, purchToday: purchTotal, cpo, cpoIsBdt, fx, series: Array.from(series.values()) };
     },
   });
   return (
@@ -1115,7 +1117,11 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <KV
               label="Spend (Range)"
-              v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${data?.spendTodayBdt != null ? BDT(data.spendTodayBdt) : "—"}`}
+              v={
+                data?.spendTodayBdt != null
+                  ? `${BDT(data.spendTodayBdt)} ($${(data?.spendToday ?? 0).toFixed(2)})`
+                  : `$${(data?.spendToday ?? 0).toFixed(2)}`
+              }
             />
             <KV
               label="ROAS"
@@ -1123,7 +1129,14 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
               tone="emerald"
             />
             <KV label="Meta Orders" v={String(data?.purchToday ?? 0)} />
-            <KV label="CPO" v={data?.cpo != null && Number.isFinite(data.cpo) ? BDT(data.cpo) : "—"} />
+            <KV
+              label="CPO"
+              v={
+                data?.cpo != null && Number.isFinite(data.cpo)
+                  ? (data.cpoIsBdt ? BDT(data.cpo) : `$${data.cpo.toFixed(2)}`)
+                  : "—"
+              }
+            />
             <div className="md:col-span-1 h-20">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data?.series ?? []}>
