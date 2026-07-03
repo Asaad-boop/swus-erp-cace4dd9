@@ -26,7 +26,7 @@ import { BookPathaoDialog } from "@/components/erp/courier/book-pathao-dialog";
 import { BookSteadfastDialog } from "@/components/erp/courier/book-steadfast-dialog";
 import {
   OrderTimeline, ShipmentPanel, CustomerHistoryPanel, AttributionPanel,
-  ReturnDialog, ExchangeDialog, useOrderNeighbors, OrderCasesPanel,
+  ReturnDialog, ExchangeDialog, useOrderNeighbors, OrderCasesPanel, ActivityLogPanel,
 } from "@/components/erp/orders/order-detail-extras";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { useOrderLock } from "@/hooks/erp/use-order-lock";
@@ -1642,6 +1642,9 @@ function OrderDetailsPage() {
 
           {/* Full UTM attribution */}
           <AttributionPanel orderId={orderId} />
+
+          {/* Live activity log — every staff action logged with name + time */}
+          <ActivityLogPanel orderId={orderId} />
         </aside>
       </div>
 

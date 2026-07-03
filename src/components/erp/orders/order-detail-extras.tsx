@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -7,7 +7,10 @@ import { toast } from "sonner";
 import {
   Activity, Truck, Copy, RefreshCw, ExternalLink, User, ChevronDown, ChevronUp,
   Facebook, Globe, Search, Megaphone, RotateCcw, Repeat, Loader2,
+  Target, Layers, Image as ImageIcon, MousePointerClick, Smartphone, Link as LinkIcon,
+  History, CheckCircle2, XCircle, Clock, StickyNote,
 } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -448,96 +451,367 @@ export function AttributionPanel({ orderId }: { orderId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["order-attribution", orderId],
     queryFn: async () => {
-      const { data: attr } = await supabase
-        .from("mkt_order_attributions")
-        .select("source, utm_source, utm_medium, utm_campaign, utm_content, utm_term, campaign_id, adset_id, ad_id, confidence, fbclid")
-        .eq("order_id", orderId)
-        .maybeSingle();
-      if (!attr) {
-        const { data: ev } = await supabase
-          .from("analytics_events")
-          .select("utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, path, created_at")
+      // Prefer orders.* (populated by checkout / pixel); fall back to
+      // mkt_order_attributions (post-processed matching) if needed.
+      const [ordRes, attrRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("source, source_website, source_platform, utm_source, utm_medium, utm_campaign, utm_content, utm_term, fbclid, fb_campaign_id, fb_adset_id, fb_ad_id, attribution, attribution_landing_page, customer_ip, device_info, brand_id")
+          .eq("id", orderId)
+          .maybeSingle(),
+        supabase
+          .from("mkt_order_attributions")
+          .select("source, utm_source, utm_medium, utm_campaign, utm_content, utm_term, campaign_id, adset_id, ad_id, confidence, fbclid")
           .eq("order_id", orderId)
-          .order("created_at", { ascending: true })
-          .limit(1).maybeSingle();
-        return { fallback: ev };
-      }
-      let campaignName: string | null = null, adsetName: string | null = null;
-      if (attr.campaign_id) {
+          .maybeSingle(),
+      ]);
+      const ord = ordRes.data;
+      const attr = attrRes.data;
+
+      // Resolve human-readable campaign / adset / ad names from mkt_* when we have UUIDs.
+      let campaignName: string | null = null;
+      let adsetName: string | null = null;
+      let adName: string | null = null;
+      if (attr?.campaign_id) {
         const { data: c } = await supabase.from("mkt_campaigns").select("name").eq("id", attr.campaign_id).maybeSingle();
         campaignName = c?.name ?? null;
       }
-      if (attr.adset_id) {
+      if (attr?.adset_id) {
         const { data: a } = await supabase.from("mkt_adsets").select("name").eq("id", attr.adset_id).maybeSingle();
         adsetName = a?.name ?? null;
       }
-      return { attr, campaignName, adsetName };
+      if (attr?.ad_id) {
+        const { data: ad } = await supabase.from("mkt_ads").select("name").eq("id", attr.ad_id).maybeSingle();
+        adName = ad?.name ?? null;
+      }
+
+      // Meta Ad Account — resolve from brand → mkt_ad_account_brands → mkt_ad_accounts
+      let adAccount: { name: string | null; external_id: string | null } | null = null;
+      if (ord?.brand_id) {
+        const { data: link } = await supabase
+          .from("mkt_ad_account_brands")
+          .select("ad_account_id")
+          .eq("brand_id", ord.brand_id)
+          .limit(1)
+          .maybeSingle();
+        if (link?.ad_account_id) {
+          const { data: acc } = await supabase
+            .from("mkt_ad_accounts")
+            .select("name, external_id")
+            .eq("id", link.ad_account_id)
+            .maybeSingle();
+          if (acc) adAccount = acc;
+        }
+      }
+      return { ord, attr, campaignName, adsetName, adName, adAccount };
     },
   });
+
+  const ord = data?.ord;
+  const attr = data?.attr;
+  const attributionJson = (ord?.attribution ?? {}) as { fbp?: string | null; fbc?: string | null; referrer?: string | null };
+  const deviceInfo = (ord?.device_info ?? {}) as { device_type?: string | null; user_agent?: string | null; platform?: string | null };
+
+  const utmSource = attr?.utm_source ?? ord?.utm_source ?? null;
+  const utmMedium = attr?.utm_medium ?? ord?.utm_medium ?? null;
+  const utmCampaign = attr?.utm_campaign ?? ord?.utm_campaign ?? null;
+  const utmContent = attr?.utm_content ?? ord?.utm_content ?? null;
+  const utmTerm = attr?.utm_term ?? ord?.utm_term ?? null;
+  const fbclid = attr?.fbclid ?? ord?.fbclid ?? null;
+  const fbCampaignId = ord?.fb_campaign_id ?? utmCampaign;
+  const fbAdsetId = ord?.fb_adset_id ?? utmContent;
+  const fbAdId = ord?.fb_ad_id ?? utmTerm;
+  const landing = ord?.attribution_landing_page ?? null;
+  const referrer = attributionJson.referrer ?? null;
+  const deviceLabel = deviceInfo.device_type ?? deviceInfo.platform ?? null;
+
+  const isPaid = Boolean(fbCampaignId || fbAdId || fbAdsetId || fbclid || (utmMedium && /paid|cpc|ppc|meta|fb/i.test(utmMedium)));
+  const bucket: "paid" | "organic" | "direct" | null = (() => {
+    if (isPaid) return "paid";
+    if (utmSource || referrer) return "organic";
+    if (ord) return "direct";
+    return null;
+  })();
+
+  const hasAny = !!(utmSource || utmMedium || utmCampaign || utmContent || utmTerm || fbclid || landing || referrer || deviceLabel);
 
   return (
     <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
       <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-        <Megaphone className="h-3.5 w-3.5 text-rose-600" />
-        <h3 className="text-[13px] font-semibold">Attribution</h3>
-        {!isLoading && (() => {
-          const isPaid = Boolean(
-            data?.attr?.campaign_id || data?.attr?.ad_id || data?.attr?.adset_id || data?.attr?.fbclid,
-          );
-          const hasAny = Boolean(data?.attr || data?.fallback);
-          if (!hasAny) return null;
-          return isPaid ? (
-            <Badge className="ml-auto bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200 text-[10px]">Paid</Badge>
-          ) : (
-            <Badge className="ml-auto bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 text-[10px]">Organic</Badge>
-          );
-        })()}
+        <Target className="h-3.5 w-3.5 text-rose-600" />
+        <div>
+          <h3 className="text-[13px] font-semibold leading-tight">Attribution</h3>
+          <p className="text-[10px] text-muted-foreground">Track where this order came from</p>
+        </div>
+        {bucket && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-auto text-[10px] capitalize",
+              bucket === "paid" && "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300",
+              bucket === "organic" && "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300",
+              bucket === "direct" && "bg-slate-500/10 text-slate-700 border-slate-500/30 dark:text-slate-300",
+            )}
+          >
+            {bucket === "paid" ? (utmMedium || "paid") : bucket}
+          </Badge>
+        )}
       </header>
-      <div className="p-4 text-xs space-y-2">
+      <div className="p-4 text-xs space-y-3">
         {isLoading ? (
-          <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-        ) : data?.attr ? (
-          <>
-            <div className="flex items-center gap-2">
-              {sourceIcon(data.attr.utm_source || data.attr.source)}
-              <span className="font-semibold capitalize">{data.attr.utm_source || data.attr.source || "Unknown"}</span>
-              {data.attr.utm_medium && <Badge variant="outline" className="text-[10px]">{data.attr.utm_medium}</Badge>}
-            </div>
-            {(data.campaignName || data.attr.utm_campaign) && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Campaign</span>
-                <span className="truncate max-w-[160px]" title={data.campaignName || data.attr.utm_campaign || ""}>{data.campaignName || data.attr.utm_campaign}</span>
-              </div>
-            )}
-            {(data.adsetName || data.attr.utm_content) && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Ad Set</span>
-                <span className="truncate max-w-[160px]" title={data.adsetName || data.attr.utm_content || ""}>{data.adsetName || data.attr.utm_content}</span>
-              </div>
-            )}
-            {data.attr.utm_term && (
-              <div className="flex items-center justify-between"><span className="text-muted-foreground">Term</span><span className="truncate max-w-[160px]">{data.attr.utm_term}</span></div>
-            )}
-            {data.attr.confidence != null && (
-              <div className="flex items-center justify-between"><span className="text-muted-foreground">Confidence</span><span>{Math.round(Number(data.attr.confidence) * 100)}%</span></div>
-            )}
-            {data.attr.fbclid && <div className="text-[10px] text-muted-foreground">fbclid present</div>}
-          </>
-        ) : data?.fallback ? (
-          <>
-            <div className="flex items-center gap-2">
-              {sourceIcon(data.fallback.utm_source)}
-              <span className="font-semibold capitalize">{data.fallback.utm_source || "Direct"}</span>
-              {data.fallback.utm_medium && <Badge variant="outline" className="text-[10px]">{data.fallback.utm_medium}</Badge>}
-            </div>
-            {data.fallback.utm_campaign && <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Campaign</span><span className="truncate max-w-[160px]">{data.fallback.utm_campaign}</span></div>}
-            {data.fallback.referrer && <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Referrer</span><span className="truncate max-w-[160px]" title={data.fallback.referrer}>{data.fallback.referrer}</span></div>}
-            {data.fallback.path && <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Landing</span><span className="truncate max-w-[160px]" title={data.fallback.path}>{data.fallback.path}</span></div>}
-            <div className="text-[10px] text-muted-foreground">From session tracking</div>
-          </>
-        ) : (
+          <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        ) : !hasAny ? (
           <p className="text-muted-foreground text-center py-2">No attribution data</p>
+        ) : (
+          <>
+            {/* Meta Ad Account */}
+            {data?.adAccount && (
+              <div className="rounded-lg bg-sky-500/5 ring-1 ring-inset ring-sky-500/20 px-3 py-2 space-y-1">
+                <div className="flex items-center gap-2 text-[11px]">
+                  <Globe className="h-3.5 w-3.5 text-sky-600" />
+                  <span className="font-semibold text-foreground">Meta Ad Account:</span>
+                  <span className="text-foreground truncate">{data.adAccount.name ?? "—"}</span>
+                </div>
+                {data.adAccount.external_id && (
+                  <CopyRow value={data.adAccount.external_id} mono />
+                )}
+              </div>
+            )}
+
+            {/* Campaign / Ad Set / Ad */}
+            <AttrRow icon={<Target className="h-3.5 w-3.5 text-muted-foreground" />} label="Campaign" name={data?.campaignName} id={fbCampaignId} />
+            <AttrRow icon={<Layers className="h-3.5 w-3.5 text-muted-foreground" />} label="Ad Set" name={data?.adsetName} id={fbAdsetId} />
+            <AttrRow icon={<ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />} label="Ad" name={data?.adName} id={fbAdId} />
+
+            {utmTerm && !fbAdId && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">UTM Term</span>
+                <span className="truncate max-w-[180px] font-mono" title={utmTerm}>{utmTerm}</span>
+              </div>
+            )}
+
+            {/* Facebook Pixel */}
+            {(fbclid || attributionJson.fbp || attributionJson.fbc) && (
+              <div className="pt-2 border-t border-dashed">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground mb-1.5">
+                  <MousePointerClick className="h-3.5 w-3.5 text-[#1877F2]" /> Facebook Pixel
+                </div>
+                {fbclid && <CopyRow label="Click ID" value={fbclid} mono />}
+                {attributionJson.fbp && <CopyRow label="fbp" value={attributionJson.fbp} mono />}
+                {attributionJson.fbc && <CopyRow label="fbc" value={attributionJson.fbc} mono />}
+              </div>
+            )}
+
+            {/* Session Info */}
+            {(deviceLabel || referrer) && (
+              <div className="pt-2 border-t border-dashed">
+                <div className="text-[11px] font-medium text-foreground mb-1.5">Session Info</div>
+                {deviceLabel && (
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="capitalize">{deviceLabel}</span>
+                  </div>
+                )}
+                {referrer && (
+                  <div className="flex items-center gap-2 text-[11px] mt-1">
+                    <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <a href={referrer} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline truncate max-w-[220px]" title={referrer}>{referrer}</a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Entry URL */}
+            {landing && (
+              <div className="pt-2 border-t border-dashed">
+                <div className="text-[11px] font-medium text-foreground mb-1">Entry URL</div>
+                <a href={landing} target="_blank" rel="noreferrer" className="text-[10px] font-mono text-sky-600 hover:underline break-all block leading-snug">
+                  {landing}
+                </a>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AttrRow({ icon, label, name, id }: { icon: React.ReactNode; label: string; name?: string | null; id?: string | null }) {
+  if (!name && !id) return null;
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-2 text-[11px]">
+        {icon}
+        <span className="text-muted-foreground">{label}</span>
+        <span className="ml-auto font-medium text-foreground truncate max-w-[180px]" title={name ?? ""}>{name ?? "—"}</span>
+      </div>
+      {id && <CopyRow value={String(id)} mono indent />}
+    </div>
+  );
+}
+
+function CopyRow({ value, label, mono, indent }: { value: string; label?: string; mono?: boolean; indent?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => { navigator.clipboard.writeText(value); toast.success("Copied"); }}
+      className={cn(
+        "group flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full",
+        indent && "pl-5",
+      )}
+      title="Click to copy"
+    >
+      {label && <span className="uppercase tracking-wider">{label}:</span>}
+      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <span className={cn("truncate", mono && "font-mono")}>{value}</span>
+    </button>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Activity Log — realtime, staff-attributed                                  */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+type ActivityEntry = {
+  id: string;
+  action: string;
+  details: Record<string, unknown> | null;
+  performed_by: string | null;
+  performed_at: string;
+};
+
+function humanAction(action: string): string {
+  const map: Record<string, string> = {
+    ORDER_CREATED: "Order created",
+    STATUS_CHANGED: "Status changed",
+    WEB_STATUS_CHANGED: "Web status changed",
+    ORDER_VIEWED: "Viewed order",
+    NOTE_ADDED: "Note added",
+    NOTE_DELETED: "Note deleted",
+    ORDER_ASSIGNED: "Assigned staff",
+    ORDER_UPDATED: "Order updated",
+    ORDER_CONFIRMED: "Confirmed order",
+    ORDER_CANCELLED: "Cancelled order",
+    CALL_LOGGED: "Call logged",
+    SHIPMENT_BOOKED: "Shipment booked",
+  };
+  return map[action] ?? action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function actionTone(action: string) {
+  if (/CANCEL|DELETE|FAIL/.test(action)) return "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30";
+  if (/CONFIRM|COMPLETE|CREATED|BOOKED/.test(action)) return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30";
+  if (/STATUS|UPDATE|ASSIGN/.test(action)) return "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/30";
+  if (/NOTE/.test(action)) return "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30";
+  return "bg-slate-500/10 text-slate-700 dark:text-slate-300 ring-slate-500/30";
+}
+
+function actionIcon(action: string) {
+  if (/CANCEL|DELETE/.test(action)) return <XCircle className="h-3 w-3" />;
+  if (/CONFIRM|COMPLETE|CREATED/.test(action)) return <CheckCircle2 className="h-3 w-3" />;
+  if (/NOTE/.test(action)) return <StickyNote className="h-3 w-3" />;
+  if (/STATUS|UPDATE|ASSIGN/.test(action)) return <Activity className="h-3 w-3" />;
+  return <Clock className="h-3 w-3" />;
+}
+
+export function ActivityLogPanel({ orderId }: { orderId: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["order-activity-log", orderId],
+    staleTime: 15_000,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("activity_log")
+        .select("id, action, details, performed_by, performed_at")
+        .eq("entity_type", "order")
+        .eq("entity_id", orderId)
+        .order("performed_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      const entries = (rows ?? []) as ActivityEntry[];
+      const userIds = Array.from(new Set(entries.map((r) => r.performed_by).filter(Boolean))) as string[];
+      const names = new Map<string, string>();
+      if (userIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", userIds);
+        (profs ?? []).forEach((p) => names.set(p.id, p.display_name ?? "Staff"));
+      }
+      return { entries, names };
+    },
+  });
+
+  // Live realtime subscription — refetch on any activity_log change for this order.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`activity-log-${orderId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activity_log", filter: `entity_id=eq.${orderId}` },
+        () => qc.invalidateQueries({ queryKey: ["order-activity-log", orderId] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [orderId, qc]);
+
+  const entries = data?.entries ?? [];
+  const names = data?.names ?? new Map<string, string>();
+
+  return (
+    <section className="rounded-2xl border border-gray-100 dark:border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+        <History className="h-3.5 w-3.5 text-indigo-600" />
+        <h3 className="text-[13px] font-semibold">Activity Log</h3>
+        <span className="ml-auto inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+          <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />Live
+        </span>
+      </header>
+      <div className="p-4">
+        {isLoading ? (
+          <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        ) : entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">No activity yet</p>
+        ) : (
+          <ol className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+            {entries.map((e) => {
+              const staff = e.performed_by ? (names.get(e.performed_by) ?? "Staff") : "System";
+              const d = (e.details ?? {}) as { from?: string; to?: string; status?: string; note?: string; source?: string };
+              const isStatus = /STATUS/.test(e.action);
+              return (
+                <li key={e.id} className="rounded-lg border border-gray-100 dark:border-border bg-gray-50/60 dark:bg-muted/20 px-3 py-2 hover:border-gray-200 dark:hover:border-border/80 transition-colors">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset", actionTone(e.action))}>
+                      {actionIcon(e.action)}
+                      {humanAction(e.action)}
+                    </span>
+                    {isStatus && d.from && d.to && (
+                      <span className="flex items-center gap-1 text-[10px]">
+                        <StatusChip status={d.from} /><span className="text-muted-foreground">→</span><StatusChip status={d.to} />
+                      </span>
+                    )}
+                    <span
+                      className="text-[10px] text-muted-foreground ml-auto"
+                      title={format(new Date(e.performed_at), "dd MMM yyyy, hh:mm:ss a")}
+                    >
+                      {formatDistanceToNow(new Date(e.performed_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span className="font-medium text-foreground">{staff}</span>
+                    {d.source && <><span>·</span><span className="capitalize">{d.source}</span></>}
+                  </div>
+                  {d.note && (
+                    <p className="mt-1 text-[11px] whitespace-pre-wrap rounded bg-background/60 border px-2 py-1">{d.note}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         )}
       </div>
     </section>
