@@ -699,7 +699,7 @@ function _WebOrdersPageBody() {
       .channel(`web-orders-realtime-${brandsKey}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `source=eq.website` },
+        { event: "INSERT", schema: "public", table: "orders", filter: `source=in.(${WEB_SOURCES.join(",")})` },
         (payload) => {
           const row = payload.new as { id: string; brand_id: string | null; total: number; shipping_name: string | null; guest_name: string | null; shipping_city: string | null };
           if (!row.brand_id || !brandIds.includes(row.brand_id)) return;
