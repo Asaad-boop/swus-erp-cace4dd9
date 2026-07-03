@@ -20,7 +20,7 @@ const UPDATES: UpdateEntry[] = [
     date: "3 Jul 2026",
     title: "Incomplete orders now open as editable drafts",
     details: [
-      "Incomplete checkout theke Open button e click korle draft order (status = new, source = incomplete) tairi hoye Order detail page e chole jabe.",
+      "Incomplete checkout theke Open button e click korle confirmed incomplete-source order tairi hoye Pending workflow te chole jabe.",
       "Oikhane customer name, phone, address, items shob edit kore normal Confirm flow use kora jabe.",
       "Auto customer note ar add hobe na.",
     ],

@@ -55,7 +55,7 @@ const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "no_response", label: "No Response" },
   { value: "advance_payment", label: "Advance Payment" },
   { value: "on_hold", label: "On Hold" },
-  { value: "complete", label: "Complete" },
+  { value: "complete", label: "Confirm Order" },
   { value: "cancelled", label: "Cancel" },
 ];
 
@@ -118,9 +118,15 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
 
   const updateWebStatus = useMutation({
     mutationFn: async ({ web_status, extra }: { web_status: string; extra?: Record<string, unknown> }) => {
+      const now = new Date().toISOString();
+      const patch = web_status === "complete"
+        ? { web_status: web_status as never, status: "confirmed" as never, confirmation_status: "pending" as never, confirmed_at: now, ...(extra ?? {}) }
+        : web_status === "cancelled"
+          ? { web_status: web_status as never, status: "cancelled" as never, cancelled_at: now, ...(extra ?? {}) }
+          : { web_status: web_status as never, ...(extra ?? {}) };
       const { error } = await supabase
         .from("orders")
-        .update({ web_status: web_status as never, ...(extra ?? {}) })
+        .update(patch)
         .eq("id", orderId!);
       if (error) throw error;
     },

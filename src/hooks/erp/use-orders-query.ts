@@ -5,6 +5,8 @@ import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
+const WEB_ORDER_SOURCE_FILTER = "source.not.in.(website,pixel,utm)";
+
 export type OrdersFilter = {
   brandId: string | null;
   brandIds?: string[];
@@ -41,13 +43,13 @@ export function useOrdersQuery(filter: OrdersFilter) {
       if (filter.statuses.length > 0) {
         q = q.in("status", filter.statuses);
         if (filter.statuses.includes("confirmed")) {
-          q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+          q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
         }
       } else {
-        // Only website-source new orders belong in Web Orders tab.
-        // Manual/other-source new orders must stay visible in Order List.
-        q = q.or("status.neq.new,source.is.null,source.neq.website");
-        q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+        // Website checkout queue stays in Web Orders until staff confirms it.
+        // Some checkout integrations used pixel/utm as order.source; treat those as web orders too.
+        q = q.or(`status.neq.new,source.is.null,${WEB_ORDER_SOURCE_FILTER}`);
+        q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
       }
       if (filter.source) q = q.eq("source", filter.source as never);
       if (filter.courier) q = q.eq("courier_name", filter.courier);
@@ -127,8 +129,8 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
         supabase.from("orders").select("status", { count: "exact" }),
         brandIds,
       )
-        .or("status.neq.new,source.is.null,source.neq.website")
-        .or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete")
+        .or(`status.neq.new,source.is.null,${WEB_ORDER_SOURCE_FILTER}`)
+        .or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`)
         .limit(10000);
 
       if (filter.source) q = q.eq("source", filter.source as never);

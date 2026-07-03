@@ -21,7 +21,7 @@ const STATUS_OPTIONS: { key: WebStatusKey; label: string; dot: string }[] = [
   { key: "no_response", label: "No Response", dot: "bg-red-500" },
   { key: "advance_payment", label: "Advance Payment", dot: "bg-purple-500" },
   { key: "on_hold", label: "On Hold", dot: "bg-yellow-500" },
-  { key: "complete", label: "Complete", dot: "bg-emerald-500" },
+  { key: "complete", label: "Confirm Order", dot: "bg-emerald-500" },
   { key: "cancelled", label: "Cancel", dot: "bg-zinc-500" },
 ];
 
