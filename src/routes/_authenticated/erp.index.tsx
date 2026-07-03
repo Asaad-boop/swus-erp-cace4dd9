@@ -840,10 +840,11 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
       const toDate = toISO.slice(0, 10);
       const [accounts, rev, items, txns, bills, arOrders] = await Promise.all([
         applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds, "brand_id", { includeNull: true }).eq("is_active", true),
-        applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered")
+        // P&L Revenue = all in-range orders except cancelled/returned (mirrors top KPI Revenue).
+        applyBrandScope(supabase.from("orders").select("total"), brandIds).not("status","in","(cancelled,returned)")
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(supabase.from("order_items").select("cost_price, quantity, orders!inner(brand_id, status, created_at)"), brandIds, "orders.brand_id" as any)
-          .eq("orders.status", "delivered")
+          .not("orders.status","in","(cancelled,returned)")
           .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
         applyBrandScope(supabase.from("erp_transactions").select("amount, type, account_id"), brandIds)
           .gte("transaction_date", fromDate).lte("transaction_date", toDate),
