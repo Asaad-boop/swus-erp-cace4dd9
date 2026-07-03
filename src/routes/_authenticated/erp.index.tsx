@@ -1014,10 +1014,21 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
     queryKey: ["dash-lowstock", brandIds.join(",")],
     enabled, staleTime: 60_000,
     queryFn: async () => {
+      // Live source of truth: query products directly (low_stock_alerts can be stale).
       const { data: rows } = await applyBrandScope(
-        supabase.from("low_stock_alerts").select("current_stock, threshold, product_id, products(title)"), brandIds
-      ).eq("is_resolved", false).order("current_stock", { ascending: true }).limit(5);
-      return rows ?? [];
+        supabase.from("products").select("id, title, stock, available_stock, low_stock_threshold, reorder_point"),
+        brandIds,
+      ).eq("is_active", true).limit(500);
+      const list = ((rows ?? []) as any[])
+        .map((p) => {
+          const stock = Number(p.available_stock ?? p.stock ?? 0);
+          const threshold = Number(p.low_stock_threshold ?? p.reorder_point ?? 0);
+          return { id: p.id, title: p.title, stock, threshold };
+        })
+        .filter((p) => p.stock === 0 || (p.threshold > 0 && p.stock <= p.threshold))
+        .sort((a, b) => a.stock - b.stock)
+        .slice(0, 5);
+      return list;
     },
   });
   return (
@@ -1032,8 +1043,8 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
             <tbody>
               {(data as any[]).map((r, i) => (
                 <tr key={i} className="border-b last:border-0">
-                  <td className="py-2 truncate max-w-[200px]">{r.products?.title ?? "Untitled"}</td>
-                  <td className="text-right font-semibold text-rose-600 tabular-nums">{r.current_stock}</td>
+                  <td className="py-2 truncate max-w-[200px]">{r.title ?? "Untitled"}</td>
+                  <td className="text-right font-semibold text-rose-600 tabular-nums">{r.stock}</td>
                   <td className="text-right text-muted-foreground tabular-nums">{r.threshold}</td>
                   <td className="text-right"><Link to="/erp/inventory" className="text-xs text-indigo-600 hover:underline">Reorder</Link></td>
                 </tr>
