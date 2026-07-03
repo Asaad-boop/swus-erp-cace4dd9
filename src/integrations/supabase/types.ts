@@ -9874,7 +9874,14 @@ export type Database = {
       mkt_sync_kind: "structure" | "insights" | "attribution" | "finance_post"
       mkt_sync_status: "running" | "success" | "error"
       order_priority: "low" | "normal" | "high" | "urgent"
-      order_source: "website" | "facebook" | "manual" | "phone"
+      order_source:
+        | "website"
+        | "facebook"
+        | "manual"
+        | "phone"
+        | "utm"
+        | "pixel"
+        | "incomplete"
       order_status:
         | "new"
         | "confirmed"
@@ -10134,7 +10141,15 @@ export const Constants = {
       mkt_sync_kind: ["structure", "insights", "attribution", "finance_post"],
       mkt_sync_status: ["running", "success", "error"],
       order_priority: ["low", "normal", "high", "urgent"],
-      order_source: ["website", "facebook", "manual", "phone"],
+      order_source: [
+        "website",
+        "facebook",
+        "manual",
+        "phone",
+        "utm",
+        "pixel",
+        "incomplete",
+      ],
       order_status: [
         "new",
         "confirmed",
