@@ -186,7 +186,7 @@ export function IncompleteOrdersTable({
       });
     },
     onSuccess: (res) => {
-      toast.success(`Order created${res.invoiceNo ? " · " + res.invoiceNo : ""}`);
+      toast.success(`Order draft created${res.invoiceNo ? " · " + res.invoiceNo : ""} — edit & confirm`);
       qc.invalidateQueries({ queryKey: ["abandoned-carts"] });
       qc.invalidateQueries({ queryKey: ["abandoned-carts-count"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
