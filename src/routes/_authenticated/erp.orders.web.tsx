@@ -1416,7 +1416,7 @@ function _WebOrdersPageBody() {
             )}
           </TableBody>
         </Table>
-        {activeTab !== "incomplete" && totalRows > 0 && (
+        {totalRows > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t px-4 py-3 text-sm">
             <div className="flex items-center gap-3">
               <div className="text-xs text-muted-foreground">
