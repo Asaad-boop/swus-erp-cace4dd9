@@ -716,7 +716,8 @@ function CodOutstandingCard({ brandIds, enabled, range }: { brandIds: string[]; 
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("orders").select("total, partial_amount, delivered_at, created_at, payment_status, status"), brandIds
-      ).eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled").neq("status", "returned")
+      ).eq("payment_method", "cod").neq("payment_status", "paid")
+        .in("status", ["shipped", "in_transit", "delivered", "partial_delivered"])
         .gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
       const cutoff = Date.now() - 14 * 86400e3;
       let amount = 0, count = 0, overdue = 0;
