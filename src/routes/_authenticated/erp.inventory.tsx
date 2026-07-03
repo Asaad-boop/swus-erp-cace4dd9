@@ -632,7 +632,7 @@ function InventoryPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <StatusPill out={isOut} low={isLow} reserved={reserved > 0 && !isOut && !isLow} />
+                          <StatusPill out={isOut} low={isLow} />
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -965,7 +965,7 @@ function KpiCard({ icon, label, value, hint, accent, emphasize }: {
   );
 }
 
-function StatusPill({ out, low, reserved }: { out: boolean; low: boolean; reserved?: boolean }) {
+function StatusPill({ out, low }: { out: boolean; low: boolean }) {
   if (out) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-medium">
@@ -977,13 +977,6 @@ function StatusPill({ out, low, reserved }: { out: boolean; low: boolean; reserv
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Low stock
-      </span>
-    );
-  }
-  if (reserved) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-[11px] font-medium">
-        <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />Reserved
       </span>
     );
   }
