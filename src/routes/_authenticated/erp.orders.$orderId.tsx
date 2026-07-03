@@ -1018,58 +1018,108 @@ function OrderDetailsPage() {
   /* ------------------------------ Render ----------------------------------- */
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-background print:hidden">
+    <div className="min-h-screen bg-muted/40 dark:bg-background print:hidden">
       <OrderLockBanner lock={orderLock} />
       {/* Sticky Header */}
-      <header className="sticky top-0 z-30 border-b border-gray-100 dark:border-border bg-white/85 dark:bg-card/85 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-gray-600 hover:text-gray-900">
-              <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Orders</Link>
-            </Button>
-            <span className="h-4 w-px bg-gray-200 dark:bg-border" />
-            <div className="flex items-baseline gap-2 min-w-0">
-              <span className="text-[11px] uppercase tracking-wider text-gray-500">Order</span>
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+          {/* Left: breadcrumb + id + status */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to="/erp/orders/web"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Orders
+            </Link>
+            <span className="text-muted-foreground/50 text-sm">/</span>
+            <div className="flex items-center gap-2 min-w-0">
               <CopyChip value={invoiceDisplay(order)} className="-mx-1">
-                <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
+                <span className="font-mono text-[14px] font-semibold text-foreground tracking-tight truncate">
+                  #{invoiceDisplay(order)}
+                </span>
               </CopyChip>
-              <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] hidden sm:inline-flex", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-5 px-2 text-[10px] font-semibold uppercase tracking-wide rounded-full border-transparent hidden sm:inline-flex",
+                  statusBadge(order.status).className,
+                )}
+              >
+                {statusBadge(order.status).label}
+              </Badge>
               {(() => {
                 const s = settlementBadge(order);
                 return s ? (
-                  <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-bold uppercase tracking-wide hidden sm:inline-flex", s.className)}>{s.label}</Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 px-2 text-[10px] font-semibold uppercase tracking-wide rounded-full border-transparent hidden sm:inline-flex",
+                      s.className,
+                    )}
+                  >
+                    {s.label}
+                  </Badge>
                 ) : null;
               })()}
             </div>
             {neighbors.total > 0 && (
-              <div className="flex items-center gap-1 ml-2">
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
+              <div className="ml-1 flex items-center gap-0.5 rounded-lg border border-border/70 bg-card/60 p-0.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  disabled={!neighbors.prev}
                   onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
-                  title="Previous order (← arrow key)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-                <span className="text-[10px] text-gray-500 tabular-nums px-1">
-                  {neighbors.index + 1}/{neighbors.total}
+                  title="Previous order (← arrow key)"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[10px] font-medium text-muted-foreground tabular-nums px-1.5 min-w-[42px] text-center">
+                  {neighbors.index + 1} / {neighbors.total}
                 </span>
-                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  disabled={!neighbors.next}
                   onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
-                  title="Next order (→ arrow key)"><ChevronRight className="h-3.5 w-3.5" /></Button>
-                <span className="hidden lg:inline-flex items-center gap-0.5 ml-1.5 text-[9px] text-gray-400">
-                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">←</kbd>
-                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">→</kbd>
-                </span>
+                  title="Next order (→ arrow key)"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
               </div>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="hidden md:flex items-center gap-2 text-[11px] text-gray-600">
-              <span className="text-gray-400">Created</span>
-              <span className="text-emerald-600 font-medium">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}</span>
-              <span className="h-3 w-px bg-gray-200" />
-              <span className="text-gray-400">Updated</span>
-              <span className="font-medium text-gray-700">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
+
+          {/* Right: meta + actions */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="hidden lg:flex items-center gap-3 text-[11px] text-muted-foreground pr-1">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-muted-foreground/70">Created</span>
+                <span className="font-medium text-foreground/90 tabular-nums">
+                  {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                </span>
+              </span>
+              <span className="h-3 w-px bg-border" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-muted-foreground/70">Updated</span>
+                <span className="font-medium text-foreground/90 tabular-nums">
+                  {formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}
+                </span>
+              </span>
             </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => window.print()}>
+                <Printer className="h-3.5 w-3.5 mr-1.5" />Invoice
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => setBookOpen(true)}>
+                <Truck className="h-3.5 w-3.5 mr-1.5" />Pathao
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => setBookSteadfastOpen(true)}>
+                <Truck className="h-3.5 w-3.5 mr-1.5" />Steadfast
+              </Button>
+            </div>
           </div>
         </div>
       </header>
