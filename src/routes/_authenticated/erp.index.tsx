@@ -28,9 +28,10 @@ import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { StaffDashboard } from "@/components/erp/staff-dashboard";
 import {
-  TodayCommandPanel, LiveVisitors, ProfitQuality, ProductDangerZone,
-} from "@/components/erp/dashboard-command-center";
-import { AttendancePunchCard } from "@/components/erp/hr/attendance-punch-card";
+  NetProfitCard, CashPositionCard, CodRemittancePipelineCard, RoasComparisonCard,
+  AdWalletBalanceCard, StuckOrdersCard, ReturnRateByProductCard, CourierPerformanceCard,
+  AbandonedCartRecoveryCard, NewVsReturningCard,
+} from "@/components/erp/dashboard/widgets";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
