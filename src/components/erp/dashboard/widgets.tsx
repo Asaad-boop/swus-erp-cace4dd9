@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Wallet, Banknote, TrendingUp, TrendingDown, AlertTriangle, Truck,
   Landmark, Smartphone, Coins, PiggyBank, Clock, Repeat, Target, DollarSign,
-  ChevronDown, ChevronUp, ArrowUpRight, ShoppingCart, Zap,
+  ChevronDown, ChevronUp, ShoppingCart, Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -886,6 +886,3 @@ export function NewVsReturningCard({
     </Card>
   );
 }
-
-/* Unused named imports guard — keep tree-shakable */
-export const __markers = { ArrowUpRight };
