@@ -234,13 +234,12 @@ function KpiStrip({
       const [cur, prev, confirmed, inTransit, codPending, attention, cancelled, items, users] = await Promise.all([
         inRange(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
         inPrev(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .not("confirmed_at", "is", null)
-          .gte("confirmed_at", range.from.toISOString())
-          .lte("confirmed_at", range.to.toISOString()),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        // Snapshot: orders created in range whose CURRENT status is a confirmed-side state.
+        inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+          .in("status", ["confirmed","packaging","packed","ready_to_ship","shipped","in_transit","delivered","partial_delivered"]),
+        inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["shipped", "in_transit"]),
-        applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds)
+        inRange(applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds))
           .eq("payment_method", "cod").neq("payment_status", "paid")
           .in("status", ["shipped", "in_transit", "delivered", "partial_delivered"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
@@ -404,7 +403,8 @@ function BrandComparison({ brands, range }: { brands: Brand[]; range: ReturnType
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("brand_id", b.id)
           .in("status", ["new","confirmed","packaging","packed","ready_to_ship"]),
         inR(supabase.from("orders").select("id", { count: "exact", head: true })).eq("brand_id", b.id).eq("status","delivered"),
-        inR(supabase.from("orders").select("total")).eq("brand_id", b.id).eq("status","delivered"),
+        // Revenue = all in-range orders except cancelled/returned (matches top KPI Revenue card).
+        inR(supabase.from("orders").select("total")).eq("brand_id", b.id).not("status","in","(cancelled,returned)"),
         supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }).eq("brand_id", b.id).eq("is_resolved", false),
         inR(supabase.from("orders").select("id", { count: "exact", head: true })).eq("brand_id", b.id).eq("status","returned"),
       ]);
@@ -716,7 +716,8 @@ function CodOutstandingCard({ brandIds, enabled, range }: { brandIds: string[]; 
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("orders").select("total, partial_amount, delivered_at, created_at, payment_status, status"), brandIds
-      ).eq("payment_method", "cod").neq("payment_status", "paid").neq("status", "cancelled").neq("status", "returned")
+      ).eq("payment_method", "cod").neq("payment_status", "paid")
+        .in("status", ["shipped", "in_transit", "delivered", "partial_delivered"])
         .gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
       const cutoff = Date.now() - 14 * 86400e3;
       let amount = 0, count = 0, overdue = 0;
@@ -839,10 +840,11 @@ function FinanceSection({ brandIds, enabled, range }: { brandIds: string[]; enab
       const toDate = toISO.slice(0, 10);
       const [accounts, rev, items, txns, bills, arOrders] = await Promise.all([
         applyBrandScope(supabase.from("erp_accounts").select("account_type, account_subtype, name, current_balance"), brandIds, "brand_id", { includeNull: true }).eq("is_active", true),
-        applyBrandScope(supabase.from("orders").select("total"), brandIds).eq("status", "delivered")
+        // P&L Revenue = all in-range orders except cancelled/returned (mirrors top KPI Revenue).
+        applyBrandScope(supabase.from("orders").select("total"), brandIds).not("status","in","(cancelled,returned)")
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(supabase.from("order_items").select("cost_price, quantity, orders!inner(brand_id, status, created_at)"), brandIds, "orders.brand_id" as any)
-          .eq("orders.status", "delivered")
+          .not("orders.status","in","(cancelled,returned)")
           .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
         applyBrandScope(supabase.from("erp_transactions").select("amount, type, account_id"), brandIds)
           .gte("transaction_date", fromDate).lte("transaction_date", toDate),
@@ -983,13 +985,22 @@ function InventoryHealth({ brandIds, enabled }: { brandIds: string[]; enabled: b
     queryKey: ["dash-inv", brandIds.join(",")],
     enabled, staleTime: 60_000,
     queryFn: async () => {
-      const [stock, low, out] = await Promise.all([
-        applyBrandScope(supabase.from("products").select("total_cost_value"), brandIds).eq("is_active", true),
-        applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds).eq("is_resolved", false),
+      // Single source of truth: derive Low & Out from live products.
+      const [products, out] = await Promise.all([
+        applyBrandScope(
+          supabase.from("products").select("total_cost_value, stock, available_stock, low_stock_threshold, reorder_point"),
+          brandIds,
+        ).eq("is_active", true).limit(5000),
         applyBrandScope(supabase.from("products").select("id", { count: "exact", head: true }), brandIds).eq("is_active", true).eq("stock", 0),
       ]);
-      const value = (stock.data ?? []).reduce((s: number, r: any) => s + Number(r.total_cost_value ?? 0), 0);
-      return { value, low: low.count ?? 0, out: out.count ?? 0 };
+      let value = 0, low = 0;
+      for (const p of (products.data ?? []) as any[]) {
+        value += Number(p.total_cost_value ?? 0);
+        const stock = Number(p.available_stock ?? p.stock ?? 0);
+        const threshold = Number(p.low_stock_threshold ?? p.reorder_point ?? 0);
+        if (stock > 0 && threshold > 0 && stock <= threshold) low++;
+      }
+      return { value, low, out: out.count ?? 0 };
     },
   });
   return (
@@ -1012,10 +1023,21 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
     queryKey: ["dash-lowstock", brandIds.join(",")],
     enabled, staleTime: 60_000,
     queryFn: async () => {
+      // Live source of truth: query products directly (low_stock_alerts can be stale).
       const { data: rows } = await applyBrandScope(
-        supabase.from("low_stock_alerts").select("current_stock, threshold, product_id, products(title)"), brandIds
-      ).eq("is_resolved", false).order("current_stock", { ascending: true }).limit(5);
-      return rows ?? [];
+        supabase.from("products").select("id, title, stock, available_stock, low_stock_threshold, reorder_point"),
+        brandIds,
+      ).eq("is_active", true).limit(500);
+      const list = ((rows ?? []) as any[])
+        .map((p) => {
+          const stock = Number(p.available_stock ?? p.stock ?? 0);
+          const threshold = Number(p.low_stock_threshold ?? p.reorder_point ?? 0);
+          return { id: p.id, title: p.title, stock, threshold };
+        })
+        .filter((p) => p.stock === 0 || (p.threshold > 0 && p.stock <= p.threshold))
+        .sort((a, b) => a.stock - b.stock)
+        .slice(0, 5);
+      return list;
     },
   });
   return (
@@ -1030,8 +1052,8 @@ function LowStockList({ brandIds, enabled }: { brandIds: string[]; enabled: bool
             <tbody>
               {(data as any[]).map((r, i) => (
                 <tr key={i} className="border-b last:border-0">
-                  <td className="py-2 truncate max-w-[200px]">{r.products?.title ?? "Untitled"}</td>
-                  <td className="text-right font-semibold text-rose-600 tabular-nums">{r.current_stock}</td>
+                  <td className="py-2 truncate max-w-[200px]">{r.title ?? "Untitled"}</td>
+                  <td className="text-right font-semibold text-rose-600 tabular-nums">{r.stock}</td>
                   <td className="text-right text-muted-foreground tabular-nums">{r.threshold}</td>
                   <td className="text-right"><Link to="/erp/inventory" className="text-xs text-indigo-600 hover:underline">Reorder</Link></td>
                 </tr>
@@ -1080,9 +1102,11 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
       }
       // ROAS is unitless — both spend & value are in account currency (USD). No FX needed.
       const roas = spendTotal > 0 ? valTotal / spendTotal : null;
-      const cpo = purchTotal > 0 && fx > 0 ? (spendTotal * fx) / purchTotal : null;
+      // CPO in BDT if FX is set, else raw USD per order.
+      const cpo = purchTotal > 0 ? (spendTotal * (fx > 0 ? fx : 1)) / purchTotal : null;
+      const cpoIsBdt = fx > 0;
       const spendBdt = fx > 0 ? spendTotal * fx : null;
-      return { spendToday: spendTotal, spendTodayBdt: spendBdt, roas, purchToday: purchTotal, cpo, fx, series: Array.from(series.values()) };
+      return { spendToday: spendTotal, spendTodayBdt: spendBdt, roas, purchToday: purchTotal, cpo, cpoIsBdt, fx, series: Array.from(series.values()) };
     },
   });
   return (
@@ -1093,7 +1117,11 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <KV
               label="Spend (Range)"
-              v={`$${(data?.spendToday ?? 0).toFixed(2)} / ${data?.spendTodayBdt != null ? BDT(data.spendTodayBdt) : "—"}`}
+              v={
+                data?.spendTodayBdt != null
+                  ? `${BDT(data.spendTodayBdt)} ($${(data?.spendToday ?? 0).toFixed(2)})`
+                  : `$${(data?.spendToday ?? 0).toFixed(2)}`
+              }
             />
             <KV
               label="ROAS"
@@ -1101,7 +1129,14 @@ function MarketingCard({ brandIds, enabled, range }: { brandIds: string[]; enabl
               tone="emerald"
             />
             <KV label="Meta Orders" v={String(data?.purchToday ?? 0)} />
-            <KV label="CPO" v={data?.cpo != null && Number.isFinite(data.cpo) ? BDT(data.cpo) : "—"} />
+            <KV
+              label="CPO"
+              v={
+                data?.cpo != null && Number.isFinite(data.cpo)
+                  ? (data.cpoIsBdt ? BDT(data.cpo) : `$${data.cpo.toFixed(2)}`)
+                  : "—"
+              }
+            />
             <div className="md:col-span-1 h-20">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data?.series ?? []}>
@@ -1129,7 +1164,7 @@ function TopProducts({ brandIds, enabled, range }: { brandIds: string[]; enabled
       const { data: rows } = await applyBrandScope(
         supabase.from("order_items").select("name, quantity, line_total, orders!inner(brand_id, status, created_at)"),
         brandIds, "orders.brand_id" as any
-      ).eq("orders.status", "delivered")
+      ).not("orders.status","in","(cancelled,returned)")
        .gte("orders.created_at", range.from.toISOString())
        .lte("orders.created_at", range.to.toISOString());
       const agg = new Map<string, { name: string; units: number; revenue: number }>();
@@ -1176,7 +1211,7 @@ function TopCustomers({ brandIds, enabled, range }: { brandIds: string[]; enable
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("orders").select("shipping_name, shipping_phone, total"), brandIds
-      ).eq("status", "delivered")
+      ).not("status","in","(cancelled,returned)")
        .gte("created_at", range.from.toISOString())
        .lte("created_at", range.to.toISOString());
       const agg = new Map<string, { name: string; orders: number; value: number }>();
@@ -1674,7 +1709,7 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         {series.map((b) => (
                           <Cell
                             key={b.key}
-                            fill={b.isPeak ? "hsl(var(--foreground))" : b.isCurrent ? "hsl(var(--foreground) / 0.7)" : "hsl(var(--muted-foreground) / 0.5)"}
+                            fill={b.isPeak ? "#6366f1" : b.isCurrent ? "#818cf8" : "#c7d2fe"}
                           />
                         ))}
                       </Bar>
