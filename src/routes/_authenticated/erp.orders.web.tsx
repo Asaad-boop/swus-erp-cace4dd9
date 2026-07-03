@@ -43,7 +43,7 @@ const COURIER_HISTORY_BATCH_SIZE = 100;
 const STATUS_KEYS = ["processing", "good_but_no_response", "no_response", "advance_payment", "on_hold", "complete", "cancelled"] as const;
 // All order sources that represent orders placed through the website
 // (direct checkout, pixel-tracked, UTM-tagged). All appear in Web Orders.
-const WEB_SOURCES = ["website", "pixel", "utm"] as const;
+const WEB_SOURCES: Array<"website" | "pixel" | "utm"> = ["website", "pixel", "utm"];
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -571,7 +571,7 @@ function _WebOrdersPageBody() {
             { count: "exact" },
           ),
         brandIds,
-      ).in("source", WEB_SOURCES as unknown as string[]);
+      ).in("source", WEB_SOURCES);
 
       // Pre-orders also show in the Web Orders queue so they go to processing.
       // sort
@@ -678,13 +678,13 @@ function _WebOrdersPageBody() {
         const { count } = await applyBrandScope(
           supabase.from("orders").select("id", { count: "exact", head: true }),
           brandIds,
-        ).in("source", WEB_SOURCES as unknown as string[]).eq("web_status", st);
+        ).in("source", WEB_SOURCES).eq("web_status", st);
         return [st, count ?? 0] as const;
       });
       const allQ = applyBrandScope(
         supabase.from("orders").select("id", { count: "exact", head: true }),
         brandIds,
-      ).in("source", WEB_SOURCES as unknown as string[]);
+      ).in("source", WEB_SOURCES);
       const [allRes, ...stRes] = await Promise.all([allQ, ...queries]);
       const result: Record<string, number> = { all: allRes.count ?? 0 };
       stRes.forEach(([k, v]) => { result[k] = v; });
