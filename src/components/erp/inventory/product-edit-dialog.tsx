@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ColorsManager } from "./colors-manager";
+import { BrandListingsEditor } from "./brand-listings-editor";
 
 type Props = { product: ProductRow | null; onClose: () => void };
 
@@ -277,6 +278,19 @@ export function ProductEditDialog({ product, onClose }: Props) {
                       <ToggleRow icon={<Star className="h-4 w-4 text-amber-500" />} label="Featured" checked={f.is_featured} onChange={(v) => set("is_featured", v)} />
                       <ToggleRow icon={<Sparkles className="h-4 w-4 text-blue-500" />} label="New arrival" checked={f.is_new_arrival} onChange={(v) => set("is_new_arrival", v)} />
                     </div>
+                  </section>
+
+                  <Separator />
+
+                  {/* STOREFRONT LISTINGS */}
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Sparkles className="h-4 w-4" />} title="Storefront listings (multi-brand)" big />
+                    <BrandListingsEditor
+                      productId={product?.id ?? null}
+                      ownerBrandId={f.brand_id}
+                      productSlug={f.slug}
+                      productPrice={f.price}
+                    />
                   </section>
 
                   <Separator />
