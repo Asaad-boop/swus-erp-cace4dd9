@@ -64,7 +64,24 @@ export function useSaveProductListings(productId: string | null | undefined) {
         const { error } = await supabase
           .from("product_brand_listings")
           .upsert(rows, { onConflict: "product_id,brand_id" });
-        if (error) throw error;
+        if (error) {
+          if ((error as any).code === "23505" && /brand_id_slug/.test(error.message)) {
+            // Find which draft's slug clashes with another product on same brand
+            const { data: clash } = await supabase
+              .from("product_brand_listings")
+              .select("brand_id,slug,product_id")
+              .in("brand_id", drafts.map((d) => d.brand_id))
+              .in("slug", drafts.map((d) => d.slug))
+              .neq("product_id", productId);
+            const first = clash?.[0];
+            throw new Error(
+              first
+                ? `Slug "${first.slug}" already used by another product on this brand. Change the slug and try again.`
+                : "This slug is already used by another product on this brand. Change the slug and try again.",
+            );
+          }
+          throw error;
+        }
       }
     },
     onSuccess: () => {
