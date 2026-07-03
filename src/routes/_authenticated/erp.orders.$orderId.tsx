@@ -55,6 +55,18 @@ function bdtCompact(n: number) {
 
 function pathaoSourceLabel(source?: string) {
   if (source === "pathao_address_parser") return "Pathao merchant address parser";
+  return source ?? "";
+}
+
+function sourceLabel(source?: string | null): string {
+  if (!source) return "—";
+  const s = source.toLowerCase();
+  if (s === "pixel" || s === "website" || s === "utm" || s === "direct" || s === "organic") return "Website";
+  if (s === "facebook" || s === "fb" || s === "meta") return "Facebook";
+  if (s === "instagram" || s === "ig") return "Instagram";
+  if (s === "google") return "Google";
+  return source;
+}
   return "Pathao API";
 }
 
