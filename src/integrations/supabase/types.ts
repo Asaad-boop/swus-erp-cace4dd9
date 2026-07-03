@@ -9860,6 +9860,11 @@ export type Database = {
         | "manual"
         | "product_link"
         | "phone_match"
+        | "auto_ad"
+        | "auto_adset"
+        | "auto_campaign"
+        | "auto_utm"
+        | "auto_unmatched"
       mkt_expense_category:
         | "influencer"
         | "content"
@@ -10125,6 +10130,11 @@ export const Constants = {
         "manual",
         "product_link",
         "phone_match",
+        "auto_ad",
+        "auto_adset",
+        "auto_campaign",
+        "auto_utm",
+        "auto_unmatched",
       ],
       mkt_expense_category: [
         "influencer",
