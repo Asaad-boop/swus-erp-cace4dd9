@@ -55,9 +55,13 @@ const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "no_response", label: "No Response" },
   { value: "advance_payment", label: "Advance Payment" },
   { value: "on_hold", label: "On Hold" },
-  { value: "complete", label: "Complete" },
+  { value: "complete", label: "Confirm Order" },
   { value: "cancelled", label: "Cancel" },
 ];
+
+function webStatusLabel(status: string | null | undefined) {
+  return WEB_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? (status ?? "Processing").replace(/_/g, " ");
+}
 
 export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const qc = useQueryClient();
@@ -118,16 +122,26 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
 
   const updateWebStatus = useMutation({
     mutationFn: async ({ web_status, extra }: { web_status: string; extra?: Record<string, unknown> }) => {
+      const now = new Date().toISOString();
+      const isNewOrder = order?.status === "new";
+      const patch = web_status === "complete" && isNewOrder
+        ? { web_status: web_status as never, status: "confirmed" as never, confirmation_status: "pending" as never, confirmed_at: now, ...(extra ?? {}) }
+        : web_status === "cancelled" && isNewOrder
+          ? { web_status: web_status as never, status: "cancelled" as never, cancelled_at: now, ...(extra ?? {}) }
+          : { web_status: web_status as never, ...(extra ?? {}) };
       const { error } = await supabase
         .from("orders")
-        .update({ web_status: web_status as never, ...(extra ?? {}) })
+        .update(patch)
         .eq("id", orderId!);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Status updated");
       qc.invalidateQueries({ queryKey: ["web-orders"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-page"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-counts"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -242,7 +256,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
                     <div className="text-xl font-bold tabular-nums">৳ {payableTotal.toLocaleString()}</div>
                   </div>
-                  <Badge className={statusBadge(order.status).className + " text-xs px-3 py-1 rounded-full"}>{statusBadge(order.status).label}</Badge>
+                  <Badge className={statusBadge(mode === "web" ? "confirmed" : order.status).className + " text-xs px-3 py-1 rounded-full"}>
+                    {mode === "web" ? webStatusLabel((order as { web_status?: string | null }).web_status) : statusBadge(order.status).label}
+                  </Badge>
                 </div>
               </div>
             </DialogHeader>

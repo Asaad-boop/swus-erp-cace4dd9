@@ -228,6 +228,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
         brand_id: data.brandId,
         source: "incomplete" as never,
         status: "confirmed" as never,
+        web_status: "incomplete" as never,
         confirmation_status: "pending" as never,
         subtotal,
         total,

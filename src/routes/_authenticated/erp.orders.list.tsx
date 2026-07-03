@@ -23,6 +23,8 @@ import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-
 import { PhoneHistorySyncDialog } from "@/components/erp/orders/phone-history-sync-dialog";
 import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 
+const WEB_ORDER_SOURCE_FILTER = "source.not.in.(website,pixel,utm)";
+
 export const Route = createFileRoute("/_authenticated/erp/orders/list")({
   head: () => ({ meta: [{ title: "Orders — ERP" }] }),
   component: OrdersPage,
@@ -272,11 +274,11 @@ function OrdersPage() {
         if (effective.statuses.length > 0) {
           q = q.in("status", effective.statuses);
           if (effective.statuses.includes("confirmed")) {
-            q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+            q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
           }
         } else {
           q = q.neq("status", "new");
-          q = q.or("status.neq.confirmed,source.is.null,source.neq.website,web_status.eq.complete");
+          q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
         }
         if (effective.source) q = q.eq("source", effective.source as never);
         if (effective.courier) q = q.eq("courier_name", effective.courier);

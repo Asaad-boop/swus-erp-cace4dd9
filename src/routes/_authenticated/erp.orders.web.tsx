@@ -90,7 +90,7 @@ const STATUS_TABS: { key: WebStatus | "all"; label: string; color: string }[] = 
   { key: "no_response", label: "No Response", color: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
   { key: "advance_payment", label: "Advance Payment", color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300" },
   { key: "on_hold", label: "On Hold", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" },
-  { key: "complete", label: "Complete", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
+  { key: "complete", label: "Confirmed", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
   { key: "cancelled", label: "Cancel", color: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
   { key: "all", label: "All", color: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200" },
 ];
@@ -110,6 +110,7 @@ type WebOrderRow = {
   notes: string | null;
   tags: string[] | null;
   source_website: string | null;
+  status: string | null;
   web_status: WebStatus | null;
   total: number;
   advance_amount: number | null;
@@ -567,7 +568,7 @@ function _WebOrdersPageBody() {
         supabase
           .from("orders")
           .select(
-            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,web_status,total,advance_amount,call_attempt_count,call_status,brand_id,updated_at",
+            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,status,web_status,total,advance_amount,call_attempt_count,call_status,brand_id,updated_at",
             { count: "exact" },
           ),
         brandIds,
@@ -582,6 +583,7 @@ function _WebOrdersPageBody() {
       else if (sort === "recent_note") q = q.order("updated_at", { ascending: false });
 
       if (activeTab !== "all") q = q.eq("web_status", activeTab);
+      if (activeTab === "processing") q = q.eq("status", "new" as never);
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
         const esc = s.replace(/[,()]/g, " ");
@@ -675,10 +677,12 @@ function _WebOrdersPageBody() {
     staleTime: 30_000,
     queryFn: async () => {
       const queries = STATUS_KEYS.map(async (st) => {
-        const { count } = await applyBrandScope(
+        let q = applyBrandScope(
           supabase.from("orders").select("id", { count: "exact", head: true }),
           brandIds,
         ).in("source", WEB_SOURCES).eq("web_status", st);
+        if (st === "processing") q = q.eq("status", "new" as never);
+        const { count } = await q;
         return [st, count ?? 0] as const;
       });
       const allQ = applyBrandScope(
@@ -918,6 +922,7 @@ function _WebOrdersPageBody() {
 
   // ============ FEATURE 1 + 2: status mutations ============
   const invalidateWebOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["web-orders-page"] });
     queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
     queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
   };
@@ -925,11 +930,27 @@ function _WebOrdersPageBody() {
   const bulkStatus = useMutation({
     mutationFn: async (status: WebStatusKey) => {
       const ids = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("orders")
-        .update({ web_status: status as never })
-        .in("id", ids);
-      if (error) throw error;
+      const now = new Date().toISOString();
+      const selectedNewIds = rows.filter((r) => ids.includes(r.id) && r.status === "new").map((r) => r.id);
+      const selectedExistingIds = ids.filter((id) => !selectedNewIds.includes(id));
+      const patch = status === "complete"
+        ? { web_status: status as never, status: "confirmed" as never, confirmation_status: "pending" as never, confirmed_at: now }
+        : status === "cancelled"
+          ? { web_status: status as never, status: "cancelled" as never, cancelled_at: now }
+          : { web_status: status as never };
+      if (status === "complete" || status === "cancelled") {
+        if (selectedNewIds.length) {
+          const { error } = await supabase.from("orders").update(patch).in("id", selectedNewIds);
+          if (error) throw error;
+        }
+        if (selectedExistingIds.length) {
+          const { error } = await supabase.from("orders").update({ web_status: status as never }).in("id", selectedExistingIds);
+          if (error) throw error;
+        }
+      } else {
+        const { error } = await supabase.from("orders").update(patch).in("id", ids);
+        if (error) throw error;
+      }
       return ids.length;
     },
     onSuccess: (n) => {
