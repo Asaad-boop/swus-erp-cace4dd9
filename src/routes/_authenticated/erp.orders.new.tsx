@@ -333,19 +333,34 @@ function NewOrderPage() {
     queryKey: ["new-order-products", effectiveBrandId, nameQuery, skuQuery, featuredOnly],
     enabled: !!effectiveBrandId,
     queryFn: async () => {
+      // Read via listings so cross-brand products (Toyra ↔ Hobishop) appear on
+      // the current storefront with per-brand price/title override.
       let q = supabase
-        .from("products")
-        .select("id,title,price,image,stock,is_featured")
+        .from("product_brand_listings")
+        .select("price,title_override,image_override,products!inner(id,title,price,image,stock,is_featured,is_active,updated_at)")
         .eq("brand_id", effectiveBrandId!)
         .eq("is_active", true)
-        .order("is_featured", { ascending: false })
-        .order("updated_at", { ascending: false })
+        .eq("products.is_active", true)
+        .order("updated_at", { ascending: false, referencedTable: "products" })
         .limit(30);
-      if (nameQuery.trim()) q = q.ilike("title", `%${nameQuery.trim()}%`);
-      if (featuredOnly) q = q.eq("is_featured", true);
+      if (nameQuery.trim()) q = q.ilike("products.title", `%${nameQuery.trim()}%`);
+      if (featuredOnly) q = q.eq("products.is_featured", true);
       const { data, error } = await q;
       if (error) throw error;
-      let rows = (data ?? []) as ProductHit[];
+      type Row = {
+        price: number | null;
+        title_override: string | null;
+        image_override: string | null;
+        products: { id: string; title: string; price: number; image: string; stock: number; is_featured: boolean };
+      };
+      let rows: ProductHit[] = ((data ?? []) as unknown as Row[]).map((r) => ({
+        id: r.products.id,
+        title: r.title_override ?? r.products.title,
+        price: Number(r.price ?? r.products.price),
+        image: r.image_override ?? r.products.image,
+        stock: r.products.stock,
+        is_featured: r.products.is_featured,
+      }));
       if (skuQuery.trim()) {
         const { data: vs } = await supabase
           .from("product_variants")
