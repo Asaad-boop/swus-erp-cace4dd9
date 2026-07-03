@@ -1483,7 +1483,7 @@ function OrderDetailsPage() {
                 </div>
               } />
               <Row label="Payment" value={order.payment_method ?? "—"} />
-              <Row label="Source" value={order.source ?? "—"} />
+              <Row label="Source" value={sourceLabel(order.source)} />
               <div className="h-px bg-border my-2" />
               <Row label="Subtotal" value={`৳${bdtCompact(itemsSubtotal)}`} />
               <Row label="Delivery" value={`৳${bdtCompact(form.shipping_fee)}`} />
