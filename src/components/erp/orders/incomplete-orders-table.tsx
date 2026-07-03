@@ -647,12 +647,12 @@ export function IncompleteOrdersTable({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              Confirm as order?
+              Open as order draft?
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <div>
-                  Ei incomplete checkout ke confirmed order banano hobe.
+                  Ei incomplete checkout theke ekta draft order tairi hobe. Order page e giye customer info, address, items — shob edit korte parben, tarpor Confirm korben.
                 </div>
                 {confirmCart && (
                   <div className="rounded-md border bg-muted/40 p-2.5 text-xs space-y-1">
@@ -696,7 +696,7 @@ export function IncompleteOrdersTable({
               ) : (
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />
               )}
-              Confirm Order
+              Open & Edit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
