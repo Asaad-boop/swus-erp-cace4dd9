@@ -227,7 +227,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       .insert({
         brand_id: data.brandId,
         source: "incomplete" as never,
-        status: "new" as never,
+        status: "confirmed" as never,
         confirmation_status: "pending" as never,
         subtotal,
         total,
