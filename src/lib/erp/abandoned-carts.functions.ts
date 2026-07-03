@@ -227,7 +227,7 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
       .insert({
         brand_id: data.brandId,
         source: "incomplete" as never,
-        status: "confirmed" as never,
+        status: "new" as never,
         confirmation_status: "pending" as never,
         subtotal,
         total,
@@ -243,7 +243,6 @@ export const convertAbandonedCartFn = createServerFn({ method: "POST" })
         guest_name: cart.customer_name,
         guest_phone: cart.customer_phone,
         payment_method: "cod",
-        confirmed_by: context.userId,
       })
       .select("id, invoice_no")
       .single();

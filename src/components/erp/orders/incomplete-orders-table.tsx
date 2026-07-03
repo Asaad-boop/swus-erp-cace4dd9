@@ -186,7 +186,7 @@ export function IncompleteOrdersTable({
       });
     },
     onSuccess: (res) => {
-      toast.success(`Order created${res.invoiceNo ? " · " + res.invoiceNo : ""}`);
+      toast.success(`Order draft created${res.invoiceNo ? " · " + res.invoiceNo : ""} — edit & confirm`);
       qc.invalidateQueries({ queryKey: ["abandoned-carts"] });
       qc.invalidateQueries({ queryKey: ["abandoned-carts-count"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
@@ -560,14 +560,14 @@ export function IncompleteOrdersTable({
                         className="h-8 gap-1"
                         disabled={busy || !(r.brand_id ?? brandId)}
                         onClick={() => setConfirmCart(r)}
-                        title="Confirm as order"
+                        title="Open & edit as order"
                       >
                         {busy && convertMut.isPending ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <CheckCircle2 className="h-3.5 w-3.5" />
                         )}
-                        Confirm
+                        Open
                       </Button>
                       <Button
                         variant="ghost"
@@ -647,12 +647,12 @@ export function IncompleteOrdersTable({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              Confirm as order?
+              Open as order draft?
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <div>
-                  Ei incomplete checkout ke confirmed order banano hobe.
+                  Ei incomplete checkout theke ekta draft order tairi hobe. Order page e giye customer info, address, items — shob edit korte parben, tarpor Confirm korben.
                 </div>
                 {confirmCart && (
                   <div className="rounded-md border bg-muted/40 p-2.5 text-xs space-y-1">
@@ -696,7 +696,7 @@ export function IncompleteOrdersTable({
               ) : (
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />
               )}
-              Confirm Order
+              Open & Edit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
