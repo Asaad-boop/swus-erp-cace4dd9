@@ -234,13 +234,12 @@ function KpiStrip({
       const [cur, prev, confirmed, inTransit, codPending, attention, cancelled, items, users] = await Promise.all([
         inRange(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
         inPrev(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
-          .not("confirmed_at", "is", null)
-          .gte("confirmed_at", range.from.toISOString())
-          .lte("confirmed_at", range.to.toISOString()),
-        applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
+        // Snapshot: orders created in range whose CURRENT status is a confirmed-side state.
+        inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
+          .in("status", ["confirmed","packaging","packed","ready_to_ship","shipped","in_transit","delivered","partial_delivered"]),
+        inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["shipped", "in_transit"]),
-        applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds)
+        inRange(applyBrandScope(supabase.from("orders").select("total,partial_amount,payment_status"), brandIds))
           .eq("payment_method", "cod").neq("payment_status", "paid")
           .in("status", ["shipped", "in_transit", "delivered", "partial_delivered"]),
         applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)
