@@ -255,7 +255,7 @@ export function ProfitQuality({
 
       const [revRows, itemRows, adSpend, returnRows] = await Promise.all([
         applyBrandScope(supabase.from("orders").select("total, actual_shipping_cost"), brandIds)
-          .eq("status", "delivered")
+          .not("status","in","(cancelled,returned)")
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(
           supabase.from("order_items").select(
@@ -264,7 +264,7 @@ export function ProfitQuality({
           brandIds,
           "orders.brand_id" as any,
         )
-          .eq("orders.status", "delivered")
+          .not("orders.status","in","(cancelled,returned)")
           .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
         applyBrandScope(supabase.from("mkt_insights_daily").select("spend"), brandIds)
           .gte("date", fromDate).lte("date", toDate),
