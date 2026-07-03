@@ -58,6 +58,7 @@ import { Route as ApiPublicMktTrackRouteImport } from './routes/api/public/mkt.t
 import { Route as ApiPublicCronSyncMarketingRouteImport } from './routes/api/public/cron.sync-marketing'
 import { Route as ApiPublicCronSyncCourierRouteImport } from './routes/api/public/cron.sync-courier'
 import { Route as ApiPublicCronRunRecurringRouteImport } from './routes/api/public/cron.run-recurring'
+import { Route as ApiPublicCatalogBrandSlugRouteImport } from './routes/api/public/catalog.$brandSlug'
 import { Route as AuthenticatedErpStocktakeNewRouteImport } from './routes/_authenticated/erp.stocktake.new'
 import { Route as AuthenticatedErpStocktakeSessionIdRouteImport } from './routes/_authenticated/erp.stocktake.$sessionId'
 import { Route as AuthenticatedErpReturnsCaseIdRouteImport } from './routes/_authenticated/erp.returns.$caseId'
@@ -392,6 +393,12 @@ const ApiPublicCronRunRecurringRoute =
   ApiPublicCronRunRecurringRouteImport.update({
     id: '/api/public/cron/run-recurring',
     path: '/api/public/cron/run-recurring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCatalogBrandSlugRoute =
+  ApiPublicCatalogBrandSlugRouteImport.update({
+    id: '/api/public/catalog/$brandSlug',
+    path: '/api/public/catalog/$brandSlug',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedErpStocktakeNewRoute =
@@ -857,6 +864,7 @@ export interface FileRoutesByFullPath {
   '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
+  '/api/public/catalog/$brandSlug': typeof ApiPublicCatalogBrandSlugRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -958,6 +966,7 @@ export interface FileRoutesByTo {
   '/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
+  '/api/public/catalog/$brandSlug': typeof ApiPublicCatalogBrandSlugRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -1074,6 +1083,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/returns/$caseId': typeof AuthenticatedErpReturnsCaseIdRoute
   '/_authenticated/erp/stocktake/$sessionId': typeof AuthenticatedErpStocktakeSessionIdRoute
   '/_authenticated/erp/stocktake/new': typeof AuthenticatedErpStocktakeNewRoute
+  '/api/public/catalog/$brandSlug': typeof ApiPublicCatalogBrandSlugRoute
   '/api/public/cron/run-recurring': typeof ApiPublicCronRunRecurringRoute
   '/api/public/cron/sync-courier': typeof ApiPublicCronSyncCourierRoute
   '/api/public/cron/sync-marketing': typeof ApiPublicCronSyncMarketingRoute
@@ -1190,6 +1200,7 @@ export interface FileRouteTypes {
     | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
+    | '/api/public/catalog/$brandSlug'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -1291,6 +1302,7 @@ export interface FileRouteTypes {
     | '/erp/returns/$caseId'
     | '/erp/stocktake/$sessionId'
     | '/erp/stocktake/new'
+    | '/api/public/catalog/$brandSlug'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -1406,6 +1418,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/returns/$caseId'
     | '/_authenticated/erp/stocktake/$sessionId'
     | '/_authenticated/erp/stocktake/new'
+    | '/api/public/catalog/$brandSlug'
     | '/api/public/cron/run-recurring'
     | '/api/public/cron/sync-courier'
     | '/api/public/cron/sync-marketing'
@@ -1445,6 +1458,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicCatalogBrandSlugRoute: typeof ApiPublicCatalogBrandSlugRoute
   ApiPublicCronRunRecurringRoute: typeof ApiPublicCronRunRecurringRoute
   ApiPublicCronSyncCourierRoute: typeof ApiPublicCronSyncCourierRoute
   ApiPublicCronSyncMarketingRoute: typeof ApiPublicCronSyncMarketingRoute
@@ -1796,6 +1810,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/run-recurring'
       fullPath: '/api/public/cron/run-recurring'
       preLoaderRoute: typeof ApiPublicCronRunRecurringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/catalog/$brandSlug': {
+      id: '/api/public/catalog/$brandSlug'
+      path: '/api/public/catalog/$brandSlug'
+      fullPath: '/api/public/catalog/$brandSlug'
+      preLoaderRoute: typeof ApiPublicCatalogBrandSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/erp/stocktake/new': {
@@ -2654,6 +2675,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicCatalogBrandSlugRoute: ApiPublicCatalogBrandSlugRoute,
   ApiPublicCronRunRecurringRoute: ApiPublicCronRunRecurringRoute,
   ApiPublicCronSyncCourierRoute: ApiPublicCronSyncCourierRoute,
   ApiPublicCronSyncMarketingRoute: ApiPublicCronSyncMarketingRoute,
