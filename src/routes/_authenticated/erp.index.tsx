@@ -1151,7 +1151,7 @@ function TopProducts({ brandIds, enabled, range }: { brandIds: string[]; enabled
       const { data: rows } = await applyBrandScope(
         supabase.from("order_items").select("name, quantity, line_total, orders!inner(brand_id, status, created_at)"),
         brandIds, "orders.brand_id" as any
-      ).eq("orders.status", "delivered")
+      ).not("orders.status","in","(cancelled,returned)")
        .gte("orders.created_at", range.from.toISOString())
        .lte("orders.created_at", range.to.toISOString());
       const agg = new Map<string, { name: string; units: number; revenue: number }>();
@@ -1198,7 +1198,7 @@ function TopCustomers({ brandIds, enabled, range }: { brandIds: string[]; enable
     queryFn: async () => {
       const { data: rows } = await applyBrandScope(
         supabase.from("orders").select("shipping_name, shipping_phone, total"), brandIds
-      ).eq("status", "delivered")
+      ).not("status","in","(cancelled,returned)")
        .gte("created_at", range.from.toISOString())
        .lte("created_at", range.to.toISOString());
       const agg = new Map<string, { name: string; orders: number; value: number }>();
