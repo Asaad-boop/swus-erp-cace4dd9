@@ -3,7 +3,6 @@ import { STATUS_TABS, type OrderStatus, type StatusTabKey } from "@/lib/erp/orde
 
 const TAB_DOT: Record<StatusTabKey, string> = {
   all:            "bg-foreground/60",
-  new:            "bg-sky-500",
   pending:        "bg-blue-500",
   packing:        "bg-purple-500",
   rts:            "bg-cyan-500",
