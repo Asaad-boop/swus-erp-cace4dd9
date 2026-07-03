@@ -59,6 +59,10 @@ const WEB_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "cancelled", label: "Cancel" },
 ];
 
+function webStatusLabel(status: string | null | undefined) {
+  return WEB_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? (status ?? "Processing").replace(/_/g, " ");
+}
+
 export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const qc = useQueryClient();
   const { data, isLoading } = useOrderDetail(orderId);
@@ -252,7 +256,9 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
                     <div className="text-xl font-bold tabular-nums">৳ {payableTotal.toLocaleString()}</div>
                   </div>
-                  <Badge className={statusBadge(order.status).className + " text-xs px-3 py-1 rounded-full"}>{statusBadge(order.status).label}</Badge>
+                  <Badge className={statusBadge(mode === "web" ? "confirmed" : order.status).className + " text-xs px-3 py-1 rounded-full"}>
+                    {mode === "web" ? webStatusLabel((order as { web_status?: string | null }).web_status) : statusBadge(order.status).label}
+                  </Badge>
                 </div>
               </div>
             </DialogHeader>
