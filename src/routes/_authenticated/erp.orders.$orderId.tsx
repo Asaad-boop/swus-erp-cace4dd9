@@ -67,8 +67,6 @@ function sourceLabel(source?: string | null): string {
   if (s === "google") return "Google";
   return source;
 }
-  return "Pathao API";
-}
 
 function CopyChip({ value, className, children }: { value: string; className?: string; children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
