@@ -1,91 +1,102 @@
-# Dashboard Rebuild Plan — SWUS ERP
 
-Boro scope, tai age plan confirm kori. Ei kaj `src/routes/_authenticated/erp.index.tsx` + `src/components/erp/dashboard-command-center.tsx` (partial delete) + notun widget files er upor porbe. Layout grid + color scheme same thakbe.
+# Cross-Brand Product Sharing — Toyra ↔ Hobishop
 
-## Step 1 — Remove (dashboard theke shorai)
-- `LiveVisitors` render + import (component file rakhbo, just dashboard e use korbo na)
-- `AttendancePunchCard` render + import
-- `TodayCommandPanel` render + import (Today's Actions block)
-- `ProductDangerZone` render (conditional re-add possible later, tobe ekhon dashboard theke fele debo)
-- KPI strip theke kono "Losing Days" nei — check kore confirm korbo, thakle shorabo
-- "Created vs Confirmed" chart — `TrendChart` er moddhe khujbo, thakle shorabo
-- `ProfitQuality` (Net Margin Score) → notun `NetProfit` widget diye replace
+Ekhon `products` table e ekta product ekta `brand_id` er sathe tightly bound. Toyra-r product Hobishop e sell korte gele duplicate banate hocche → stock, cost, review, image sob split hoye jay. Amra ekta clean "shared catalog + per-brand listing" pattern banabo, jekhane **product = single source of truth (inventory + cost)** ar **listing = per-brand shop face (price, active, slug, override title/image)**.
 
-## Step 2 — Fix (existing widgets)
-Single source of truth helper banabo `src/lib/erp/dashboard-metrics.ts`:
-- `activeOrdersFilter` = `.not("status","in","(cancelled,returned)")`
-- `codPendingFilter` = `payment_method='cod'` + `payment_status!='paid'` + status in shipped/in_transit/delivered/partial_delivered
-- `revenueQuery(brandIds, range)` → same query top KPI + BrandComparison duitai use korbe
-- `codPendingQuery(brandIds, range)` → top KPI + `CodOutstandingCard` duitai use
-- `lowStockQuery(brandIds)` → `products` theke `available_stock <= low_stock_threshold OR stock=0`, `low_stock_alerts` bad
-- `TopProducts` / `TopCustomers` — active status filter align korbo, empty hole "no sales in this range" show korbe
-- "Orders by Day" chart — recharts fill CSS variable/hsl issue fix (indigo hex, already partially fixed — verify)
-- Pipeline counts — current status snapshot, sum ≤ total orders confirm
+## Core concept
 
-## Step 3 — Real Net Profit widget (replaces ProfitQuality)
-Notun file `src/components/erp/dashboard/net-profit-card.tsx`:
-- Revenue = orders.total (active)
-- Product Cost = Σ `order_items.cost_price × quantity` (fallback `unit_cost_snapshot`)
-- Courier Cost = Σ `order_items.courier_cost_allocated`, fallback `orders.actual_shipping_cost`
-- Packaging = Σ `order_items.packaging_cost_allocated`
-- Ad Spend = Σ `mkt_insights_daily.spend_bdt_fifo`, fallback `spend × usd_to_bdt_rate`
-- Return/Exchange loss = Σ `erp_return_cases.product_cost_loss` + `erp_exchange_cases.product_cost_loss`
-- Ekta boro net number + collapsible breakdown; kono component er data missing hole oi line "no data" dekhabe (silent 0 na)
-
-## Step 4 — Must-have widgets (above the fold, priority order)
-Notun files under `src/components/erp/dashboard/`:
-
-1. `cash-position-card.tsx` — `erp_accounts.current_balance` grouped by `wallet_type` (cash/bank/mfs) + total on top
-2. `cod-remittance-pipeline.tsx` — `erp_cod_remittances` + `courier_shipments`: pending / received / reconciled × courier. Table empty hole "not yet tracked" + CTA
-3. `roas-comparison-card.tsx` — Meta ROAS (`meta_purchase_value/spend`) vs Real ROAS (`mkt_order_attributions` join `orders` where paid/delivered ÷ `spend_bdt_fifo`); gap % highlight
-4. `ad-wallet-balance-card.tsx` — `meta_fifo_lots.usd_remaining` per ad account, USD + BDT; `< $50` warning
-5. `stuck-orders-alert.tsx` — status in (on_hold, advance_payment_pending, confirmed) AND `updated_at < now()-24h`, sorted longest first
-6. `return-rate-by-product.tsx` — `erp_return_cases` + `erp_exchange_cases` grouped by product_id, ranked
-7. `courier-performance-card.tsx` — Pathao vs Steadfast: delivery success %, avg delivery time (`shipped_at → delivered_at`), COD fee % from `erp_reconciliation_rows`
-
-## Step 5 — Good-to-have widgets (below must-haves)
-8. Trend chart axis fix (dual y-axis: revenue + orders)
-9. `order-source-donut.tsx` — `orders.source` grouped
-10. Brand Comparison — Step 2 er fix reuse
-11. `new-vs-returning-card.tsx` — using existing customer aggregation
-12. `abandoned-cart-recovery.tsx` — `abandoned_carts` where `followup_status='pending'`, count + subtotal sum + CTA
-
-## Layout (final order in `erp.index.tsx`)
 ```text
-Header (greeting + refresh + date range)
-─────────────────────────────────
-KPI Strip (Step 2 fixed)
-─────────────────────────────────
-[ NetProfit ] [ CashPosition ]                  ← Step 3 + 4.1
-[ CodRemittance ] [ RoasComparison ]            ← 4.2 + 4.3
-[ AdWallet ] [ StuckOrders ]                    ← 4.4 + 4.5
-[ CourierPerformance ] [ ReturnRateByProduct ]  ← 4.7 + 4.6
-─────────────────────────────────
-Trend chart (fixed dual-axis)                   ← 5.8
-[ OrderSourceDonut ] [ NewVsReturning ]         ← 5.9 + 5.11
-BrandComparison (if isAllBrands)                ← 5.10
-─────────────────────────────────
-Existing supporting: Courier / COD Outstanding / Returns / Imports cards
-FinanceSection
-InventoryHealth + LowStockList
-MarketingCard
-TopProducts + TopCustomers
-AbandonedCartRecovery                           ← 5.12
-NeedsAttention
-LiveOrdersFeed
-SystemFooter
+products (physical SKU, stock, cost)          ← owner_brand_id (who created/stocks it)
+   │
+   └── product_brand_listings (M:N)           ← per-brand: price, is_active, slug, title_override, image_override
+           ├── Toyra listing     (৳1,200, active)
+           └── Hobishop listing  (৳1,350, active)
 ```
 
-## Technical notes
-- Sob widget e strict empty-state: `data === null/empty` → "No data yet" / "Not tracked", never `0` silent
-- Sob query `applyBrandScope` diye brand filter
-- Reusable metric helpers `src/lib/erp/dashboard-metrics.ts` e — top KPI + BrandComparison + CodOutstanding same helper call korbe
-- `date-range-picker` current advanced variant reuse
-- Removed components (`LiveVisitors`, `TodayCommandPanel`, `ProductDangerZone`, `ProfitQuality`) file gulo delete korbo na — just dashboard theke unmount, future re-use er jonno rakhbo
+Ekta product 1..N brand e list hote pare. Stock shared — Toyra 1 unit sell korle Hobishop-eo stock kome. Cost/COGS/reorder single product theke ashbe. Public website (Toyra/Hobishop) nijer listing dekhabe with own price + slug.
 
-## Verification (before done)
-- Same date range e Revenue / COD / Order count number top KPI, BrandComparison, CodOutstanding, NetProfit sob jaigai match korbe (console e log kore verify)
-- Playwright diye `/erp` er screenshot niye layout + numbers cross-check
-- Empty tables (jodi `erp_cod_remittances` blank thake) → "not tracked" show hocche kina verify
+## Step 1 — Schema (migration)
 
-Confirm korle implement start korbo. Kono widget priority swap ba drop korte chaile bolo.
+New table `product_brand_listings`:
+- `id uuid pk`
+- `product_id uuid → products.id`
+- `brand_id uuid → brands.id`
+- `price numeric` (override; null → fallback to `products.price`)
+- `compare_at_price numeric null`
+- `slug text` (brand-scoped unique — allows different slug per brand)
+- `title_override text null`, `image_override text null`, `description_override text null`
+- `is_active bool default true`
+- `display_order int default 0`
+- `created_at`, `updated_at`
+- Unique: `(product_id, brand_id)` and `(brand_id, slug)`
+
+Products table:
+- `brand_id` → rename intent to `owner_brand_id` (physical stock owner). Keep column name to avoid breaking 100+ files; treat semantically as "primary/owner brand".
+- Add helper view `v_brand_catalog` = listings joined with product data, resolved fields (COALESCE overrides).
+
+Backfill: for every existing product, auto-create ekta listing row for its current `brand_id` with `price = products.price`, `slug = products.slug`, `is_active = products.is_active`.
+
+RLS + GRANTS: authenticated full CRUD (scoped by brand access in policy using `user_brand_access`), anon SELECT where `is_active = true` (public website reads).
+
+## Step 2 — Inventory UI (ERP)
+
+`src/routes/_authenticated/erp.inventory.tsx` + `product-edit-dialog.tsx`:
+- Product form e notun section: **"List on brands"** — multi-select checkbox (Toyra / Hobishop / …), prottek ta te collapsible row: price override, slug, active toggle, title/image override.
+- Default: owner brand auto-listed with product-level price.
+- Inventory list: brand switcher e "Toyra" select korle Toyra-r listing gulai dekhabo (owner + shared). Ekta badge dekhabo: `Shared with Hobishop` jodi 2+ brand e listed.
+
+Query change: `useInventoryQuery` `.eq("brand_id", ...)` er bodole join `product_brand_listings` diye `brand_id IN (...)`. Owner brand column alada dekhabe.
+
+## Step 3 — Order creation
+
+`erp.orders.new.tsx` line 150/339 e `.eq("brand_id", effectiveBrandId)` → listing table diye product lookup. Order create hole:
+- `orders.brand_id = effectiveBrand.id` (which storefront sold it — for P&L/marketing attribution)
+- `order_items.product_id` = shared product id
+- Stock decrement holo shared product theke (already product-level, kono change lage na)
+
+## Step 4 — Public website
+
+Toyra/Hobishop storefront (jodi ei repo tei thake ba alada) `products` table theke pore. Change: read `product_brand_listings` where `brand_id = current_storefront_brand AND is_active`. COALESCE(listing.price, product.price), listing.slug, etc. SEO/OG data listing-scoped.
+
+## Step 5 — Reports & scoping
+
+- **Sales/Revenue per brand**: already `orders.brand_id` diye split — kaj korbe.
+- **Inventory value**: single product, so owner brand er under. Alternative: split by "which brand sold last N units" — over-engineering, ekhon skip.
+- **Cost/COGS**: shared, product-level — no change.
+- **Marketing attribution**: `orders.brand_id` diye — no change.
+
+## Step 6 — Edge cases
+
+- Product delete: cascade delete listings.
+- Brand access: user jodi shudhu Toyra e access rakhe, Hobishop-only product edit korte parbe na, but Toyra listing manage korte parbe (RLS scoped).
+- Slug conflict: `(brand_id, slug)` unique — same slug duita brand e allowed, ekta brand er moddhe unique.
+- Existing duplicate products (jodi already Toyra + Hobishop e same product duplicate kora thake): manual merge tool later — ekhon scope er baire.
+
+## Files to touch
+
+**New:**
+- Migration: `product_brand_listings` table + backfill + RLS + grants + `v_brand_catalog` view
+- `src/components/erp/inventory/brand-listings-editor.tsx` — reusable multi-brand editor
+- `src/hooks/erp/use-product-listings.ts` — query/mutate listings
+
+**Edit:**
+- `src/hooks/erp/use-inventory-query.ts` — read via listings
+- `src/components/erp/inventory/product-add-dialog.tsx` + `product-edit-dialog.tsx` — listings section
+- `src/routes/_authenticated/erp.orders.new.tsx` — product lookup via listings
+- Public storefront pages (jodi ei repo te thake — kon route bolo)
+
+## Verification
+
+1. Toyra brand e ekta product create → auto ekta Toyra listing → visible on Toyra shop only
+2. Same product e "Also list on Hobishop" tick + price override → Hobishop shop e dekha jabe with own price + slug
+3. Toyra theke 1 unit sell → shared stock kombe → Hobishop stock-eo kombe
+4. Orders report: Toyra order Toyra revenue e, Hobishop order Hobishop revenue e
+5. User with Toyra-only access can't edit Hobishop-only listing
+
+## Open questions
+
+1. Public storefront (Toyra/Hobishop website) ki ei same repo te ache, na alada project? Alada hole schema + API contract dibo, oi repo alada handle korbe.
+2. Reviews — brand-scoped na product-scoped? (Recommend: product-scoped, shared across brands, but filterable by brand.)
+3. Price default behavior: listing price null hole product.price fallback — OK, na proti listing e explicit price mandatory?
+
+Confirm korle Step 1 migration diye shuru korbo.
