@@ -55,7 +55,17 @@ function bdtCompact(n: number) {
 
 function pathaoSourceLabel(source?: string) {
   if (source === "pathao_address_parser") return "Pathao merchant address parser";
-  return "Pathao API";
+  return source ?? "";
+}
+
+function sourceLabel(source?: string | null): string {
+  if (!source) return "—";
+  const s = source.toLowerCase();
+  if (s === "pixel" || s === "website" || s === "utm" || s === "direct" || s === "organic") return "Website";
+  if (s === "facebook" || s === "fb" || s === "meta") return "Facebook";
+  if (s === "instagram" || s === "ig") return "Instagram";
+  if (s === "google") return "Google";
+  return source;
 }
 
 function CopyChip({ value, className, children }: { value: string; className?: string; children: React.ReactNode }) {
@@ -1483,7 +1493,7 @@ function OrderDetailsPage() {
                 </div>
               } />
               <Row label="Payment" value={order.payment_method ?? "—"} />
-              <Row label="Source" value={order.source ?? "—"} />
+              <Row label="Source" value={sourceLabel(order.source)} />
               <div className="h-px bg-border my-2" />
               <Row label="Subtotal" value={`৳${bdtCompact(itemsSubtotal)}`} />
               <Row label="Delivery" value={`৳${bdtCompact(form.shipping_fee)}`} />
