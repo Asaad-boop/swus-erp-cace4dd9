@@ -28,9 +28,10 @@ import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { StaffDashboard } from "@/components/erp/staff-dashboard";
 import {
-  TodayCommandPanel, LiveVisitors, ProfitQuality, ProductDangerZone,
-} from "@/components/erp/dashboard-command-center";
-import { AttendancePunchCard } from "@/components/erp/hr/attendance-punch-card";
+  NetProfitCard, CashPositionCard, CodRemittancePipelineCard, RoasComparisonCard,
+  AdWalletBalanceCard, StuckOrdersCard, ReturnRateByProductCard, CourierPerformanceCard,
+  AbandonedCartRecoveryCard, NewVsReturningCard,
+} from "@/components/erp/dashboard/widgets";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
@@ -150,32 +151,48 @@ function AdminDashboard() {
       </div>
 
       <div className="px-4 md:px-8 py-6 max-w-[1600px] mx-auto space-y-6">
-        {/* Command grid: KPIs + Today panel + Live visitors */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-          <div className="space-y-3">
-            <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <ProfitQuality brandIds={brandIds} enabled={enabled} range={range} />
-              <LiveVisitors />
-            </div>
-          </div>
-          <TodayCommandPanel brandIds={brandIds} enabled={enabled} />
+        {/* KPI strip */}
+        <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+
+        {/* MUST-HAVE row 1: Profit + Cash */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <NetProfitCard brandIds={brandIds} enabled={enabled} range={range} />
+          <CashPositionCard brandIds={brandIds} enabled={enabled} />
         </div>
 
-        {/* Admin self-attendance widget */}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-          <div className="hidden xl:block" />
-          <AttendancePunchCard />
+        {/* MUST-HAVE row 2: COD Remittance + ROAS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <CodRemittancePipelineCard brandIds={brandIds} enabled={enabled} range={range} />
+          <RoasComparisonCard brandIds={brandIds} enabled={enabled} range={range} />
         </div>
+
+        {/* MUST-HAVE row 3: Ad Wallet + Stuck Orders */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <AdWalletBalanceCard brandIds={brandIds} enabled={enabled} />
+          <StuckOrdersCard brandIds={brandIds} enabled={enabled} />
+        </div>
+
+        {/* MUST-HAVE row 4: Courier perf + Return-rate SKUs */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <CourierPerformanceCard brandIds={brandIds} enabled={enabled} range={range} />
+          <ReturnRateByProductCard brandIds={brandIds} enabled={enabled} range={range} />
+        </div>
+
+        {/* GOOD-TO-HAVE — trend + segmentation */}
+        <TrendChart brandIds={brandIds} enabled={enabled} range={range} brands={brands} isAllBrands={isAllBrands} />
 
         <TodayAnalytics brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <NewVsReturningCard brandIds={brandIds} enabled={enabled} range={range} />
+          <AbandonedCartRecoveryCard brandIds={brandIds} enabled={enabled} />
+        </div>
 
         {isAllBrands && brands.length > 1 && (
           <BrandComparison brands={brands} range={range} />
         )}
 
-        <TrendChart brandIds={brandIds} enabled={enabled} range={range} brands={brands} isAllBrands={isAllBrands} />
-
+        {/* Supporting existing cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <CourierCard brandIds={brandIds} enabled={enabled} range={range} />
           <CodOutstandingCard brandIds={brandIds} enabled={enabled} range={range} />
@@ -184,8 +201,6 @@ function AdminDashboard() {
         </div>
 
         <FinanceSection brandIds={brandIds} enabled={enabled} range={range} />
-
-        <ProductDangerZone brandIds={brandIds} enabled={enabled} range={range} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <InventoryHealth brandIds={brandIds} enabled={enabled} />
@@ -619,13 +634,13 @@ function TrendChart({
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
-                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={56} />
-                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} width={36} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" tickFormatter={(v) => "৳" + compact(v)} tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} width={56} />
+                <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 12 }} tickMargin={8} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} width={36} />
                 <Tooltip
-                  cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
                   labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   formatter={(v: any, n: any) => [n.toString().startsWith("Orders") ? v : BDT(Number(v)), n]}
                 />
@@ -1691,7 +1706,7 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
               </div>
 
               {/* Hourly / daily bar */}
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-5 lg:col-span-2">
                 <div
                   className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
                   style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
@@ -1701,9 +1716,9 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} interval={xInterval} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
                       <Tooltip />
                       <Bar dataKey="created" radius={[3, 3, 0, 0]}>
                         {series.map((b) => (
@@ -1714,42 +1729,6 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
                         ))}
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Created vs Confirmed line */}
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
-                <div
-                  className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] mb-6"
-                  style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
-                >
-                  Created vs Confirmed
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xInterval} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
-                      <Tooltip content={({ active, payload, label }) => {
-                        if (!active || !payload?.length) return null;
-                        const created = Number(payload.find((p: any) => p.dataKey === "created")?.value ?? 0);
-                        const confirmed = Number(payload.find((p: any) => p.dataKey === "confirmed")?.value ?? 0);
-                        const rate = created > 0 ? Math.round((confirmed / created) * 100) : 0;
-                        return (
-                          <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
-                            <div className="font-semibold mb-1">{label}</div>
-                            <div className="text-muted-foreground">Created: <span className="text-foreground font-semibold tabular-nums">{created}</span></div>
-                            <div className="text-muted-foreground">Confirmed: <span className="text-foreground font-semibold tabular-nums">{confirmed}</span></div>
-                            <div className="text-muted-foreground mt-0.5">Rate: {rate}%</div>
-                          </div>
-                        );
-                      }} />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }} />
-                      <Line type="monotone" dataKey="created" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} name="Created" />
-                      <Line type="monotone" dataKey="confirmed" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 3, fill: "hsl(var(--card))", stroke: "hsl(var(--foreground))", strokeWidth: 2 }} name="Confirmed" />
-                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
