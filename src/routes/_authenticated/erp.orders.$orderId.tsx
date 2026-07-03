@@ -127,16 +127,17 @@ function StatsStrip({
   // so the strip does not flicker in/out on page reload.
   if (loading && cardCount === 0) {
     return (
-      <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+      <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
         <div className="grid grid-cols-2 sm:grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60">
           {[0, 1].map((i) => (
-            <div key={i} className="px-5 py-4 space-y-3 min-h-[104px]">
-              <div className="h-2.5 w-20 rounded bg-muted/60 animate-pulse" />
-              <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-full bg-muted/60 animate-pulse" />
+            <div key={i} className="px-4 py-4 space-y-3">
+              <div className="h-3 w-20 rounded bg-muted/60 animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-muted/60 animate-pulse" />
                 <div className="space-y-1.5">
-                  <div className="h-3 w-24 rounded bg-muted/60 animate-pulse" />
-                  <div className="h-2.5 w-16 rounded bg-muted/60 animate-pulse" />
+                  <div className="h-3 w-16 rounded bg-muted/60 animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-muted/60 animate-pulse" />
+                  <div className="h-3 w-14 rounded bg-muted/60 animate-pulse" />
                 </div>
               </div>
             </div>
@@ -151,7 +152,7 @@ function StatsStrip({
     : cardCount === 2 ? "sm:grid-cols-2"
     : "sm:grid-cols-1";
   return (
-    <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
       <div className={cn("grid grid-cols-2 divide-x divide-y sm:divide-y-0 divide-border/60", gridCols)}>
         {visibleColumns.map((c) => {
           const s = stats[c.key]!;
@@ -159,46 +160,49 @@ function StatsStrip({
           const successPct = denom > 0 ? Math.round((s.success / denom) * 100) : 0;
           const isEmpty = s.total === 0;
           const tone = isEmpty
-            ? { text: "text-muted-foreground/70", ring: "stroke-muted-foreground/30", chip: "bg-muted text-muted-foreground" }
+            ? { text: "text-muted-foreground/60", ring: "stroke-muted-foreground/30", chip: "bg-muted/40 text-muted-foreground ring-border", glow: "" }
             : successPct >= 80
-              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" }
+              ? { text: "text-emerald-600 dark:text-emerald-400", ring: "stroke-emerald-500", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30", glow: "shadow-[0_0_16px_-2px_rgba(16,185,129,0.4)]" }
               : successPct >= 50
-                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300" }
-                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300" };
+                ? { text: "text-amber-600 dark:text-amber-400", ring: "stroke-amber-500", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30", glow: "shadow-[0_0_16px_-2px_rgba(245,158,11,0.4)]" }
+                : { text: "text-rose-600 dark:text-rose-400", ring: "stroke-rose-500", chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/30", glow: "shadow-[0_0_16px_-2px_rgba(244,63,94,0.4)]" };
           const R = 15;
           const C = 2 * Math.PI * R;
           const offset = denom === 0 ? C : C * (1 - successPct / 100);
           return (
-            <div key={c.key} className="group relative px-5 py-4 min-h-[104px] transition-colors hover:bg-muted/20">
-              <div className="relative flex items-center gap-4">
-                <div className="relative shrink-0">
-                  <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
-                    <circle cx="18" cy="18" r={R} className="fill-none stroke-muted" strokeWidth="2" />
-                    <circle cx="18" cy="18" r={R}
-                      className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
-                      strokeWidth="2.5" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={cn("text-[10px] font-semibold tabular-nums tracking-tight", tone.text)}>
-                      {denom === 0 ? "—" : `${successPct}%`}
-                    </span>
-                  </div>
+            <div key={c.key} className="group relative px-4 py-4 transition-colors hover:bg-muted/30">
+              <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60", c.tint)} />
+              <div className="relative space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
                 </div>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className={cn("h-1 w-1 rounded-full", c.dot)} />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">{c.label}</span>
-                  </div>
-                  <div className="flex items-baseline gap-2 tabular-nums">
-                    <span className="text-[17px] font-semibold text-foreground tracking-tight leading-none">
-                      {s.success}
-                      <span className="text-muted-foreground/50 font-normal">/{denom || s.total}</span>
-                    </span>
-                    {s.cancel > 0 && (
-                      <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
-                        · {s.cancel} cancel
+                <div className="flex items-center gap-3">
+                  <div className={cn("relative shrink-0 rounded-full", tone.glow)}>
+                    <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90">
+                      <circle cx="18" cy="18" r={R} className="fill-none stroke-muted/50" strokeWidth="2.5" />
+                      <circle cx="18" cy="18" r={R}
+                        className={cn("fill-none transition-all duration-700 ease-out", tone.ring)}
+                        strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={cn("text-[11px] font-bold tabular-nums tracking-tight", tone.text)}>
+                        {denom === 0 ? "—" : `${successPct}%`}
                       </span>
-                    )}
+                    </div>
+                  </div>
+                  <div className="text-xs tabular-nums leading-tight space-y-1">
+                    <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", tone.chip)}>
+                      {denom === 0 ? "no data" : `${successPct}% success`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Order</span>
+                      <span className="font-semibold text-foreground">{s.success}<span className="text-muted-foreground/50">/{denom || s.total}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Cancel</span>
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">{s.cancel}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -206,13 +210,14 @@ function StatsStrip({
           );
         })}
         {showFraud && (
-          <div className="relative px-5 py-4 min-h-[104px] bg-rose-500/[0.03]">
-            <div className="space-y-1.5">
+          <div className="group relative px-4 py-4">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-fuchsia-500/[0.07] to-transparent opacity-60" />
+            <div className="relative space-y-2">
               <div className="flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-rose-500" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-600 dark:text-rose-400 truncate">Fraud Note</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">Fraud Note</span>
               </div>
-              <p className="text-[11px] leading-snug text-foreground/80 line-clamp-4 whitespace-pre-wrap">{fraudNote}</p>
+              <p className="text-[11px] leading-snug text-foreground/80 line-clamp-5 whitespace-pre-wrap">{fraudNote}</p>
             </div>
           </div>
         )}
@@ -1013,108 +1018,58 @@ function OrderDetailsPage() {
   /* ------------------------------ Render ----------------------------------- */
 
   return (
-    <div className="min-h-screen bg-muted/40 dark:bg-background print:hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-background print:hidden">
       <OrderLockBanner lock={orderLock} />
       {/* Sticky Header */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
-          {/* Left: breadcrumb + id + status */}
-          <div className="flex items-center gap-3 min-w-0">
-            <Link
-              to="/erp/orders/web"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Orders
-            </Link>
-            <span className="text-muted-foreground/50 text-sm">/</span>
-            <div className="flex items-center gap-2 min-w-0">
+      <header className="sticky top-0 z-30 border-b border-gray-100 dark:border-border bg-white/85 dark:bg-card/85 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-gray-600 hover:text-gray-900">
+              <Link to="/erp/orders/web"><ArrowLeft className="h-4 w-4 mr-1" />Orders</Link>
+            </Button>
+            <span className="h-4 w-px bg-gray-200 dark:bg-border" />
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-[11px] uppercase tracking-wider text-gray-500">Order</span>
               <CopyChip value={invoiceDisplay(order)} className="-mx-1">
-                <span className="font-mono text-[14px] font-semibold text-foreground tracking-tight truncate">
-                  #{invoiceDisplay(order)}
-                </span>
+                <span className="font-mono text-sm font-semibold text-gray-900 dark:text-foreground truncate">#{invoiceDisplay(order)}</span>
               </CopyChip>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "h-5 px-2 text-[10px] font-semibold uppercase tracking-wide rounded-full border-transparent hidden sm:inline-flex",
-                  statusBadge(order.status).className,
-                )}
-              >
-                {statusBadge(order.status).label}
-              </Badge>
+              <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] hidden sm:inline-flex", statusBadge(order.status).className)}>{statusBadge(order.status).label}</Badge>
               {(() => {
                 const s = settlementBadge(order);
                 return s ? (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-5 px-2 text-[10px] font-semibold uppercase tracking-wide rounded-full border-transparent hidden sm:inline-flex",
-                      s.className,
-                    )}
-                  >
-                    {s.label}
-                  </Badge>
+                  <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-bold uppercase tracking-wide hidden sm:inline-flex", s.className)}>{s.label}</Badge>
                 ) : null;
               })()}
             </div>
             {neighbors.total > 0 && (
-              <div className="ml-1 flex items-center gap-0.5 rounded-lg border border-border/70 bg-card/60 p-0.5">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                  disabled={!neighbors.prev}
+              <div className="flex items-center gap-1 ml-2">
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.prev}
                   onClick={() => neighbors.prev && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.prev } })}
-                  title="Previous order (← arrow key)"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <span className="text-[10px] font-medium text-muted-foreground tabular-nums px-1.5 min-w-[42px] text-center">
-                  {neighbors.index + 1} / {neighbors.total}
+                  title="Previous order (← arrow key)"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+                <span className="text-[10px] text-gray-500 tabular-nums px-1">
+                  {neighbors.index + 1}/{neighbors.total}
                 </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                  disabled={!neighbors.next}
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={!neighbors.next}
                   onClick={() => neighbors.next && navigate({ to: "/erp/orders/$orderId", params: { orderId: neighbors.next } })}
-                  title="Next order (→ arrow key)"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
+                  title="Next order (→ arrow key)"><ChevronRight className="h-3.5 w-3.5" /></Button>
+                <span className="hidden lg:inline-flex items-center gap-0.5 ml-1.5 text-[9px] text-gray-400">
+                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">←</kbd>
+                  <kbd className="px-1 py-0.5 rounded border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 font-mono text-[9px] leading-none">→</kbd>
+                </span>
               </div>
             )}
           </div>
-
-          {/* Right: meta + actions */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="hidden lg:flex items-center gap-3 text-[11px] text-muted-foreground pr-1">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="text-muted-foreground/70">Created</span>
-                <span className="font-medium text-foreground/90 tabular-nums">
-                  {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
-                </span>
-              </span>
-              <span className="h-3 w-px bg-border" />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="text-muted-foreground/70">Updated</span>
-                <span className="font-medium text-foreground/90 tabular-nums">
-                  {formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}
-                </span>
-              </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="hidden md:flex items-center gap-2 text-[11px] text-gray-600">
+              <span className="text-gray-400">Created</span>
+              <span className="text-emerald-600 font-medium">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}</span>
+              <span className="h-3 w-px bg-gray-200" />
+              <span className="text-gray-400">Updated</span>
+              <span className="font-medium text-gray-700">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => window.print()}>
-                <Printer className="h-3.5 w-3.5 mr-1.5" />Invoice
-              </Button>
-              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => setBookOpen(true)}>
-                <Truck className="h-3.5 w-3.5 mr-1.5" />Pathao
-              </Button>
-              <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-medium" onClick={() => setBookSteadfastOpen(true)}>
-                <Truck className="h-3.5 w-3.5 mr-1.5" />Steadfast
-              </Button>
-            </div>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
           </div>
         </div>
       </header>
