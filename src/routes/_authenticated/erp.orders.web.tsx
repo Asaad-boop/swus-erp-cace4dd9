@@ -677,11 +677,12 @@ function _WebOrdersPageBody() {
     staleTime: 30_000,
     queryFn: async () => {
       const queries = STATUS_KEYS.map(async (st) => {
-        const { count } = await applyBrandScope(
+        let q = applyBrandScope(
           supabase.from("orders").select("id", { count: "exact", head: true }),
           brandIds,
         ).in("source", WEB_SOURCES).eq("web_status", st);
-        if (st === "processing") query.eq("status", "new" as never);
+        if (st === "processing") q = q.eq("status", "new" as never);
+        const { count } = await q;
         return [st, count ?? 0] as const;
       });
       const allQ = applyBrandScope(
