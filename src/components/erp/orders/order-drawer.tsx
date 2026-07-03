@@ -134,7 +134,10 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
     onSuccess: () => {
       toast.success("Status updated");
       qc.invalidateQueries({ queryKey: ["web-orders"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-page"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-counts"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
     },
     onError: (e: Error) => toast.error(e.message),
