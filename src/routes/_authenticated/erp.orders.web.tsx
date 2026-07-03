@@ -922,6 +922,7 @@ function _WebOrdersPageBody() {
 
   // ============ FEATURE 1 + 2: status mutations ============
   const invalidateWebOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["web-orders-page"] });
     queryClient.invalidateQueries({ queryKey: ["web-orders-inf"] });
     queryClient.invalidateQueries({ queryKey: ["web-orders-counts"] });
   };
