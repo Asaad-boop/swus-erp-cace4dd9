@@ -985,13 +985,22 @@ function InventoryHealth({ brandIds, enabled }: { brandIds: string[]; enabled: b
     queryKey: ["dash-inv", brandIds.join(",")],
     enabled, staleTime: 60_000,
     queryFn: async () => {
-      const [stock, low, out] = await Promise.all([
-        applyBrandScope(supabase.from("products").select("total_cost_value"), brandIds).eq("is_active", true),
-        applyBrandScope(supabase.from("low_stock_alerts").select("id", { count: "exact", head: true }), brandIds).eq("is_resolved", false),
+      // Single source of truth: derive Low & Out from live products.
+      const [products, out] = await Promise.all([
+        applyBrandScope(
+          supabase.from("products").select("total_cost_value, stock, available_stock, low_stock_threshold, reorder_point"),
+          brandIds,
+        ).eq("is_active", true).limit(5000),
         applyBrandScope(supabase.from("products").select("id", { count: "exact", head: true }), brandIds).eq("is_active", true).eq("stock", 0),
       ]);
-      const value = (stock.data ?? []).reduce((s: number, r: any) => s + Number(r.total_cost_value ?? 0), 0);
-      return { value, low: low.count ?? 0, out: out.count ?? 0 };
+      let value = 0, low = 0;
+      for (const p of (products.data ?? []) as any[]) {
+        value += Number(p.total_cost_value ?? 0);
+        const stock = Number(p.available_stock ?? p.stock ?? 0);
+        const threshold = Number(p.low_stock_threshold ?? p.reorder_point ?? 0);
+        if (stock > 0 && threshold > 0 && stock <= threshold) low++;
+      }
+      return { value, low, out: out.count ?? 0 };
     },
   });
   return (
