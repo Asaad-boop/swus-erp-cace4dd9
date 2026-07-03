@@ -1153,7 +1153,9 @@ function _WebOrdersPageBody() {
               filteredRows.map(({ row: r, tags: autoTags }) => {
                 const name = r.shipping_name ?? r.guest_name ?? "—";
                 const phone = r.shipping_phone ?? r.guest_phone ?? "";
-                const note = r.latest_order_note ?? r.latest_note ?? r.customer_note ?? r.notes ?? "";
+                // Only real customer/staff notes — skip r.notes (auto-populated with items summary)
+                const rawNote = r.latest_order_note ?? r.customer_note ?? r.latest_note ?? "";
+                const note = /^\s*items?\s*:/i.test(rawNote) ? "" : rawNote;
                 const address = [r.shipping_address, r.shipping_city, r.shipping_district].filter(Boolean).join(", ");
                 const items = r.items_summary ?? [];
                 const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0);
