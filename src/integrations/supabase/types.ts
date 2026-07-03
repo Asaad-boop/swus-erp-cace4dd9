@@ -7523,6 +7523,69 @@ export type Database = {
           },
         ]
       }
+      product_brand_listings: {
+        Row: {
+          brand_id: string
+          compare_at_price: number | null
+          created_at: string
+          description_override: string | null
+          display_order: number
+          id: string
+          image_override: string | null
+          is_active: boolean
+          price: number | null
+          product_id: string
+          slug: string
+          title_override: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          compare_at_price?: number | null
+          created_at?: string
+          description_override?: string | null
+          display_order?: number
+          id?: string
+          image_override?: string | null
+          is_active?: boolean
+          price?: number | null
+          product_id: string
+          slug: string
+          title_override?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          compare_at_price?: number | null
+          created_at?: string
+          description_override?: string | null
+          display_order?: number
+          id?: string
+          image_override?: string | null
+          is_active?: boolean
+          price?: number | null
+          product_id?: string
+          slug?: string
+          title_override?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_brand_listings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_brand_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_option_types: {
         Row: {
           created_at: string
@@ -8595,6 +8658,60 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_brand_catalog: {
+        Row: {
+          available_stock: number | null
+          barcode: string | null
+          brand_id: string | null
+          category_id: string | null
+          compare_at_price: number | null
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          image: string | null
+          listing_active: boolean | null
+          listing_id: string | null
+          owner_brand_id: string | null
+          price: number | null
+          product_active: boolean | null
+          product_id: string | null
+          sku: string | null
+          slug: string | null
+          stock: number | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_brand_listings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_brand_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["owner_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
