@@ -47,7 +47,26 @@ export const listDollarPurchases = createServerFn({ method: "POST" })
       .order("purchase_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
-    if (data.brandIds?.length) q = q.in("brand_id", data.brandIds);
+    if (data.brandIds?.length) {
+      // Include purchases either directly tagged to the brand, tagged as
+      // shared (brand_id IS NULL), or made on an ad account linked to the
+      // brand via the mkt_ad_account_brands junction.
+      const { data: links } = await context.supabase
+        .from("mkt_ad_account_brands")
+        .select("ad_account_id")
+        .in("brand_id", data.brandIds);
+      const linkedAdAccountIds = Array.from(
+        new Set((links ?? []).map((r: any) => r.ad_account_id)),
+      );
+      const brandList = data.brandIds.map((b) => `"${b}"`).join(",");
+      const adList = linkedAdAccountIds.map((i) => `"${i}"`).join(",");
+      const parts = [
+        `brand_id.in.(${brandList})`,
+        `brand_id.is.null`,
+      ];
+      if (linkedAdAccountIds.length) parts.push(`ad_account_id.in.(${adList})`);
+      q = q.or(parts.join(","));
+    }
     if (data.adAccountId) q = q.eq("ad_account_id", data.adAccountId);
     if (data.paidFrom) q = q.eq("paid_from_account_id", data.paidFrom);
     if (data.status) q = q.eq("status", data.status);
