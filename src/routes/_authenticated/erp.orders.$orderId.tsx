@@ -1077,9 +1077,13 @@ function OrderDetailsPage() {
               <span className="text-gray-400">Updated</span>
               <span className="font-medium text-gray-700">{formatDistanceToNow(new Date(order.updated_at ?? order.created_at), { addSuffix: true })}</span>
             </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
+            {!isWebOrder && (
+              <>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -1501,13 +1505,15 @@ function OrderDetailsPage() {
             </div>
           </section>
 
-          {/* Shipment tracking */}
-          <ShipmentPanel
-            orderId={orderId}
-            brandId={order.brand_id ?? null}
-            onBookPathao={() => setBookOpen(true)}
-            onBookSteadfast={() => setBookSteadfastOpen(true)}
-          />
+          {/* Shipment tracking — hidden on Web Order (pre-confirmation) */}
+          {!isWebOrder && (
+            <ShipmentPanel
+              orderId={orderId}
+              brandId={order.brand_id ?? null}
+              onBookPathao={() => setBookOpen(true)}
+              onBookSteadfast={() => setBookSteadfastOpen(true)}
+            />
+          )}
 
           {/* Customer 360 */}
           <CustomerHistoryPanel brandId={order.brand_id ?? null} phone={phone} currentOrderId={orderId} />
