@@ -395,6 +395,107 @@ function KpiCard({
   );
 }
 
+function FxWalletPanel({
+  wallets, marketRate,
+}: { wallets: any[]; marketRate: number | null }) {
+  const rows = (wallets ?? []).filter((w) => Number(w.remaining_usd) > 0.01);
+  const totals = rows.reduce(
+    (a, w) => {
+      const rem = Number(w.remaining_usd || 0);
+      const avg = Number(w.avg_effective_rate || 0);
+      a.usd += rem;
+      a.cost += rem * avg;
+      return a;
+    },
+    { usd: 0, cost: 0 },
+  );
+  const marketValue = marketRate ? totals.usd * marketRate : 0;
+  const unrealized = marketRate ? marketValue - totals.cost : 0;
+  const gain = unrealized >= 0;
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <div>
+          <div className="text-sm font-semibold flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-violet-600" /> USD Ad-Wallets · FX P&amp;L
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Prottek ad account er baki USD balance, avg cost, r ajker market rate e unrealized gain/loss.
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="text-right">
+            <div className="text-[10px] uppercase text-muted-foreground">On Hand</div>
+            <div className="font-semibold tabular-nums">{fmtUSD(totals.usd)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase text-muted-foreground">Book Cost</div>
+            <div className="font-semibold tabular-nums">{fmtBDT(totals.cost)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase text-muted-foreground">Market Rate</div>
+            <div className="font-semibold tabular-nums">{marketRate ? marketRate.toFixed(2) : "—"} <span className="text-xs text-muted-foreground">৳/$</span></div>
+          </div>
+          <div className={cn(
+            "text-right px-3 py-1.5 rounded-md",
+            !marketRate ? "bg-muted text-muted-foreground" : gain ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700",
+          )}>
+            <div className="text-[10px] uppercase flex items-center gap-1 justify-end">
+              {marketRate && (gain ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
+              Unrealized FX
+            </div>
+            <div className="font-semibold tabular-nums">
+              {marketRate ? `${gain ? "+" : ""}${fmtBDT(unrealized)}` : "Set FX rate"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="text-xs text-muted-foreground text-center py-4">Kono ad account e baki USD nei.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ad Account</TableHead>
+                <TableHead className="text-right">USD On Hand</TableHead>
+                <TableHead className="text-right">Avg Cost</TableHead>
+                <TableHead className="text-right">Book Value</TableHead>
+                <TableHead className="text-right">Market Value</TableHead>
+                <TableHead className="text-right">Unrealized</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((w) => {
+                const rem = Number(w.remaining_usd || 0);
+                const avg = Number(w.avg_effective_rate || 0);
+                const book = rem * avg;
+                const mv = marketRate ? rem * marketRate : 0;
+                const un = marketRate ? mv - book : 0;
+                const g = un >= 0;
+                return (
+                  <TableRow key={w.ad_account_id}>
+                    <TableCell className="font-medium">{w.ad_account_name}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtUSD(rem)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-violet-700">{avg ? avg.toFixed(4) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtBDT(book)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{marketRate ? fmtBDT(mv) : "—"}</TableCell>
+                    <TableCell className={cn("text-right tabular-nums font-medium", !marketRate ? "text-muted-foreground" : g ? "text-emerald-700" : "text-rose-700")}>
+                      {marketRate ? `${g ? "+" : ""}${fmtBDT(un)}` : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function PurchaseDialog({
   open, onOpenChange, editing, opts, onSave,
 }: {
