@@ -19,7 +19,10 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         // optional CRON_SECRET header. `/api/public/*` bypasses edge auth, so
         // we still gate the endpoint here.
         const expected = process.env.CRON_SECRET;
-        const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const anon =
+          process.env.SUPABASE_PUBLISHABLE_KEY ??
+          process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         const apikey = request.headers.get("apikey") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         const cronHeader = request.headers.get("x-cron-secret");
         const ok = (anon && apikey && apikey === anon) || (expected && cronHeader === expected);
