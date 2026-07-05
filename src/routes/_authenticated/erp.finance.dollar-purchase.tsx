@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Plus, DollarSign, Wallet, TrendingUp, Receipt, CheckCircle2, XCircle,
-  Loader2, Edit2, AlertCircle,
+  Loader2, Edit2, AlertCircle, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 
 import { useBrand } from "@/contexts/brand-context";
@@ -34,7 +34,9 @@ import {
   updateDollarPurchase,
   confirmDollarPurchase,
   cancelDollarPurchase,
+  listAdAccountWallets,
 } from "@/lib/erp/marketing/dollar-purchase.functions";
+import { useUsdBdtRate } from "@/hooks/erp/use-fx-rate";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/dollar-purchase")({
   head: () => ({ meta: [{ title: "Meta Dollar Purchase — Finance" }] }),
@@ -86,6 +88,13 @@ function DollarPurchasePage() {
   const updateFn = useServerFn(updateDollarPurchase);
   const confirmFn = useServerFn(confirmDollarPurchase);
   const cancelFn = useServerFn(cancelDollarPurchase);
+  const walletsFn = useServerFn(listAdAccountWallets);
+
+  const wallets = useQuery({
+    queryKey: ["mdp-wallets", brandIds.join(",")],
+    queryFn: () => walletsFn({ data: { brandIds } }) as Promise<any[]>,
+  });
+  const { data: marketRate } = useUsdBdtRate(brandIds);
 
   const [filters, setFilters] = useState<{
     status?: string; from?: string; to?: string; adAccountId?: string; paidFrom?: string;
@@ -170,6 +179,8 @@ function DollarPurchasePage() {
         <KpiCard icon={Receipt} label="Total Fees" value={fmtBDT(kpis.feeTotal)} tint="amber" />
         <KpiCard icon={Receipt} label="This Month Fees" value={fmtBDT(kpis.thisMonthFee)} tint="rose" />
       </div>
+
+      <FxWalletPanel wallets={wallets.data ?? []} marketRate={marketRate ?? null} />
 
       {/* Filters */}
       <Card className="p-3 flex flex-wrap items-end gap-3">
