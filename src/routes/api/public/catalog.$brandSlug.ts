@@ -42,6 +42,20 @@ export const Route = createFileRoute("/api/public/catalog/$brandSlug")({
         if (bErr) return Response.json({ error: bErr.message }, { status: 500, headers: CORS });
         if (!brand) return Response.json({ error: "Brand not found" }, { status: 404, headers: CORS });
 
+        // Per-brand order settings — allow_website_oversell lets storefronts backorder.
+        const { data: settingRow } = await sb
+          .from("app_settings")
+          .select("value")
+          .eq("key", `orders:${brand.id}`)
+          .maybeSingle();
+        let allowOversell = false;
+        if (settingRow?.value) {
+          try {
+            const parsed = JSON.parse(settingRow.value as string);
+            allowOversell = Boolean(parsed?.allow_website_oversell);
+          } catch { /* ignore */ }
+        }
+
         let q = sb
           .from("product_brand_listings")
           .select(
@@ -86,7 +100,11 @@ export const Route = createFileRoute("/api/public/catalog/$brandSlug")({
           compare_at_price: r.compare_at_price ?? r.products.old_price,
           image: r.image_override ?? r.products.image,
           gallery: r.products.gallery,
-          stock: r.products.available_stock ?? r.products.stock,
+          stock: (() => {
+            const s = r.products.available_stock ?? r.products.stock ?? 0;
+            return allowOversell && s <= 0 ? 9999 : s;
+          })(),
+          allow_backorder: allowOversell,
           brand: { id: brand.id, name: brand.name, slug: brand.slug, logo_url: brand.logo_url },
           // pass through remaining product fields
           benefits: r.products.benefits,
