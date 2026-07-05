@@ -1008,7 +1008,7 @@ function OrderDetailsPage() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookSteadfastOpen, setBookSteadfastOpen] = useState(false);
-  const isWebOrder = order.status === "new" && ["website", "pixel", "utm"].includes(String(order.source ?? ""));
+  const isWebOrder = order?.status === "new" && ["website", "pixel", "utm"].includes(String(order?.source ?? ""));
   const [returnOpen, setReturnOpen] = useState(false);
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [pendingWebStatus, setPendingWebStatus] = useState<WebStatus | null>(null);
