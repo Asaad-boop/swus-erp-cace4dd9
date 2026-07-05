@@ -723,8 +723,7 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
 
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
-    const sum = r.ok + r.damaged + r.missing;
-    if (sum !== it.quantity_expected) return [`Row sum ${sum} ≠ expected ${it.quantity_expected}`];
+    if (r.ok < 0 || r.damaged < 0 || r.missing < 0) return [`Negative quantities not allowed`];
     return [];
   }), [rows, carton]);
 
