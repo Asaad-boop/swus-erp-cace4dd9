@@ -1,102 +1,61 @@
+# Dollar Purchase + Ad Spend — Simple & Accurate Flow
 
-# Cross-Brand Product Sharing — Toyra ↔ Hobishop
+Ekhon jhamela: rate ekek din ekek rokom, ad spend BDT te convert korte gele kon rate use hobe seta unclear, r P/L (FX gain/loss) track hoy na. Nicher flow te tumi shudhu **2 ta simple entry** debe, baki system nije calculate korbe.
 
-Ekhon `products` table e ekta product ekta `brand_id` er sathe tightly bound. Toyra-r product Hobishop e sell korte gele duplicate banate hocche → stock, cost, review, image sob split hoye jay. Amra ekta clean "shared catalog + per-brand listing" pattern banabo, jekhane **product = single source of truth (inventory + cost)** ar **listing = per-brand shop face (price, active, slug, override title/image)**.
+## Core Idea — FIFO Wallet per Ad Account
 
-## Core concept
+Protita Meta ad account ke ekta **USD wallet** hishebe treat korbo. Wallet e USD ashe "Dollar Purchase" theke, ar bair hoy "Daily Ad Spend" theke. Purchase gulo **FIFO lot** hishebe boshe — je USD age kena, seta age spend hoy. Ei jonno prottek spend er against e ekta **real cost rate** paoa jay, guess kora lage na.
 
 ```text
-products (physical SKU, stock, cost)          ← owner_brand_id (who created/stocks it)
-   │
-   └── product_brand_listings (M:N)           ← per-brand: price, is_active, slug, title_override, image_override
-           ├── Toyra listing     (৳1,200, active)
-           └── Hobishop listing  (৳1,350, active)
+[Bank/bKash]  --BDT-->  [Dollar Purchase]  --USD @rate-->  [Ad Account Wallet (FIFO lots)]
+                                                                    |
+                                                                    | daily spend (USD)
+                                                                    v
+                                                            [Meta Ad Spend Expense]
+                                                            cost_bdt = Σ(usd_i × lot_rate_i)
 ```
 
-Ekta product 1..N brand e list hote pare. Stock shared — Toyra 1 unit sell korle Hobishop-eo stock kome. Cost/COGS/reorder single product theke ashbe. Public website (Toyra/Hobishop) nijer listing dekhabe with own price + slug.
+## Daily Workflow (tomar side)
 
-## Step 1 — Schema (migration)
+**1. Din e ekbar — Dollar kinle:**
+- "New Dollar Purchase" → Ad Account, Paid From (bank/bKash), USD amount, Rate (৳/$), Fee → Confirm.
+- System: bank theke BDT minus, ad wallet e USD plus (notun FIFO lot), Finance e expense/asset entry auto.
 
-New table `product_brand_listings`:
-- `id uuid pk`
-- `product_id uuid → products.id`
-- `brand_id uuid → brands.id`
-- `price numeric` (override; null → fallback to `products.price`)
-- `compare_at_price numeric null`
-- `slug text` (brand-scoped unique — allows different slug per brand)
-- `title_override text null`, `image_override text null`, `description_override text null`
-- `is_active bool default true`
-- `display_order int default 0`
-- `created_at`, `updated_at`
-- Unique: `(product_id, brand_id)` and `(brand_id, slug)`
+**2. Din e ekbar — Meta sync (already ache):**
+- Sync insights pull kore prottek adset/ad er USD spend.
+- System: FIFO consume kore — jodi lot1 e $50 baki chilo @৳122 r aj $80 spend hoy, tahole $50@122 + $30@ next lot rate. Total BDT cost otomatic.
+- Per campaign / SKU P&L e ei **actual cost_bdt** dhoke, market rate na.
 
-Products table:
-- `brand_id` → rename intent to `owner_brand_id` (physical stock owner). Keep column name to avoid breaking 100+ files; treat semantically as "primary/owner brand".
-- Add helper view `v_brand_catalog` = listings joined with product data, resolved fields (COALESCE overrides).
+**3. Mash sheshe / jekono somoy:**
+- Wallet page e dekhbe: current USD balance, average cost rate, unrealized FX (jodi aj rate 125 hoy r tomar avg 122 → paper gain $balance × 3)।
+- FX Gain/Loss report: kon month e koto realized gain/loss hoyeche (spend er somoy lot rate vs current market rate).
 
-Backfill: for every existing product, auto-create ekta listing row for its current `brand_id` with `price = products.price`, `slug = products.slug`, `is_active = products.is_active`.
+## What Changes vs Ekhon
 
-RLS + GRANTS: authenticated full CRUD (scoped by brand access in policy using `user_brand_access`), anon SELECT where `is_active = true` (public website reads).
+| Ekhon | Notun |
+|---|---|
+| Rate manually guess/average | Auto FIFO — prottek spend er real cost |
+| Ad expense BDT confusing | Ad spend ashar somoy exact BDT auto-post |
+| FX profit/loss track nai | Realized + Unrealized FX report |
+| Purchase entry te onek field | Shudhu: date, ad acct, paid from, USD, rate, fee |
 
-## Step 2 — Inventory UI (ERP)
+## UI — 3 ta simple screen
 
-`src/routes/_authenticated/erp.inventory.tsx` + `product-edit-dialog.tsx`:
-- Product form e notun section: **"List on brands"** — multi-select checkbox (Toyra / Hobishop / …), prottek ta te collapsible row: price override, slug, active toggle, title/image override.
-- Default: owner brand auto-listed with product-level price.
-- Inventory list: brand switcher e "Toyra" select korle Toyra-r listing gulai dekhabo (owner + shared). Ekta badge dekhabo: `Shared with Hobishop` jodi 2+ brand e listed.
+1. **Dollar Purchase** (already ache, simplify korbo): boro "USD" + "Rate" + "Fee" field, effective rate live show, Confirm button.
+2. **Ad Wallets** (already ache): protita ad account er USD balance, avg cost, last purchase rate, last spend date. Ek click e detail — FIFO lots + ledger.
+3. **FX P&L Report** (notun small card): This month realized FX gain/loss, unrealized on hand, avg cost vs today's market rate.
 
-Query change: `useInventoryQuery` `.eq("brand_id", ...)` er bodole join `product_brand_listings` diye `brand_id IN (...)`. Owner brand column alada dekhabe.
+## Accounting Rules (backend, tumi dekhbe na)
 
-## Step 3 — Order creation
+- Dollar Purchase Confirm → DR `Meta Ad Wallet (USD asset)` BDT amount, CR `Bank/bKash`, fee CR bank alada line.
+- Daily spend consume → DR `Advertising Expense` (cost_bdt from FIFO), CR `Meta Ad Wallet`.
+- Month-end revaluation (optional) → unrealized FX gain/loss on wallet balance.
 
-`erp.orders.new.tsx` line 150/339 e `.eq("brand_id", effectiveBrandId)` → listing table diye product lookup. Order create hole:
-- `orders.brand_id = effectiveBrand.id` (which storefront sold it — for P&L/marketing attribution)
-- `order_items.product_id` = shared product id
-- Stock decrement holo shared product theke (already product-level, kono change lage na)
+## Technical Notes
 
-## Step 4 — Public website
+- Tables already exist: `meta_dollar_purchases`, `meta_fifo_lots`, `meta_spend_consumptions`, `meta_ad_wallet_ledger`, view `v_meta_ad_wallet_summary`, RPCs `confirm_meta_dollar_purchase` / `cancel_meta_dollar_purchase`. Marketing sync FIFO consume already wired (see `CostSourceBadge` — fifo/fx_fallback/manual).
+- Kaj baki: (a) Purchase form ke aro simple kora (big USD/Rate inputs, live "effective rate = (USD×rate + fee)/USD" preview, keyboard shortcut save), (b) FX P&L mini-report card Wallets page e, (c) Marketing rollup e cost_source badge visible kora jate bujho kothay estimate.
 
-Toyra/Hobishop storefront (jodi ei repo tei thake ba alada) `products` table theke pore. Change: read `product_brand_listings` where `brand_id = current_storefront_brand AND is_active`. COALESCE(listing.price, product.price), listing.slug, etc. SEO/OG data listing-scoped.
+## Sign-off Question
 
-## Step 5 — Reports & scoping
-
-- **Sales/Revenue per brand**: already `orders.brand_id` diye split — kaj korbe.
-- **Inventory value**: single product, so owner brand er under. Alternative: split by "which brand sold last N units" — over-engineering, ekhon skip.
-- **Cost/COGS**: shared, product-level — no change.
-- **Marketing attribution**: `orders.brand_id` diye — no change.
-
-## Step 6 — Edge cases
-
-- Product delete: cascade delete listings.
-- Brand access: user jodi shudhu Toyra e access rakhe, Hobishop-only product edit korte parbe na, but Toyra listing manage korte parbe (RLS scoped).
-- Slug conflict: `(brand_id, slug)` unique — same slug duita brand e allowed, ekta brand er moddhe unique.
-- Existing duplicate products (jodi already Toyra + Hobishop e same product duplicate kora thake): manual merge tool later — ekhon scope er baire.
-
-## Files to touch
-
-**New:**
-- Migration: `product_brand_listings` table + backfill + RLS + grants + `v_brand_catalog` view
-- `src/components/erp/inventory/brand-listings-editor.tsx` — reusable multi-brand editor
-- `src/hooks/erp/use-product-listings.ts` — query/mutate listings
-
-**Edit:**
-- `src/hooks/erp/use-inventory-query.ts` — read via listings
-- `src/components/erp/inventory/product-add-dialog.tsx` + `product-edit-dialog.tsx` — listings section
-- `src/routes/_authenticated/erp.orders.new.tsx` — product lookup via listings
-- Public storefront pages (jodi ei repo te thake — kon route bolo)
-
-## Verification
-
-1. Toyra brand e ekta product create → auto ekta Toyra listing → visible on Toyra shop only
-2. Same product e "Also list on Hobishop" tick + price override → Hobishop shop e dekha jabe with own price + slug
-3. Toyra theke 1 unit sell → shared stock kombe → Hobishop stock-eo kombe
-4. Orders report: Toyra order Toyra revenue e, Hobishop order Hobishop revenue e
-5. User with Toyra-only access can't edit Hobishop-only listing
-
-## Open questions
-
-1. Public storefront (Toyra/Hobishop website) ki ei same repo te ache, na alada project? Alada hole schema + API contract dibo, oi repo alada handle korbe.
-2. Reviews — brand-scoped na product-scoped? (Recommend: product-scoped, shared across brands, but filterable by brand.)
-3. Price default behavior: listing price null hole product.price fallback — OK, na proti listing e explicit price mandatory?
-
-Confirm korle Step 1 migration diye shuru korbo.
+Ei flow te aggre? Aggre hole ami: (1) Dollar Purchase form simplify, (2) FX Gain/Loss card add, (3) SKU/Campaign P&L e "actual cost basis" toggle add — ei 3 ta implement kore debo. Kono step change korte chao?
