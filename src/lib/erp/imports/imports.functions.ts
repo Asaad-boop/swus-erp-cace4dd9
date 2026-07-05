@@ -108,7 +108,9 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
         weight_kg, cost_share_bdt, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
         items:imp_carton_items ( id, po_item_id, product_id, variant_id, sku_snapshot,
           quantity_expected, quantity_ok, quantity_damaged, quantity_missing,
-          received_qty, damaged_qty, usable_qty )
+          received_qty, damaged_qty, usable_qty,
+          product:product_id ( id, title, image, sku ),
+          variant:variant_id ( id, sku, color_name, color_hex, image ) )
       `).eq("po_id", data.poId).order("carton_number"),
       context.supabase.from("imp_payments").select(`
         id, carton_id, payment_type, amount_bdt, wallet_id, payment_date, reference,

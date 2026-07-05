@@ -723,8 +723,7 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
 
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
-    const sum = r.ok + r.damaged + r.missing;
-    if (sum !== it.quantity_expected) return [`Row sum ${sum} ≠ expected ${it.quantity_expected}`];
+    if (r.ok < 0 || r.damaged < 0 || r.missing < 0) return [`Negative quantities not allowed`];
     return [];
   }), [rows, carton]);
 
@@ -789,11 +788,11 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>SKU</TableHead>
+              <TableHead>Product</TableHead>
               <TableHead className="text-right">Expected</TableHead>
               <TableHead className="text-right w-24">Damaged</TableHead>
               <TableHead className="text-right w-24">Missing</TableHead>
-              <TableHead className="text-right w-20">OK</TableHead>
+              <TableHead className="text-right w-24">OK (received)</TableHead>
               <TableHead className="text-right">OK unit ৳</TableHead>
               <TableHead className="text-right">OK value</TableHead>
             </TableRow>
@@ -802,13 +801,46 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
             {(carton.items ?? []).map((it: any) => {
               const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
               const itemUnit = totalOk > 0 ? perOkPiece : 0;
+              const expected = Number(it.quantity_expected || 0);
+              const totalRow = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
+              const extra = totalRow - expected;
+              const variantLabel = it.variant?.color_name ?? null;
+              const variantHex = it.variant?.color_hex ?? null;
+              const title = it.product?.title ?? it.sku_snapshot ?? "—";
               return (
                 <TableRow key={it.id}>
-                  <TableCell className="font-mono text-xs">{it.sku_snapshot ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{it.quantity_expected}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {(it.variant?.image || it.product?.image) && (
+                        <img src={it.variant?.image || it.product?.image} alt="" className="h-8 w-8 rounded object-cover border" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium truncate max-w-[220px]">{title}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {variantLabel && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border bg-muted/40">
+                              {variantHex && <span className="h-2.5 w-2.5 rounded-full border" style={{ background: variantHex }} />}
+                              {variantLabel}
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] text-muted-foreground">{it.variant?.sku ?? it.sku_snapshot ?? ""}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{expected}</TableCell>
                   <TableCell><Input type="number" min={0} value={r.damaged} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, damaged: Number(e.target.value) } }))} /></TableCell>
                   <TableCell><Input type="number" min={0} value={r.missing} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, missing: Number(e.target.value) } }))} /></TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">{r.ok}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Input type="number" min={0} value={r.ok} className="h-8 text-right w-20" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, ok: Number(e.target.value) } }))} />
+                      {extra !== 0 && (
+                        <span className={`text-[10px] font-medium ${extra > 0 ? "text-emerald-600" : "text-orange-600"}`}>
+                          {extra > 0 ? `+${extra} extra` : `${extra} short`}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums text-xs">{fmtBdt(itemUnit)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold text-emerald-600">{fmtBdt(r.ok * itemUnit)}</TableCell>
                 </TableRow>
@@ -817,8 +849,6 @@ function InlineQcForm({ carton, brandId, poItems, poId, poDue }: { carton: any; 
           </TableBody>
         </Table>
       </div>
-      {/* Recompute OK = expected - damaged - missing on each render */}
-      <RowsAutoCompute rows={rows} setRows={setRows} carton={carton} />
 
       {rowErrors.length > 0 && (
         <div className="text-xs text-orange-600 flex items-start gap-2 p-2 rounded-md bg-orange-50 dark:bg-orange-950/30">
