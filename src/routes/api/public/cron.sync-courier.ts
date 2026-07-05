@@ -22,7 +22,8 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         const anon =
           process.env.SUPABASE_PUBLISHABLE_KEY ??
           process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnc3NwaXBramV1Y2VmdHVhdHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNDcyMzIsImV4cCI6MjA5MTgyMzIzMn0.h6aRTBUhTvEvKCx8M-lvyA2BCBQbhvWMWKgn8dIyilc";
         const apikey = request.headers.get("apikey") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         const cronHeader = request.headers.get("x-cron-secret");
         const ok = (anon && apikey && apikey === anon) || (expected && cronHeader === expected);
