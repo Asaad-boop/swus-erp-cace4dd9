@@ -21,6 +21,7 @@ type OrderSettings = {
   cod_fee_value: number;
   return_window_days: number;
   order_id_format: string;
+  allow_website_oversell: boolean;
 };
 
 const DEFAULTS: OrderSettings = {
@@ -30,6 +31,7 @@ const DEFAULTS: OrderSettings = {
   cod_fee_value: 0,
   return_window_days: 7,
   order_id_format: "{prefix}{seq}",
+  allow_website_oversell: false,
 };
 
 export function InvoiceOrdersSection({ brandId }: { brandId: string }) {
@@ -103,6 +105,15 @@ export function InvoiceOrdersSection({ brandId }: { brandId: string }) {
             <div className="flex items-center justify-between rounded-md border p-3 md:col-span-2">
               <Label>Auto-confirm orders on creation</Label>
               <Switch checked={form.auto_confirm} onCheckedChange={(v) => set("auto_confirm", v)} disabled={!isAdmin} />
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3 md:col-span-2">
+              <div>
+                <Label>Allow website orders when out of stock</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Enable to let customers order from the storefront even if ERP stock is 0 (backorder).
+                </p>
+              </div>
+              <Switch checked={form.allow_website_oversell} onCheckedChange={(v) => set("allow_website_oversell", v)} disabled={!isAdmin} />
             </div>
           </div>
         )}
