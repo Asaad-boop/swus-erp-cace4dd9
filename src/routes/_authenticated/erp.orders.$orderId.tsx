@@ -1200,8 +1200,10 @@ function OrderDetailsPage() {
                 </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
-                <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} className="resize-none" />
-                <div className="text-[10px] text-right text-muted-foreground">{form.shipping_note.length}/150</div>
+                <ShippingNotePresets
+                  value={form.shipping_note}
+                  onChange={(v) => setForm({ ...form, shipping_note: v.slice(0, 150) })}
+                />
               </FieldShell>
               <div className="space-y-3">
                 <FieldShell label="Source Platform">
