@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send, AlertTriangle, Truck, Pencil, Lock, ShieldAlert } from "lucide-react";
+import { User, Phone, MapPin, Package, Clock, Loader2, Hash, Calendar, Globe, UserCog, ListChecks, StickyNote, Send, AlertTriangle, Truck, Pencil, Lock, ShieldAlert, Save, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -19,6 +19,42 @@ import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDispla
 import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
+
+type CustomerDraft = {
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address: string;
+  shipping_thana: string;
+  shipping_city: string;
+  shipping_district: string;
+  shipping_note: string;
+  customer_note: string;
+};
+
+const EMPTY_CUSTOMER_DRAFT: CustomerDraft = {
+  shipping_name: "",
+  shipping_phone: "",
+  shipping_address: "",
+  shipping_thana: "",
+  shipping_city: "",
+  shipping_district: "",
+  shipping_note: "",
+  customer_note: "",
+};
+
+function draftFromOrder(order: Record<string, unknown> | null | undefined): CustomerDraft {
+  if (!order) return EMPTY_CUSTOMER_DRAFT;
+  return {
+    shipping_name: String(order.shipping_name ?? order.guest_name ?? ""),
+    shipping_phone: String(order.shipping_phone ?? order.guest_phone ?? ""),
+    shipping_address: String(order.shipping_address ?? ""),
+    shipping_thana: String(order.shipping_thana ?? ""),
+    shipping_city: String(order.shipping_city ?? ""),
+    shipping_district: String(order.shipping_district ?? ""),
+    shipping_note: String(order.shipping_note ?? ""),
+    customer_note: String(order.customer_note ?? ""),
+  };
+}
 
 const LOCK_STALE_MS = 90_000;
 
@@ -76,6 +112,8 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const [advTxnId, setAdvTxnId] = useState("");
   const [feeOpen, setFeeOpen] = useState(false);
   const [feeAmount, setFeeAmount] = useState("");
+  const [customerEditing, setCustomerEditing] = useState(false);
+  const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(EMPTY_CUSTOMER_DRAFT);
   const setFeeFn = useServerFn(setOrderActualShippingCostFn);
 
   const order = data?.order;
@@ -99,6 +137,25 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const advancePaymentNumber = (order as { advance_payment_number?: string | null } | undefined)?.advance_payment_number;
   const advanceTxnId = (order as { advance_txn_id?: string | null } | undefined)?.advance_txn_id;
   const editingBlocked = mode === "web" && lockState.heldByOther;
+  useEffect(() => {
+    if (!order || customerEditing) return;
+    setCustomerDraft(draftFromOrder(order));
+  }, [order, customerEditing]);
+
+  const startCustomerEdit = () => {
+    if (editingBlocked) {
+      toast.error(`Order opened by ${lockState.lock?.user_name ?? "another user"}. Takeover first.`);
+      return;
+    }
+    setCustomerDraft(draftFromOrder(order));
+    setCustomerEditing(true);
+  };
+
+  const cancelCustomerEdit = () => {
+    setCustomerDraft(draftFromOrder(order));
+    setCustomerEditing(false);
+  };
+
   const guardedAction = (action: () => void) => {
     if (editingBlocked) {
       toast.error(`Order opened by ${lockState.lock?.user_name ?? "another user"}. Takeover first.`);
@@ -116,6 +173,41 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
       toast.success("Status updated");
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveCustomer = useMutation({
+    mutationFn: async () => {
+      if (!orderId) throw new Error("Order missing");
+      const payload = {
+        shipping_name: customerDraft.shipping_name.trim() || null,
+        shipping_phone: customerDraft.shipping_phone.trim() || null,
+        shipping_address: customerDraft.shipping_address.trim() || null,
+        shipping_thana: customerDraft.shipping_thana.trim() || null,
+        shipping_city: customerDraft.shipping_city.trim() || null,
+        shipping_district: customerDraft.shipping_district.trim() || null,
+        shipping_note: customerDraft.shipping_note.trim() || null,
+        customer_note: customerDraft.customer_note.trim() || null,
+        ...(order?.is_guest_order
+          ? {
+            guest_name: customerDraft.shipping_name.trim() || null,
+            guest_phone: customerDraft.shipping_phone.trim() || null,
+          }
+          : {}),
+      };
+      const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Customer details saved");
+      setCustomerEditing(false);
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-status-counts"] });
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-page"] });
+      qc.invalidateQueries({ queryKey: ["web-orders-counts"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -335,35 +427,89 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                 <div className="lg:col-span-2 space-y-4">
                   {/* Customer */}
                   <section className="rounded-xl border bg-card p-4 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5"><User className="h-3.5 w-3.5" />Customer</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="text-base font-semibold">{customerName(order)}</div>
-                      <a href={`tel:${customerPhone(order)}`} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium tabular-nums">{customerPhone(order)}</span>
-                      </a>
-                      <div className="flex items-start gap-2 text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span className="leading-relaxed">{order.shipping_address}, {[order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ")}</span>
-                      </div>
-                      {((order as { shipping_note?: string | null }).shipping_note ?? "").trim() && (
-                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-sky-300/60 bg-sky-50 dark:bg-sky-950/30 dark:border-sky-900/50">
-                          <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Shipping Note</div>
-                            <p className="text-xs text-foreground leading-snug">{(order as { shipping_note?: string | null }).shipping_note}</p>
-                          </div>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><User className="h-3.5 w-3.5" />Customer</h3>
+                      {customerEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button size="sm" variant="ghost" className="h-7 px-2 gap-1" onClick={cancelCustomerEdit} disabled={saveCustomer.isPending}>
+                            <X className="h-3.5 w-3.5" />Cancel
+                          </Button>
+                          <Button size="sm" className="h-7 px-2 gap-1" onClick={() => guardedAction(() => saveCustomer.mutate())} disabled={saveCustomer.isPending || editingBlocked}>
+                            {saveCustomer.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                            Save
+                          </Button>
                         </div>
-                      )}
-                      {(order.customer_note ?? "").trim() && (
-                        <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/50">
-                          <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Customer Note</div>
-                            <p className="text-xs text-foreground leading-snug">{order.customer_note}</p>
-                          </div>
-                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={startCustomerEdit} disabled={editingBlocked}>
+                          <Pencil className="h-3.5 w-3.5" />Edit
+                        </Button>
                       )}
                     </div>
+                    {customerEditing ? (
+                      <div className="grid gap-3 text-sm sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Name</Label>
+                          <Input value={customerDraft.shipping_name} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_name: e.target.value }))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Phone Number</Label>
+                          <Input value={customerDraft.shipping_phone} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_phone: e.target.value }))} className="h-8 font-mono" />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[11px] text-muted-foreground">Address</Label>
+                          <Textarea rows={3} value={customerDraft.shipping_address} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_address: e.target.value }))} className="resize-none text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Thana / Zone</Label>
+                          <Input value={customerDraft.shipping_thana} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_thana: e.target.value }))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">City</Label>
+                          <Input value={customerDraft.shipping_city} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_city: e.target.value }))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">District</Label>
+                          <Input value={customerDraft.shipping_district} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_district: e.target.value }))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Shipping Note</Label>
+                          <Input value={customerDraft.shipping_note} onChange={(e) => setCustomerDraft((d) => ({ ...d, shipping_note: e.target.value }))} className="h-8" />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[11px] text-muted-foreground">Customer Note</Label>
+                          <Textarea rows={2} value={customerDraft.customer_note} onChange={(e) => setCustomerDraft((d) => ({ ...d, customer_note: e.target.value }))} className="resize-none text-sm" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 text-sm">
+                        <div className="text-base font-semibold">{customerName(order)}</div>
+                        <a href={`tel:${customerPhone(order)}`} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium tabular-nums">{customerPhone(order)}</span>
+                        </a>
+                        <div className="flex items-start gap-2 text-muted-foreground">
+                          <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span className="leading-relaxed">{order.shipping_address}, {[order.shipping_thana, order.shipping_city, order.shipping_district].filter(Boolean).join(", ")}</span>
+                        </div>
+                        {((order as { shipping_note?: string | null }).shipping_note ?? "").trim() && (
+                          <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-sky-300/60 bg-sky-50 dark:bg-sky-950/30 dark:border-sky-900/50">
+                            <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Shipping Note</div>
+                              <p className="text-xs text-foreground leading-snug">{(order as { shipping_note?: string | null }).shipping_note}</p>
+                            </div>
+                          </div>
+                        )}
+                        {(order.customer_note ?? "").trim() && (
+                          <div className="mt-2 flex items-start gap-2 p-2 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/50">
+                            <StickyNote className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Customer Note</div>
+                              <p className="text-xs text-foreground leading-snug">{order.customer_note}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </section>
 
                   {/* Items */}
