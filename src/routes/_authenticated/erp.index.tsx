@@ -1861,66 +1861,128 @@ function HourlyOrdersComparison({ brandIds, enabled }: { brandIds: string[]; ena
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
-      <header className="px-5 py-3.5 flex items-center justify-between border-b border-border/60 flex-wrap gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="size-7 grid place-items-center rounded-md bg-muted border border-border/60 shrink-0">
-            <TrendingUp className="size-3.5 text-muted-foreground" />
+      <header className="px-5 py-4 border-b border-border/60">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-9 grid place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm shrink-0">
+              <Clock className="size-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h2
+                className="text-[13px] font-semibold uppercase tracking-[0.14em] text-foreground truncate leading-tight"
+                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+              >
+                Hourly Orders
+              </h2>
+              <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                {humanDate(selectedDate)}
+                <span className="mx-1.5 text-muted-foreground/60">vs</span>
+                {humanDate(prevDate)}
+                {isToday && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-emerald-600 font-medium">
+                    <span className="relative flex size-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
+                    </span>
+                    Live
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <h2
-            className="text-[12px] font-semibold uppercase tracking-[0.16em] text-foreground truncate"
-            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
-          >
-            Hourly Orders · Day compare
-          </h2>
-          <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted text-muted-foreground border border-border/60">
-            {humanDate(selectedDate)} vs {humanDate(prevDate)}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={selectedDate}
-            max={ymdLocal(new Date())}
-            onChange={(e) => setSelectedDate(e.target.value || ymdLocal(new Date()))}
-            className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setSelectedDate(ymdLocal(new Date()))}
-          >
-            Today
-          </Button>
-          <Button variant="ghost" size="sm" className="size-8 p-0" onClick={() => setOpen((o) => !o)}>
-            {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="hidden md:flex items-center rounded-lg border border-border/60 bg-background overflow-hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 rounded-none hover:bg-muted"
+                onClick={() => setSelectedDate((d) => prevDayYmd(d))}
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <label className="relative inline-flex items-center px-2.5 gap-1.5 text-xs font-medium cursor-pointer hover:bg-muted h-8 border-x border-border/60">
+                <CalendarDays className="size-3.5 text-muted-foreground" />
+                <span className="tabular-nums">{humanDate(selectedDate)}</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={ymdLocal(new Date())}
+                  onChange={(e) => setSelectedDate(e.target.value || ymdLocal(new Date()))}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 rounded-none hover:bg-muted disabled:opacity-40"
+                disabled={isToday}
+                onClick={() => {
+                  const [y, m, d] = selectedDate.split("-").map(Number);
+                  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+                  dt.setDate(dt.getDate() + 1);
+                  const next = ymdLocal(dt);
+                  if (next <= ymdLocal(new Date())) setSelectedDate(next);
+                }}
+                aria-label="Next day"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+            <Button
+              variant={isToday ? "default" : "outline"}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setSelectedDate(ymdLocal(new Date()))}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs hidden sm:inline-flex"
+              onClick={() => setSelectedDate(prevDayYmd(ymdLocal(new Date())))}
+            >
+              Yesterday
+            </Button>
+            <Button variant="ghost" size="sm" className="size-8 p-0" onClick={() => setOpen((o) => !o)}>
+              {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </Button>
+          </div>
         </div>
       </header>
       {open && (
-        <div className="p-5">
+        <div className="p-5 bg-gradient-to-b from-muted/20 to-transparent">
           {isLoading ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Skeleton className="h-72 w-full" />
-              <Skeleton className="h-72 w-full" />
+              <Skeleton className="h-[380px] w-full" />
+              <Skeleton className="h-[380px] w-full" />
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <HourlyChartCard
                 title="Web Orders"
-                subtitle="Website checkout — created hourly"
+                subtitle="Website checkout — hourly created"
+                icon={ShoppingCart}
                 accent="#6366F1"
+                accentSoft="#EEF2FF"
                 series={webSeries}
                 selectedLabel={humanDate(selectedDate)}
                 previousLabel={humanDate(prevDate)}
+                isToday={isToday}
+                currentHour={currentHour}
               />
               <HourlyChartCard
                 title="Confirmed / Manual"
                 subtitle="Confirmations + manual & POS orders"
+                icon={CheckCircle2}
                 accent="#10B981"
+                accentSoft="#ECFDF5"
                 series={confSeries}
                 selectedLabel={humanDate(selectedDate)}
                 previousLabel={humanDate(prevDate)}
+                isToday={isToday}
+                currentHour={currentHour}
               />
             </div>
           )}
@@ -1933,17 +1995,25 @@ function HourlyOrdersComparison({ brandIds, enabled }: { brandIds: string[]; ena
 function HourlyChartCard({
   title,
   subtitle,
+  icon: Icon,
   accent,
+  accentSoft,
   series,
   selectedLabel,
   previousLabel,
+  isToday,
+  currentHour,
 }: {
   title: string;
   subtitle: string;
+  icon: any;
   accent: string;
+  accentSoft: string;
   series: Array<{ hour: number; label: string; current: number; previous: number; isCurrent: boolean }>;
   selectedLabel: string;
   previousLabel: string;
+  isToday: boolean;
+  currentHour: number;
 }) {
   const totalCur = series.reduce((s, b) => s + b.current, 0);
   const totalPrev = series.reduce((s, b) => s + b.previous, 0);
@@ -1951,72 +2021,153 @@ function HourlyChartCard({
   const pct = totalPrev > 0 ? Math.round((diff / totalPrev) * 100) : totalCur > 0 ? 100 : 0;
   const up = diff >= 0;
   const peakHour = series.reduce((m, b) => (b.current > m.current ? b : m), series[0] ?? { current: 0, label: "-" });
+  const activeHours = series.filter((b) => b.current > 0).length;
+  const avgPerActive = activeHours > 0 ? (totalCur / activeHours).toFixed(1) : "0";
+  const gradId = `grad-${title.replace(/\s+/g, "")}`;
+  const gradPrevId = `gradPrev-${title.replace(/\s+/g, "")}`;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
+    <div className="group relative rounded-2xl border border-border/60 bg-card p-5 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      {/* subtle accent glow */}
+      <div
+        className="absolute -top-16 -right-16 size-40 rounded-full opacity-40 blur-3xl pointer-events-none"
+        style={{ background: accentSoft }}
+      />
+      {/* Header */}
+      <div className="relative flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start gap-2.5 min-w-0">
           <div
-            className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em]"
-            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+            className="size-9 grid place-items-center rounded-xl shrink-0"
+            style={{ background: accentSoft, color: accent }}
           >
-            {title}
+            <Icon className="size-4" />
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</div>
+          <div className="min-w-0">
+            <div
+              className="text-[13px] font-semibold text-foreground leading-tight truncate"
+              style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+            >
+              {title}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{subtitle}</div>
+          </div>
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <div
-            className="text-2xl font-semibold tabular-nums text-foreground leading-none"
-            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+            className="text-3xl font-bold tabular-nums text-foreground leading-none"
+            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.03em" }}
           >
             {totalCur}
           </div>
           <div
             className={cn(
-              "text-[11px] font-semibold mt-1 inline-flex items-center gap-0.5 tabular-nums",
-              up ? "text-emerald-600" : "text-rose-600",
+              "text-[11px] font-semibold mt-1.5 inline-flex items-center gap-0.5 tabular-nums px-1.5 py-0.5 rounded-full",
+              up ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50",
             )}
           >
             {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
             {up ? "+" : ""}{diff} ({up ? "+" : ""}{pct}%)
-            <span className="text-muted-foreground font-normal ml-1">vs {totalPrev}</span>
           </div>
         </div>
       </div>
-      <div className="h-64">
+
+      {/* KPI mini-strip */}
+      <div className="relative grid grid-cols-3 gap-2 mb-4">
+        <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Peak Hour</div>
+          <div className="text-sm font-bold tabular-nums text-foreground mt-0.5">
+            {peakHour?.label ?? "-"}
+            <span className="text-[10px] text-muted-foreground font-medium ml-1">({peakHour?.current ?? 0})</span>
+          </div>
+        </div>
+        <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Avg / Active Hr</div>
+          <div className="text-sm font-bold tabular-nums text-foreground mt-0.5">
+            {avgPerActive}
+          </div>
+        </div>
+        <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Prev Day</div>
+          <div className="text-sm font-bold tabular-nums text-muted-foreground mt-0.5">
+            {totalPrev}
+          </div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="relative h-64">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id={`grad-${title.replace(/\s+/g, "")}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={accent} stopOpacity={0.35} />
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.4} />
                 <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id={gradPrevId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#94A3B8" stopOpacity={0.18} />
+                <stop offset="100%" stopColor="#94A3B8" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" />
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} interval={2} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
             <Tooltip
-              cursor={{ fill: "rgba(0,0,0,0.03)" }}
-              contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 12, boxShadow: "0 8px 24px -8px rgba(0,0,0,0.15)" }}
-              formatter={(value: number, name: string) => [value, name === "current" ? selectedLabel : previousLabel]}
-              labelFormatter={(l) => `Hour ${l}`}
+              cursor={{ stroke: accent, strokeWidth: 1, strokeDasharray: "3 3" }}
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const cur = Number(payload.find((p) => p.dataKey === "current")?.value ?? 0);
+                const prev = Number(payload.find((p) => p.dataKey === "previous")?.value ?? 0);
+                const d = cur - prev;
+                const p = prev > 0 ? Math.round((d / prev) * 100) : cur > 0 ? 100 : 0;
+                return (
+                  <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-xl min-w-[140px]">
+                    <div className="font-semibold mb-1.5 text-foreground">Hour {label}</div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-2 rounded-full" style={{ background: accent }} />
+                        <span className="text-muted-foreground">{selectedLabel}</span>
+                      </span>
+                      <span className="font-bold tabular-nums text-foreground">{cur}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 mt-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-2 rounded-full bg-slate-400" />
+                        <span className="text-muted-foreground">{previousLabel}</span>
+                      </span>
+                      <span className="font-bold tabular-nums text-muted-foreground">{prev}</span>
+                    </div>
+                    <div className={cn("mt-1.5 pt-1.5 border-t border-border/60 text-[11px] font-semibold flex items-center justify-between", d >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                      <span>Δ</span>
+                      <span>{d >= 0 ? "+" : ""}{d} ({d >= 0 ? "+" : ""}{p}%)</span>
+                    </div>
+                  </div>
+                );
+              }}
             />
-            <Legend
-              iconType="circle"
-              wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}
-              formatter={(v) => (v === "current" ? selectedLabel : previousLabel)}
-            />
-            <Line type="monotone" dataKey="previous" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="previous" />
-            <Area type="monotone" dataKey="current" stroke={accent} strokeWidth={2} fill={`url(#grad-${title.replace(/\s+/g, "")})`} name="current" />
+            <Area type="monotone" dataKey="previous" stroke="#94A3B8" strokeWidth={1.25} strokeDasharray="4 3" fill={`url(#${gradPrevId})`} name="previous" dot={false} />
+            <Area type="monotone" dataKey="current" stroke={accent} strokeWidth={2.25} fill={`url(#${gradId})`} name="current" dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff", fill: accent }} />
+            {isToday && (
+              <ReferenceLine
+                x={series[currentHour]?.label}
+                stroke={accent}
+                strokeDasharray="3 3"
+                strokeOpacity={0.5}
+                label={{ value: "Now", position: "top", fontSize: 9, fill: accent, fontWeight: 700 }}
+              />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          Peak: <strong className="text-foreground tabular-nums">{peakHour?.label ?? "-"}</strong> ({peakHour?.current ?? 0} orders)
+
+      {/* Legend */}
+      <div className="relative mt-2 flex items-center justify-center gap-4 text-[10px] font-semibold uppercase tracking-wider">
+        <span className="inline-flex items-center gap-1.5 text-foreground">
+          <span className="size-2 rounded-full" style={{ background: accent }} />
+          {selectedLabel}
         </span>
-        <span>
-          Prev day: <strong className="text-foreground tabular-nums">{totalPrev}</strong>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="inline-block w-3 h-[2px] border-t-2 border-dashed border-slate-400" />
+          {previousLabel}
         </span>
       </div>
     </div>
