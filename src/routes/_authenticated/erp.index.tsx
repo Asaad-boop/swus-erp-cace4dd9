@@ -115,35 +115,29 @@ function AdminDashboard() {
   }, []);
 
   return (
-    <div
-      className="min-h-screen bg-background text-foreground font-sans"
-      style={{ fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif" }}
-    >
-      {/* HEADER — minimal */}
-      <div className="border-b border-border/60 bg-background sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="px-4 md:px-8 py-5 max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1 font-semibold">
-                SynqWithUs ERP · {new Date().toLocaleDateString("en-GB", { weekday: "long", month: "short", day: "numeric" })}
-              </p>
-              <h1
-                className="text-xl md:text-2xl font-semibold tracking-tight text-foreground truncate"
-                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
-              >
+    <div className="min-h-screen bg-white text-slate-900">
+      {/* HEADER — Linear/Vercel style: hairline, tight, no gradient */}
+      <div className="border-b border-slate-200 bg-white/90 sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+        <div className="px-4 md:px-6 py-3 max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+            <div className="min-w-0 flex items-baseline gap-3 flex-wrap">
+              <h1 className="text-[15px] font-semibold tracking-tight text-slate-900 truncate">
                 {greeting()}, {me?.name ?? "..."}
               </h1>
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                {isAllBrands ? `All Brands · ${brands.length} workspaces` : activeBrand?.name ?? ""}
-              </p>
+              <span className="text-[12px] text-slate-500 truncate">
+                {isAllBrands ? `All Brands · ${brands.length}` : activeBrand?.name ?? ""}
+                <span className="mx-1.5 text-slate-300">·</span>
+                {new Date().toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric" })}
+              </span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-muted/40 text-[11px] text-muted-foreground">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Synced {timeAgo(lastSync)}
-              </div>
-              <Button size="sm" variant="outline" onClick={refreshAll} className="gap-1.5">
-                <RefreshCw className="size-3.5" /> Refresh
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                Updated {timeAgo(lastSync)}
+              </span>
+              <Button size="sm" variant="ghost" onClick={refreshAll} className="gap-1.5 h-8 px-2 text-slate-600 hover:text-slate-900">
+                <RefreshCw className="size-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
               </Button>
               <DateRangePicker value={mktRange} onChange={setMktRange} />
             </div>
@@ -151,7 +145,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 py-6 max-w-[1600px] mx-auto space-y-6">
+      <div className="px-4 md:px-6 py-4 max-w-[1600px] mx-auto space-y-4">
         {/* KPI strip */}
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
 
