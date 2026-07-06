@@ -8839,6 +8839,10 @@ export type Database = {
         Args: { _account_id: string; _delta: number; _reason: string }
         Returns: string
       }
+      adjust_meta_dollar_purchase: {
+        Args: { _purchase_id: string; _reason?: string }
+        Returns: Json
+      }
       adjust_product_stock: {
         Args: {
           _delta: number
