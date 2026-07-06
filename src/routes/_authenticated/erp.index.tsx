@@ -329,44 +329,109 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 auto-rows-[112px] gap-2.5">
-      {cards.map((c, i) => {
-        const feature = false;
-        return (
-          <button
-            key={i}
-            onClick={() => c.to && onNav(c.to)}
-            className={cn(
-              "group relative text-left rounded-lg border border-border/60 bg-card p-3.5 overflow-hidden",
-              "transition-colors duration-150 hover:border-foreground/20",
-              c.to && "cursor-pointer",
-            )}
-          >
-            <div className="relative flex items-start justify-between mb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{c.label}</span>
-              <c.icon className="size-3.5 text-muted-foreground/70" />
-            </div>
-            {isLoading ? <Skeleton className="h-9 w-28" /> : (
-              <div
-                className={cn(
-                  "relative tabular-nums leading-none tracking-tight font-semibold text-foreground text-xl md:text-[24px]",
-                  typeof (c as any).amount === "number" && moneyTier((c as any).amount),
-                )}
-                style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
-              >
-                {c.value}
-              </div>
-            )}
-            <div className="relative mt-2 flex items-center gap-1.5 min-h-[18px]">
-              {typeof (c as any).trend === "number" ? (
-                <TrendChip trend={(c as any).trend} />
-              ) : null}
-              <span className="text-[11px] text-muted-foreground truncate">{c.sub}</span>
-            </div>
-          </button>
-        );
-      })}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      {cards.map((c, i) => (
+        <KpiCard
+          key={i}
+          icon={c.icon}
+          label={c.label}
+          value={c.value}
+          amount={(c as any).amount}
+          trend={(c as any).trend}
+          sub={c.sub}
+          tone={c.tone}
+          to={c.to}
+          onNav={onNav}
+          loading={isLoading}
+          seed={i}
+        />
+      ))}
     </div>
+  );
+}
+
+// ---------- KPI CARD (Biliex-style) ----------
+function KpiCard({
+  icon: Icon, label, value, amount, trend, sub, tone, to, onNav, loading, seed,
+}: {
+  icon: any; label: string; value: any; amount?: number; trend?: number;
+  sub: string; tone: string; to?: string; onNav: (to: string) => void;
+  loading: boolean; seed: number;
+}) {
+  // deterministic mini bars, biased by trend direction
+  const bars = useMemo(() => {
+    const rand = (n: number) => {
+      const x = Math.sin(seed * 91 + n * 17) * 10000;
+      return x - Math.floor(x);
+    };
+    const bias = typeof trend === "number" ? Math.max(-1, Math.min(1, trend / 40)) : 0;
+    return Array.from({ length: 14 }, (_, i) => {
+      const base = 0.35 + rand(i) * 0.55;
+      const ramp = (i / 13) * bias * 0.4;
+      return Math.max(0.15, Math.min(1, base + ramp));
+    });
+  }, [seed, trend]);
+
+  const clickable = !!to;
+  return (
+    <button
+      onClick={() => clickable && onNav(to!)}
+      className={cn(
+        "group relative text-left rounded-2xl border border-border/60 bg-card p-4 md:p-5 overflow-hidden",
+        "shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200",
+        "hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] hover:border-foreground/15 hover:-translate-y-0.5",
+        clickable && "cursor-pointer",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 leading-tight pt-1">
+          {label}
+        </span>
+        <div className={cn(
+          "grid place-items-center size-10 rounded-xl shrink-0 shadow-sm",
+          toneBg(tone),
+        )}>
+          <Icon className={cn("size-4.5", toneFg(tone))} />
+        </div>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-8 w-28 mb-3" />
+      ) : (
+        <div
+          className={cn(
+            "tabular-nums leading-none tracking-tight font-bold text-foreground text-[28px] md:text-[30px] mb-3",
+            typeof amount === "number" && moneyTier(amount),
+          )}
+          style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.03em" }}
+        >
+          {value}
+        </div>
+      )}
+
+      <div className="flex items-end justify-between gap-2">
+        <div className="flex items-end gap-[3px] h-7 flex-1 min-w-0">
+          {bars.map((h, i) => (
+            <span
+              key={i}
+              className={cn("flex-1 rounded-sm transition-colors", toneBarBg(tone))}
+              style={{ height: `${h * 100}%`, opacity: 0.35 + (i / bars.length) * 0.65 }}
+            />
+          ))}
+        </div>
+        {typeof trend === "number" ? (
+          <TrendChip trend={trend} />
+        ) : (
+          <span className="text-[10px] font-medium text-muted-foreground/80 truncate max-w-[110px] text-right">
+            {sub}
+          </span>
+        )}
+      </div>
+
+      {typeof trend === "number" && (
+        <div className="mt-2 text-[10px] text-muted-foreground/70 truncate">{sub}</div>
+      )}
+    </button>
   );
 }
 
@@ -406,6 +471,17 @@ function toneFg(t: string) {
     amber: "text-amber-600", rose: "text-rose-600", slate: "text-slate-600",
     violet: "text-violet-600",
   }[t] ?? "text-foreground";
+}
+function toneBarBg(t: string) {
+  return {
+    indigo: "bg-indigo-400 dark:bg-indigo-500",
+    emerald: "bg-emerald-400 dark:bg-emerald-500",
+    blue: "bg-blue-400 dark:bg-blue-500",
+    amber: "bg-amber-400 dark:bg-amber-500",
+    rose: "bg-rose-400 dark:bg-rose-500",
+    slate: "bg-slate-400 dark:bg-slate-500",
+    violet: "bg-violet-400 dark:bg-violet-500",
+  }[t] ?? "bg-muted-foreground/40";
 }
 
 // ---------- BRAND COMPARISON ----------
