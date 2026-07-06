@@ -1741,3 +1741,283 @@ function TodayAnalytics({ brandIds, enabled, range, rangeLabel }: { brandIds: st
     </section>
   );
 }
+
+// ============================================================================
+// Hourly Orders Comparison — Web orders + Confirmed/Manual orders by hour
+// with previous-day compare and custom date picker.
+// ============================================================================
+const BD_TZ_OFFSET_MS = 6 * 60 * 60 * 1000;
+function toBdHour(iso: string) {
+  return new Date(new Date(iso).getTime() + BD_TZ_OFFSET_MS).getUTCHours();
+}
+function isoDayBoundsBD(ymd: string): { fromISO: string; toISO: string } {
+  const [y, m, d] = ymd.split("-").map(Number);
+  // BD midnight = UTC 18:00 previous day
+  const fromUTC = Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0) - BD_TZ_OFFSET_MS;
+  const toUTC = fromUTC + 86400e3 - 1;
+  return { fromISO: new Date(fromUTC).toISOString(), toISO: new Date(toUTC).toISOString() };
+}
+function ymdLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+function prevDayYmd(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() - 1);
+  return ymdLocal(dt);
+}
+function humanDate(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  return dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
+
+type HourlyRow = { created_at: string; source: string | null; confirmed_at: string | null };
+const WEB_SOURCES = new Set(["website", "pixel", "utm"]);
+const MANUAL_SOURCES = new Set(["manual", "pos"]);
+
+function useHourlyDay(brandIds: string[], enabled: boolean, ymd: string) {
+  const { fromISO, toISO } = useMemo(() => isoDayBoundsBD(ymd), [ymd]);
+  return useQuery({
+    queryKey: ["dash-hourly-orders", brandIds.join(","), ymd],
+    enabled: enabled && brandIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await applyBrandScope(
+        supabase
+          .from("orders")
+          .select("created_at, source, confirmed_at")
+          .or(`created_at.gte.${fromISO},confirmed_at.gte.${fromISO}`)
+          .lte("created_at", toISO)
+          .limit(10000),
+        brandIds,
+      );
+      if (error) throw error;
+      return (data ?? []) as HourlyRow[];
+    },
+  });
+}
+
+function bucketize(rows: HourlyRow[], kind: "web" | "confirmed", ymd: string) {
+  const { fromISO, toISO } = isoDayBoundsBD(ymd);
+  const fromMs = new Date(fromISO).getTime();
+  const toMs = new Date(toISO).getTime();
+  const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
+  for (const r of rows) {
+    if (kind === "web") {
+      const s = (r.source ?? "").toLowerCase();
+      if (!WEB_SOURCES.has(s)) continue;
+      const t = new Date(r.created_at).getTime();
+      if (t < fromMs || t > toMs) continue;
+      buckets[toBdHour(r.created_at)].count += 1;
+    } else {
+      // Confirmed/manual bucket. Manual/POS orders bucket at created_at.
+      // Confirmations (any source) bucket at confirmed_at.
+      const s = (r.source ?? "").toLowerCase();
+      const isManual = MANUAL_SOURCES.has(s);
+      if (r.confirmed_at) {
+        const t = new Date(r.confirmed_at).getTime();
+        if (t >= fromMs && t <= toMs) buckets[toBdHour(r.confirmed_at)].count += 1;
+      } else if (isManual) {
+        const t = new Date(r.created_at).getTime();
+        if (t >= fromMs && t <= toMs) buckets[toBdHour(r.created_at)].count += 1;
+      }
+    }
+  }
+  return buckets;
+}
+
+function HourlyOrdersComparison({ brandIds, enabled }: { brandIds: string[]; enabled: boolean }) {
+  const [open, setOpen] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<string>(() => ymdLocal(new Date()));
+  const prevDate = useMemo(() => prevDayYmd(selectedDate), [selectedDate]);
+
+  const todayQ = useHourlyDay(brandIds, enabled && open, selectedDate);
+  const prevQ = useHourlyDay(brandIds, enabled && open, prevDate);
+
+  const isToday = selectedDate === ymdLocal(new Date());
+  const currentHour = new Date(Date.now() + BD_TZ_OFFSET_MS).getUTCHours();
+
+  function makeSeries(kind: "web" | "confirmed") {
+    const cur = bucketize(todayQ.data ?? [], kind, selectedDate);
+    const prev = bucketize(prevQ.data ?? [], kind, prevDate);
+    return cur.map((b, h) => ({
+      hour: h,
+      label: h === 0 ? "12A" : h < 12 ? `${h}A` : h === 12 ? "12P" : `${h - 12}P`,
+      current: b.count,
+      previous: prev[h].count,
+      isCurrent: isToday && h === currentHour,
+    }));
+  }
+
+  const webSeries = useMemo(() => makeSeries("web"), [todayQ.data, prevQ.data, selectedDate]);
+  const confSeries = useMemo(() => makeSeries("confirmed"), [todayQ.data, prevQ.data, selectedDate]);
+
+  const isLoading = todayQ.isLoading || prevQ.isLoading;
+
+  return (
+    <section className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+      <header className="px-5 py-3.5 flex items-center justify-between border-b border-border/60 flex-wrap gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-7 grid place-items-center rounded-md bg-muted border border-border/60 shrink-0">
+            <TrendingUp className="size-3.5 text-muted-foreground" />
+          </div>
+          <h2
+            className="text-[12px] font-semibold uppercase tracking-[0.16em] text-foreground truncate"
+            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+          >
+            Hourly Orders · Day compare
+          </h2>
+          <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted text-muted-foreground border border-border/60">
+            {humanDate(selectedDate)} vs {humanDate(prevDate)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={selectedDate}
+            max={ymdLocal(new Date())}
+            onChange={(e) => setSelectedDate(e.target.value || ymdLocal(new Date()))}
+            className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setSelectedDate(ymdLocal(new Date()))}
+          >
+            Today
+          </Button>
+          <Button variant="ghost" size="sm" className="size-8 p-0" onClick={() => setOpen((o) => !o)}>
+            {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </Button>
+        </div>
+      </header>
+      {open && (
+        <div className="p-5">
+          {isLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Skeleton className="h-72 w-full" />
+              <Skeleton className="h-72 w-full" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <HourlyChartCard
+                title="Web Orders"
+                subtitle="Website checkout — created hourly"
+                accent="#6366F1"
+                series={webSeries}
+                selectedLabel={humanDate(selectedDate)}
+                previousLabel={humanDate(prevDate)}
+              />
+              <HourlyChartCard
+                title="Confirmed / Manual"
+                subtitle="Confirmations + manual & POS orders"
+                accent="#10B981"
+                series={confSeries}
+                selectedLabel={humanDate(selectedDate)}
+                previousLabel={humanDate(prevDate)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HourlyChartCard({
+  title,
+  subtitle,
+  accent,
+  series,
+  selectedLabel,
+  previousLabel,
+}: {
+  title: string;
+  subtitle: string;
+  accent: string;
+  series: Array<{ hour: number; label: string; current: number; previous: number; isCurrent: boolean }>;
+  selectedLabel: string;
+  previousLabel: string;
+}) {
+  const totalCur = series.reduce((s, b) => s + b.current, 0);
+  const totalPrev = series.reduce((s, b) => s + b.previous, 0);
+  const diff = totalCur - totalPrev;
+  const pct = totalPrev > 0 ? Math.round((diff / totalPrev) * 100) : totalCur > 0 ? 100 : 0;
+  const up = diff >= 0;
+  const peakHour = series.reduce((m, b) => (b.current > m.current ? b : m), series[0] ?? { current: 0, label: "-" });
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div
+            className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em]"
+            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif" }}
+          >
+            {title}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</div>
+        </div>
+        <div className="text-right">
+          <div
+            className="text-2xl font-semibold tabular-nums text-foreground leading-none"
+            style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.02em" }}
+          >
+            {totalCur}
+          </div>
+          <div
+            className={cn(
+              "text-[11px] font-semibold mt-1 inline-flex items-center gap-0.5 tabular-nums",
+              up ? "text-emerald-600" : "text-rose-600",
+            )}
+          >
+            {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+            {up ? "+" : ""}{diff} ({up ? "+" : ""}{pct}%)
+            <span className="text-muted-foreground font-normal ml-1">vs {totalPrev}</span>
+          </div>
+        </div>
+      </div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={`grad-${title.replace(/\s+/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.35} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} interval={2} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} allowDecimals={false} width={28} axisLine={false} tickLine={false} />
+            <Tooltip
+              cursor={{ fill: "rgba(0,0,0,0.03)" }}
+              contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 12, boxShadow: "0 8px 24px -8px rgba(0,0,0,0.15)" }}
+              formatter={(value: number, name: string) => [value, name === "current" ? selectedLabel : previousLabel]}
+              labelFormatter={(l) => `Hour ${l}`}
+            />
+            <Legend
+              iconType="circle"
+              wrapperStyle={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}
+              formatter={(v) => (v === "current" ? selectedLabel : previousLabel)}
+            />
+            <Line type="monotone" dataKey="previous" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="previous" />
+            <Area type="monotone" dataKey="current" stroke={accent} strokeWidth={2} fill={`url(#grad-${title.replace(/\s+/g, "")})`} name="current" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>
+          Peak: <strong className="text-foreground tabular-nums">{peakHour?.label ?? "-"}</strong> ({peakHour?.current ?? 0} orders)
+        </span>
+        <span>
+          Prev day: <strong className="text-foreground tabular-nums">{totalPrev}</strong>
+        </span>
+      </div>
+    </div>
+  );
+}
