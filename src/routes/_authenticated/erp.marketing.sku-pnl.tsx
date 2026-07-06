@@ -220,7 +220,7 @@ function SkuPnlPage() {
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-gray-50/40 hover:bg-gray-50/40">
-                            <TableCell colSpan={9} className="p-0">
+                            <TableCell colSpan={10} className="p-0">
                               <ExpandedDetail row={r} />
                             </TableCell>
                           </TableRow>
