@@ -6,11 +6,12 @@ import {
   TrendingUp, UserPlus, Repeat, RefreshCw, ArrowUpRight, ArrowDownRight,
   Package, Boxes, Megaphone, Activity, Users, Sparkles,
   ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight, CalendarDays, Clock,
 } from "lucide-react";
 import { Landmark, Smartphone, Coins, ArrowDownLeft, ArrowUpRight as ArrowOut } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-  Line, ComposedChart, PieChart, Pie, Cell, BarChart, Bar, LineChart,
+  Line, ComposedChart, PieChart, Pie, Cell, BarChart, Bar, LineChart, ReferenceLine,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand, type Brand } from "@/contexts/brand-context";
