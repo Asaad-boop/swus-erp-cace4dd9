@@ -1200,8 +1200,10 @@ function OrderDetailsPage() {
                 </div>
               </FieldShell>
               <FieldShell label="Shipping Note">
-                <Textarea rows={3} value={form.shipping_note} onChange={(e) => setForm({ ...form, shipping_note: e.target.value })} className="resize-none" />
-                <div className="text-[10px] text-right text-muted-foreground">{form.shipping_note.length}/150</div>
+                <ShippingNotePresets
+                  value={form.shipping_note}
+                  onChange={(v) => setForm({ ...form, shipping_note: v.slice(0, 150) })}
+                />
               </FieldShell>
               <div className="space-y-3">
                 <FieldShell label="Source Platform">
@@ -1846,6 +1848,100 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-center justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums truncate text-right">{value}</span>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Shipping Note Presets                                                      */
+/* -------------------------------------------------------------------------- */
+
+const DEFAULT_SHIPPING_PRESETS = [
+  "Call before delivery",
+  "Fragile - handle with care",
+  "Delivery time 10AM-6PM",
+  "Cash collection only",
+  "Leave at reception if unavailable",
+  "Do not fold",
+];
+const SHIPPING_PRESETS_KEY = "erp:shipping_note_presets";
+
+function ShippingNotePresets({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [custom, setCustom] = useState<string[]>([]);
+  const [newPreset, setNewPreset] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SHIPPING_PRESETS_KEY);
+      if (raw) setCustom(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+
+  const persist = (list: string[]) => {
+    setCustom(list);
+    try { localStorage.setItem(SHIPPING_PRESETS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+  };
+
+  const apply = (text: string) => {
+    const cur = value.trim();
+    onChange(cur ? `${cur} • ${text}` : text);
+  };
+
+  const all = [...DEFAULT_SHIPPING_PRESETS, ...custom];
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        rows={3}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="resize-none"
+        placeholder="Type a note or pick a preset below"
+      />
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>Click preset to append</span>
+        <span>{value.length}/150</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {all.map((p, i) => {
+          const isCustom = i >= DEFAULT_SHIPPING_PRESETS.length;
+          return (
+            <span key={`${p}-${i}`} className="group inline-flex items-center gap-1 rounded-full border bg-muted/40 hover:bg-muted px-2 py-0.5 text-[11px]">
+              <button type="button" onClick={() => apply(p)} className="truncate max-w-[180px]">{p}</button>
+              {isCustom && (
+                <button
+                  type="button"
+                  onClick={() => persist(custom.filter((c) => c !== p))}
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label="Remove preset"
+                >
+                  <XCircle className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex gap-1.5">
+        <Input
+          value={newPreset}
+          onChange={(e) => setNewPreset(e.target.value)}
+          placeholder="Save new preset..."
+          className="h-7 text-xs"
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={() => {
+            const t = newPreset.trim();
+            if (!t || custom.includes(t) || DEFAULT_SHIPPING_PRESETS.includes(t)) return;
+            persist([...custom, t]);
+            setNewPreset("");
+          }}
+        >Save</Button>
+      </div>
     </div>
   );
 }
