@@ -74,7 +74,7 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
-      .select("id, name, status, effective_status, mkt_ad_accounts(name)")
+      .select("id, name, status, effective_status, mkt_ad_accounts(id, name)")
       .eq("brand_id", data.brandId)
       .order("name");
     if (cErr) throw cErr;
