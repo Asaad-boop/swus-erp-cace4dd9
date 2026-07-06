@@ -1,6 +1,7 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, FileText, Printer, ImageDown, Pencil, Send, X as XIcon, ListPlus, StickyNote, Phone, MapPin, Copy, ImageIcon, MessageSquare, ArrowRight, RefreshCcw, Check, CheckCircle2, Hash, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { Link } from "@tanstack/react-router";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -356,8 +357,14 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
                 <DropdownMenuItem disabled><Printer className="h-4 w-4" /> Print</DropdownMenuItem>
                 <DropdownMenuItem disabled><ImageDown className="h-4 w-4" /> JPG Export</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onRowClick(o.id)}>
-                  <Pencil className="h-4 w-4" /> Edit
+                <DropdownMenuItem asChild>
+                  <Link
+                    to="/erp/orders/$orderId"
+                    params={{ orderId: o.id }}
+                    className="flex items-center gap-2 w-full"
+                  >
+                    <Pencil className="h-4 w-4" /> Edit
+                  </Link>
                 </DropdownMenuItem>
                 {next && nextLabel && (
                   <DropdownMenuItem onClick={() => onStatusChange(o.id, next)}>
