@@ -505,6 +505,7 @@ function PurchaseDialog({
   onSave: (p: any) => Promise<void>;
 }) {
   const [form, setForm] = useState(() => initial(editing, opts?.latestUsdRate));
+  const [saving, setSaving] = useState(false);
   // Reset when editing changes
   useMemo(() => { setForm(initial(editing, opts?.latestUsdRate)); }, [editing?.id, opts?.latestUsdRate]);
 
@@ -636,10 +637,14 @@ function PurchaseDialog({
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
-            disabled={!form.adAccountId || !form.paidFromAccountId || form.usdAmount <= 0 || form.usdRate <= 0}
-            onClick={() => onSave(form)}
+            disabled={saving || !form.adAccountId || !form.paidFromAccountId || form.usdAmount <= 0 || form.usdRate <= 0}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try { await onSave(form); } finally { setSaving(false); }
+            }}
           >
-            {editing ? "Save changes" : "Save draft"}
+            {saving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Saving…</> : (editing ? "Save changes" : "Save draft")}
           </Button>
         </DialogFooter>
       </DialogContent>
