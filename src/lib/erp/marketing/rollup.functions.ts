@@ -64,6 +64,8 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{
     rows: CampaignProfitRow[];
     totals: Omit<CampaignProfitRow, "campaign_id" | "campaign_name" | "account_name" | "status">;
+    cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
+    estimated: boolean;
   }> => {
     const supabase = context.supabase;
     const { from, to } = dateRangeDefaults(data);
@@ -72,7 +74,7 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
-      .select("id, name, status, effective_status, mkt_ad_accounts(name)")
+      .select("id, name, status, effective_status, mkt_ad_accounts(id, name)")
       .eq("brand_id", data.brandId)
       .order("name");
     if (cErr) throw cErr;
@@ -82,6 +84,8 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
       return {
         rows: [],
         totals: emptyTotals(),
+        cost_source: "manual",
+        estimated: false,
       };
     }
 
@@ -211,7 +215,26 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
     totals.poas = totals.total_spend > 0 ? totals.net_profit / totals.total_spend : null;
     totals.profit_margin = totals.delivered_revenue > 0 ? totals.net_profit / totals.delivered_revenue : null;
 
-    return { rows, totals };
+    // Cost-source flag: check meta_spend_consumptions in window for these campaigns' ad accounts
+    const acctIds = Array.from(
+      new Set((campaigns ?? []).map((c: any) => c.mkt_ad_accounts?.id).filter(Boolean)),
+    );
+    let cost_source: "fifo" | "fx_fallback" | "manual" | "mixed" = "manual";
+    let estimated = false;
+    if (acctIds.length && totals.ad_spend > 0) {
+      const { data: cons } = await supabase
+        .from("meta_spend_consumptions")
+        .select("conversion_source")
+        .in("ad_account_id", acctIds)
+        .gte("created_at", fromStart)
+        .lte("created_at", toEnd);
+      const sources = new Set((cons ?? []).map((c: any) => c.conversion_source));
+      if (sources.size === 1) cost_source = (Array.from(sources)[0] as any) ?? "manual";
+      else if (sources.size > 1) cost_source = "mixed";
+      estimated = sources.has("fx_fallback") || sources.has("mixed");
+    }
+
+    return { rows, totals, cost_source, estimated };
   });
 
 function emptyTotals() {

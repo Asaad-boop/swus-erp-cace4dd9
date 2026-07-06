@@ -18,6 +18,7 @@ import { MktKpiCard } from "@/components/erp/marketing/_ui/MktKpiCard";
 import { MktPageHeader, MktEmptyState } from "@/components/erp/marketing/_ui/MktPageHeader";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
 import { cn } from "@/lib/utils";
+import { CostSourceBadge, EstimatedWarning } from "@/components/erp/marketing/_ui/CostSourceBadge";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/sku-pnl")({
   component: SkuPnlPage,
@@ -71,6 +72,7 @@ function SkuPnlPage() {
 
   const totalReturns = totals.sellable_returns + totals.damaged_returns;
   const avgMargin = totals.net_revenue > 0 ? (totals.net_profit / totals.net_revenue) * 100 : null;
+  const anyEstimated = filtered.some((r) => r.estimated_bdt_cost);
 
   const exportCsv = () => {
     const header = [
@@ -149,6 +151,15 @@ function SkuPnlPage() {
         />
       </div>
 
+      {anyEstimated && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+          <EstimatedWarning />
+          <span className="text-xs text-amber-800">
+            কিছু Meta ad-spend FIFO wallet cover করেনি — live FX rate ব্যবহার করে estimate করা হয়েছে। Dollar Purchase entry দিলে actual cost basis দেখাবে।
+          </span>
+        </div>
+      )}
+
       <Card className="rounded-xl border-gray-100 shadow-sm">
         <CardHeader className="border-b border-gray-100 py-4">
           <CardTitle className="text-base">Per-SKU breakdown</CardTitle>
@@ -174,6 +185,7 @@ function SkuPnlPage() {
                     <TableHead className="text-right">Net Revenue</TableHead>
                     <TableHead className="text-right">Net COGS</TableHead>
                     <TableHead className="text-right">Ad Spend</TableHead>
+                    <TableHead className="text-right">Cost Src</TableHead>
                     <TableHead className="text-right">Net Profit</TableHead>
                     <TableHead className="text-right min-w-[140px]">Margin</TableHead>
                     <TableHead className="text-right">ROAS</TableHead>
@@ -199,6 +211,13 @@ function SkuPnlPage() {
                           <TableCell className="text-right font-semibold tabular-nums">{fmtBDT(r.net_revenue)}</TableCell>
                           <TableCell className="text-right tabular-nums text-gray-700">{fmtBDT(r.net_cogs)}</TableCell>
                           <TableCell className="text-right tabular-nums text-blue-700">{fmtBDT(r.total_ad_spend)}</TableCell>
+                          <TableCell className="text-right">
+                            {r.total_ad_spend > 0 ? (
+                              <CostSourceBadge source={r.cost_source} estimated={r.estimated_bdt_cost} />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">
                             <span className={cn("inline-flex items-center", r.net_profit >= 0 ? "text-indigo-700" : "text-red-600")}>
                               {r.net_profit >= 0 ? <TrendingUp className="inline h-3 w-3 mr-1" /> : <TrendingDown className="inline h-3 w-3 mr-1" />}
@@ -210,7 +229,7 @@ function SkuPnlPage() {
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-gray-50/40 hover:bg-gray-50/40">
-                            <TableCell colSpan={9} className="p-0">
+                            <TableCell colSpan={10} className="p-0">
                               <ExpandedDetail row={r} />
                             </TableCell>
                           </TableRow>
@@ -225,6 +244,7 @@ function SkuPnlPage() {
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.net_revenue)}</TableCell>
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.net_cogs)}</TableCell>
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.total_ad_spend)}</TableCell>
+                    <TableCell />
                     <TableCell className={cn("text-right tabular-nums", totals.net_profit >= 0 ? "text-indigo-700" : "text-red-600")}>
                       {fmtBDT(totals.net_profit)}
                     </TableCell>
