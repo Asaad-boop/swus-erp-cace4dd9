@@ -33,6 +33,7 @@ import {
   AdWalletBalanceCard, StuckOrdersCard, ReturnRateByProductCard, CourierPerformanceCard,
   AbandonedCartRecoveryCard, NewVsReturningCard,
 } from "@/components/erp/dashboard/widgets";
+import { WebsiteOrdersOverview } from "@/components/erp/dashboard/website-orders-overview";
 
 export const Route = createFileRoute("/_authenticated/erp/")({
   head: () => ({ meta: [{ title: "Dashboard — SynqWithUs ERP" }] }),
@@ -148,6 +149,9 @@ function AdminDashboard() {
       <div className="px-4 md:px-6 py-4 max-w-[1600px] mx-auto space-y-4">
         {/* KPI strip */}
         <KpiStrip brandIds={brandIds} enabled={enabled} range={range} onNav={(to) => navigate({ to: to as any })} />
+
+        {/* Website orders + Today's sales split */}
+        <WebsiteOrdersOverview brandIds={brandIds} enabled={enabled} range={range} rangeLabel={mktRange.label} />
 
         {/* MUST-HAVE row 1: Profit + Cash */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
