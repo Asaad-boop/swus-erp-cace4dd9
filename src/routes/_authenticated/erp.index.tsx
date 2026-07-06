@@ -323,7 +323,7 @@ function KpiStrip({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
       {cards.map((c, i) => (
         <KpiCard
           key={i}
@@ -344,87 +344,49 @@ function KpiStrip({
   );
 }
 
-// ---------- KPI CARD (Biliex-style) ----------
+// ---------- KPI CARD — Linear/Vercel compact ----------
 function KpiCard({
-  icon: Icon, label, value, amount, trend, sub, tone, to, onNav, loading, seed,
+  icon: Icon, label, value, amount, trend, sub, tone, to, onNav, loading,
 }: {
   icon: any; label: string; value: any; amount?: number; trend?: number;
   sub: string; tone: string; to?: string; onNav: (to: string) => void;
   loading: boolean; seed: number;
 }) {
-  // deterministic mini bars, biased by trend direction
-  const bars = useMemo(() => {
-    const rand = (n: number) => {
-      const x = Math.sin(seed * 91 + n * 17) * 10000;
-      return x - Math.floor(x);
-    };
-    const bias = typeof trend === "number" ? Math.max(-1, Math.min(1, trend / 40)) : 0;
-    return Array.from({ length: 14 }, (_, i) => {
-      const base = 0.35 + rand(i) * 0.55;
-      const ramp = (i / 13) * bias * 0.4;
-      return Math.max(0.15, Math.min(1, base + ramp));
-    });
-  }, [seed, trend]);
-
   const clickable = !!to;
   return (
     <button
       onClick={() => clickable && onNav(to!)}
+      type="button"
       className={cn(
-        "group relative text-left rounded-2xl border border-border/60 bg-card p-4 md:p-5 overflow-hidden",
-        "shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200",
-        "hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.15)] hover:border-foreground/15 hover:-translate-y-0.5",
-        clickable && "cursor-pointer",
+        "group text-left rounded-lg border border-slate-200 bg-white p-3 transition-colors",
+        "hover:border-slate-300 hover:shadow-sm",
+        clickable ? "cursor-pointer" : "cursor-default",
       )}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 leading-tight pt-1">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[10.5px] font-medium uppercase tracking-wider text-slate-500 truncate">
           {label}
         </span>
-        <div className={cn(
-          "grid place-items-center size-10 rounded-xl shrink-0 shadow-sm",
-          toneBg(tone),
-        )}>
-          <Icon className={cn("size-5", toneFg(tone))} />
-        </div>
+        <Icon className={cn("size-3.5 shrink-0", toneFg(tone))} />
       </div>
 
       {loading ? (
-        <Skeleton className="h-8 w-28 mb-3" />
+        <Skeleton className="h-7 w-20" />
       ) : (
         <div
           className={cn(
-            "tabular-nums leading-none tracking-tight font-bold text-foreground text-[28px] md:text-[30px] mb-3",
+            "tabular-nums leading-none tracking-tight font-semibold text-slate-900 text-[22px]",
             typeof amount === "number" && moneyTier(amount),
           )}
-          style={{ fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif", letterSpacing: "-0.03em" }}
         >
           {value}
         </div>
       )}
 
-      <div className="flex items-end justify-between gap-2">
-        <div className="flex items-end gap-[3px] h-7 flex-1 min-w-0">
-          {bars.map((h, i) => (
-            <span
-              key={i}
-              className={cn("flex-1 rounded-sm transition-colors", toneBarBg(tone))}
-              style={{ height: `${h * 100}%`, opacity: 0.35 + (i / bars.length) * 0.65 }}
-            />
-          ))}
-        </div>
-        {typeof trend === "number" ? (
-          <TrendChip trend={trend} />
-        ) : (
-          <span className="text-[10px] font-medium text-muted-foreground/80 truncate max-w-[110px] text-right">
-            {sub}
-          </span>
-        )}
+      <div className="mt-2 flex items-center gap-1.5 min-h-[16px]">
+        {typeof trend === "number" && <TrendChip trend={trend} />}
+        <span className="text-[11px] text-slate-500 truncate">{sub}</span>
       </div>
-
-      {typeof trend === "number" && (
-        <div className="mt-2 text-[10px] text-muted-foreground/70 truncate">{sub}</div>
-      )}
     </button>
   );
 }
@@ -433,9 +395,8 @@ function TrendChip({ trend }: { trend: number }) {
   const up = trend >= 0;
   return (
     <span className={cn(
-      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-      up ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-         : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+      "inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums",
+      up ? "text-emerald-600" : "text-rose-600",
     )}>
       {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
       {Math.abs(trend).toFixed(1)}%
