@@ -151,6 +151,15 @@ function SkuPnlPage() {
         />
       </div>
 
+      {anyEstimated && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+          <EstimatedWarning />
+          <span className="text-xs text-amber-800">
+            কিছু Meta ad-spend FIFO wallet cover করেনি — live FX rate ব্যবহার করে estimate করা হয়েছে। Dollar Purchase entry দিলে actual cost basis দেখাবে।
+          </span>
+        </div>
+      )}
+
       <Card className="rounded-xl border-gray-100 shadow-sm">
         <CardHeader className="border-b border-gray-100 py-4">
           <CardTitle className="text-base">Per-SKU breakdown</CardTitle>
