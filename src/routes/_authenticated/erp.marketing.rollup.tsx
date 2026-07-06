@@ -16,6 +16,7 @@ import {
 } from "@/lib/erp/marketing/rollup.functions";
 import { TrendingUp, TrendingDown, Download } from "lucide-react";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
+import { CostSourceBadge, EstimatedWarning } from "@/components/erp/marketing/_ui/CostSourceBadge";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/rollup")({
   head: () => ({ meta: [{ title: "Profit Rollup — Marketing" }] }),
@@ -77,6 +78,12 @@ function RollupPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {campaignsQ.data?.cost_source && (totals?.ad_spend ?? 0) > 0 && (
+            <CostSourceBadge
+              source={campaignsQ.data.cost_source}
+              estimated={campaignsQ.data.estimated}
+            />
+          )}
           <DateRangePicker value={range} onChange={setRange} />
           <Input
             placeholder="Search…"
@@ -86,6 +93,15 @@ function RollupPage() {
           />
         </div>
       </div>
+
+      {campaignsQ.data?.estimated && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+          <EstimatedWarning />
+          <span className="text-xs text-amber-800">
+            কিছু Meta ad-spend FIFO wallet cover করেনি — live FX rate ব্যবহার করে estimate করা হয়েছে। বেশি accurate করতে Dollar Purchase entry দাও।
+          </span>
+        </div>
+      )}
 
       {/* Totals */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
