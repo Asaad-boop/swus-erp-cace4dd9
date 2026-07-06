@@ -34,6 +34,7 @@ import {
   updateDollarPurchase,
   confirmDollarPurchase,
   cancelDollarPurchase,
+  adjustDollarPurchase,
   listAdAccountWallets,
 } from "@/lib/erp/marketing/dollar-purchase.functions";
 import { useUsdBdtRate } from "@/hooks/erp/use-fx-rate";
@@ -88,6 +89,7 @@ function DollarPurchasePage() {
   const updateFn = useServerFn(updateDollarPurchase);
   const confirmFn = useServerFn(confirmDollarPurchase);
   const cancelFn = useServerFn(cancelDollarPurchase);
+  const adjustFn = useServerFn(adjustDollarPurchase);
   const walletsFn = useServerFn(listAdAccountWallets);
 
   const wallets = useQuery({
@@ -142,6 +144,16 @@ function DollarPurchasePage() {
       refresh();
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to cancel"),
+  });
+  const adjustMut = useMutation({
+    mutationFn: (v: { id: string; reason?: string }) => adjustFn({ data: v }) as Promise<any>,
+    onSuccess: (res: any) => {
+      const refund = Number(res?.refund_bdt ?? 0);
+      toast.success(refund > 0 ? `Adjusted — ৳${refund.toLocaleString()} refunded to account` : "Adjusted");
+      setCancelTarget(null); setCancelReason("");
+      refresh();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to adjust"),
   });
 
   // KPI computations
@@ -346,7 +358,7 @@ function DollarPurchasePage() {
             <DialogTitle>Cancel purchase?</DialogTitle>
             <DialogDescription>
               {cancelTarget?.status === "confirmed"
-                ? "This will reverse the finance posting and ad-account wallet entry. Not allowed if any of the $USD has already been consumed by Meta spend."
+                ? "Full cancel reverses the whole posting — only works if none of the USD has been spent yet. If some USD is already consumed by Meta spend, use Adjust instead: it refunds only the unspent portion and writes off the rest."
                 : "This draft will be marked cancelled."}
             </DialogDescription>
           </DialogHeader>
@@ -356,6 +368,15 @@ function DollarPurchasePage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCancelTarget(null)}>Back</Button>
+            {cancelTarget?.status === "confirmed" && (
+              <Button
+                variant="outline"
+                disabled={adjustMut.isPending}
+                onClick={() => cancelTarget && adjustMut.mutate({ id: cancelTarget.id, reason: cancelReason || undefined })}
+              >
+                {adjustMut.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Adjusting…</> : "Adjust (refund unspent)"}
+              </Button>
+            )}
             <Button
               variant="destructive"
               disabled={cancelMut.isPending}
