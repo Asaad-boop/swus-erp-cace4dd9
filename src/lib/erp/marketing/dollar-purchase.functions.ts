@@ -222,6 +222,21 @@ export const cancelDollarPurchase = createServerFn({ method: "POST" })
     return res;
   });
 
+export const adjustDollarPurchase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; reason?: string }) =>
+    z.object({ id: z.string().uuid(), reason: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertFinance(context.supabase, context.userId);
+    const { data: res, error } = await context.supabase.rpc(
+      "adjust_meta_dollar_purchase",
+      { _purchase_id: data.id, _reason: data.reason ?? undefined },
+    );
+    if (error) throw error;
+    return res;
+  });
+
 export const listAdAccountWallets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { brandIds?: string[] }) => d)
