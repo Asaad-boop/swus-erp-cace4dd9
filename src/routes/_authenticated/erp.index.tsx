@@ -391,7 +391,7 @@ function KpiCard({
           "grid place-items-center size-10 rounded-xl shrink-0 shadow-sm",
           toneBg(tone),
         )}>
-          <Icon className={cn("size-4.5", toneFg(tone))} />
+          <Icon className={cn("size-5", toneFg(tone))} />
         </div>
       </div>
 
