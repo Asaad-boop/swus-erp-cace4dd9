@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarClock, Check, RotateCcw } from "lucide-react";
+import { ArrowRight, CalendarClock, Check, RotateCcw, PieChart, Table2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -48,7 +48,7 @@ export function WebsiteOrdersOverview({
       const inToday = (q: any) => q.gte("created_at", startToday.toISOString()).lte("created_at", endToday.toISOString());
 
       const [webRange, todayManual, todayWebConfirmed, todayAll] = await Promise.all([
-        inR(applyBrandScope(supabase.from("orders").select("web_status,source"), brandIds))
+        inR(applyBrandScope(supabase.from("orders").select("web_status,source,total"), brandIds))
           .in("source", ["website", "pixel"]),
         inToday(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .eq("source", "manual"),
@@ -58,13 +58,18 @@ export function WebsiteOrdersOverview({
         inToday(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)),
       ]);
 
-      const rows = (webRange.data ?? []) as { web_status: string | null }[];
+      const rows = (webRange.data ?? []) as { web_status: string | null; total: number | null }[];
       const total = rows.length;
       const statusCounts: Record<string, number> = {};
+      const statusValue: Record<string, number> = {};
       let confirmed = 0;
+      let totalValue = 0;
       for (const r of rows) {
         const s = r.web_status ?? "unknown";
+        const v = Number(r.total ?? 0);
         statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+        statusValue[s] = (statusValue[s] ?? 0) + v;
+        totalValue += v;
         if (CONFIRMED.includes(s as any)) confirmed += 1;
       }
 
@@ -73,12 +78,14 @@ export function WebsiteOrdersOverview({
         .map(([key, count]) => ({
           key,
           count,
+          value: statusValue[key] ?? 0,
           label: STATUS_META[key]?.label ?? key,
           color: STATUS_META[key]?.color ?? FALLBACK_COLOR,
         }));
 
       return {
         total,
+        totalValue,
         confirmed,
         confirmRate: total > 0 ? (confirmed / total) * 100 : 0,
         status,
