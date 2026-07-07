@@ -683,7 +683,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
     const { data: order, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_address, shipping_thana, shipping_city, shipping_district, total, items:order_items(name, quantity)",
+        "id, invoice_no, brand_id, shipping_name, shipping_phone, guest_name, guest_phone, shipping_address, shipping_thana, shipping_city, shipping_district, total, pathao_city_id, pathao_zone_id, pathao_area_id, items:order_items(name, quantity)",
       )
       .eq("id", data.orderId)
       .maybeSingle();
@@ -727,7 +727,19 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
           recipient_zone: detectedLocation.zone.id,
           recipient_area: detectedLocation.area?.id,
         }
-      : null;
+      : (order as { pathao_city_id: number | null; pathao_zone_id: number | null; pathao_area_id: number | null }).pathao_city_id &&
+          (order as { pathao_zone_id: number | null }).pathao_zone_id
+        ? {
+            recipient_city: (order as { pathao_city_id: number }).pathao_city_id,
+            recipient_zone: (order as { pathao_zone_id: number }).pathao_zone_id,
+            recipient_area: (order as { pathao_area_id: number | null }).pathao_area_id ?? undefined,
+          }
+        : null;
+    if (!locationPayload) {
+      throw new Error(
+        `Pathao city/zone detect korte pari nai. Address theke match hoi nai ebong order-e pathao_city_id/pathao_zone_id save nai. Order edit kore Pathao city+zone select koro, tarpor abar upload koro. (address: "${address}")`,
+      );
+    }
 
     const items = (order.items ?? []) as Array<{ name: string | null; quantity: number | null }>;
     const totalQty = items.reduce((s, it) => s + (it.quantity ?? 0), 0) || data.item_quantity;
