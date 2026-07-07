@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CalendarClock, Check, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Range = { from: Date; to: Date };
 
@@ -25,13 +30,17 @@ const FALLBACK_COLOR = "#cbd5e1";
 export function WebsiteOrdersOverview({
   brandIds, enabled, range, rangeLabel,
 }: { brandIds: string[]; enabled: boolean; range: Range; rangeLabel: string }) {
+  const [localRange, setLocalRange] = useState<Range | null>(null);
+  const activeRange = localRange ?? range;
+  const activeLabel = localRange ? formatRangeLabel(localRange) : rangeLabel;
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dash-web-overview", brandIds.join(","), range.from.toISOString(), range.to.toISOString()],
+    queryKey: ["dash-web-overview", brandIds.join(","), activeRange.from.toISOString(), activeRange.to.toISOString()],
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
-      const inR = (q: any) => q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
+      const inR = (q: any) => q.gte("created_at", activeRange.from.toISOString()).lte("created_at", activeRange.to.toISOString());
 
       // Today (start of local day) — used for "Today's Sales" split.
       const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
@@ -81,14 +90,27 @@ export function WebsiteOrdersOverview({
   });
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-        <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground truncate">
-          Website Orders · {rangeLabel}
+    <div className="rounded-xl border border-border/70 bg-gradient-to-br from-card to-card/60 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60 bg-muted/30">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground truncate">
+            Website Orders
+          </div>
+          <span className="text-[11px] text-muted-foreground/70">·</span>
+          <span className="text-[11px] font-medium text-foreground/70 truncate">{activeLabel}</span>
         </div>
-        <Link to={"/erp/orders/web" as any} className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-0.5">
-          View <ArrowRight className="size-3" />
-        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <RangePickerPopover
+            value={activeRange}
+            isCustom={!!localRange}
+            onChange={setLocalRange}
+            onReset={() => setLocalRange(null)}
+          />
+          <Link to={"/erp/orders/web" as any} className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-0.5 px-1.5">
+            View <ArrowRight className="size-3" />
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] divide-y lg:divide-y-0 lg:divide-x divide-border/60">
@@ -126,6 +148,137 @@ export function WebsiteOrdersOverview({
       </div>
     </div>
   );
+}
+
+// -----------------------------------------------------------------------------
+// Date + time range picker (presets + custom)
+// -----------------------------------------------------------------------------
+
+function RangePickerPopover({
+  value, isCustom, onChange, onReset,
+}: {
+  value: Range;
+  isCustom: boolean;
+  onChange: (r: Range) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState(() => toLocalInput(value.from));
+  const [to, setTo] = useState(() => toLocalInput(value.to));
+
+  const presets = useMemo(() => ([
+    { key: "today", label: "Today", make: () => dayRange(0, 0) },
+    { key: "yday",  label: "Yesterday", make: () => dayRange(1, 1) },
+    { key: "7d",    label: "Last 7 days", make: () => dayRange(6, 0) },
+    { key: "30d",   label: "Last 30 days", make: () => dayRange(29, 0) },
+    { key: "mtd",   label: "Month to date", make: () => monthToDate() },
+    { key: "1h",    label: "Last 1 hour", make: () => hoursBack(1) },
+    { key: "6h",    label: "Last 6 hours", make: () => hoursBack(6) },
+    { key: "24h",   label: "Last 24 hours", make: () => hoursBack(24) },
+  ]), []);
+
+  const apply = () => {
+    const f = new Date(from); const t = new Date(to);
+    if (isNaN(+f) || isNaN(+t) || f > t) return;
+    onChange({ from: f, to: t });
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={(o) => {
+      setOpen(o);
+      if (o) { setFrom(toLocalInput(value.from)); setTo(toLocalInput(value.to)); }
+    }}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-7 gap-1.5 text-[11px] font-medium",
+            isCustom && "border-blue-500/60 text-blue-700 bg-blue-50/60 hover:bg-blue-50"
+          )}
+        >
+          <CalendarClock className="size-3.5" />
+          {isCustom ? "Custom" : "Range"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[360px] p-0 pointer-events-auto">
+        <div className="grid grid-cols-[130px_minmax(0,1fr)]">
+          <div className="border-r border-border/60 bg-muted/30 p-1.5 space-y-0.5">
+            {presets.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => { onChange(p.make()); setOpen(false); }}
+                className="w-full text-left px-2 py-1.5 rounded-md text-[12px] hover:bg-background hover:shadow-sm transition-all"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="p-3 space-y-2.5">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Custom range (with time)
+            </div>
+            <label className="block space-y-1">
+              <span className="text-[11px] text-muted-foreground">From</span>
+              <Input
+                type="datetime-local"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] text-muted-foreground">To</span>
+              <Input
+                type="datetime-local"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </label>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1"
+                onClick={() => { onReset(); setOpen(false); }}>
+                <RotateCcw className="size-3" /> Reset
+              </Button>
+              <Button size="sm" className="h-7 text-[11px] gap-1" onClick={apply}>
+                <Check className="size-3" /> Apply
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function toLocalInput(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function dayRange(startDaysAgo: number, endDaysAgo: number): Range {
+  const from = new Date(); from.setDate(from.getDate() - startDaysAgo); from.setHours(0, 0, 0, 0);
+  const to = new Date(); to.setDate(to.getDate() - endDaysAgo); to.setHours(23, 59, 59, 999);
+  return { from, to };
+}
+function monthToDate(): Range {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  return { from, to: now };
+}
+function hoursBack(h: number): Range {
+  const to = new Date();
+  const from = new Date(to.getTime() - h * 3600_000);
+  return { from, to };
+}
+function formatRangeLabel(r: Range) {
+  const sameDay = r.from.toDateString() === r.to.toDateString();
+  const fmtD = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const fmtT = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return sameDay
+    ? `${fmtD(r.from)} · ${fmtT(r.from)}–${fmtT(r.to)}`
+    : `${fmtD(r.from)} ${fmtT(r.from)} → ${fmtD(r.to)} ${fmtT(r.to)}`;
 }
 
 function StatusDonut({
