@@ -66,14 +66,15 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
       flushScheduledRef.current = false;
       const patches = pendingPatchesRef.current;
       if (patches.size === 0) return;
+      const entries = Array.from(patches.entries());
+      patches.clear();
       setRows((prev) => {
         const next = prev.slice();
-        patches.forEach((patch, i) => {
+        for (const [i, patch] of entries) {
           if (next[i]) next[i] = { ...next[i], ...patch };
-        });
+        }
         return next;
       });
-      patches.clear();
     });
   };
   const patchRow = (i: number, patch: Partial<Row>) => {
