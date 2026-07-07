@@ -134,25 +134,56 @@ export function WebsiteOrdersOverview({
           <Stat label="Today · Web confirmed" value={data?.todayWebConfirmed} loading={isLoading} />
         </div>
 
-        {/* RIGHT: status list */}
-        <div className="p-4">
-          <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-3">
-            Status breakdown
-          </div>
-          {isLoading ? (
-            <div className="flex items-center gap-5">
-              <Skeleton className="size-32 rounded-full" />
-              <div className="flex-1 space-y-2">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
-              </div>
-            </div>
-          ) : (data?.status.length ?? 0) === 0 ? (
-            <div className="text-xs text-muted-foreground py-6 text-center">No website orders in this range</div>
-          ) : (
-            <StatusDonut segments={data!.status} total={data!.total} />
-          )}
+        {/* RIGHT: status breakdown */}
+        <StatusPanel data={data} isLoading={isLoading} />
+      </div>
+    </div>
+  );
+}
+
+function StatusPanel({ data, isLoading }: { data: any; isLoading: boolean }) {
+  const [view, setView] = useState<"chart" | "table">("chart");
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">
+          Status breakdown
+        </div>
+        <div className="inline-flex items-center rounded-md border border-border/70 bg-background p-0.5 text-[11px]">
+          <button
+            onClick={() => setView("chart")}
+            className={cn(
+              "px-2 py-0.5 rounded-[5px] inline-flex items-center gap-1 transition-colors",
+              view === "chart" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <PieChart className="size-3" /> Chart
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={cn(
+              "px-2 py-0.5 rounded-[5px] inline-flex items-center gap-1 transition-colors",
+              view === "table" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <Table2 className="size-3" /> Table
+          </button>
         </div>
       </div>
+      {isLoading ? (
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-40 rounded-full" />
+          <div className="flex-1 space-y-2">
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+          </div>
+        </div>
+      ) : (data?.status.length ?? 0) === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">No website orders in this range</div>
+      ) : view === "chart" ? (
+        <StatusDonut segments={data.status} total={data.total} totalValue={data.totalValue} />
+      ) : (
+        <StatusTable segments={data.status} total={data.total} totalValue={data.totalValue} />
+      )}
     </div>
   );
 }
