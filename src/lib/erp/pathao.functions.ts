@@ -760,7 +760,7 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       item_type: data.item_type,
       item_quantity: totalQty,
       item_weight: data.item_weight,
-      amount_to_collect: Number(order.total) || 0,
+      amount_to_collect: Math.round(Number(order.total) || 0),
       item_description: desc,
     });
 
