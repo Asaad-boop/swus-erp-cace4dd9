@@ -320,6 +320,35 @@ export function PathaoBulkUploadDialog({ open, onOpenChange, orders }: Props) {
           </div>
         </div>
 
+        {/* FAILED DETAILS — full error messages, always visible & copyable */}
+        {counts.failed > 0 && (
+          <div className="border-b bg-red-50/60 dark:bg-red-500/5 max-h-40 overflow-y-auto">
+            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-red-700 dark:text-red-300 sticky top-0 bg-red-50/90 dark:bg-red-500/10 backdrop-blur border-b border-red-200/60 dark:border-red-500/20">
+              Failed details ({counts.failed})
+            </div>
+            <div className="divide-y divide-red-200/50 dark:divide-red-500/10">
+              {rows.filter((r) => r.status === "failed").map((r) => (
+                <div key={r.orderId} className="px-3 py-2 text-[11px] flex gap-3 items-start">
+                  <span className="font-mono font-bold text-red-800 dark:text-red-200 shrink-0 min-w-[80px]">
+                    {r.display}
+                  </span>
+                  <span className="text-red-700 dark:text-red-300 break-all whitespace-pre-wrap flex-1">
+                    {r.message}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(r.message).catch(() => {})}
+                    className="shrink-0 text-red-600 hover:text-red-800 dark:text-red-300"
+                    title="Copy error"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* FOOTER ACTIONS */}
         <div className="px-5 py-3 bg-muted/30 flex items-center justify-between gap-2">
           <div className="text-[11px] text-muted-foreground">
@@ -463,6 +492,7 @@ function StatusPill({ done, running, failed }: { done: boolean; running: boolean
 }
 
 function RowItem({ row }: { row: Row }) {
+  const failed = row.status === "failed";
   return (
     <div
       className="grid grid-cols-[1.1fr_0.9fr_1.1fr_1.4fr_0.5fr] items-center px-3 text-xs border-b last:border-b-0 hover:bg-muted/30"
@@ -483,8 +513,8 @@ function RowItem({ row }: { row: Row }) {
       </div>
       <div
         className={cn(
-          "truncate pr-2",
-          row.status === "failed" ? "text-red-600" : "text-muted-foreground",
+          "pr-2 truncate",
+          failed ? "text-red-600" : "text-muted-foreground",
         )}
         title={row.message}
       >
