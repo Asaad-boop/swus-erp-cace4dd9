@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarClock, Check, RotateCcw } from "lucide-react";
+import { ArrowRight, CalendarClock, Check, RotateCcw, PieChart, Table2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -48,7 +48,7 @@ export function WebsiteOrdersOverview({
       const inToday = (q: any) => q.gte("created_at", startToday.toISOString()).lte("created_at", endToday.toISOString());
 
       const [webRange, todayManual, todayWebConfirmed, todayAll] = await Promise.all([
-        inR(applyBrandScope(supabase.from("orders").select("web_status,source"), brandIds))
+        inR(applyBrandScope(supabase.from("orders").select("web_status,source,total"), brandIds))
           .in("source", ["website", "pixel"]),
         inToday(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .eq("source", "manual"),
@@ -58,13 +58,18 @@ export function WebsiteOrdersOverview({
         inToday(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds)),
       ]);
 
-      const rows = (webRange.data ?? []) as { web_status: string | null }[];
+      const rows = (webRange.data ?? []) as { web_status: string | null; total: number | null }[];
       const total = rows.length;
       const statusCounts: Record<string, number> = {};
+      const statusValue: Record<string, number> = {};
       let confirmed = 0;
+      let totalValue = 0;
       for (const r of rows) {
         const s = r.web_status ?? "unknown";
+        const v = Number(r.total ?? 0);
         statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+        statusValue[s] = (statusValue[s] ?? 0) + v;
+        totalValue += v;
         if (CONFIRMED.includes(s as any)) confirmed += 1;
       }
 
@@ -73,12 +78,14 @@ export function WebsiteOrdersOverview({
         .map(([key, count]) => ({
           key,
           count,
+          value: statusValue[key] ?? 0,
           label: STATUS_META[key]?.label ?? key,
           color: STATUS_META[key]?.color ?? FALLBACK_COLOR,
         }));
 
       return {
         total,
+        totalValue,
         confirmed,
         confirmRate: total > 0 ? (confirmed / total) * 100 : 0,
         status,
@@ -127,25 +134,56 @@ export function WebsiteOrdersOverview({
           <Stat label="Today · Web confirmed" value={data?.todayWebConfirmed} loading={isLoading} />
         </div>
 
-        {/* RIGHT: status list */}
-        <div className="p-4">
-          <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-3">
-            Status breakdown
-          </div>
-          {isLoading ? (
-            <div className="flex items-center gap-5">
-              <Skeleton className="size-32 rounded-full" />
-              <div className="flex-1 space-y-2">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
-              </div>
-            </div>
-          ) : (data?.status.length ?? 0) === 0 ? (
-            <div className="text-xs text-muted-foreground py-6 text-center">No website orders in this range</div>
-          ) : (
-            <StatusDonut segments={data!.status} total={data!.total} />
-          )}
+        {/* RIGHT: status breakdown */}
+        <StatusPanel data={data} isLoading={isLoading} />
+      </div>
+    </div>
+  );
+}
+
+function StatusPanel({ data, isLoading }: { data: any; isLoading: boolean }) {
+  const [view, setView] = useState<"chart" | "table">("chart");
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">
+          Status breakdown
+        </div>
+        <div className="inline-flex items-center rounded-md border border-border/70 bg-background p-0.5 text-[11px]">
+          <button
+            onClick={() => setView("chart")}
+            className={cn(
+              "px-2 py-0.5 rounded-[5px] inline-flex items-center gap-1 transition-colors",
+              view === "chart" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <PieChart className="size-3" /> Chart
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={cn(
+              "px-2 py-0.5 rounded-[5px] inline-flex items-center gap-1 transition-colors",
+              view === "table" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <Table2 className="size-3" /> Table
+          </button>
         </div>
       </div>
+      {isLoading ? (
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-40 rounded-full" />
+          <div className="flex-1 space-y-2">
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+          </div>
+        </div>
+      ) : (data?.status.length ?? 0) === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">No website orders in this range</div>
+      ) : view === "chart" ? (
+        <StatusDonut segments={data.status} total={data.total} totalValue={data.totalValue} />
+      ) : (
+        <StatusTable segments={data.status} total={data.total} totalValue={data.totalValue} />
+      )}
     </div>
   );
 }
@@ -281,12 +319,18 @@ function formatRangeLabel(r: Range) {
     : `${fmtD(r.from)} ${fmtT(r.from)} → ${fmtD(r.to)} ${fmtT(r.to)}`;
 }
 
+type Segment = { key: string; count: number; value: number; label: string; color: string };
+
+function fmtMoney(n: number) {
+  return "৳" + Math.round(n).toLocaleString();
+}
+
 function StatusDonut({
-  segments, total,
-}: { segments: { key: string; count: number; label: string; color: string }[]; total: number }) {
+  segments, total, totalValue,
+}: { segments: Segment[]; total: number; totalValue: number }) {
   // SVG donut geometry
-  const size = 132;
-  const stroke = 16;
+  const size = 180;
+  const stroke = 22;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
 
@@ -300,7 +344,7 @@ function StatusDonut({
   });
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex items-center gap-6">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90 overflow-visible">
           {/* track */}
@@ -317,38 +361,88 @@ function StatusDonut({
               strokeLinecap="butt"
               strokeDasharray={`${a.dash} ${a.gap}`}
               strokeDashoffset={a.offset}
-              className="transition-[stroke-dasharray] duration-500"
+              className="transition-[stroke-dasharray] duration-500 hover:opacity-80"
             >
-              <title>{`${a.label}: ${a.count} · ${a.pct.toFixed(1)}%`}</title>
+              <title>{`${a.label}: ${a.count} · ${a.pct.toFixed(1)}% · ${fmtMoney(a.value)}`}</title>
             </circle>
           ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-[9px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">Total</div>
-          <div className="text-xl font-semibold tabular-nums tracking-tight text-slate-900 leading-none mt-0.5">
-            {total}
+          <div className="text-[9px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">Total Orders</div>
+          <div className="text-2xl font-semibold tabular-nums tracking-tight text-slate-900 leading-none mt-1">
+            {total.toLocaleString()}
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
+            {fmtMoney(totalValue)}
           </div>
         </div>
       </div>
 
-      <ul className="flex-1 min-w-0 space-y-1.5">
+      <ul className="flex-1 min-w-0 space-y-2 max-h-[200px] overflow-y-auto pr-1">
         {arcs.map((s) => (
           <li
             key={s.key}
-            className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-[12px]"
+            className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 text-[12px] hover:bg-slate-50 -mx-1 px-1 py-0.5 rounded"
           >
             <span
-              className="size-2 rounded-[3px] shrink-0"
+              className="size-2.5 rounded-full shrink-0 mt-1"
               style={{ backgroundColor: s.color }}
             />
-            <span className="text-slate-700 truncate">{s.label}</span>
-            <span className="tabular-nums text-slate-500 text-right text-[11px]">
-              <span className="font-semibold text-slate-800">{s.count}</span>
-              <span className="text-slate-400"> · {s.pct.toFixed(0)}%</span>
+            <div className="min-w-0">
+              <div className="text-slate-800 font-medium truncate">
+                {s.label} <span className="text-slate-400 font-normal">({s.count})</span>
+              </div>
+              <div className="text-[10.5px] text-muted-foreground tabular-nums">{fmtMoney(s.value)}</div>
+            </div>
+            <span className="tabular-nums text-[11px] font-semibold text-slate-600 self-center">
+              {s.pct.toFixed(1)}%
             </span>
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function StatusTable({
+  segments, total, totalValue,
+}: { segments: Segment[]; total: number; totalValue: number }) {
+  return (
+    <div className="rounded-md border border-border/60 overflow-hidden">
+      <table className="w-full text-[12px]">
+        <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="text-left px-3 py-2 font-semibold">Status</th>
+            <th className="text-right px-3 py-2 font-semibold">Orders</th>
+            <th className="text-right px-3 py-2 font-semibold">Value</th>
+            <th className="text-right px-3 py-2 font-semibold">%</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {segments.map((s) => {
+            const pct = total > 0 ? (s.count / total) * 100 : 0;
+            return (
+              <tr key={s.key} className="hover:bg-slate-50">
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="text-slate-800 truncate">{s.label}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">{s.count}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600">{fmtMoney(s.value)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-500">{pct.toFixed(1)}%</td>
+              </tr>
+            );
+          })}
+          <tr className="bg-muted/30 font-semibold">
+            <td className="px-3 py-2 text-slate-800">Total</td>
+            <td className="px-3 py-2 text-right tabular-nums text-slate-900">{total}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-slate-900">{fmtMoney(totalValue)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-slate-500">100%</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
