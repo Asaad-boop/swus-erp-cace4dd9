@@ -10,17 +10,18 @@ type Range = { from: Date; to: Date };
 
 const CONFIRMED = ["complete", "advance_payment", "on_hold"] as const;
 
-// Human labels + color per web_status
-const STATUS_META: Record<string, { label: string; tone: string }> = {
-  complete:              { label: "Complete",            tone: "bg-emerald-500" },
-  advance_payment:       { label: "Advance Payment",     tone: "bg-emerald-400" },
-  on_hold:               { label: "On Hold",             tone: "bg-amber-400" },
-  processing:            { label: "Processing",          tone: "bg-slate-400" },
-  no_response:           { label: "No Response",         tone: "bg-slate-300" },
-  good_but_no_response:  { label: "Good · No Response",  tone: "bg-slate-400" },
-  incomplete:            { label: "Incomplete",          tone: "bg-orange-400" },
-  cancelled:             { label: "Cancelled",           tone: "bg-rose-500" },
+// Human labels + color per web_status (hex used by donut SVG + dots)
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  complete:              { label: "Complete",            color: "#10b981" },
+  advance_payment:       { label: "Advance Payment",     color: "#34d399" },
+  on_hold:               { label: "On Hold",             color: "#fbbf24" },
+  processing:            { label: "Processing",          color: "#94a3b8" },
+  no_response:           { label: "No Response",         color: "#cbd5e1" },
+  good_but_no_response:  { label: "Good · No Response",  color: "#64748b" },
+  incomplete:            { label: "Incomplete",          color: "#fb923c" },
+  cancelled:             { label: "Cancelled",           color: "#f43f5e" },
 };
+const FALLBACK_COLOR = "#cbd5e1";
 
 export function WebsiteOrdersOverview({
   brandIds, enabled, range, rangeLabel,
@@ -65,7 +66,7 @@ export function WebsiteOrdersOverview({
           key,
           count,
           label: STATUS_META[key]?.label ?? key,
-          tone: STATUS_META[key]?.tone ?? "bg-slate-300",
+          color: STATUS_META[key]?.color ?? FALLBACK_COLOR,
         }));
 
       return {
@@ -111,34 +112,91 @@ export function WebsiteOrdersOverview({
             Status breakdown
           </div>
           {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
+            <div className="flex items-center gap-5">
+              <Skeleton className="size-32 rounded-full" />
+              <div className="flex-1 space-y-2">
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+              </div>
             </div>
           ) : (data?.status.length ?? 0) === 0 ? (
             <div className="text-xs text-muted-foreground py-6 text-center">No website orders in this range</div>
           ) : (
-            <div className="space-y-2">
-              {data!.status.map((s) => {
-                const pct = data!.total > 0 ? (s.count / data!.total) * 100 : 0;
-                return (
-                  <div key={s.key} className="grid grid-cols-[minmax(110px,1fr)_minmax(0,2fr)_auto] items-center gap-3 text-[12px]">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className={cn("size-1.5 rounded-full shrink-0", s.tone)} />
-                      <span className="text-slate-700 truncate">{s.label}</span>
-                    </div>
-                    <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
-                      <div className={cn("h-full", s.tone)} style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="tabular-nums text-slate-600 text-right w-16 text-[11px]">
-                      {s.count} <span className="text-slate-400">· {pct.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <StatusDonut segments={data!.status} total={data!.total} />
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatusDonut({
+  segments, total,
+}: { segments: { key: string; count: number; label: string; color: string }[]; total: number }) {
+  // SVG donut geometry
+  const size = 132;
+  const stroke = 16;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+
+  let acc = 0;
+  const arcs = segments.map((s) => {
+    const frac = total > 0 ? s.count / total : 0;
+    const dash = frac * c;
+    const offset = -acc * c; // rotate to next slot
+    acc += frac;
+    return { ...s, dash, gap: c - dash, offset, pct: frac * 100 };
+  });
+
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90 overflow-visible">
+          {/* track */}
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+          {arcs.map((a) => (
+            <circle
+              key={a.key}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={a.color}
+              strokeWidth={stroke}
+              strokeLinecap="butt"
+              strokeDasharray={`${a.dash} ${a.gap}`}
+              strokeDashoffset={a.offset}
+              className="transition-[stroke-dasharray] duration-500"
+            >
+              <title>{`${a.label}: ${a.count} · ${a.pct.toFixed(1)}%`}</title>
+            </circle>
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="text-[9px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">Total</div>
+          <div className="text-xl font-semibold tabular-nums tracking-tight text-slate-900 leading-none mt-0.5">
+            {total}
+          </div>
+        </div>
+      </div>
+
+      <ul className="flex-1 min-w-0 space-y-1.5">
+        {arcs.map((s) => (
+          <li
+            key={s.key}
+            className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-[12px]"
+          >
+            <span
+              className="size-2 rounded-[3px] shrink-0"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="text-slate-700 truncate">{s.label}</span>
+            <span className="tabular-nums text-slate-500 text-right text-[11px]">
+              <span className="font-semibold text-slate-800">{s.count}</span>
+              <span className="text-slate-400"> · {s.pct.toFixed(0)}%</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
