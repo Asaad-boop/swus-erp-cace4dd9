@@ -463,10 +463,13 @@ function StatusPill({ done, running, failed }: { done: boolean; running: boolean
 }
 
 function RowItem({ row }: { row: Row }) {
+  const failed = row.status === "failed";
   return (
     <div
-      className="grid grid-cols-[1.1fr_0.9fr_1.1fr_1.4fr_0.5fr] items-center px-3 text-xs border-b last:border-b-0 hover:bg-muted/30"
-      style={{ height: ROW_HEIGHT }}
+      className={cn(
+        "grid grid-cols-[1.1fr_0.9fr_1.1fr_1.4fr_0.5fr] items-start px-3 py-2 text-xs border-b last:border-b-0 hover:bg-muted/30",
+      )}
+      style={{ minHeight: ROW_HEIGHT }}
     >
       <div className="font-mono font-semibold truncate pr-2">{row.display}</div>
       <div>
@@ -483,10 +486,13 @@ function RowItem({ row }: { row: Row }) {
       </div>
       <div
         className={cn(
-          "truncate pr-2",
-          row.status === "failed" ? "text-red-600" : "text-muted-foreground",
+          "pr-2 break-words",
+          failed ? "text-red-600 whitespace-pre-wrap" : "text-muted-foreground truncate",
         )}
         title={row.message}
+        onClick={() => {
+          if (failed) navigator.clipboard?.writeText(row.message).catch(() => {});
+        }}
       >
         {row.message}
       </div>
