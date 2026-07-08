@@ -69,6 +69,7 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
         order_id: orderId, brand_id: order.brand_id,
         campaign_id: c.id, source: "utm", confidence: 0.95, ...baseUtm,
       });
+      await autoLinkOrderProducts(supabase, orderId, c.id, order.brand_id);
       return { attributed: true, source: "utm", campaign_id: c.id, confidence: 0.95 };
     }
   }
@@ -93,6 +94,7 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
           utm_content: ev.utm_content, utm_term: ev.utm_term,
           fbclid: order.fbclid,
         });
+        await autoLinkOrderProducts(supabase, orderId, c.id, order.brand_id);
         return { attributed: true, source: "pixel", campaign_id: c.id, confidence: 0.85 };
       }
     }
@@ -121,6 +123,7 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
             utm_source: ev.utm_source, utm_medium: ev.utm_medium,
             utm_content: ev.utm_content, utm_term: ev.utm_term,
           });
+          await autoLinkOrderProducts(supabase, orderId, c.id, order.brand_id);
           return { attributed: true, source: "phone_match", campaign_id: c.id, confidence: 0.65 };
         }
       }
@@ -168,6 +171,47 @@ async function upsertAttribution(supabase: any, row: any) {
     .from("mkt_order_attributions")
     .upsert(row, { onConflict: "order_id" });
   if (error) throw error;
+}
+
+/**
+ * Auto-link the products in this order to the attributed campaign.
+ * Idempotent: skips (campaign_id, product_id) pairs that already exist.
+ * New links start at weight 1 with note "auto:attribution".
+ */
+async function autoLinkOrderProducts(
+  supabase: any,
+  orderId: string,
+  campaignId: string,
+  brandId: string,
+) {
+  const { data: items } = await supabase
+    .from("order_items")
+    .select("product_id")
+    .eq("order_id", orderId);
+  const productIds = Array.from(
+    new Set((items ?? []).map((i: any) => i.product_id).filter(Boolean)),
+  ) as string[];
+  if (!productIds.length) return;
+
+  const { data: existing } = await supabase
+    .from("mkt_campaign_products")
+    .select("product_id")
+    .eq("campaign_id", campaignId)
+    .in("product_id", productIds);
+  const have = new Set((existing ?? []).map((r: any) => r.product_id));
+  const rows = productIds
+    .filter((pid) => !have.has(pid))
+    .map((pid) => ({
+      campaign_id: campaignId,
+      product_id: pid,
+      brand_id: brandId,
+      weight: 1,
+      note: "auto:attribution",
+    }));
+  if (!rows.length) return;
+  await supabase
+    .from("mkt_campaign_products")
+    .upsert(rows, { onConflict: "campaign_id,product_id", ignoreDuplicates: true });
 }
 
 /* ---------------- public server fns ---------------- */
