@@ -2337,6 +2337,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "erp_product_expense_allocations_mkt_ad_account_id_fkey"
+            columns: ["mkt_ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
             foreignKeyName: "erp_product_expense_allocations_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -5588,6 +5595,79 @@ export type Database = {
           },
         ]
       }
+      meta_ad_wallet_ledger: {
+        Row: {
+          ad_account_id: string
+          balance_usd_after: number | null
+          bdt_value: number
+          conversion_source: string | null
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          entry_type: string
+          id: string
+          note: string | null
+          rate_used: number | null
+          source_purchase_id: string | null
+          source_spend_ref: string | null
+          usd_delta: number
+        }
+        Insert: {
+          ad_account_id: string
+          balance_usd_after?: number | null
+          bdt_value?: number
+          conversion_source?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          entry_type: string
+          id?: string
+          note?: string | null
+          rate_used?: number | null
+          source_purchase_id?: string | null
+          source_spend_ref?: string | null
+          usd_delta: number
+        }
+        Update: {
+          ad_account_id?: string
+          balance_usd_after?: number | null
+          bdt_value?: number
+          conversion_source?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          note?: string | null
+          rate_used?: number | null
+          source_purchase_id?: string | null
+          source_spend_ref?: string | null
+          usd_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_ad_wallet_ledger_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_ad_wallet_ledger_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
+            foreignKeyName: "meta_ad_wallet_ledger_source_purchase_id_fkey"
+            columns: ["source_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "meta_dollar_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_capi_log: {
         Row: {
           brand_id: string | null
@@ -5634,6 +5714,241 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_dollar_purchases: {
+        Row: {
+          ad_account_id: string
+          attachment_url: string | null
+          bdt_amount: number | null
+          brand_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          effective_rate: number | null
+          fee_bdt: number
+          id: string
+          note: string | null
+          paid_from_account_id: string
+          payment_method: string | null
+          purchase_date: string
+          reference: string | null
+          status: string
+          supplier_name: string | null
+          total_bdt: number | null
+          updated_at: string
+          usd_amount: number
+          usd_rate: number
+        }
+        Insert: {
+          ad_account_id: string
+          attachment_url?: string | null
+          bdt_amount?: number | null
+          brand_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_rate?: number | null
+          fee_bdt?: number
+          id?: string
+          note?: string | null
+          paid_from_account_id: string
+          payment_method?: string | null
+          purchase_date?: string
+          reference?: string | null
+          status?: string
+          supplier_name?: string | null
+          total_bdt?: number | null
+          updated_at?: string
+          usd_amount: number
+          usd_rate: number
+        }
+        Update: {
+          ad_account_id?: string
+          attachment_url?: string | null
+          bdt_amount?: number | null
+          brand_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_rate?: number | null
+          fee_bdt?: number
+          id?: string
+          note?: string | null
+          paid_from_account_id?: string
+          payment_method?: string | null
+          purchase_date?: string
+          reference?: string | null
+          status?: string
+          supplier_name?: string | null
+          total_bdt?: number | null
+          updated_at?: string
+          usd_amount?: number
+          usd_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_dollar_purchases_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_dollar_purchases_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
+            foreignKeyName: "meta_dollar_purchases_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_dollar_purchases_paid_from_account_id_fkey"
+            columns: ["paid_from_account_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_fifo_lots: {
+        Row: {
+          ad_account_id: string
+          created_at: string
+          effective_rate: number
+          id: string
+          is_active: boolean
+          lot_date: string
+          purchase_id: string | null
+          usd_remaining: number
+          usd_total: number
+        }
+        Insert: {
+          ad_account_id: string
+          created_at?: string
+          effective_rate: number
+          id?: string
+          is_active?: boolean
+          lot_date: string
+          purchase_id?: string | null
+          usd_remaining: number
+          usd_total: number
+        }
+        Update: {
+          ad_account_id?: string
+          created_at?: string
+          effective_rate?: number
+          id?: string
+          is_active?: boolean
+          lot_date?: string
+          purchase_id?: string | null
+          usd_remaining?: number
+          usd_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_fifo_lots_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_fifo_lots_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
+            foreignKeyName: "meta_fifo_lots_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "meta_dollar_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_spend_consumptions: {
+        Row: {
+          ad_account_id: string
+          bdt_cost: number
+          conversion_source: string
+          created_at: string
+          id: string
+          insight_id: string | null
+          lots_used: Json
+          spend_ref: string
+          updated_at: string
+          usd_consumed: number
+          usd_spend_recorded: number
+        }
+        Insert: {
+          ad_account_id: string
+          bdt_cost?: number
+          conversion_source?: string
+          created_at?: string
+          id?: string
+          insight_id?: string | null
+          lots_used?: Json
+          spend_ref: string
+          updated_at?: string
+          usd_consumed?: number
+          usd_spend_recorded?: number
+        }
+        Update: {
+          ad_account_id?: string
+          bdt_cost?: number
+          conversion_source?: string
+          created_at?: string
+          id?: string
+          insight_id?: string | null
+          lots_used?: Json
+          spend_ref?: string
+          updated_at?: string
+          usd_consumed?: number
+          usd_spend_recorded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_spend_consumptions_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ad_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_spend_consumptions_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
+            foreignKeyName: "meta_spend_consumptions_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_insights_daily"
             referencedColumns: ["id"]
           },
         ]
@@ -5711,6 +6026,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_ad_account_brands_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
           },
           {
             foreignKeyName: "mkt_ad_account_brands_brand_id_fkey"
@@ -5860,6 +6182,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mkt_ads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
             foreignKeyName: "mkt_ads_adset_id_fkey"
             columns: ["adset_id"]
             isOneToOne: false
@@ -5938,6 +6267,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_adsets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
           },
           {
             foreignKeyName: "mkt_adsets_brand_id_fkey"
@@ -6071,6 +6407,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mkt_campaigns_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
+          },
+          {
             foreignKeyName: "mkt_campaigns_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: false
@@ -6168,6 +6511,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_insights_daily_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
           },
           {
             foreignKeyName: "mkt_insights_daily_ad_id_fkey"
@@ -6288,6 +6638,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_manual_expenses_mkt_ad_account_id_fkey"
+            columns: ["mkt_ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
           },
           {
             foreignKeyName: "mkt_manual_expenses_product_id_fkey"
@@ -6455,6 +6812,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mkt_ad_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_sync_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_meta_ad_wallet_summary"
+            referencedColumns: ["ad_account_id"]
           },
           {
             foreignKeyName: "mkt_sync_log_brand_id_fkey"
@@ -8231,6 +8595,31 @@ export type Database = {
           },
         ]
       }
+      v_meta_ad_wallet_summary: {
+        Row: {
+          ad_account_id: string | null
+          ad_account_name: string | null
+          avg_effective_rate: number | null
+          brand_id: string | null
+          brand_name: string | null
+          external_id: string | null
+          latest_purchase_rate: number | null
+          remaining_usd: number | null
+          total_bdt_paid: number | null
+          total_bdt_spent: number | null
+          total_usd_purchased: number | null
+          total_usd_spent: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_ad_accounts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_product_incoming: {
         Row: {
           brand_id: string | null
@@ -8453,6 +8842,16 @@ export type Database = {
       check_reorder_triggers_all_brands: { Args: never; Returns: number }
       confirm_meta_dollar_purchase: {
         Args: { _purchase_id: string }
+        Returns: Json
+      }
+      consume_meta_spend_fifo: {
+        Args: {
+          _ad_account_id: string
+          _insight_id?: string
+          _spend_date: string
+          _spend_ref: string
+          _usd_spend: number
+        }
         Returns: Json
       }
       create_bill: {
