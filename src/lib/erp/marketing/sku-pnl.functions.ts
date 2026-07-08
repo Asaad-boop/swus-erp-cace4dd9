@@ -12,6 +12,9 @@ export type SkuPnlRow = {
   sellable_returns: number;
   damaged_returns: number;
   net_revenue: number;
+  // Courier deductions (Phase 2 — actual amount courier paid us)
+  courier_fees: number;
+  net_revenue_after_courier: number;
   // COGS breakdown
   gross_cogs: number;
   cogs_reversed: number;
@@ -31,6 +34,7 @@ export type SkuPnlRow = {
   cost_source: "fifo" | "fx_fallback" | "manual" | "mixed";
   estimated_bdt_cost: boolean;
   net_profit: number;
+  net_profit_after_courier: number;
   margin_pct: number | null;
   roas: number | null;
   // Units
@@ -67,7 +71,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     // 1) Delivered order items in window
     const { data: items, error: iErr } = await supabase
       .from("order_items")
-      .select("product_id, quantity, line_total, unit_cost_snapshot, orders!inner(status, brand_id, created_at)")
+      .select("product_id, quantity, line_total, unit_cost_snapshot, courier_cost_allocated, orders!inner(status, brand_id, created_at)")
       .eq("orders.brand_id", data.brandId)
       .eq("orders.status", "delivered")
       .gte("orders.created_at", fromStart)
@@ -78,6 +82,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       units_sold: number;
       gross_revenue: number;
       gross_cogs: number;
+      courier_fees: number;
       units_returned_sellable: number;
       units_returned_damaged: number;
       sellable_returns: number;
@@ -91,6 +96,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       if (!a) {
         a = {
           units_sold: 0, gross_revenue: 0, gross_cogs: 0,
+          courier_fees: 0,
           units_returned_sellable: 0, units_returned_damaged: 0,
           sellable_returns: 0, damaged_returns: 0,
           cogs_reversed: 0, damaged_cogs_loss: 0,
@@ -109,6 +115,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       const lineTotal = Number(r.line_total) || 0;
       a.units_sold += qty;
       a.gross_revenue += lineTotal;
+      a.courier_fees += Number(r.courier_cost_allocated) || 0;
       const unitCost = r.unit_cost_snapshot != null ? Number(r.unit_cost_snapshot) : null;
       if (unitCost != null) a.gross_cogs += unitCost * qty;
     }
@@ -340,6 +347,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     for (const pid of allIds) {
       const a = perProduct.get(pid) ?? {
         units_sold: 0, gross_revenue: 0, gross_cogs: 0,
+        courier_fees: 0,
         units_returned_sellable: 0, units_returned_damaged: 0,
         sellable_returns: 0, damaged_returns: 0,
         cogs_reversed: 0, damaged_cogs_loss: 0,
@@ -349,10 +357,12 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       const m = manualByProduct.get(pid) ?? { influencer: 0, ugc: 0, other: 0 };
       const meta = productMeta.get(pid);
       const net_revenue = a.gross_revenue - a.sellable_returns - a.damaged_returns;
+      const net_revenue_after_courier = net_revenue - a.courier_fees;
       const net_cogs = a.gross_cogs - a.cogs_reversed;
       const gross_profit = net_revenue - net_cogs;
       const total_marketing = adSpend + m.influencer + m.ugc + m.other;
       const net = gross_profit - total_marketing;
+      const net_profit_after_courier = net - a.courier_fees;
       const cost_source: SkuPnlRow["cost_source"] =
         adSpend <= 0
           ? "manual"
@@ -371,6 +381,8 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         sellable_returns: +a.sellable_returns.toFixed(2),
         damaged_returns: +a.damaged_returns.toFixed(2),
         net_revenue: +net_revenue.toFixed(2),
+        courier_fees: +a.courier_fees.toFixed(2),
+        net_revenue_after_courier: +net_revenue_after_courier.toFixed(2),
         gross_cogs: +a.gross_cogs.toFixed(2),
         cogs_reversed: +a.cogs_reversed.toFixed(2),
         net_cogs: +net_cogs.toFixed(2),
@@ -387,6 +399,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         cost_source,
         estimated_bdt_cost,
         net_profit: +net.toFixed(2),
+        net_profit_after_courier: +net_profit_after_courier.toFixed(2),
         margin_pct: net_revenue > 0 ? +((net / net_revenue) * 100).toFixed(2) : null,
         roas: total_marketing > 0 ? +(net_revenue / total_marketing).toFixed(2) : null,
         units_sold: a.units_sold,
