@@ -154,7 +154,7 @@ function AttributionPage() {
             <Button
               size="sm"
               onClick={() => bulkMut.mutate()}
-              disabled={bulkMut.isPending}
+              disabled={bulkMut.isPending || !brandId}
             >
               {bulkMut.isPending
                 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" />
