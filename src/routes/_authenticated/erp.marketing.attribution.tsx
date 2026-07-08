@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, X, Search } from "lucide-react";
+import { Loader2, Sparkles, X, Search, Link2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -28,6 +28,7 @@ import {
   resolveOrderAttribution,
   setManualAttribution,
   clearAttribution,
+  backfillCampaignProductLinks,
 } from "@/lib/erp/marketing/attribution.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/attribution")({
@@ -56,6 +57,7 @@ function AttributionPage() {
   const oneFn = useServerFn(resolveOrderAttribution);
   const setManFn = useServerFn(setManualAttribution);
   const clearFn = useServerFn(clearAttribution);
+  const backfillFn = useServerFn(backfillCampaignProductLinks);
 
   const ordersQ = useQuery({
     queryKey: ["mkt", "attribution-orders", brandId, tab, days],
@@ -74,6 +76,15 @@ function AttributionPage() {
     onSuccess: (r) => {
       toast.success(`Scanned ${r.scanned} — attributed ${r.attributed}`);
       qc.invalidateQueries({ queryKey: ["mkt", "attribution-orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const backfillMut = useMutation({
+    mutationFn: () => backfillFn({ data: { brandId: brandId ?? null } }),
+    onSuccess: (r) => {
+      toast.success(`Linked ${r.linked} products — skipped ${r.skipped} (already linked)`);
+      qc.invalidateQueries({ queryKey: ["mkt"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -149,6 +160,18 @@ function AttributionPage() {
                 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 : <Sparkles className="mr-1 h-4 w-4" />}
               Auto-resolve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => backfillMut.mutate()}
+              disabled={backfillMut.isPending}
+              title="Existing attributed orders er products campaign e auto-link koro"
+            >
+              {backfillMut.isPending
+                ? <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                : <Link2 className="mr-1 h-4 w-4" />}
+              Backfill Product Links
             </Button>
           </div>
         </CardHeader>
