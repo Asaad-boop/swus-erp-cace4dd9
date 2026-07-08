@@ -235,11 +235,13 @@ export const bulkResolveAttributions = createServerFn({ method: "POST" })
     await assertRole(context.supabase, context.userId);
     const since = new Date(Date.now() - data.days * 86400000).toISOString();
 
-    // Find orders without attribution
+    // Skip only orders that already have a resolved campaign.
+    // auto_unmatched rows (campaign_id NULL) MUST be re-tried.
     const { data: existing } = await context.supabase
       .from("mkt_order_attributions")
-      .select("order_id")
-      .eq("brand_id", data.brandId);
+      .select("order_id, campaign_id")
+      .eq("brand_id", data.brandId)
+      .not("campaign_id", "is", null);
     const attributedSet = new Set((existing ?? []).map((r: any) => r.order_id));
 
     const { data: orders } = await context.supabase
