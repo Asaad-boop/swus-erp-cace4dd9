@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/erp/use-finance-query";
-import { listWarehouses, postCartonToInventory, releaseCarton } from "@/lib/erp/imports/imports.functions";
+import { listWarehouses, payCartonDue, postCartonToInventory, releaseCarton } from "@/lib/erp/imports/imports.functions";
 import { CARTON_STATUS_LABEL, fmtBdt, newIdemKey, type ImpCartonStatus } from "@/lib/erp/imports/types";
 import { Mini, Row } from "./atoms";
 
@@ -28,7 +28,15 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
   const status = carton.status as ImpCartonStatus;
   const meta = CARTON_STATUS_LABEL[status];
 
-  const needsAction = status === "arrived_bd" || status === "released";
+  const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
+  const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
+  const courierCost = Number(carton.local_courier_bdt ?? 0);
+  const cartonBillable = supplierCost + shippingCost + courierCost;
+  const cartonPaid = Number(carton.paid_bdt ?? 0);
+  const cartonDue = Math.max(0, +(cartonBillable - cartonPaid).toFixed(2));
+  const hasDue = cartonDue > 0.009 && (status === "released" || status === "in_stock");
+
+  const needsAction = status === "arrived_bd" || status === "released" || hasDue;
   const selectable = ["ordered", "at_china_warehouse", "in_transit", "arrived_bd"].includes(status);
 
   return (
@@ -65,6 +73,11 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
           <div className="font-mono text-sm font-semibold">{poNumber}-C{carton.carton_number}</div>
           <div className="text-[11px] text-muted-foreground">{carton.expected_quantity} pcs · landed {fmtBdt(carton.total_landed_bdt)}</div>
         </div>
+        {hasDue && (
+          <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300">
+            Due {fmtBdt(cartonDue)}
+          </Badge>
+        )}
         <div className="hidden md:block text-right text-xs">
           <div>Product: <span className="tabular-nums font-medium">{fmtBdt(carton.supplier_cost_bdt)}</span></div>
           <div className="text-muted-foreground">Ship: <span className="tabular-nums font-medium">{fmtBdt(carton.shipping_charge_bdt)}</span></div>
@@ -91,6 +104,9 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
           {status === "released" && brandId && (
             <InlineQcForm carton={carton} brandId={brandId} poItems={poItems} poId={poId} poDue={poDue} />
           )}
+          {hasDue && brandId && (
+            <InlinePayDueForm carton={carton} brandId={brandId} poId={poId} cartonDue={cartonDue} />
+          )}
           {!needsAction && (
             <div className="text-xs text-muted-foreground py-2">
               {status === "in_stock" && carton.posted_at ? `Posted to inventory on ${carton.posted_at}` : "No action required at this stage."}
@@ -98,6 +114,55 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function InlinePayDueForm({ carton, brandId, poId, cartonDue }: { carton: any; brandId: string; poId: string; cartonDue: number }) {
+  const fn = useServerFn(payCartonDue);
+  const qc = useQueryClient();
+  const { data: wallets = [] } = useAccounts([brandId]);
+  const [amount, setAmount] = useState<number>(cartonDue);
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      if (amount <= 0) throw new Error("Amount required");
+      if (!walletId) throw new Error("Pick a wallet");
+      return await fn({ data: {
+        carton_id: carton.id,
+        amount,
+        wallet_id: walletId,
+        payment_date: new Date().toISOString().slice(0, 10),
+        reference: ref || undefined,
+        idempotency_key: newIdemKey("cdue"),
+      } });
+    },
+    onSuccess: () => { toast.success("Carton due paid"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  return (
+    <div className="space-y-3 py-3">
+      <div className="text-[11px] tracking-wider font-semibold text-orange-600">PAY CARTON DUE</div>
+      <div className="text-xs text-muted-foreground">
+        Outstanding on this carton: <span className="tabular-nums font-semibold text-orange-600">{fmtBdt(cartonDue)}</span>
+      </div>
+      <div className="grid md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
+        <div>
+          <Label className="text-xs">Wallet</Label>
+          <Select value={walletId} onValueChange={setWalletId}>
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" /></div>
+      </div>
+      <Button onClick={() => mut.mutate()} disabled={mut.isPending} className="bg-orange-600 hover:bg-orange-700 text-white">
+        {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Send className="h-4 w-4 mr-1" />Pay {fmtBdt(amount)}
+      </Button>
     </div>
   );
 }

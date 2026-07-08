@@ -104,7 +104,7 @@ export const getPurchaseOrderDetail = createServerFn({ method: "POST" })
       `).eq("po_id", data.poId).order("created_at"),
       context.supabase.from("imp_cartons").select(`
         id, carton_number, barcode, expected_quantity,
-        supplier_cost_bdt, shipping_charge_bdt, local_courier_bdt, total_landed_bdt,
+        supplier_cost_bdt, shipping_charge_bdt, local_courier_bdt, total_landed_bdt, paid_bdt,
         weight_kg, cost_share_bdt, status, warehouse_id, received_at, released_at, qc_at, posted_at, notes,
         items:imp_carton_items ( id, po_item_id, product_id, variant_id, sku_snapshot,
           quantity_expected, quantity_ok, quantity_damaged, quantity_missing,
@@ -745,6 +745,28 @@ export const recordImportPayment = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(context.supabase, context.userId, ["admin", "accountant"]);
     const { data: out, error } = await context.supabase.rpc("imp_record_payment_rpc", { _payload: data });
+    if (error) throw error;
+    return out;
+  });
+
+/* --- pay carton-level due later (after release-without-payment) --- */
+
+export const payCartonDue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      carton_id: z.string().uuid(),
+      amount: z.number().positive(),
+      wallet_id: z.string().uuid(),
+      payment_date: z.string(),
+      reference: z.string().optional(),
+      notes: z.string().optional(),
+      idempotency_key: z.string().min(8),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+    const { data: out, error } = await context.supabase.rpc("imp_pay_carton_due", { _payload: data });
     if (error) throw error;
     return out;
   });
