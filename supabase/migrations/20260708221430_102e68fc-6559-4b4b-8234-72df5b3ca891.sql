@@ -1,0 +1,1 @@
+ALTER VIEW public.v_meta_ad_wallet_summary SET (security_invoker = true);
