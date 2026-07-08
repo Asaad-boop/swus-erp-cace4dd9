@@ -159,7 +159,14 @@ function PoDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setPaymentOpen(true)}><Wallet className="h-4 w-4 mr-1" />Record Payment</Button>
+            <Button
+              variant={Number(po.due_bdt) > 0 ? "default" : "outline"}
+              className={Number(po.due_bdt) > 0 ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}
+              onClick={() => setPaymentOpen(true)}
+            >
+              <Wallet className="h-4 w-4 mr-1" />
+              {Number(po.due_bdt) > 0 ? `Pay Due ${fmtBdt(po.due_bdt)}` : "Record Payment"}
+            </Button>
             <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4 mr-1" />Delete PO
             </Button>
@@ -226,6 +233,18 @@ function PoDetailPage() {
           <Mini label="LOCAL COURIER" value={fmtBdt(po.local_courier_total_bdt)} />
           <Mini label="OUTSTANDING DUE" value={fmtBdt(po.due_bdt)} valueClass="text-orange-600" />
         </div>
+        {Number(po.due_bdt) > 0 && (
+          <div className="mt-4 rounded-md border border-orange-300/70 dark:border-orange-900/50 bg-orange-50/60 dark:bg-orange-950/20 px-3 py-2.5 flex items-center gap-3 flex-wrap">
+            <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
+            <div className="flex-1 min-w-0 text-xs text-orange-800 dark:text-orange-200">
+              <span className="font-semibold">Outstanding due:</span> <span className="tabular-nums font-mono">{fmtBdt(po.due_bdt)}</span>
+              {" — "}Carton "released without payment" hoyeche. Ekhon supplier ke pay korte parben.
+            </div>
+            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPaymentOpen(true)}>
+              <Wallet className="h-3.5 w-3.5 mr-1" />Pay Now
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Products */}
