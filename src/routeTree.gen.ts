@@ -119,6 +119,7 @@ import { Route as AuthenticatedErpHrEmployeesIndexRouteImport } from './routes/_
 import { Route as AuthenticatedErpHrAttendanceIndexRouteImport } from './routes/_authenticated/erp.hr.attendance.index'
 import { Route as AuthenticatedErpMarketingCampaignsCampaignIdRouteImport } from './routes/_authenticated/erp.marketing.campaigns.$campaignId'
 import { Route as AuthenticatedErpImportsOrdersNewRouteImport } from './routes/_authenticated/erp.imports.orders.new'
+import { Route as AuthenticatedErpImportsOrdersOrderIdRouteImport } from './routes/_authenticated/erp.imports.orders.$orderId'
 import { Route as AuthenticatedErpHrShiftsAssignRouteImport } from './routes/_authenticated/erp.hr.shifts.assign'
 import { Route as AuthenticatedErpHrPayrollRunIdRouteImport } from './routes/_authenticated/erp.hr.payroll.$runId'
 import { Route as AuthenticatedErpHrLeavePolicyRouteImport } from './routes/_authenticated/erp.hr.leave.policy'
@@ -761,6 +762,12 @@ const AuthenticatedErpImportsOrdersNewRoute =
     path: '/orders/new',
     getParentRoute: () => AuthenticatedErpImportsRoute,
   } as any)
+const AuthenticatedErpImportsOrdersOrderIdRoute =
+  AuthenticatedErpImportsOrdersOrderIdRouteImport.update({
+    id: '/orders/$orderId',
+    path: '/orders/$orderId',
+    getParentRoute: () => AuthenticatedErpImportsRoute,
+  } as any)
 const AuthenticatedErpHrShiftsAssignRoute =
   AuthenticatedErpHrShiftsAssignRouteImport.update({
     id: '/assign',
@@ -913,6 +920,7 @@ export interface FileRoutesByFullPath {
   '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/erp/hr/attendance/': typeof AuthenticatedErpHrAttendanceIndexRoute
@@ -1018,6 +1026,7 @@ export interface FileRoutesByTo {
   '/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/erp/hr/attendance': typeof AuthenticatedErpHrAttendanceIndexRoute
@@ -1138,6 +1147,7 @@ export interface FileRoutesById {
   '/_authenticated/erp/hr/leave/policy': typeof AuthenticatedErpHrLeavePolicyRoute
   '/_authenticated/erp/hr/payroll/$runId': typeof AuthenticatedErpHrPayrollRunIdRoute
   '/_authenticated/erp/hr/shifts/assign': typeof AuthenticatedErpHrShiftsAssignRoute
+  '/_authenticated/erp/imports/orders/$orderId': typeof AuthenticatedErpImportsOrdersOrderIdRoute
   '/_authenticated/erp/imports/orders/new': typeof AuthenticatedErpImportsOrdersNewRoute
   '/_authenticated/erp/marketing/campaigns/$campaignId': typeof AuthenticatedErpMarketingCampaignsCampaignIdRoute
   '/_authenticated/erp/hr/attendance/': typeof AuthenticatedErpHrAttendanceIndexRoute
@@ -1258,6 +1268,7 @@ export interface FileRouteTypes {
     | '/erp/hr/leave/policy'
     | '/erp/hr/payroll/$runId'
     | '/erp/hr/shifts/assign'
+    | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
     | '/erp/hr/attendance/'
@@ -1363,6 +1374,7 @@ export interface FileRouteTypes {
     | '/erp/hr/leave/policy'
     | '/erp/hr/payroll/$runId'
     | '/erp/hr/shifts/assign'
+    | '/erp/imports/orders/$orderId'
     | '/erp/imports/orders/new'
     | '/erp/marketing/campaigns/$campaignId'
     | '/erp/hr/attendance'
@@ -1482,6 +1494,7 @@ export interface FileRouteTypes {
     | '/_authenticated/erp/hr/leave/policy'
     | '/_authenticated/erp/hr/payroll/$runId'
     | '/_authenticated/erp/hr/shifts/assign'
+    | '/_authenticated/erp/imports/orders/$orderId'
     | '/_authenticated/erp/imports/orders/new'
     | '/_authenticated/erp/marketing/campaigns/$campaignId'
     | '/_authenticated/erp/hr/attendance/'
@@ -2281,6 +2294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErpImportsOrdersNewRouteImport
       parentRoute: typeof AuthenticatedErpImportsRoute
     }
+    '/_authenticated/erp/imports/orders/$orderId': {
+      id: '/_authenticated/erp/imports/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/erp/imports/orders/$orderId'
+      preLoaderRoute: typeof AuthenticatedErpImportsOrdersOrderIdRouteImport
+      parentRoute: typeof AuthenticatedErpImportsRoute
+    }
     '/_authenticated/erp/hr/shifts/assign': {
       id: '/_authenticated/erp/hr/shifts/assign'
       path: '/assign'
@@ -2495,6 +2515,7 @@ interface AuthenticatedErpImportsRouteChildren {
   AuthenticatedErpImportsReportsRoute: typeof AuthenticatedErpImportsReportsRoute
   AuthenticatedErpImportsSettingsRoute: typeof AuthenticatedErpImportsSettingsRoute
   AuthenticatedErpImportsIndexRoute: typeof AuthenticatedErpImportsIndexRoute
+  AuthenticatedErpImportsOrdersOrderIdRoute: typeof AuthenticatedErpImportsOrdersOrderIdRoute
   AuthenticatedErpImportsOrdersNewRoute: typeof AuthenticatedErpImportsOrdersNewRoute
   AuthenticatedErpImportsOrdersIndexRoute: typeof AuthenticatedErpImportsOrdersIndexRoute
 }
@@ -2505,6 +2526,8 @@ const AuthenticatedErpImportsRouteChildren: AuthenticatedErpImportsRouteChildren
     AuthenticatedErpImportsReportsRoute: AuthenticatedErpImportsReportsRoute,
     AuthenticatedErpImportsSettingsRoute: AuthenticatedErpImportsSettingsRoute,
     AuthenticatedErpImportsIndexRoute: AuthenticatedErpImportsIndexRoute,
+    AuthenticatedErpImportsOrdersOrderIdRoute:
+      AuthenticatedErpImportsOrdersOrderIdRoute,
     AuthenticatedErpImportsOrdersNewRoute:
       AuthenticatedErpImportsOrdersNewRoute,
     AuthenticatedErpImportsOrdersIndexRoute:
