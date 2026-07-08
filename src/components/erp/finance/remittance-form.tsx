@@ -82,6 +82,7 @@ export function RemittanceForm({ open, onClose, brandId, brandIds, editing }: Pr
         .select("order_id, status, created_at, orders!inner(total, payment_method, brand_id)")
         .eq("provider", courier)
         .eq("brand_id", effectiveBrand)
+        .eq("status", "delivered")
         .gte("created_at", fromISO)
         .lte("created_at", `${to}T23:59:59`);
       if (error) throw error;
