@@ -1,30 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-async function assertFinance(supabase: any, userId: string) {
-  const [{ data: admin }, { data: ops }, { data: fin }] = await Promise.all([
-    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-    supabase.rpc("has_role", { _user_id: userId, _role: "operations" }),
-    supabase.rpc("has_role", { _user_id: userId, _role: "finance" }),
-  ]);
-  if (!admin && !ops && !fin) throw new Error("Not authorized");
-}
-
-const purchaseSchema = z.object({
-  brandId: z.string().uuid().nullable().optional(),
-  adAccountId: z.string().uuid(),
-  paidFromAccountId: z.string().uuid(),
-  purchaseDate: z.string().min(8),
-  usdAmount: z.number().positive(),
-  usdRate: z.number().positive(),
-  feeBdt: z.number().min(0).default(0),
-  paymentMethod: z.string().optional().nullable(),
-  reference: z.string().optional().nullable(),
-  supplierName: z.string().optional().nullable(),
-  note: z.string().optional().nullable(),
-  attachmentUrl: z.string().optional().nullable(),
-});
+import { assertDollarPurchaseAccess } from "./dollar-purchase.server";
+import {
+  adAccountWalletDetailSchema,
+  dollarPurchaseActionSchema,
+  dollarPurchaseReasonActionSchema,
+  dollarPurchaseSchema,
+  dollarPurchaseWithIdSchema,
+} from "./dollar-purchase.schemas";
 
 export const listDollarPurchases = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -33,7 +16,8 @@ export const listDollarPurchases = createServerFn({ method: "POST" })
     status?: string; from?: string; to?: string;
   }) => d)
   .handler(async ({ data, context }) => {
-    let q = context.supabase
+    const db = context.supabase as any;
+    let q = db
       .from("meta_dollar_purchases")
       .select(`
         id, purchase_date, brand_id, ad_account_id, paid_from_account_id,
@@ -51,7 +35,7 @@ export const listDollarPurchases = createServerFn({ method: "POST" })
       // Include purchases either directly tagged to the brand, tagged as
       // shared (brand_id IS NULL), or made on an ad account linked to the
       // brand via the mkt_ad_account_brands junction.
-      const { data: links } = await context.supabase
+      const { data: links } = await db
         .from("mkt_ad_account_brands")
         .select("ad_account_id")
         .in("brand_id", data.brandIds);
@@ -81,7 +65,8 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { brandIds?: string[] }) => d)
   .handler(async ({ data, context }) => {
-    let accQ = context.supabase
+    const db = context.supabase as any;
+    let accQ = db
       .from("erp_accounts")
       .select("id, name, account_type, current_balance, brand_id, is_active")
       .eq("is_active", true)
@@ -91,13 +76,13 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
       const ids = data.brandIds.map((b) => `"${b}"`).join(",");
       accQ = accQ.or(`brand_id.in.(${ids}),brand_id.is.null`);
     }
-    let adQ = context.supabase
+    let adQ = db
       .from("mkt_ad_accounts")
       .select("id, name, external_id, brand_id, currency, usd_to_bdt_rate, mkt_ad_account_brands(brand_id, is_primary)")
       .order("name");
     if (data.brandIds?.length) {
       // Find ad accounts linked to any of the selected brands via junction (or legacy brand_id)
-      const { data: links } = await context.supabase
+      const { data: links } = await db
         .from("mkt_ad_account_brands")
         .select("ad_account_id")
         .in("brand_id", data.brandIds);
@@ -109,8 +94,8 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
     const [{ data: accounts }, { data: adAccounts }, { data: brands }, { data: fx }] = await Promise.all([
       accQ,
       adQ,
-      context.supabase.from("brands").select("id, name").eq("is_active", true).order("name"),
-      context.supabase
+      db.from("brands").select("id, name").eq("is_active", true).order("name"),
+      db
         .from("erp_fx_rates")
         .select("rate, rate_date")
         .eq("from_ccy", "USD")
@@ -129,10 +114,11 @@ export const listDollarPurchaseFormOptions = createServerFn({ method: "POST" })
 
 export const createDollarPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: z.infer<typeof purchaseSchema>) => purchaseSchema.parse(d))
+  .inputValidator((d) => dollarPurchaseSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertFinance(context.supabase, context.userId);
-    const { data: row, error } = await context.supabase
+    const db = context.supabase as any;
+    await assertDollarPurchaseAccess(db, context.userId);
+    const { data: row, error } = await db
       .from("meta_dollar_purchases")
       .insert({
         brand_id: data.brandId ?? null,
@@ -158,12 +144,11 @@ export const createDollarPurchase = createServerFn({ method: "POST" })
 
 export const updateDollarPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: z.infer<typeof purchaseSchema> & { id: string }) =>
-    z.object({ id: z.string().uuid() }).and(purchaseSchema).parse(d),
-  )
+  .inputValidator((d) => dollarPurchaseWithIdSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertFinance(context.supabase, context.userId);
-    const { data: existing, error: eErr } = await context.supabase
+    const db = context.supabase as any;
+    await assertDollarPurchaseAccess(db, context.userId);
+    const { data: existing, error: eErr } = await db
       .from("meta_dollar_purchases")
       .select("status")
       .eq("id", data.id)
@@ -173,7 +158,7 @@ export const updateDollarPurchase = createServerFn({ method: "POST" })
     if (existing.status !== "draft") {
       throw new Error("Confirmed/cancelled entries cannot be edited — create an adjustment instead.");
     }
-    const { error } = await context.supabase
+    const { error } = await db
       .from("meta_dollar_purchases")
       .update({
         brand_id: data.brandId ?? null,
@@ -196,10 +181,11 @@ export const updateDollarPurchase = createServerFn({ method: "POST" })
 
 export const confirmDollarPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => dollarPurchaseActionSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertFinance(context.supabase, context.userId);
-    const { data: res, error } = await context.supabase.rpc(
+    const db = context.supabase as any;
+    await assertDollarPurchaseAccess(db, context.userId);
+    const { data: res, error } = await db.rpc(
       "confirm_meta_dollar_purchase",
       { _purchase_id: data.id },
     );
@@ -209,12 +195,11 @@ export const confirmDollarPurchase = createServerFn({ method: "POST" })
 
 export const cancelDollarPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; reason?: string }) =>
-    z.object({ id: z.string().uuid(), reason: z.string().optional() }).parse(d),
-  )
+  .inputValidator((d) => dollarPurchaseReasonActionSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertFinance(context.supabase, context.userId);
-    const { data: res, error } = await context.supabase.rpc(
+    const db = context.supabase as any;
+    await assertDollarPurchaseAccess(db, context.userId);
+    const { data: res, error } = await db.rpc(
       "cancel_meta_dollar_purchase",
       { _purchase_id: data.id, _reason: data.reason ?? undefined },
     );
@@ -224,12 +209,11 @@ export const cancelDollarPurchase = createServerFn({ method: "POST" })
 
 export const adjustDollarPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; reason?: string }) =>
-    z.object({ id: z.string().uuid(), reason: z.string().optional() }).parse(d),
-  )
+  .inputValidator((d) => dollarPurchaseReasonActionSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertFinance(context.supabase, context.userId);
-    const { data: res, error } = await context.supabase.rpc(
+    const db = context.supabase as any;
+    await assertDollarPurchaseAccess(db, context.userId);
+    const { data: res, error } = await db.rpc(
       "adjust_meta_dollar_purchase",
       { _purchase_id: data.id, _reason: data.reason ?? undefined },
     );
@@ -241,7 +225,8 @@ export const listAdAccountWallets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { brandIds?: string[] }) => d)
   .handler(async ({ data, context }) => {
-    let q = context.supabase
+    const db = context.supabase as any;
+    let q = db
       .from("v_meta_ad_wallet_summary")
       .select("*")
       .order("ad_account_name");
@@ -253,29 +238,28 @@ export const listAdAccountWallets = createServerFn({ method: "POST" })
 
 export const getAdAccountWalletDetail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { adAccountId: string }) =>
-    z.object({ adAccountId: z.string().uuid() }).parse(d),
-  )
+  .inputValidator((d) => adAccountWalletDetailSchema.parse(d))
   .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
     const [summary, ledger, lots, purchases] = await Promise.all([
-      context.supabase
+      db
         .from("v_meta_ad_wallet_summary")
         .select("*")
         .eq("ad_account_id", data.adAccountId)
         .maybeSingle(),
-      context.supabase
+      db
         .from("meta_ad_wallet_ledger")
         .select("*")
         .eq("ad_account_id", data.adAccountId)
         .order("entry_date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(200),
-      context.supabase
+      db
         .from("meta_fifo_lots")
         .select("id, lot_date, usd_total, usd_remaining, effective_rate, is_active, purchase_id")
         .eq("ad_account_id", data.adAccountId)
         .order("lot_date", { ascending: true }),
-      context.supabase
+      db
         .from("meta_dollar_purchases")
         .select("id, purchase_date, usd_amount, usd_rate, total_bdt, effective_rate, status")
         .eq("ad_account_id", data.adAccountId)
