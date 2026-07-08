@@ -1,0 +1,1 @@
+ALTER TABLE public.mkt_insights_daily ADD COLUMN IF NOT EXISTS spend_bdt_fifo NUMERIC;

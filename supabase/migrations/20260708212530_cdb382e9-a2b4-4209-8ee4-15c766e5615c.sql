@@ -1,0 +1,1 @@
+ALTER TABLE public.mkt_insights_daily ADD COLUMN IF NOT EXISTS estimated_bdt_cost BOOLEAN NOT NULL DEFAULT false;
