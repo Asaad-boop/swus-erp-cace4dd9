@@ -87,12 +87,21 @@ export function CodRemittancePage() {
 
   const delMut = useMutation({
     mutationFn: async (id: string) => {
+      // Reverse any wallet credit posted when the remittance was marked received.
+      const { error: txErr } = await supabase
+        .from("erp_transactions")
+        .delete()
+        .eq("reference_type", "cod_remittance")
+        .eq("reference_id", id);
+      if (txErr) throw txErr;
       const { error } = await supabase.from("erp_cod_remittances").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["cod_remittances"] });
+      qc.invalidateQueries({ queryKey: ["wallets"] });
+      qc.invalidateQueries({ queryKey: ["bd_wallets_widget"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
