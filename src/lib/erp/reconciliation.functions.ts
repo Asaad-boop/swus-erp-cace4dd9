@@ -472,6 +472,8 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         // Update order — branch by match_type
         const orderUpdate: Record<string, unknown> = {
           reconciliation_status: "reconciled",
+          courier_fee: expenseAmount,
+          net_collected: incomeAmount - expenseAmount,
         };
         if (matchType === "return") {
           orderUpdate.status = "returned";
@@ -490,6 +492,24 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           .update(orderUpdate as never)
           .eq("id", r.matched_order_id);
         if (oErr) throw oErr;
+
+        // Allocate courier_fee proportionally across order_items for per-SKU P&L
+        if (expenseAmount > 0) {
+          const { data: lines } = await supabase
+            .from("order_items")
+            .select("id, line_total")
+            .eq("order_id", r.matched_order_id);
+          const totalLine = (lines ?? []).reduce((s, l) => s + (Number(l.line_total) || 0), 0);
+          if (totalLine > 0 && lines?.length) {
+            for (const l of lines) {
+              const share = ((Number(l.line_total) || 0) / totalLine) * expenseAmount;
+              await supabase
+                .from("order_items")
+                .update({ courier_cost_allocated: +share.toFixed(2) } as never)
+                .eq("id", l.id);
+            }
+          }
+        }
 
         // Update shipment delivery fee if linked
         if (r.consignment_id) {
