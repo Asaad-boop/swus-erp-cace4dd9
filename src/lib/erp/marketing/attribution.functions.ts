@@ -409,6 +409,7 @@ export const backfillCampaignProductLinks = createServerFn({ method: "POST" })
     // Build per-campaign product set
     const perCampaign = new Map<string, { brand_id: string; products: Set<string> }>();
     for (const a of attrs ?? []) {
+      if (!a.campaign_id || !a.brand_id) continue;
       const pids = itemsByOrder.get(a.order_id) ?? [];
       if (!pids.length) continue;
       const entry = perCampaign.get(a.campaign_id) ?? { brand_id: a.brand_id, products: new Set<string>() };
