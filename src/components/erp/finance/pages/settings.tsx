@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCodWorkflowMode } from "@/hooks/erp/use-cod-workflow-mode";
 
 export function SettingsPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
+  const cod = useCodWorkflowMode(brandId ?? null);
 
   const lockQ = useQuery({
     queryKey: ["erp_period_lock", brandId],
@@ -151,6 +154,33 @@ export function SettingsPage() {
             disabled={!brandId || autopostMut.isPending}
             onCheckedChange={(v) => autopostMut.mutate(v)}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" />COD Workflow Mode</CardTitle>
+          <CardDescription>
+            Pick one path to avoid double-posting COD income. <strong>Courier</strong> = income posted only when courier remits.
+            <strong> Direct</strong> = income posted per-order at collection time; courier remittance disabled.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-between items-center gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Active mode</p>
+            <p className="text-xs text-muted-foreground">
+              {cod.mode === "courier"
+                ? "Per-order Record Collection is blocked. Use Mark Received on courier remittances."
+                : "Courier remittance is blocked. Record COD per order as it's collected."}
+            </p>
+          </div>
+          <Select value={cod.mode} onValueChange={(v) => cod.setMode(v as "courier" | "direct")} disabled={!brandId || cod.isSaving}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="courier">Courier remittance</SelectItem>
+              <SelectItem value="direct">Direct collection</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
