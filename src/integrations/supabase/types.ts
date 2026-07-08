@@ -4788,6 +4788,7 @@ export type Database = {
           id: string
           local_courier_bdt: number
           notes: string | null
+          paid_bdt: number
           po_id: string
           posted_at: string | null
           qc_at: string | null
@@ -4810,6 +4811,7 @@ export type Database = {
           id?: string
           local_courier_bdt?: number
           notes?: string | null
+          paid_bdt?: number
           po_id: string
           posted_at?: string | null
           qc_at?: string | null
@@ -4832,6 +4834,7 @@ export type Database = {
           id?: string
           local_courier_bdt?: number
           notes?: string | null
+          paid_bdt?: number
           po_id?: string
           posted_at?: string | null
           qc_at?: string | null
@@ -8799,6 +8802,10 @@ export type Database = {
         }
         Returns: string
       }
+      _imp_recompute_carton_paid: {
+        Args: { _carton: string }
+        Returns: undefined
+      }
       _imp_record_payment: {
         Args: {
           _amount: number
@@ -9257,6 +9264,7 @@ export type Database = {
       }
       imp_mark_arrived: { Args: { _payload: Json }; Returns: Json }
       imp_next_po_number: { Args: { _brand: string }; Returns: string }
+      imp_pay_carton_due: { Args: { _payload: Json }; Returns: Json }
       imp_post_to_inventory: { Args: { _payload: Json }; Returns: Json }
       imp_quick_create_product: {
         Args: { _brand: string; _image?: string; _sku?: string; _title: string }
