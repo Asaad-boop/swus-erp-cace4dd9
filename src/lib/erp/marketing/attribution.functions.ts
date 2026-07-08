@@ -364,3 +364,83 @@ export const listBrandCampaigns = createServerFn({ method: "POST" })
       .order("name");
     return rows ?? [];
   });
+
+/**
+ * Backfill: for every existing attributed order in a brand, auto-link
+ * the order's products to that campaign (mkt_campaign_products).
+ * Idempotent — existing (campaign_id, product_id) pairs are skipped.
+ */
+export const backfillCampaignProductLinks = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId?: string | null }) =>
+    z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertRole(context.supabase, context.userId);
+    const supabase = context.supabase;
+
+    let q = supabase
+      .from("mkt_order_attributions")
+      .select("order_id, campaign_id, brand_id");
+    if (data.brandId) q = q.eq("brand_id", data.brandId);
+    const { data: attrs, error } = await q;
+    if (error) throw error;
+
+    const orderIds = Array.from(new Set((attrs ?? []).map((a: any) => a.order_id)));
+    if (!orderIds.length) return { scanned: 0, linked: 0, skipped: 0 };
+
+    // Batch fetch all order_items for these orders
+    const itemsByOrder = new Map<string, string[]>();
+    const CHUNK = 500;
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const slice = orderIds.slice(i, i + CHUNK);
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("order_id, product_id")
+        .in("order_id", slice);
+      for (const it of items ?? []) {
+        if (!it.product_id) continue;
+        const list = itemsByOrder.get(it.order_id) ?? [];
+        list.push(it.product_id);
+        itemsByOrder.set(it.order_id, list);
+      }
+    }
+
+    // Build per-campaign product set
+    const perCampaign = new Map<string, { brand_id: string; products: Set<string> }>();
+    for (const a of attrs ?? []) {
+      const pids = itemsByOrder.get(a.order_id) ?? [];
+      if (!pids.length) continue;
+      const entry = perCampaign.get(a.campaign_id) ?? { brand_id: a.brand_id, products: new Set<string>() };
+      for (const p of pids) entry.products.add(p);
+      perCampaign.set(a.campaign_id, entry);
+    }
+
+    let linked = 0;
+    let skipped = 0;
+    for (const [campaignId, { brand_id, products }] of perCampaign) {
+      const productIds = Array.from(products);
+      const { data: existing } = await supabase
+        .from("mkt_campaign_products")
+        .select("product_id")
+        .eq("campaign_id", campaignId)
+        .in("product_id", productIds);
+      const have = new Set((existing ?? []).map((r: any) => r.product_id));
+      const rows = productIds
+        .filter((pid) => !have.has(pid))
+        .map((pid) => ({
+          campaign_id: campaignId,
+          product_id: pid,
+          brand_id,
+          weight: 1,
+          note: "auto:backfill",
+        }));
+      skipped += productIds.length - rows.length;
+      if (!rows.length) continue;
+      const { error: upErr } = await supabase
+        .from("mkt_campaign_products")
+        .upsert(rows, { onConflict: "campaign_id,product_id", ignoreDuplicates: true });
+      if (!upErr) linked += rows.length;
+    }
+    return { scanned: orderIds.length, linked, skipped };
+  });
