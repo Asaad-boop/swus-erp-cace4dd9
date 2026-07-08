@@ -61,13 +61,16 @@ function SkuPnlPage() {
       a.sellable_returns += r.sellable_returns;
       a.damaged_returns += r.damaged_returns;
       a.net_revenue += r.net_revenue;
+      a.courier_fees += r.courier_fees;
+      a.net_revenue_after_courier += r.net_revenue_after_courier;
       a.net_cogs += r.net_cogs;
       a.total_ad_spend += r.total_ad_spend;
       a.total_marketing += r.total_marketing;
       a.net_profit += r.net_profit;
+      a.net_profit_after_courier += r.net_profit_after_courier;
       return a;
     },
-    { gross_revenue: 0, sellable_returns: 0, damaged_returns: 0, net_revenue: 0, net_cogs: 0, total_ad_spend: 0, total_marketing: 0, net_profit: 0 },
+    { gross_revenue: 0, sellable_returns: 0, damaged_returns: 0, net_revenue: 0, courier_fees: 0, net_revenue_after_courier: 0, net_cogs: 0, total_ad_spend: 0, total_marketing: 0, net_profit: 0, net_profit_after_courier: 0 },
   ), [filtered]);
 
   const totalReturns = totals.sellable_returns + totals.damaged_returns;
@@ -77,10 +80,10 @@ function SkuPnlPage() {
   const exportCsv = () => {
     const header = [
       "Product","SKU","Units Sold","Sellable Ret","Damaged Ret","Net Units",
-      "Gross Rev","Sellable Ret ৳","Damaged Ret ৳","Net Rev",
+      "Gross Rev","Sellable Ret ৳","Damaged Ret ৳","Net Rev","Courier Fees","Net Rev (after Courier)",
       "Gross COGS","COGS Reversed","Net COGS",
       "Gross Profit","Ad Spend","Influencer","UGC","Other Mkt","Total Mkt",
-      "Net Profit","Margin %","ROAS",
+      "Net Profit","Net Profit (after Courier)","Margin %","ROAS",
     ];
     const lines = [header.join(",")];
     for (const r of filtered) {
@@ -88,9 +91,10 @@ function SkuPnlPage() {
         `"${r.title.replace(/"/g, '""')}"`, r.sku ?? "",
         r.units_sold, r.units_returned_sellable, r.units_returned_damaged, r.net_units_sold,
         r.gross_revenue, r.sellable_returns, r.damaged_returns, r.net_revenue,
+        r.courier_fees, r.net_revenue_after_courier,
         r.gross_cogs, r.cogs_reversed, r.net_cogs,
         r.gross_profit, r.total_ad_spend, r.influencer_spend, r.ugc_spend, r.other_marketing, r.total_marketing,
-        r.net_profit, r.margin_pct ?? "", r.roas ?? "",
+        r.net_profit, r.net_profit_after_courier, r.margin_pct ?? "", r.roas ?? "",
       ].join(","));
     }
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -183,6 +187,8 @@ function SkuPnlPage() {
                     <TableHead className="w-8"></TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead className="text-right">Net Revenue</TableHead>
+                    <TableHead className="text-right">Courier Fees</TableHead>
+                    <TableHead className="text-right">Net (after Courier)</TableHead>
                     <TableHead className="text-right">Net COGS</TableHead>
                     <TableHead className="text-right">Ad Spend</TableHead>
                     <TableHead className="text-right">Cost Src</TableHead>
@@ -209,6 +215,8 @@ function SkuPnlPage() {
                             <div className="text-xs text-muted-foreground font-mono mt-0.5">{r.sku ?? "—"}</div>
                           </TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">{fmtBDT(r.net_revenue)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-amber-700">{fmtBDT(r.courier_fees)}</TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums text-emerald-700">{fmtBDT(r.net_revenue_after_courier)}</TableCell>
                           <TableCell className="text-right tabular-nums text-gray-700">{fmtBDT(r.net_cogs)}</TableCell>
                           <TableCell className="text-right tabular-nums text-blue-700">{fmtBDT(r.total_ad_spend)}</TableCell>
                           <TableCell className="text-right">
@@ -229,7 +237,7 @@ function SkuPnlPage() {
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-gray-50/40 hover:bg-gray-50/40">
-                            <TableCell colSpan={10} className="p-0">
+                            <TableCell colSpan={12} className="p-0">
                               <ExpandedDetail row={r} />
                             </TableCell>
                           </TableRow>
@@ -242,6 +250,8 @@ function SkuPnlPage() {
                     <TableCell />
                     <TableCell className="text-xs uppercase tracking-wide text-muted-foreground">Total ({filtered.length} SKUs)</TableCell>
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.net_revenue)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-amber-700">{fmtBDT(totals.courier_fees)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-emerald-700">{fmtBDT(totals.net_revenue_after_courier)}</TableCell>
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.net_cogs)}</TableCell>
                     <TableCell className="text-right tabular-nums">{fmtBDT(totals.total_ad_spend)}</TableCell>
                     <TableCell />

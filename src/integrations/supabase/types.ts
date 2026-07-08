@@ -7153,6 +7153,7 @@ export type Database = {
           confirmed_by: string | null
           coupon_code: string | null
           courier_assigned_at: string | null
+          courier_fee: number
           courier_name: string | null
           created_at: string
           customer_ip: string | null
@@ -7185,6 +7186,7 @@ export type Database = {
           last_call_at: string | null
           last_called_by: string | null
           latest_note: string | null
+          net_collected: number | null
           notes: string | null
           order_tags: string[]
           packaged_at: string | null
@@ -7268,6 +7270,7 @@ export type Database = {
           confirmed_by?: string | null
           coupon_code?: string | null
           courier_assigned_at?: string | null
+          courier_fee?: number
           courier_name?: string | null
           created_at?: string
           customer_ip?: string | null
@@ -7300,6 +7303,7 @@ export type Database = {
           last_call_at?: string | null
           last_called_by?: string | null
           latest_note?: string | null
+          net_collected?: number | null
           notes?: string | null
           order_tags?: string[]
           packaged_at?: string | null
@@ -7383,6 +7387,7 @@ export type Database = {
           confirmed_by?: string | null
           coupon_code?: string | null
           courier_assigned_at?: string | null
+          courier_fee?: number
           courier_name?: string | null
           created_at?: string
           customer_ip?: string | null
@@ -7415,6 +7420,7 @@ export type Database = {
           last_call_at?: string | null
           last_called_by?: string | null
           latest_note?: string | null
+          net_collected?: number | null
           notes?: string | null
           order_tags?: string[]
           packaged_at?: string | null
@@ -9341,6 +9347,7 @@ export type Database = {
           confirmed_by: string | null
           coupon_code: string | null
           courier_assigned_at: string | null
+          courier_fee: number
           courier_name: string | null
           created_at: string
           customer_ip: string | null
@@ -9373,6 +9380,7 @@ export type Database = {
           last_call_at: string | null
           last_called_by: string | null
           latest_note: string | null
+          net_collected: number | null
           notes: string | null
           order_tags: string[]
           packaged_at: string | null
@@ -9465,6 +9473,7 @@ export type Database = {
           confirmed_by: string | null
           coupon_code: string | null
           courier_assigned_at: string | null
+          courier_fee: number
           courier_name: string | null
           created_at: string
           customer_ip: string | null
@@ -9497,6 +9506,7 @@ export type Database = {
           last_call_at: string | null
           last_called_by: string | null
           latest_note: string | null
+          net_collected: number | null
           notes: string | null
           order_tags: string[]
           packaged_at: string | null
