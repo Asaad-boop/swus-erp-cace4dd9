@@ -749,6 +749,28 @@ export const recordImportPayment = createServerFn({ method: "POST" })
     return out;
   });
 
+/* --- pay carton-level due later (after release-without-payment) --- */
+
+export const payCartonDue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) =>
+    z.object({
+      carton_id: z.string().uuid(),
+      amount: z.number().positive(),
+      wallet_id: z.string().uuid(),
+      payment_date: z.string(),
+      reference: z.string().optional(),
+      notes: z.string().optional(),
+      idempotency_key: z.string().min(8),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.supabase, context.userId, ["admin", "operations", "accountant"]);
+    const { data: out, error } = await context.supabase.rpc("imp_pay_carton_due", { _payload: data });
+    if (error) throw error;
+    return out;
+  });
+
 /* ============================================================
    SIMPLIFIED LANDED COST WORKFLOW (additive)
    ============================================================ */
