@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, Sparkles, ShieldAlert, Wallet } from "lucide-react";
+import { Lock, Sparkles, ShieldAlert, Wallet, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -16,6 +16,59 @@ export function SettingsPage() {
   const { brandId, effectiveBrand, picker } = useBrandPicker();
   const qc = useQueryClient();
   const cod = useCodWorkflowMode(brandId ?? null);
+
+  // Per-brand default COD wallet (used by Invoice Reconciliation apply)
+  const codWalletQ = useQuery({
+    queryKey: ["erp_settings_cod_wallet", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("erp_settings")
+        .select("default_cod_wallet_id, default_cod_fee_category_id")
+        .eq("brand_id", brandId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const walletsForBrandQ = useQuery({
+    queryKey: ["erp_accounts_all", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("erp_accounts")
+        .select("id,name")
+        .eq("brand_id", brandId!)
+        .eq("is_active", true)
+        .order("name");
+      return data ?? [];
+    },
+  });
+  const expenseCatsForBrandQ = useQuery({
+    queryKey: ["erp_expense_categories", brandId],
+    enabled: !!brandId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("erp_expense_categories")
+        .select("id,name")
+        .eq("brand_id", brandId!)
+        .eq("is_active", true)
+        .order("name");
+      return data ?? [];
+    },
+  });
+  const saveCodDefaultsMut = useMutation({
+    mutationFn: async (patch: { default_cod_wallet_id?: string | null; default_cod_fee_category_id?: string | null }) => {
+      const { error } = await supabase
+        .from("erp_settings")
+        .upsert({ brand_id: brandId!, ...patch }, { onConflict: "brand_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Saved");
+      qc.invalidateQueries({ queryKey: ["erp_settings_cod_wallet"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const lockQ = useQuery({
     queryKey: ["erp_period_lock", brandId],
@@ -181,6 +234,49 @@ export function SettingsPage() {
               <SelectItem value="direct">Direct collection</SelectItem>
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" />Default COD Wallet (Invoice Reconciliation)</CardTitle>
+          <CardDescription>
+            Cross-brand invoice upload er shomoy ei brand er payment ei wallet e post hobe (auto-pick). Courier fee ei expense category te jabe. Set na thakle apply time e fallback picker use korte hobe.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Default COD wallet</Label>
+              <Select
+                value={codWalletQ.data?.default_cod_wallet_id ?? ""}
+                onValueChange={(v) => saveCodDefaultsMut.mutate({ default_cod_wallet_id: v || null })}
+                disabled={!brandId}
+              >
+                <SelectTrigger><SelectValue placeholder="Pick wallet…" /></SelectTrigger>
+                <SelectContent>
+                  {(walletsForBrandQ.data ?? []).map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Courier fee expense category</Label>
+              <Select
+                value={codWalletQ.data?.default_cod_fee_category_id ?? ""}
+                onValueChange={(v) => saveCodDefaultsMut.mutate({ default_cod_fee_category_id: v || null })}
+                disabled={!brandId}
+              >
+                <SelectTrigger><SelectValue placeholder="Pick category…" /></SelectTrigger>
+                <SelectContent>
+                  {(expenseCatsForBrandQ.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
