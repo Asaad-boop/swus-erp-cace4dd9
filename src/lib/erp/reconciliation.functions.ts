@@ -38,7 +38,7 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        brandId: z.string().uuid(),
+        brandId: z.string().uuid().nullable().optional(),
         filename: z.string().nullable().optional(),
         rows: z.array(RowInput).min(1),
         tolerance: z.number().min(0).default(1),
@@ -47,6 +47,7 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const brandFilter = data.brandId ?? null;
 
     // 1. Create draft run
     const totals = data.rows.reduce(
@@ -61,7 +62,7 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
     const { data: run, error: runErr } = await supabase
       .from("erp_reconciliation_runs")
       .insert({
-        brand_id: data.brandId,
+        brand_id: brandFilter,
         courier: "pathao",
         source_filename: data.filename ?? null,
         uploaded_by: userId,
@@ -92,39 +93,42 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
         .in("consignment_id", consignmentIds);
       (prior ?? []).forEach((p: any) => {
         const st = p.run?.status;
-        if (p.consignment_id && p.run?.brand_id === data.brandId && st !== "reverted" && st !== "draft") {
+        if (p.consignment_id && st !== "reverted" && st !== "draft" && (!brandFilter || p.run?.brand_id === brandFilter)) {
           seenConsignments.add(p.consignment_id);
         }
       });
     }
 
-    const shipmentByConsignment = new Map<string, { order_id: string }>();
-    const shipmentByMerchant = new Map<string, { order_id: string }>();
+    const shipmentByConsignment = new Map<string, { order_id: string; brand_id: string | null }>();
+    const shipmentByMerchant = new Map<string, { order_id: string; brand_id: string | null }>();
 
     if (consignmentIds.length) {
-      const { data: ships } = await supabase
+      let q = supabase
         .from("courier_shipments")
-        .select("order_id, consignment_id")
-        .eq("brand_id", data.brandId)
+        .select("order_id, consignment_id, brand_id")
         .in("consignment_id", consignmentIds);
+      if (brandFilter) q = q.eq("brand_id", brandFilter);
+      const { data: ships } = await q;
       (ships ?? []).forEach((s) => {
-        if (s.consignment_id) shipmentByConsignment.set(s.consignment_id, { order_id: s.order_id });
+        if (s.consignment_id) shipmentByConsignment.set(s.consignment_id, { order_id: s.order_id, brand_id: (s as { brand_id: string | null }).brand_id ?? null });
       });
     }
     if (merchantIds.length) {
-      const { data: ships } = await supabase
+      let q = supabase
         .from("courier_shipments")
-        .select("order_id, merchant_order_id")
-        .eq("brand_id", data.brandId)
+        .select("order_id, merchant_order_id, brand_id")
         .in("merchant_order_id", merchantIds);
+      if (brandFilter) q = q.eq("brand_id", brandFilter);
+      const { data: ships } = await q;
       (ships ?? []).forEach((s) => {
-        if (s.merchant_order_id) shipmentByMerchant.set(s.merchant_order_id, { order_id: s.order_id });
+        if (s.merchant_order_id) shipmentByMerchant.set(s.merchant_order_id, { order_id: s.order_id, brand_id: (s as { brand_id: string | null }).brand_id ?? null });
       });
     }
 
     // Build row inserts
     type RowInsert = {
       run_id: string;
+      brand_id: string | null;
       consignment_id: string | null;
       merchant_order_id: string | null;
       recipient_name: string | null;
@@ -153,27 +157,34 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
     for (const r of data.rows) {
       let matchedOrderId: string | null = null;
       let matchedVia: string | null = null;
+      let rowBrandId: string | null = brandFilter;
 
       if (r.consignment_id && shipmentByConsignment.has(r.consignment_id)) {
-        matchedOrderId = shipmentByConsignment.get(r.consignment_id)!.order_id;
+        const hit = shipmentByConsignment.get(r.consignment_id)!;
+        matchedOrderId = hit.order_id;
+        rowBrandId = hit.brand_id ?? rowBrandId;
         matchedVia = "consignment";
       } else if (r.merchant_order_id && shipmentByMerchant.has(r.merchant_order_id)) {
-        matchedOrderId = shipmentByMerchant.get(r.merchant_order_id)!.order_id;
+        const hit = shipmentByMerchant.get(r.merchant_order_id)!;
+        matchedOrderId = hit.order_id;
+        rowBrandId = hit.brand_id ?? rowBrandId;
         matchedVia = "merchant_order_id";
       } else {
         // phone fallback
         const phone = normalizePhone(r.recipient_phone);
         if (phone) {
-          const { data: ords } = await supabase
+          let q = supabase
             .from("orders")
-            .select("id, total, shipping_phone, status, created_at")
-            .eq("brand_id", data.brandId)
+            .select("id, total, shipping_phone, status, created_at, brand_id")
             .ilike("shipping_phone", `%${phone}`)
             .order("created_at", { ascending: false })
             .limit(5);
+          if (brandFilter) q = q.eq("brand_id", brandFilter);
+          const { data: ords } = await q;
           const best = (ords ?? []).find((o) => Math.abs(Number(o.total) - r.collected) <= 50);
           if (best) {
             matchedOrderId = best.id;
+            rowBrandId = (best as { brand_id: string | null }).brand_id ?? rowBrandId;
             matchedVia = "phone+amount";
           }
         }
@@ -184,13 +195,14 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
       if (matchedOrderId) {
         const { data: ord } = await supabase
           .from("orders")
-          .select("total")
+          .select("total, brand_id")
           .eq("id", matchedOrderId)
           .maybeSingle();
         if (ord) {
           amountDiff = r.collected - Number(ord.total);
           status =
             Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          rowBrandId = (ord as { brand_id: string | null }).brand_id ?? rowBrandId;
         } else {
           status = "matched"; // already linked though we couldn't re-read
         }
@@ -212,6 +224,7 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
 
       rowInserts.push({
         run_id: runId,
+        brand_id: rowBrandId,
         consignment_id: r.consignment_id ?? null,
         merchant_order_id: r.merchant_order_id ?? null,
         recipient_name: r.recipient_name ?? null,
@@ -289,15 +302,16 @@ export const getPathaoReconciliationRun = createServerFn({ method: "GET" })
 
 export const listPathaoReconciliationRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ brandId: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({ brandId: z.string().uuid().nullable().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: runs, error } = await supabase
+    let q = supabase
       .from("erp_reconciliation_runs")
       .select("*")
-      .eq("brand_id", data.brandId)
       .order("created_at", { ascending: false })
       .limit(100);
+    if (data.brandId) q = q.eq("brand_id", data.brandId);
+    const { data: runs, error } = await q;
     if (error) throw new Error(error.message);
     return runs ?? [];
   });
@@ -310,9 +324,11 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
     z
       .object({
         runId: z.string().uuid(),
-        walletAccountId: z.string().uuid(),
+        walletAccountId: z.string().uuid().nullable().optional(),
         feeCategoryId: z.string().uuid().nullable().optional(),
         includeMismatch: z.boolean().default(false),
+        brandWallets: z.record(z.string().uuid(), z.string().uuid()).optional(),
+        brandFeeCategories: z.record(z.string().uuid(), z.string().uuid()).optional(),
       })
       .parse(d),
   )
@@ -327,8 +343,8 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
     if (runErr) throw new Error(runErr.message);
     if (!run) throw new Error("Run not found");
     if (run.status === "applied") throw new Error("Already applied");
-    if (!run.brand_id) throw new Error("Run has no brand assigned");
-    const brandId = run.brand_id;
+    // NOTE: run.brand_id can now be null (cross-brand upload). Each row carries its own brand_id.
+    const runBrandId: string | null = run.brand_id;
 
     const allowedStatuses = data.includeMismatch
       ? ["matched", "amount_mismatch"]
@@ -342,12 +358,62 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
       .is("applied_income_txn_id", null);
     if (rowErr) throw new Error(rowErr.message);
 
+    // Resolve per-brand default wallets from erp_settings (auto-pick strategy)
+    const brandsInRun = [
+      ...new Set(
+        (rows ?? [])
+          .map((r) => (r as { brand_id?: string | null }).brand_id ?? runBrandId)
+          .filter(Boolean) as string[],
+      ),
+    ];
+    const brandWalletMap = new Map<string, string>();
+    const brandFeeCatMap = new Map<string, string>();
+    if (brandsInRun.length) {
+      const { data: settings } = await supabase
+        .from("erp_settings")
+        .select("brand_id, default_cod_wallet_id, default_cod_fee_category_id")
+        .in("brand_id", brandsInRun);
+      (settings ?? []).forEach((s: { brand_id: string; default_cod_wallet_id: string | null; default_cod_fee_category_id: string | null }) => {
+        if (s.default_cod_wallet_id) brandWalletMap.set(s.brand_id, s.default_cod_wallet_id);
+        if (s.default_cod_fee_category_id) brandFeeCatMap.set(s.brand_id, s.default_cod_fee_category_id);
+      });
+    }
+    // Caller-provided per-brand overrides (from apply dialog)
+    if (data.brandWallets) {
+      for (const [b, w] of Object.entries(data.brandWallets)) brandWalletMap.set(b, w);
+    }
+    if (data.brandFeeCategories) {
+      for (const [b, c] of Object.entries(data.brandFeeCategories)) brandFeeCatMap.set(b, c);
+    }
+
+    // Check missing wallets before starting
+    const missingBrands = brandsInRun.filter((b) => !brandWalletMap.has(b) && !data.walletAccountId);
+    if (missingBrands.length) {
+      // Load brand names for a friendly error
+      const { data: bs } = await supabase.from("brands").select("id,name").in("id", missingBrands);
+      const names = (bs ?? []).map((b) => b.name).join(", ");
+      throw new Error(`Default COD wallet missing for: ${names}. Set in Finance → Settings → Default COD Wallet (per brand), or pass a wallet in the apply dialog.`);
+    }
+
     let applied = 0;
     let failed = 0;
     const errors: string[] = [];
 
     for (const r of rows ?? []) {
       if (!r.matched_order_id) continue;
+      const rowBrand = (r as { brand_id?: string | null }).brand_id ?? runBrandId;
+      if (!rowBrand) {
+        failed++;
+        errors.push(`Row ${r.consignment_id ?? r.id}: no brand resolved`);
+        continue;
+      }
+      const walletId = brandWalletMap.get(rowBrand) ?? data.walletAccountId ?? null;
+      if (!walletId) {
+        failed++;
+        errors.push(`Row ${r.consignment_id ?? r.id}: no wallet for brand ${rowBrand}`);
+        continue;
+      }
+      const feeCategoryId = brandFeeCatMap.get(rowBrand) ?? data.feeCategoryId ?? null;
       try {
         const txnDate = r.invoice_date ?? new Date().toISOString().slice(0, 10);
         const description = `Pathao reconciliation · ${r.consignment_id ?? r.merchant_order_id ?? ""}`;
@@ -363,9 +429,9 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           const { data: inc, error: incErr } = await supabase
             .from("erp_transactions")
             .insert({
-              brand_id: brandId,
+              brand_id: rowBrand,
               txn_type: "income",
-              account_id: data.walletAccountId,
+              account_id: walletId,
               amount: incomeAmount,
               transaction_date: txnDate,
               reference_type: "order",
@@ -386,10 +452,10 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           const { data: exp, error: expErr } = await supabase
             .from("erp_transactions")
             .insert({
-              brand_id: brandId,
+              brand_id: rowBrand,
               txn_type: "expense",
-              account_id: data.walletAccountId,
-              category_id: data.feeCategoryId ?? null,
+              account_id: walletId,
+              category_id: feeCategoryId,
               amount: expenseAmount,
               transaction_date: txnDate,
               reference_type: "order",
@@ -428,11 +494,12 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         // Update shipment delivery fee if linked
         if (r.consignment_id) {
           const shipStatus = matchType === "return" ? "Returned" : matchType === "partial" ? "Partial Delivered" : "Delivered";
-          await supabase
+          let sq = supabase
             .from("courier_shipments")
             .update({ delivery_fee: r.total_fee, status: shipStatus })
-            .eq("consignment_id", r.consignment_id)
-            .eq("brand_id", brandId);
+            .eq("consignment_id", r.consignment_id);
+          if (rowBrand) sq = sq.eq("brand_id", rowBrand);
+          await sq;
         }
 
         // Mark row applied
@@ -569,18 +636,19 @@ export const manualMatchReconciliationRow = createServerFn({ method: "POST" })
 export const searchOrdersForMatch = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ brandId: z.string().uuid(), q: z.string().min(1) }).parse(d),
+    z.object({ brandId: z.string().uuid().nullable().optional(), q: z.string().min(1) }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const term = data.q.trim();
-    const { data: orders, error } = await supabase
+    let q = supabase
       .from("orders")
-      .select("id, status, total, shipping_name, shipping_phone, created_at")
-      .eq("brand_id", data.brandId)
+      .select("id, status, total, shipping_name, shipping_phone, created_at, brand_id")
       .or(`shipping_phone.ilike.%${term}%,shipping_name.ilike.%${term}%`)
       .order("created_at", { ascending: false })
       .limit(20);
+    if (data.brandId) q = q.eq("brand_id", data.brandId);
+    const { data: orders, error } = await q;
     if (error) throw new Error(error.message);
     return orders ?? [];
   });
@@ -613,7 +681,7 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        brandId: z.string().uuid(),
+        brandId: z.string().uuid().nullable().optional(),
         rows: z.array(PreviewRow).min(1),
         tolerance: z.number().min(0).default(1),
       })
@@ -621,6 +689,7 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<PreviewMatchResult[]> => {
     const { supabase } = context;
+    const brandFilter = data.brandId ?? null;
     const consignmentIds = [
       ...new Set(data.rows.map((r) => r.consignment_id).filter(Boolean) as string[]),
     ];
@@ -637,7 +706,7 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
         .in("consignment_id", consignmentIds);
       (prior ?? []).forEach((p: any) => {
         const st = p.run?.status;
-        if (p.consignment_id && p.run?.brand_id === data.brandId && st !== "reverted" && st !== "draft") {
+        if (p.consignment_id && st !== "reverted" && st !== "draft" && (!brandFilter || p.run?.brand_id === brandFilter)) {
           seen.add(p.consignment_id);
         }
       });
@@ -646,21 +715,23 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
     const byConsignment = new Map<string, string>();
     const byMerchant = new Map<string, string>();
     if (consignmentIds.length) {
-      const { data: ships } = await supabase
+      let q = supabase
         .from("courier_shipments")
         .select("order_id, consignment_id")
-        .eq("brand_id", data.brandId)
         .in("consignment_id", consignmentIds);
+      if (brandFilter) q = q.eq("brand_id", brandFilter);
+      const { data: ships } = await q;
       (ships ?? []).forEach((s) => {
         if (s.consignment_id) byConsignment.set(s.consignment_id, s.order_id);
       });
     }
     if (merchantIds.length) {
-      const { data: ships } = await supabase
+      let q = supabase
         .from("courier_shipments")
         .select("order_id, merchant_order_id")
-        .eq("brand_id", data.brandId)
         .in("merchant_order_id", merchantIds);
+      if (brandFilter) q = q.eq("brand_id", brandFilter);
+      const { data: ships } = await q;
       (ships ?? []).forEach((s) => {
         if (s.merchant_order_id) byMerchant.set(s.merchant_order_id, s.order_id);
       });
@@ -689,23 +760,25 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
           // already has a courier_shipments row for this brand. A linked
           // shipment dramatically increases confidence even when Pathao
           // didn't echo merchant_order_id back.
-          const { data: ords } = await supabase
+          let oq = supabase
             .from("orders")
             .select("id, total, shipping_phone, created_at")
-            .eq("brand_id", data.brandId)
             .ilike("shipping_phone", `%${phone}`)
             .order("created_at", { ascending: false })
             .limit(10);
+          if (brandFilter) oq = oq.eq("brand_id", brandFilter);
+          const { data: ords } = await oq;
 
           // Bulk lookup: which of those orders already has a shipment row for this brand?
           const candidateOrderIds = (ords ?? []).map((o) => o.id);
           const shipmentOrderIds = new Set<string>();
           if (candidateOrderIds.length) {
-            const { data: ships } = await supabase
+            let sq = supabase
               .from("courier_shipments")
               .select("order_id")
-              .eq("brand_id", data.brandId)
               .in("order_id", candidateOrderIds);
+            if (brandFilter) sq = sq.eq("brand_id", brandFilter);
+            const { data: ships } = await sq;
             (ships ?? []).forEach((s) => shipmentOrderIds.add(s.order_id));
           }
 

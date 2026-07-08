@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { Download, FileDown } from "lucide-react";
 import { exportReconciliationCsv, exportReconciliationPdf } from "@/lib/erp/reconciliation-export";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
 import { useAccounts, useCategories } from "@/hooks/erp/use-finance-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,10 +235,10 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
 // ----- Page -----
 
 function ReconciliationPage() {
-  const { brandId, picker } = useBrandPicker({
-    label: "Pick a brand",
-    hint: "Invoice reconciliation brand-specific. Ekta brand select koro.",
-  });
+  // Cross-brand: no brand pick required. brandId is always null → server matches
+  // across all brands the user's RLS allows, and each row auto-detects its brand
+  // from the matched order / shipment.
+  const brandId: string | null = null;
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [filename, setFilename] = useState<string | null>(null);
@@ -250,25 +251,24 @@ function ReconciliationPage() {
   const previewFn = useServerFn(previewPathaoReconciliation);
 
   const runsQ = useQuery({
-    queryKey: ["pathao-reconciliation-runs", brandId],
-    queryFn: () => listFn({ data: { brandId } }),
-    enabled: !!brandId,
+    queryKey: ["pathao-reconciliation-runs", "all"],
+    queryFn: () => listFn({ data: { brandId: null } }),
   });
 
   // Dry-run match preview (no inserts). Re-runs when parsed rows or brand change.
   const previewKey = useMemo(() => {
-    if (!preview || !brandId) return null;
+    if (!preview) return null;
     return preview
       .map((r) => `${r.consignment_id ?? "-"}|${r.merchant_order_id ?? "-"}|${r.collected}`)
       .join(";");
-  }, [preview, brandId]);
+  }, [preview]);
   const matchQ = useQuery({
-    queryKey: ["pathao-recon-preview", brandId, previewKey],
-    enabled: !!preview && !!brandId,
+    queryKey: ["pathao-recon-preview", "all", previewKey],
+    enabled: !!preview,
     queryFn: () =>
       previewFn({
         data: {
-          brandId,
+          brandId: null,
           tolerance: 1,
           rows: (preview ?? []).map((r, idx) => ({
             idx,
@@ -315,7 +315,7 @@ function ReconciliationPage() {
       }));
       return await createFn({
         data: {
-          brandId,
+          brandId: null,
           filename,
           rows,
           tolerance: 1,
@@ -382,12 +382,10 @@ function ReconciliationPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl">
-      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Pathao Invoice Reconciliation</h1>
         <p className="text-sm text-muted-foreground">
-          Pathao paid invoice CSV upload koro — order delivered, payment received entry, ar courier
-          charges automatically apply hobe.
+          Cross-brand upload: ekta invoice e multiple brand er order thakle system auto-detect korbe (consignment ID → merchant ID → phone+amount priority)। Per-brand default COD wallet automatically pick hobe apply er time.
         </p>
       </header>
 
@@ -739,7 +737,7 @@ function RunDetailDialog({
   onClose,
 }: {
   runId: string;
-  brandId: string;
+  brandId: string | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -936,7 +934,7 @@ function TabBtn({
   );
 }
 
-function RowItem({ row, brandId, runId }: { row: Row; brandId: string; runId: string }) {
+function RowItem({ row, brandId, runId }: { row: Row; brandId: string | null; runId: string }) {
   const qc = useQueryClient();
   const [searchOpen, setSearchOpen] = useState(false);
   const status = row.match_status;
@@ -1022,7 +1020,7 @@ function ManualMatchDialog({
   onSaved,
 }: {
   rowId: string;
-  brandId: string;
+  brandId: string | null;
   defaultQuery: string;
   onClose: () => void;
   onSaved: () => void;
@@ -1033,7 +1031,7 @@ function ManualMatchDialog({
 
   const sQ = useQuery({
     queryKey: ["order-search", brandId, q],
-    queryFn: () => searchFn({ data: { brandId, q } }),
+    queryFn: () => searchFn({ data: { brandId: brandId ?? null, q } }),
     enabled: q.trim().length >= 2,
   });
 
@@ -1106,15 +1104,61 @@ function ApplyDialog({
   onApplied,
 }: {
   runId: string;
-  brandId: string;
+  brandId: string | null;
   onClose: () => void;
   onApplied: () => void;
 }) {
-  const accountsQ = useAccounts([brandId]);
-  const catsQ = useCategories([brandId]);
-  const [walletId, setWalletId] = useState("");
-  const [feeCatId, setFeeCatId] = useState("");
+  const { brands } = useBrand();
   const [includeMismatch, setIncludeMismatch] = useState(false);
+  const [overrideWalletId, setOverrideWalletId] = useState("");
+  const [overrideFeeCatId, setOverrideFeeCatId] = useState("");
+
+  // Which brands are actually involved in this run's rows?
+  const runRowsQ = useQuery({
+    queryKey: ["pathao-recon-run-brands", runId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_reconciliation_rows")
+        .select("brand_id")
+        .eq("run_id", runId);
+      if (error) throw error;
+      const ids = [
+        ...new Set(
+          ((data ?? []) as { brand_id: string | null }[])
+            .map((r) => r.brand_id)
+            .filter(Boolean) as string[],
+        ),
+      ];
+      return ids;
+    },
+  });
+  const brandsInRun = runRowsQ.data ?? [];
+
+  // Fetch per-brand default COD wallets
+  const walletMapQ = useQuery({
+    queryKey: ["erp-settings-cod", brandsInRun.join(",")],
+    enabled: brandsInRun.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_settings")
+        .select("brand_id, default_cod_wallet_id, default_cod_fee_category_id")
+        .in("brand_id", brandsInRun);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const walletMap = new Map<string, { wallet: string | null; fee: string | null }>();
+  (walletMapQ.data ?? []).forEach((s: { brand_id: string; default_cod_wallet_id: string | null; default_cod_fee_category_id: string | null }) => {
+    walletMap.set(s.brand_id, { wallet: s.default_cod_wallet_id, fee: s.default_cod_fee_category_id });
+  });
+  const missingBrands = brandsInRun.filter((b) => !walletMap.get(b)?.wallet);
+
+  // Fallback: for single-brand or when user wants override, show wallet picker
+  const showOverride = brandId !== null || missingBrands.length > 0;
+  const overrideBrandIds = brandId ? [brandId] : missingBrands;
+  const accountsQ = useAccounts(overrideBrandIds.length ? overrideBrandIds : brands.map((b) => b.id));
+  const catsQ = useCategories(overrideBrandIds.length ? overrideBrandIds : brands.map((b) => b.id));
+  const expenseCats = (catsQ.data ?? []).filter((c) => c.kind === "expense" && c.is_active);
 
   const applyFn = useServerFn(applyPathaoReconciliationRun);
   const mut = useMutation({
@@ -1122,8 +1166,8 @@ function ApplyDialog({
       applyFn({
         data: {
           runId,
-          walletAccountId: walletId,
-          feeCategoryId: feeCatId || null,
+          walletAccountId: overrideWalletId || null,
+          feeCategoryId: overrideFeeCatId || null,
           includeMismatch,
         },
       }),
@@ -1135,49 +1179,72 @@ function ApplyDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const expenseCats = (catsQ.data ?? []).filter((c) => c.kind === "expense" && c.is_active);
+  const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? id.slice(0, 8);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Apply to Finance</DialogTitle>
           <DialogDescription>
-            Customer er deya taka income hisebe, ar Pathao er charge expense hisebe boshbe.
-            Net amount = collected − fee → wallet e ground truth.
+            Per brand er default COD wallet auto-pick hobe (Finance → Settings)। Collected = income, courier fee = expense. Net = wallet e credit.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label className="text-xs">Pathao wallet / cash account</Label>
-            <Select value={walletId} onValueChange={setWalletId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pick account…" />
-              </SelectTrigger>
-              <SelectContent>
-                {(accountsQ.data ?? []).map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Courier charge expense category (optional)</Label>
-            <Select value={feeCatId} onValueChange={setFeeCatId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pick category…" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCats.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {brandsInRun.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Brands in this run ({brandsInRun.length})
+              </div>
+              {brandsInRun.map((bid) => {
+                const w = walletMap.get(bid)?.wallet;
+                return (
+                  <div key={bid} className="flex items-center justify-between text-xs">
+                    <span className="font-medium">{brandName(bid)}</span>
+                    {w ? (
+                      <Badge variant="secondary" className="text-[10px] gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Default wallet set
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/50 text-amber-700">
+                        <AlertTriangle className="h-3 w-3" /> No default — pick fallback below
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {(showOverride || missingBrands.length > 0) && (
+            <>
+              <div>
+                <Label className="text-xs">Fallback wallet (used when brand has no default set)</Label>
+                <Select value={overrideWalletId} onValueChange={setOverrideWalletId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional fallback…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(accountsQ.data ?? []).map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Fallback expense category (optional)</Label>
+                <Select value={overrideFeeCatId} onValueChange={setOverrideFeeCatId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseCats.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -1189,7 +1256,10 @@ function ApplyDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={!walletId || mut.isPending}>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || (missingBrands.length > 0 && !overrideWalletId)}
+          >
             {mut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Copy className="h-4 w-4 mr-1" />}
             Apply
           </Button>

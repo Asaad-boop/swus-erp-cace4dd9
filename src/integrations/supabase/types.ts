@@ -2364,6 +2364,7 @@ export type Database = {
           amount_diff: number | null
           applied_expense_txn_id: string | null
           applied_income_txn_id: string | null
+          brand_id: string | null
           cod_fee: number
           collected: number
           consignment_id: string | null
@@ -2394,6 +2395,7 @@ export type Database = {
           amount_diff?: number | null
           applied_expense_txn_id?: string | null
           applied_income_txn_id?: string | null
+          brand_id?: string | null
           cod_fee?: number
           collected?: number
           consignment_id?: string | null
@@ -2424,6 +2426,7 @@ export type Database = {
           amount_diff?: number | null
           applied_expense_txn_id?: string | null
           applied_income_txn_id?: string | null
+          brand_id?: string | null
           cod_fee?: number
           collected?: number
           consignment_id?: string | null
@@ -2463,6 +2466,13 @@ export type Database = {
             columns: ["applied_income_txn_id"]
             isOneToOne: false
             referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
           {
@@ -2856,6 +2866,8 @@ export type Database = {
           brand_id: string
           config: Json
           created_at: string
+          default_cod_fee_category_id: string | null
+          default_cod_wallet_id: string | null
           default_courier: string | null
           id: string
           invoice_footer: string | null
@@ -2868,6 +2880,8 @@ export type Database = {
           brand_id: string
           config?: Json
           created_at?: string
+          default_cod_fee_category_id?: string | null
+          default_cod_wallet_id?: string | null
           default_courier?: string | null
           id?: string
           invoice_footer?: string | null
@@ -2880,6 +2894,8 @@ export type Database = {
           brand_id?: string
           config?: Json
           created_at?: string
+          default_cod_fee_category_id?: string | null
+          default_cod_wallet_id?: string | null
           default_courier?: string | null
           id?: string
           invoice_footer?: string | null
@@ -2894,6 +2910,20 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: true
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_settings_default_cod_fee_category_id_fkey"
+            columns: ["default_cod_fee_category_id"]
+            isOneToOne: false
+            referencedRelation: "erp_expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_settings_default_cod_wallet_id_fkey"
+            columns: ["default_cod_wallet_id"]
+            isOneToOne: false
+            referencedRelation: "erp_accounts"
             referencedColumns: ["id"]
           },
         ]
