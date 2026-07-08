@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtBdt } from "@/lib/erp/finance";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
+import { useCodWorkflowMode } from "@/hooks/erp/use-cod-workflow-mode";
+import { AlertTriangle } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -45,6 +47,8 @@ export function CodCollectionDialog({ open, onClose, brandId, brandIds, orderId,
   }, [open, brandId, brandIds, orderId, defaultAmount]);
 
   const effectiveBrand = brandId ?? pickedBrand;
+  const { mode: workflowMode } = useCodWorkflowMode(effectiveBrand || null);
+  const blocked = workflowMode === "courier";
 
   const walletsQ = useQuery({
     queryKey: ["cod_wallets", effectiveBrand],
@@ -100,6 +104,7 @@ export function CodCollectionDialog({ open, onClose, brandId, brandIds, orderId,
     mutationFn: async () => {
       const amt = Number(amount || 0);
       if (!effectiveBrand) throw new Error("Brand required");
+      if (blocked) throw new Error("Brand courier-remittance mode-e ache. Per-order COD collection off. Finance → Settings-e mode change korun.");
       if (!walletId) throw new Error("Select destination wallet");
       if (!amt || amt <= 0) throw new Error("Amount must be > 0");
       const ref = selectedOrderId;
@@ -140,6 +145,14 @@ export function CodCollectionDialog({ open, onClose, brandId, brandIds, orderId,
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {blocked && (
+            <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                This brand is in <strong>Courier remittance</strong> mode. Per-order COD collection is disabled to prevent double-posting. Use <strong>Mark Received</strong> on the courier remittance instead.
+              </div>
+            </div>
+          )}
           {showBrandPicker && (
             <div>
               <Label>Brand *</Label>
@@ -220,7 +233,7 @@ export function CodCollectionDialog({ open, onClose, brandId, brandIds, orderId,
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !walletId || !amount}>
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !walletId || !amount || blocked}>
             {mut.isPending ? "Saving…" : "Record Collection"}
           </Button>
         </DialogFooter>

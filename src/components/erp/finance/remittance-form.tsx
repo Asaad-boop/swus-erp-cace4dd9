@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtBdt } from "@/lib/erp/finance";
+import { useCodWorkflowMode } from "@/hooks/erp/use-cod-workflow-mode";
+import { AlertTriangle } from "lucide-react";
 
 export type RemittanceRow = {
   id: string;
@@ -66,6 +68,8 @@ export function RemittanceForm({ open, onClose, brandId, brandIds, editing }: Pr
   }, [open, editing, brandId, brandIds]);
 
   const effectiveBrand = brandId ?? pickedBrand;
+  const { mode: workflowMode } = useCodWorkflowMode(effectiveBrand || null);
+  const blocked = workflowMode === "direct" && !editing;
 
   // Calculate expected COD for the courier on/around the remittance date
   // (sum of orders.total for delivered COD shipments in last 7 days for that courier)
@@ -105,6 +109,7 @@ export function RemittanceForm({ open, onClose, brandId, brandIds, editing }: Pr
   const mut = useMutation({
     mutationFn: async () => {
       if (!effectiveBrand) throw new Error("Brand required");
+      if (blocked) throw new Error("Brand direct-collection mode-e ache. Courier remittance off. Finance → Settings-e mode change korun.");
       const amt = Number(amount || 0);
       if (!amt || amt <= 0) throw new Error("Amount must be > 0");
       const payload = {
@@ -143,6 +148,14 @@ export function RemittanceForm({ open, onClose, brandId, brandIds, editing }: Pr
           <DialogTitle>{editing ? "Edit Remittance" : "Record COD Remittance"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {blocked && (
+            <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                This brand is in <strong>Direct collection</strong> mode. Courier remittance is disabled to prevent double-posting. Use <strong>Record Collection</strong> per order instead.
+              </div>
+            </div>
+          )}
           {showBrandPicker && (
             <div>
               <Label>Brand</Label>
@@ -195,7 +208,7 @@ export function RemittanceForm({ open, onClose, brandId, brandIds, editing }: Pr
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount}>
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !amount || blocked}>
             {mut.isPending ? "Saving…" : editing ? "Save" : "Record"}
           </Button>
         </DialogFooter>
