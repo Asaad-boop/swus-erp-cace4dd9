@@ -1,0 +1,400 @@
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { AlertTriangle, ChevronDown, ClipboardCheck, Loader2, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { useAccounts } from "@/hooks/erp/use-finance-query";
+import { listWarehouses, postCartonToInventory, releaseCarton } from "@/lib/erp/imports/imports.functions";
+import { CARTON_STATUS_LABEL, fmtBdt, newIdemKey, type ImpCartonStatus } from "@/lib/erp/imports/types";
+import { Mini, Row } from "./atoms";
+
+export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poPaid, poSupplierTotal, onStage, selected, onToggleSelect }: {
+  carton: any; poId: string; poNumber: string; poItems: any[]; brandId: string | null; poDue: number; poPaid: number; poSupplierTotal: number;
+  onStage: (s: ImpCartonStatus) => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const status = carton.status as ImpCartonStatus;
+  const meta = CARTON_STATUS_LABEL[status];
+
+  const needsAction = status === "arrived_bd" || status === "released";
+  const selectable = ["ordered", "at_china_warehouse", "in_transit", "arrived_bd"].includes(status);
+
+  return (
+    <div className={cn("transition-colors", needsAction && "bg-orange-50/30 dark:bg-orange-950/10", selected && "bg-primary/5")}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-accent/40 text-left cursor-pointer"
+      >
+        {selectable && onToggleSelect && (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="inline-flex"
+          >
+            <Checkbox
+              checked={!!selected}
+              onCheckedChange={(checked) => {
+                if (checked !== selected) onToggleSelect();
+              }}
+              aria-label="Select carton"
+            />
+          </span>
+        )}
+        <Badge variant="secondary" className={cn("font-medium", meta?.tone)}>{meta?.label}</Badge>
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-sm font-semibold">{poNumber}-C{carton.carton_number}</div>
+          <div className="text-[11px] text-muted-foreground">{carton.expected_quantity} pcs · landed {fmtBdt(carton.total_landed_bdt)}</div>
+        </div>
+        <div className="hidden md:block text-right text-xs">
+          <div>Product: <span className="tabular-nums font-medium">{fmtBdt(carton.supplier_cost_bdt)}</span></div>
+          <div className="text-muted-foreground">Ship: <span className="tabular-nums font-medium">{fmtBdt(carton.shipping_charge_bdt)}</span></div>
+        </div>
+        {["ordered", "at_china_warehouse", "in_transit"].includes(status) && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Select value={status} onValueChange={(v) => onStage(v as ImpCartonStatus)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="at_china_warehouse">At China WH</SelectItem>
+                <SelectItem value="in_transit">In Transit</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </div>
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-border/50 bg-background/50">
+          {status === "arrived_bd" && brandId && (
+            <InlineReleaseForm carton={carton} brandId={brandId} poId={poId} poPaid={poPaid} poSupplierTotal={poSupplierTotal} />
+          )}
+          {status === "released" && brandId && (
+            <InlineQcForm carton={carton} brandId={brandId} poItems={poItems} poId={poId} poDue={poDue} />
+          )}
+          {!needsAction && (
+            <div className="text-xs text-muted-foreground py-2">
+              {status === "in_stock" && carton.posted_at ? `Posted to inventory on ${carton.posted_at}` : "No action required at this stage."}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineReleaseForm({ carton, brandId, poId, poPaid, poSupplierTotal }: { carton: any; brandId: string; poId: string; poPaid: number; poSupplierTotal: number }) {
+  const fn = useServerFn(releaseCarton);
+  const qc = useQueryClient();
+  const { data: wallets = [] } = useAccounts([brandId]);
+  const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
+  const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
+  const advanceShare = poSupplierTotal > 0 ? (poPaid * supplierCost) / poSupplierTotal : 0;
+  const supplierDueShare = Math.max(0, supplierCost - advanceShare);
+  const defaultPay = Math.round((supplierDueShare + shippingCost) * 100) / 100;
+  const [amount, setAmount] = useState<number>(defaultPay);
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+  const [withoutPay, setWithoutPay] = useState(false);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const payload: any = { carton_id: carton.id, idempotency_key: newIdemKey("rel") };
+      if (withoutPay) payload.release_without_payment = true;
+      else {
+        if (amount <= 0) throw new Error("Pay amount required");
+        if (!walletId) throw new Error("Pick a wallet");
+        payload.payment = { amount, wallet_id: walletId, payment_date: new Date().toISOString().slice(0, 10), reference: ref || undefined, idempotency_key: newIdemKey("pay") };
+      }
+      return await fn({ data: payload });
+    },
+    onSuccess: () => { toast.success("Carton released"); qc.invalidateQueries({ queryKey: ["imp-po", poId] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  return (
+    <div className="space-y-3 py-3">
+      <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">STEP 1 — RELEASE (PAY &amp; CONFIRM)</div>
+      <div className="text-xs text-muted-foreground">
+        Supplier: <span className="tabular-nums">{fmtBdt(supplierCost)}</span>
+        {advanceShare > 0 && <> − Advance share: <span className="tabular-nums text-green-600">{fmtBdt(advanceShare)}</span> = Due: <span className="tabular-nums font-medium">{fmtBdt(supplierDueShare)}</span></>}
+        {" · "}Shipping: <span className="tabular-nums">{fmtBdt(shippingCost)}</span>
+        {" · "}<span className="font-semibold">To pay: <span className="tabular-nums">{fmtBdt(defaultPay)}</span></span>
+      </div>
+      <div className="grid md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Pay amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} disabled={withoutPay} /></div>
+        <div>
+          <Label className="text-xs">Wallet</Label>
+          <Select value={walletId} onValueChange={setWalletId} disabled={withoutPay}>
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" disabled={withoutPay} /></div>
+      </div>
+      <label className="inline-flex items-center gap-2 text-xs">
+        <Checkbox checked={withoutPay} onCheckedChange={(v) => setWithoutPay(!!v)} />
+        Release without payment (carry as PO due)
+      </label>
+      <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
+        {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Send className="h-4 w-4 mr-1" />Release carton
+      </Button>
+    </div>
+  );
+}
+
+function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue }: { carton: any; brandId: string; poItems: any[]; poId: string; poDue: number }) {
+  const fn = useServerFn(postCartonToInventory);
+  const whFn = useServerFn(listWarehouses);
+  const qc = useQueryClient();
+  const { data: warehouses = [] } = useQuery({ queryKey: ["imp-wh", brandId], queryFn: () => whFn({ data: { brandId } }) });
+  const { data: wallets = [] } = useAccounts([brandId]);
+
+  const [rows, setRows] = useState<Record<string, { ok: number; damaged: number; missing: number }>>(() => {
+    const init: any = {};
+    (carton?.items ?? []).forEach((it: any) => {
+      init[it.id] = { ok: it.quantity_expected, damaged: 0, missing: 0 };
+    });
+    return init;
+  });
+  const [warehouseId, setWarehouseId] = useState("");
+  const [courierBdt, setCourierBdt] = useState<number>(0);
+  const [courierWalletId, setCourierWalletId] = useState("");
+  const [qcNotes, setQcNotes] = useState("");
+
+  const totalExpected = (carton.items ?? []).reduce((s: number, it: any) => s + Number(it.quantity_expected || 0), 0);
+  const totalDamaged = Object.values(rows).reduce((s, r) => s + Number(r.damaged || 0), 0);
+  const totalMissing = Object.values(rows).reduce((s, r) => s + Number(r.missing || 0), 0);
+  const totalOk = Object.values(rows).reduce((s, r) => s + Number(r.ok || 0), 0);
+
+  const productCost = Number(carton.supplier_cost_bdt || 0);
+  const shipCost = Number(carton.shipping_charge_bdt || 0);
+  const courierCost = Number(courierBdt || 0);
+  const totalLanded = productCost + shipCost + courierCost;
+  const perPieceTotal = totalExpected > 0 ? totalLanded / totalExpected : 0;
+  const lossCount = totalDamaged + totalMissing;
+  const lossValue = lossCount * perPieceTotal;
+  const finalInventoryCost = totalLanded;
+  const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
+
+  const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
+    const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+    if (r.ok < 0 || r.damaged < 0 || r.missing < 0) return [`Negative quantities not allowed`];
+    return [];
+  }), [rows, carton]);
+
+  const validationErrors: string[] = [];
+  if (!warehouseId) validationErrors.push("Pick warehouse");
+  if (courierBdt > 0 && !courierWalletId) validationErrors.push("Pick local courier wallet");
+
+  const selectedCourierWallet = wallets.find((w) => w.id === courierWalletId);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        carton_id: carton.id,
+        warehouse_id: warehouseId,
+        qc: Object.entries(rows).map(([carton_item_id, v]) => ({ carton_item_id, quantity_ok: v.ok, quantity_damaged: v.damaged, quantity_missing: v.missing })),
+        idempotency_key: newIdemKey("post"),
+        notes: qcNotes || undefined,
+      };
+      if (courierBdt > 0 && courierWalletId) {
+        payload.local_courier_payment = { amount: courierBdt, wallet_id: courierWalletId, payment_date: new Date().toISOString().slice(0, 10), idempotency_key: newIdemKey("crp") };
+      }
+      return await fn({ data: payload });
+    },
+    onSuccess: (res: any) => {
+      const unit = Number(res?.unit_landed ?? 0);
+      if (unit > 0) toast.success(`✅ Posted ${totalOk} pcs — landed cost ৳${unit.toFixed(2)}/unit`);
+      else if (res?.idempotent_replay) toast.success("Already posted (idempotent replay)");
+      else toast.warning(`⚠️ Posted ${totalOk} pcs without cost (no FX/extras set)`);
+      qc.invalidateQueries({ queryKey: ["imp-po", poId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  return (
+    <div className="space-y-4 py-3">
+      <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">STEP 2 — QC &amp; POST TO INVENTORY</div>
+
+      <Card className="p-3 bg-muted/30">
+        <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">LANDED COST BREAKDOWN</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <Mini label="Product" value={fmtBdt(productCost)} />
+          <Mini label="Shipping (CN→BD)" value={fmtBdt(shipCost)} />
+          <Mini label="Local courier" value={fmtBdt(courierCost)} />
+          <Mini label="Total landed" value={fmtBdt(totalLanded)} />
+          <Mini label={`Per piece (${totalExpected})`} value={fmtBdt(perPieceTotal)} valueClass="text-primary" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-xs">
+          <Mini label="OK pieces" value={String(totalOk)} />
+          <Mini label="Per OK piece" value={fmtBdt(perOkPiece)} valueClass="text-primary" />
+          <Mini label={`Loss (${lossCount} pcs)`} value={fmtBdt(lossValue)} valueClass="text-orange-600" />
+          <Mini label="Final inventory cost" value={fmtBdt(finalInventoryCost)} valueClass="text-emerald-600" />
+        </div>
+      </Card>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead className="text-right">Expected</TableHead>
+              <TableHead className="text-right w-24">Damaged</TableHead>
+              <TableHead className="text-right w-24">Missing</TableHead>
+              <TableHead className="text-right w-24">OK (received)</TableHead>
+              <TableHead className="text-right">OK unit ৳</TableHead>
+              <TableHead className="text-right">OK value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(carton.items ?? []).map((it: any) => {
+              const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+              const itemUnit = totalOk > 0 ? perOkPiece : 0;
+              const expected = Number(it.quantity_expected || 0);
+              const totalRow = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
+              const extra = totalRow - expected;
+              const variantLabel = it.variant?.color_name ?? null;
+              const variantHex = it.variant?.color_hex ?? null;
+              const title = it.product?.title ?? it.sku_snapshot ?? "—";
+              return (
+                <TableRow key={it.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {(it.variant?.image || it.product?.image) && (
+                        <img src={it.variant?.image || it.product?.image} alt="" className="h-8 w-8 rounded object-cover border" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium truncate max-w-[220px]">{title}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {variantLabel && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border bg-muted/40">
+                              {variantHex && <span className="h-2.5 w-2.5 rounded-full border" style={{ background: variantHex }} />}
+                              {variantLabel}
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] text-muted-foreground">{it.variant?.sku ?? it.sku_snapshot ?? ""}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{expected}</TableCell>
+                  <TableCell><Input type="number" min={0} value={r.damaged} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, damaged: Number(e.target.value) } }))} /></TableCell>
+                  <TableCell><Input type="number" min={0} value={r.missing} className="h-8 text-right" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, missing: Number(e.target.value) } }))} /></TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Input type="number" min={0} value={r.ok} className="h-8 text-right w-20" onChange={(e) => setRows((s) => ({ ...s, [it.id]: { ...r, ok: Number(e.target.value) } }))} />
+                      {extra !== 0 && (
+                        <span className={`text-[10px] font-medium ${extra > 0 ? "text-emerald-600" : "text-orange-600"}`}>
+                          {extra > 0 ? `+${extra} extra` : `${extra} short`}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs">{fmtBdt(itemUnit)}</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold text-emerald-600">{fmtBdt(r.ok * itemUnit)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {rowErrors.length > 0 && (
+        <div className="text-xs text-orange-600 flex items-start gap-2 p-2 rounded-md bg-orange-50 dark:bg-orange-950/30">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <div>{rowErrors.join(" · ")}</div>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-3 gap-3">
+        <div>
+          <Label className="text-xs">Warehouse *</Label>
+          <Select value={warehouseId} onValueChange={setWarehouseId}>
+            <SelectTrigger><SelectValue placeholder="Pick" /></SelectTrigger>
+            <SelectContent>{(warehouses as any[]).map((w) => <SelectItem key={w.id} value={w.id}>{w.name}{w.is_default ? " (default)" : ""}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Local courier ৳ (optional)</Label><Input type="number" step="0.01" value={courierBdt} onChange={(e) => setCourierBdt(Number(e.target.value))} /></div>
+        <div>
+          <Label className="text-xs">Local courier wallet</Label>
+          <Select value={courierWalletId} onValueChange={setCourierWalletId} disabled={courierBdt <= 0}>
+            <SelectTrigger><SelectValue placeholder="Wallet" /></SelectTrigger>
+            <SelectContent>{wallets.filter((w) => w.is_active).map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({fmtBdt(w.current_balance)})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs">QC notes</Label>
+        <Textarea value={qcNotes} onChange={(e) => setQcNotes(e.target.value)} placeholder="Optional" className="min-h-[60px]" />
+      </div>
+
+      <Card className="p-3 bg-muted/30">
+        <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-2">ACCOUNTING PREVIEW</div>
+        <div className="space-y-1.5 text-xs">
+          <Row left={`Inventory in (${totalOk} OK pcs @ ${fmtBdt(perOkPiece)})`} right={`+${fmtBdt(finalInventoryCost - lossValue)}`} rightClass="text-emerald-600 font-semibold" />
+          {lossCount > 0 && (
+            <Row left={`Loss expense (${lossCount} pcs damaged/missing)`} right={`${fmtBdt(lossValue)} absorbed in OK unit cost`} rightClass="text-orange-600" />
+          )}
+          {courierCost > 0 && selectedCourierWallet && (
+            <Row left={`Local courier paid from ${selectedCourierWallet.name}`} right={`-${fmtBdt(courierCost)}`} rightClass="text-red-600" />
+          )}
+          {courierCost > 0 && selectedCourierWallet ? (
+            <div className="pt-2 border-t border-border/60 mt-2">
+              <div className="text-[10px] tracking-wider text-muted-foreground font-semibold mb-1">WALLET OUTFLOW SUMMARY</div>
+              {selectedCourierWallet && courierCost > 0 && (
+                <Row left={selectedCourierWallet.name} right={`-${fmtBdt(courierCost)} (bal ${fmtBdt(selectedCourierWallet.current_balance)} → ${fmtBdt(Number(selectedCourierWallet.current_balance) - courierCost)})`} rightClass="text-xs" />
+              )}
+            </div>
+          ) : null}
+        </div>
+      </Card>
+
+      <Button
+        size="lg"
+        disabled={mut.isPending || rowErrors.length > 0 || validationErrors.length > 0}
+        onClick={() => mut.mutate()}
+      >
+        {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        <ClipboardCheck className="h-4 w-4 mr-1" />Approve &amp; post {totalOk} pcs to inventory
+      </Button>
+      {validationErrors.length > 0 && <div className="text-[11px] text-orange-600">{validationErrors.join(" · ")}</div>}
+    </div>
+  );
+}
+
+/* auto-update OK = expected - damaged - missing (kept for future use) */
+export function RowsAutoCompute({ rows, setRows, carton }: { rows: any; setRows: any; carton: any }) {
+  useEffect(() => {
+    let changed = false;
+    const next = { ...rows };
+    (carton.items ?? []).forEach((it: any) => {
+      const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+      const newOk = Math.max(0, Number(it.quantity_expected) - Number(r.damaged || 0) - Number(r.missing || 0));
+      if (r.ok !== newOk) { next[it.id] = { ...r, ok: newOk }; changed = true; }
+    });
+    if (changed) setRows(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(Object.fromEntries(Object.entries(rows).map(([k, v]: any) => [k, { d: v.damaged, m: v.missing }])))]);
+  return null;
+}
