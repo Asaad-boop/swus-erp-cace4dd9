@@ -253,8 +253,8 @@ function AttributionPage() {
               <CandidatesTable
                 loading={candsQ.isLoading}
                 rows={candRows}
-                onAccept={(id) => acceptCandMut.mutate(id)}
-                onDismiss={(id) => dismissCandMut.mutate(id)}
+                onAccept={(id: string) => acceptCandMut.mutate(id)}
+                onDismiss={(id: string) => dismissCandMut.mutate(id)}
                 pending={acceptCandMut.isPending || dismissCandMut.isPending}
               />
             </TabsContent>
