@@ -694,7 +694,30 @@ export const listAttributionCandidates = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw error;
-    return rows ?? [];
+    const list = rows ?? [];
+    if (!list.length) return [];
+    const orderIds = list.map((r: any) => r.order_id);
+    const { data: orders } = await context.supabase
+      .from("orders")
+      .select("id, invoice_no, created_at, total, shipping_phone, guest_phone, shipping_name, guest_name, utm_campaign, fbclid")
+      .in("id", orderIds);
+    const oMap = new Map<string, any>();
+    for (const o of orders ?? []) oMap.set(o.id, o);
+    const enriched = list.map((r: any) => {
+      const o = oMap.get(r.order_id) ?? {};
+      return {
+        ...r,
+        order_number: o.invoice_no ?? null,
+        order_created_at: o.created_at ?? null,
+        total_amount: Number(o.total ?? 0),
+        customer_name: o.shipping_name || o.guest_name || null,
+        customer_phone: o.shipping_phone || o.guest_phone || null,
+        utm_campaign: o.utm_campaign ?? null,
+        fbclid: o.fbclid ?? null,
+      };
+    });
+    enriched.sort((a: any, b: any) => b.total_amount - a.total_amount);
+    return enriched;
   });
 
 export const acceptAttributionCandidate = createServerFn({ method: "POST" })
