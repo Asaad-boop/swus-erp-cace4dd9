@@ -206,6 +206,35 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       metaRevBdtToday += mrev * fx;
     }
 
+    // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
+    // Log-only for now; Phase 4a.1 will replace the local sum above.
+    if (brandIds.length === 1 && spendBdtToday > 0) {
+      try {
+        const { data: rpcRows } = await supabase.rpc("get_meta_spend_bdt", {
+          _brand_id: brandIds[0],
+          _from: todayBD,
+          _to: todayBD,
+        });
+        const rpcSum = ((rpcRows ?? []) as any[]).reduce(
+          (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+        );
+        const drift = spendBdtToday - rpcSum;
+        if (Math.abs(drift) >= 0.5) {
+          console.warn(
+            "[phase4a-drift] dashboard.today", {
+              brand: brandIds[0], date: todayBD,
+              local: +spendBdtToday.toFixed(2),
+              rpc: +rpcSum.toFixed(2),
+              drift: +drift.toFixed(2),
+            },
+          );
+        }
+      } catch (e) {
+        // never let drift check break the dashboard
+        console.warn("[phase4a-drift] rpc failed", e);
+      }
+    }
+
     let attributedToday = 0;
     let confirmedOrdersToday = 0;
     let confirmedRevToday = 0;
