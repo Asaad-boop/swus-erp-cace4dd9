@@ -5961,6 +5961,7 @@ export type Database = {
           created_at: string
           enabled_events: Json
           pixel_id: string | null
+          site_key: string | null
           test_event_code: string | null
           token_secret_name: string | null
           updated_at: string
@@ -5972,6 +5973,7 @@ export type Database = {
           created_at?: string
           enabled_events?: Json
           pixel_id?: string | null
+          site_key?: string | null
           test_event_code?: string | null
           token_secret_name?: string | null
           updated_at?: string
@@ -5983,6 +5985,7 @@ export type Database = {
           created_at?: string
           enabled_events?: Json
           pixel_id?: string | null
+          site_key?: string | null
           test_event_code?: string | null
           token_secret_name?: string | null
           updated_at?: string
