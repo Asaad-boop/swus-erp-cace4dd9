@@ -1,143 +1,109 @@
-# Dashboard Redesign — Clean Light SaaS, Compact
+# Marketing + Meta Spend Module — Clean Rebuild Plan
 
-**File:** `src/routes/_authenticated/erp.index.tsx` (AdminDashboard + all inline section components)
+## Somossa ki (ekhon ja ache)
 
-Data logic / queries kichhu change hobe na. Shudhu presentation layer — surface, spacing, typography, borders, colors — rewrite hobe. StaffDashboard alada, oi ta touch korbo na (jodi bolo, porey).
+Ekhon Marketing module e onek jinis scattered:
 
----
+- **Duita spend calculation path** — `spend_bdt` (flat FX) + `spend_bdt_fifo` (FIFO), duita e mismatch
+- **FIFO consumption logic incomplete** — dollar purchase kora hoy, but ad spend er sathe automatic consume hoy na consistently
+- **P&L te Meta cost thik moto dhoke na** — dashboard e ek number, finance e arek number
+- **Attribution unreliable** — order↔campaign link auto-resolve kore, kintu 290+ unmatched
+- **UI te 8-10 ta page** (accounts, campaigns, expenses, rollup, sync, meta-reports, sku-pnl, ad-account-funding, dollar-purchase, attribution) — user confused kon page e ki
+- **Multiple expense entry points** — manual expenses, dollar purchase, ad wallet, direct — kon ta kobe use korbe unclear
 
-## Design language
+## Goal (ki chai)
 
-**Surface**
-- Page bg: pure white `#ffffff` (light) — no gradient, no muted tint
-- Card bg: white; border `1px solid hsl(220 13% 91%)` (slate-200 equivalent via token)
-- Radius: `rounded-lg` (8px) sob card e — 2xl/xl er jaygay. Linear/Vercel feel
-- Shadow: shob card e shadow off. Shudhu hover e `shadow-sm`. Sticky header e nichey ekta hairline border only
-- Divider: hairline `border-border/60` everywhere, no thick separators
+Ekta jinis: **"Ami ad e joto BDT khoroch korchi, seta accurate P&L te dhukbe, per-brand per-day per-campaign per-SKU dekhte parbo."**
 
-**Typography**
-- Family: Inter (already in stack) — Sora/Manrope inline styles remove
-- Heading (H1 greeting): `text-lg font-semibold tracking-tight` — currently 2xl, chhoto korbo
-- Section title: `text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground` — small caps eyebrow
-- KPI number: `text-2xl font-semibold tabular-nums tracking-tight text-slate-900` (currently 30px, compact korbo)
-- Label: `text-[11px] font-medium text-muted-foreground uppercase tracking-wider`
-- Body: `text-[13px]` default (currently 14px)
+## Approach — 4 Phase
 
-**Color accents (semantic, minimal)**
-- Primary action: `#3b82f6` (blue-500) — buttons, links, active state
-- Positive: `text-emerald-600` + `bg-emerald-50` chips
-- Negative: `text-rose-600` + `bg-rose-50` chips
-- Neutral trend: `text-slate-500`
-- Icon tiles: remove colored tinted backgrounds. Just plain `text-slate-500` icon inside card, top-right, 14×14. No `bg-indigo-50` etc.
+### Phase 1: Foundation clean (Meta Spend → BDT conversion)
 
-**Density**
-- Card padding: `p-4` (currently p-5/p-6) — compact
-- Grid gap: `gap-2` for KPI, `gap-3` for larger sections (currently gap-3/6)
-- Page section spacing: `space-y-4` (currently space-y-6)
-- Page horizontal padding: `px-4 md:px-6`, max width `1600px`
+**Kaj:**
 
----
+- FIFO ke single source of truth banano. `spend_bdt` (flat FX) column deprecate.
+- Dollar purchase → FIFO lot → daily spend consumption ei chain ta atomic + reliable kora
+- Ekta clean RPC: `get_meta_spend_bdt(brand_id, from, to)` — jekhane use hobe shob jaygay ei function call kore
 
-## Section-by-section changes
+**Deliverables:**
 
-### 1. Header (sticky top bar)
-- Height chhoto: `py-3` (currently py-5)
-- Eyebrow line remove — direct greeting `Good morning, {name}` in `text-base font-semibold`
-- Meta line ekta row e: brand · date · sync status · refresh · date range picker
-- Sync pill: plain text `Updated 2m ago` — remove pulse dot animation, keep static green dot
-- Refresh button: ghost variant, icon-only on mobile
+- 1 migration: `spend_bdt` column drop, FIFO consumption trigger fix, RPC create
+- 1 file: `src/lib/erp/marketing/meta-cost.functions.ts` — shob spend read hobe ei theke
 
-### 2. KPI strip (10 cards)
-- Currently: 5-col boro cards with sparkline bars + icon tile + trend chip. Feels heavy.
-- New: `grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-2`
-- Card: `p-3 rounded-lg border` — compact
-- Layout inside card:
-  ```
-  LABEL (11px, uppercase, muted)          [icon 14px, muted]
-  {big value 22px semibold}
-  ↑ 12.4%  vs previous          (trend chip inline, small)
-  ```
-- Sparkline: remove bars (visual clutter). Trend chip only.
-- Remove sub text like "Pathao + Steadfast" — just show number + trend, hover for tooltip
-- Hover: `hover:border-slate-300 hover:shadow-sm` — subtle lift, no translate
+### Phase 2: Simplified UI (10 page → 4 page)
 
-### 3. Must-have widget rows (Profit, Cash, COD, ROAS, Ad Wallet, Stuck Orders, Courier Perf, Return SKUs)
-- Wrapper cards: same clean shell — white, border, `rounded-lg`, `p-4`
-- Card header: eyebrow small-caps title + optional action link on right (`View →` blue-500 text)
-- Inside content untouched (charts/tables), just re-skinned wrapper
-- Grids: `gap-3`
+**Notun structure:**
 
-### 4. Trend chart + Today analytics + Hourly comparison
-- Chart cards: same clean shell
-- Recharts colors normalized: primary blue `#3b82f6`, muted grid `#e2e8f0`, tick `#94a3b8`, tooltip white with border
-- Legend: pill chips, subtle
-- Remove any gradient area fills — flat lines/soft area with 8% opacity fill only
-
-### 5. New vs Returning + Abandoned Cart
-- Same clean shell
-
-### 6. Brand comparison (all-brands mode)
-- Table look: white, hairline dividers, tabular-nums, no zebra stripe
-
-### 7. Supporting cards row (Courier / COD Outstanding / Returns / Imports)
-- 4-col compact `gap-2`, same shell
-
-### 8. Finance section, Inventory health, LowStock, Marketing, TopProducts/Customers, NeedsAttention, LiveOrdersFeed
-- Reskin card wrapper to match. Internal data untouched.
-
-### 9. Footer
-- Simple `text-xs text-muted-foreground` centered line
-
----
-
-## Reusable primitives introduced in file
-
-```tsx
-// Compact card shell used across all sections
-function DashCard({ title, action, className, children }: {...}) {
-  return (
-    <div className={cn("rounded-lg border border-border bg-card", className)}>
-      {(title || action) && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-          <div className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground">
-            {title}
-          </div>
-          {action}
-        </div>
-      )}
-      <div className="p-4">{children}</div>
-    </div>
-  );
-}
-
-// Compact trend chip
-function TrendChip({ value }: { value?: number }) {
-  if (typeof value !== "number") return null;
-  const up = value >= 0;
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-0.5 rounded px-1 py-px text-[11px] font-medium tabular-nums",
-      up ? "text-emerald-600" : "text-rose-600"
-    )}>
-      {up ? <ArrowUpRight className="size-3"/> : <ArrowDownRight className="size-3"/>}
-      {Math.abs(value).toFixed(1)}%
-    </span>
-  );
-}
+```text
+/erp/marketing/
+├── overview       — Dashboard (spend, revenue, ROAS, profit per brand)
+├── spend          — Ad Spend Log (dollar purchase + wallet + daily spend, ekta page)
+├── campaigns      — Campaigns + per-campaign P&L (SKU rollup expandable)
+└── settings       — Ad accounts, brand mapping, sync config
 ```
 
-`KpiCard` rewritten — simpler: label row, value, trend chip. No sparkline. No colored icon tile background. Clickable if `to` set.
+**Ja delete/merge hobe:**
 
-Existing widget components from `@/components/erp/dashboard/widgets` — I will NOT modify their internals this pass (they have their own Card). If they clash visually, next iteration.
+- `accounts` + `ad-account-funding` + `dollar-purchase` → `spend` page e merge
+- `expenses` + `sync` + `meta-reports` → `overview` er tab
+- `rollup` + `sku-pnl` → `campaigns` er inline view
+- `attribution` → `campaigns` er "unmatched orders" tab
+
+### Phase 3: Attribution rework (reliable order↔campaign link)
+
+**Notun logic:**
+
+- UTM parameters priority 1
+- Facebook click ID (fbclid) priority 2
+- Phone number + time window (order create 24h er modhe ad click) priority 3
+- Manual override option (admin dashboard e drag-drop)
+
+**Rule:** Auto-resolve confidence score dibe (high/medium/low). Low confidence hole manual review queue e jabe, auto-link kora na.
+
+### Phase 4: Finance integration (P&L accuracy)
+
+**Kaj:**
+
+- `erp_transactions` te ad spend entry auto-post hobe (FIFO BDT amount)
+- Ekta expense category: "Meta Ads" — per brand track
+- Product profitability page e ei accurate cost dekhabe
+- Daily/monthly P&L report e "Ad Spend" ekta clean line item hobe
 
 ---
 
-## Out of scope (this pass)
-- StaffDashboard (`src/components/erp/staff-dashboard.tsx`)
-- Widget internals in `src/components/erp/dashboard/widgets.tsx`
-- Global theme tokens in `styles.css`
-- Dark mode polish (light-first)
+## Order System Safety
 
-## Verification
-- Typecheck via `tsgo`
-- Screenshot desktop viewport, spot-check header + KPI strip
+**Order table e SHUNNO change hobe.** Shudhu:
+
+- `orders.id`, `orders.brand_id`, `orders.total`, `orders.created_at` — read only
+- Order create/update/courier/inventory flow er kono line touch kora hobe na
+- Prottek phase er por tumi order create test korbe, kichu break hoyeche kina confirm korbe
+
+## Execution Order
+
+1. **Phase 1 first** (2-3 din er kaj) — eta done hole tumi accurate spend number dekhbe
+2. Phase 1 test + approve → **Phase 2** (UI cleanup, 2 din)
+3. Phase 2 approve → **Phase 3** (attribution, 1-2 din)
+4. Phase 3 approve → **Phase 4** (finance integration, 1 din)
+
+**Prottek phase alada approval nibo.** Ek dhakay shob korbo na.
+
+## Technical Notes
+
+- Purano data delete korbo na, migration reversible thakbe
+- `mkt_manual_expenses`, `mkt_insights_daily`, `meta_dollar_purchases` — schema mostly same, shudhu clean up
+- Notun `.functions.ts` file, purano gulo phase e phase e deprecate
+- Types.ts regenerate hobe prottek migration er por
+
+## Ki dorkar tomar theke
+
+1. **Approval** — ei plan e agree?
+2. **Priority confirm** — Phase 1 (Meta Spend accuracy) diye shuru korbo?
+3. **Data question** — purano dollar purchase / FIFO lot data ki rakhbo, na fresh start korbo?  
+  
+**Order first**: Notun sequence follow koro — race condition fix (mkt_order_attributions) → Phase 1 → Phase 4a (aggregate P&L only) → Phase 2 → Phase 3 → Phase 4b (SKU-level profitability). Original doc-er 1-2-3-4 sequential order na, eta follow koro.
+4. **Race condition first**: Shuru korar age `mkt_order_attributions` table-er race condition ta explain koro — kothay ache, ki cause korche, fix ki hobe. Amake confirm korte dao age, tarpor code e hat dao.
+5. **Phase 1 reconciliation mandatory**: Migration + RPC deploy korar por, purano `spend_bdt` (flat FX) vs notun FIFO-based number — duita compare kore ekta summary dao (kotota % difference, kon date range e koto gap). Eta na dile Phase 1 "done" bolo na.
+6. **No data loss**: Purano dollar purchase records, FIFO lot data — kichu delete/overwrite hobe na. Migration fully reversible thakte hobe. Fresh start na, existing data preserve.
+7. **Order table untouched**: Shudhu read-only access — `orders.id`, `brand_id`, `total`, `created_at`. Kono order flow logic touch korle age explicit bolo, amar approval lagbe.
+8. **Per-phase stop**: Prottek phase complete hole code push/merge korar age amake summary dao — ki change hoise, ki test kora hoise, ki risk ache. Amar approval na paile next phase e jeyo na.
