@@ -9888,6 +9888,10 @@ export type Database = {
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
       normalize_mobile_bd: { Args: { p_phone: string }; Returns: string }
+      post_meta_ad_spend_daily: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: Json
+      }
       reapply_invoice_prefix: { Args: { _brand_id: string }; Returns: number }
       rebuild_all_marketing_attributions: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
