@@ -135,3 +135,64 @@ export const getMetaSpendReconciliation = createServerFn({ method: "POST" })
       days,
     };
   });
+/**
+ * Phase 4a — Aggregate P&L integration.
+ * Auto-post daily Meta ad spend as expense line-items into erp_transactions.
+ * Idempotent via unique index on (brand_id, transaction_date) WHERE
+ * reference_type='meta_ad_spend_daily'. Re-runs upsert instead of duplicating.
+ */
+export const postMetaAdSpendToFinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; from: string; to: string }) => RangeInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await context.supabase.rpc("post_meta_ad_spend_daily", {
+      _brand_id: data.brandId,
+      _from: data.from,
+      _to: data.to,
+    });
+    if (error) throw error;
+    return res as {
+      ok: boolean;
+      brand_id: string;
+      from: string;
+      to: string;
+      category_id: string;
+      days_posted: number;
+      days_updated: number;
+      days_skipped_zero: number;
+      total_bdt: number;
+      note: string | null;
+    };
+  });
+
+/**
+ * Phase 4a — Side-by-side drift check.
+ * Compares the caller's locally-summed spend against the canonical RPC sum for
+ * the same brand + range. Returns drift info so callers can log / display it
+ * without changing existing behaviour. Phase 4a.1 will replace local sums
+ * with the RPC once drift = 0 across all surfaces.
+ */
+export const getMetaSpendDrift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; from: string; to: string; localSpendBdt: number }) =>
+    RangeInput.extend({ localSpendBdt: z.number() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase.rpc("get_meta_spend_bdt", {
+      _brand_id: data.brandId,
+      _from: data.from,
+      _to: data.to,
+    });
+    if (error) throw error;
+    const rpcSum = ((rows ?? []) as any[]).reduce(
+      (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+    );
+    const drift = data.localSpendBdt - rpcSum;
+    return {
+      rpc_bdt: +rpcSum.toFixed(2),
+      local_bdt: +data.localSpendBdt.toFixed(2),
+      drift_bdt: +drift.toFixed(2),
+      drift_pct: rpcSum > 0 ? +((drift / rpcSum) * 100).toFixed(3) : null,
+      matches: Math.abs(drift) < 0.5,
+    };
+  });
