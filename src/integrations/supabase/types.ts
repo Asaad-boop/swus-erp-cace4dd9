@@ -6437,6 +6437,8 @@ export type Database = {
           ctr: number | null
           date: string
           estimated_bdt_cost: boolean
+          fifo_consumed_at: string | null
+          fifo_consumption_ref: string | null
           id: string
           impressions: number
           meta_add_to_cart: number
@@ -6464,6 +6466,8 @@ export type Database = {
           ctr?: number | null
           date: string
           estimated_bdt_cost?: boolean
+          fifo_consumed_at?: string | null
+          fifo_consumption_ref?: string | null
           id?: string
           impressions?: number
           meta_add_to_cart?: number
@@ -6491,6 +6495,8 @@ export type Database = {
           ctr?: number | null
           date?: string
           estimated_bdt_cost?: boolean
+          fifo_consumed_at?: string | null
+          fifo_consumption_ref?: string | null
           id?: string
           impressions?: number
           meta_add_to_cart?: number
@@ -8718,6 +8724,30 @@ export type Database = {
           },
         ]
       }
+      v_meta_spend_reconciliation: {
+        Row: {
+          brand_id: string | null
+          date: string | null
+          fallback_rows: number | null
+          flat_fx_rate_used: number | null
+          gap_bdt: number | null
+          gap_pct: number | null
+          insight_rows: number | null
+          spend_bdt_fifo: number | null
+          spend_bdt_flat_fx: number | null
+          spend_usd: number | null
+          unenriched_rows: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_insights_daily_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_mkt_attribution_possibly_overwritten: {
         Row: {
           age_delta: string | null
@@ -9204,6 +9234,18 @@ export type Database = {
       get_marketing_overview: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: Json
+      }
+      get_meta_spend_bdt: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: {
+          brand_id: string
+          day: string
+          is_estimated: boolean
+          spend_bdt: number
+          spend_bdt_fallback: number
+          spend_bdt_fifo: number
+          spend_usd: number
+        }[]
       }
       get_order_courier_cost: { Args: { _order_id: string }; Returns: number }
       get_pl_v2: {
