@@ -8718,6 +8718,68 @@ export type Database = {
           },
         ]
       }
+      v_mkt_attribution_possibly_overwritten: {
+        Row: {
+          age_delta: string | null
+          brand_id: string | null
+          campaign_id: string | null
+          confidence: number | null
+          created_at: string | null
+          order_id: string | null
+          source: Database["public"]["Enums"]["mkt_attribution_source"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          age_delta?: never
+          brand_id?: string | null
+          campaign_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          order_id?: string | null
+          source?: Database["public"]["Enums"]["mkt_attribution_source"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          age_delta?: never
+          brand_id?: string | null
+          campaign_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          order_id?: string | null
+          source?: Database["public"]["Enums"]["mkt_attribution_source"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_order_attributions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_order_attributions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "v_ar_outstanding"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       v_product_incoming: {
         Row: {
           brand_id: string | null
@@ -9699,6 +9761,10 @@ export type Database = {
           status: string
         }[]
       }
+      mkt_lock_order_attribution: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
       mkt_product_campaign_report: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
@@ -9715,6 +9781,25 @@ export type Database = {
       }
       mkt_rebuild_window: {
         Args: { p_brand_id: string; p_days?: number; p_trigger?: string }
+        Returns: Json
+      }
+      mkt_upsert_order_attribution: {
+        Args: {
+          _ad_id?: string
+          _adset_id?: string
+          _brand_id: string
+          _campaign_id?: string
+          _confidence?: number
+          _fbclid?: string
+          _note?: string
+          _order_id: string
+          _source?: string
+          _utm_campaign?: string
+          _utm_content?: string
+          _utm_medium?: string
+          _utm_source?: string
+          _utm_term?: string
+        }
         Returns: Json
       }
       next_invoice_no: { Args: { _brand_id: string }; Returns: string }
