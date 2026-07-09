@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, X, Search, Link2 } from "lucide-react";
+import { Loader2, Sparkles, X, Search, Link2, Check, Ban } from "lucide-react";
 import { format } from "date-fns";
 
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -29,6 +29,9 @@ import {
   setManualAttribution,
   clearAttribution,
   backfillCampaignProductLinks,
+  listAttributionCandidates,
+  acceptAttributionCandidate,
+  dismissAttributionCandidate,
 } from "@/lib/erp/marketing/attribution.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/attribution")({
@@ -47,7 +50,7 @@ function AttributionPage() {
   const qc = useQueryClient();
   const { brandId, effectiveBrand, picker } = useBrandPicker();
 
-  const [tab, setTab] = useState<"unattributed" | "attributed">("unattributed");
+  const [tab, setTab] = useState<"unattributed" | "candidates" | "attributed">("unattributed");
   const [days, setDays] = useState(30);
   const [search, setSearch] = useState("");
 
@@ -58,11 +61,20 @@ function AttributionPage() {
   const setManFn = useServerFn(setManualAttribution);
   const clearFn = useServerFn(clearAttribution);
   const backfillFn = useServerFn(backfillCampaignProductLinks);
+  const listCandFn = useServerFn(listAttributionCandidates);
+  const acceptCandFn = useServerFn(acceptAttributionCandidate);
+  const dismissCandFn = useServerFn(dismissAttributionCandidate);
 
   const ordersQ = useQuery({
     queryKey: ["mkt", "attribution-orders", brandId, tab, days],
-    queryFn: () => listFn({ data: { brandId: brandId!, mode: tab, days } }),
-    enabled: !!brandId,
+    queryFn: () => listFn({ data: { brandId: brandId!, mode: tab as "unattributed" | "attributed", days } }),
+    enabled: !!brandId && tab !== "candidates",
+  });
+
+  const candsQ = useQuery({
+    queryKey: ["mkt", "attribution-candidates", brandId],
+    queryFn: () => listCandFn({ data: { brandId: brandId!, status: "pending" } }),
+    enabled: !!brandId && tab === "candidates",
   });
 
   const campsQ = useQuery({
@@ -117,6 +129,25 @@ function AttributionPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const acceptCandMut = useMutation({
+    mutationFn: (candidateId: string) => acceptCandFn({ data: { candidateId } }),
+    onSuccess: () => {
+      toast.success("Candidate accepted");
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-candidates"] });
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const dismissCandMut = useMutation({
+    mutationFn: (candidateId: string) => dismissCandFn({ data: { candidateId } }),
+    onSuccess: () => {
+      toast.success("Candidate dismissed");
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const rows = useMemo(() => {
     const all = ordersQ.data ?? [];
     if (!search.trim()) return all;
@@ -127,6 +158,17 @@ function AttributionPage() {
       String(o.customer_name ?? "").toLowerCase().includes(q),
     );
   }, [ordersQ.data, search]);
+
+  const candRows = useMemo(() => {
+    const all = candsQ.data ?? [];
+    if (!search.trim()) return all;
+    const q = search.toLowerCase();
+    return all.filter((o: any) =>
+      String(o.order_number ?? "").toLowerCase().includes(q) ||
+      String(o.customer_phone ?? "").toLowerCase().includes(q) ||
+      String(o.customer_name ?? "").toLowerCase().includes(q),
+    );
+  }, [candsQ.data, search]);
 
   const campaigns = campsQ.data ?? [];
 
@@ -189,6 +231,10 @@ function AttributionPage() {
           <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
             <TabsList>
               <TabsTrigger value="unattributed">Unattributed</TabsTrigger>
+              <TabsTrigger value="candidates">
+                Low-conf candidates
+                {candsQ.data?.length ? ` (${candsQ.data.length})` : ""}
+              </TabsTrigger>
               <TabsTrigger value="attributed">Attributed</TabsTrigger>
             </TabsList>
             <TabsContent value="unattributed" className="mt-3">
@@ -201,6 +247,15 @@ function AttributionPage() {
                 onManual={(orderId, campaignId) => setManMut.mutate({ orderId, campaignId })}
                 onClear={(id) => clearMut.mutate(id)}
                 pending={oneMut.isPending || setManMut.isPending}
+              />
+            </TabsContent>
+            <TabsContent value="candidates" className="mt-3">
+              <CandidatesTable
+                loading={candsQ.isLoading}
+                rows={candRows}
+                onAccept={(id: string) => acceptCandMut.mutate(id)}
+                onDismiss={(id: string) => dismissCandMut.mutate(id)}
+                pending={acceptCandMut.isPending || dismissCandMut.isPending}
               />
             </TabsContent>
             <TabsContent value="attributed" className="mt-3">
@@ -303,6 +358,80 @@ function OrdersTable({ mode, loading, rows, campaigns, onResolve, onManual, onCl
                       <X className="h-4 w-4 text-red-600" />
                     </Button>
                   )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+type CandidatesTableProps = {
+  loading: boolean;
+  rows: any[];
+  onAccept: (id: string) => void;
+  onDismiss: (id: string) => void;
+  pending: boolean;
+};
+
+function CandidatesTable({ loading, rows, onAccept, onDismiss, pending }: CandidatesTableProps) {
+  if (loading) {
+    return <div className="py-10 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  }
+  if (!rows.length) {
+    return <div className="py-10 text-center text-sm text-muted-foreground">No pending candidates.</div>;
+  }
+  return (
+    <div className="rounded-md border overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Suggested Campaign</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead className="text-right">Confidence</TableHead>
+            <TableHead className="text-right">Revenue</TableHead>
+            <TableHead className="w-48">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((c: any) => (
+            <TableRow key={c.id}>
+              <TableCell className="font-medium text-sm">{c.order_number || c.order_id.slice(0, 8)}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">
+                {c.order_created_at ? format(new Date(c.order_created_at), "dd MMM") : "—"}
+              </TableCell>
+              <TableCell className="text-sm">
+                <div>{c.customer_name || "—"}</div>
+                <div className="text-xs text-muted-foreground">{c.customer_phone || ""}</div>
+              </TableCell>
+              <TableCell className="text-sm">{c.mkt_campaigns?.name || <span className="text-muted-foreground">—</span>}</TableCell>
+              <TableCell>
+                <Badge className={`${SOURCE_COLOR[c.source] ?? "bg-slate-100"} hover:opacity-90`}>{c.source}</Badge>
+              </TableCell>
+              <TableCell className="text-right text-xs">{(Number(c.confidence) * 100).toFixed(0)}%</TableCell>
+              <TableCell className="text-right">৳ {Number(c.total_amount || 0).toLocaleString()}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onAccept(c.id)}
+                    disabled={pending || !c.suggested_campaign_id}
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" /> Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onDismiss(c.id)}
+                    disabled={pending}
+                  >
+                    <Ban className="mr-1 h-3.5 w-3.5" /> Dismiss
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
