@@ -138,6 +138,43 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
       attrMap.set(r.campaign_id, cur);
     }
 
+    // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
+    // Log-only; Phase 4a.1 will replace the local sum.
+    if (brandIds.length === 1) {
+      try {
+        // Local sum of spend_bdt across all campaigns in window (mirrors row map below)
+        let localBdt = 0;
+        for (const c of campaigns as any[]) {
+          const ins = insMap.get(c.id);
+          if (!ins) continue;
+          const acc = c.mkt_ad_accounts ?? {};
+          const currency: string = (acc.currency ?? "USD").toUpperCase();
+          const usdFx: number = Number(acc.usd_to_bdt_rate) || (fxMap.get(c.brand_id) ?? 0);
+          const fx: number = currency === "BDT" ? 1 : usdFx;
+          localBdt += ins.spend_bdt_fifo > 0 ? ins.spend_bdt_fifo : ins.spend * fx;
+        }
+        if (localBdt > 0) {
+          const { data: rpcRows } = await supabase.rpc("get_meta_spend_bdt", {
+            _brand_id: brandIds[0], _from: from, _to: to,
+          });
+          const rpcSum = ((rpcRows ?? []) as any[]).reduce(
+            (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+          );
+          const drift = localBdt - rpcSum;
+          if (Math.abs(drift) >= 0.5) {
+            console.warn("[phase4a-drift] campaigns.rollup", {
+              brand: brandIds[0], from, to,
+              local: +localBdt.toFixed(2),
+              rpc: +rpcSum.toFixed(2),
+              drift: +drift.toFixed(2),
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[phase4a-drift] campaigns rpc failed", e);
+      }
+    }
+
     // Linked products per campaign (for visual identification)
     const { data: linkRows } = await supabase
       .from("mkt_campaign_products")
