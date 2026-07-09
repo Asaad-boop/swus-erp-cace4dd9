@@ -551,3 +551,195 @@ export const backfillCampaignProductLinks = createServerFn({ method: "POST" })
     }
     return { scanned: orderIds.length, linked, skipped };
   });
+
+/* ---------------- Phase 3: preview / candidates ---------------- */
+
+/**
+ * Dry-run: run computeCandidate over recent orders without writing.
+ * Returns tier breakdown, would-flip diffs vs existing attributions,
+ * phone-match gap distribution, and existing low-conf demote proposal.
+ */
+export const previewBulkResolve = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; days?: number }) =>
+    z.object({ brandId: z.string().uuid(), days: z.number().int().min(1).max(365).default(30) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertRole(context.supabase, context.userId);
+    const supabase = context.supabase;
+    const since = new Date(Date.now() - data.days * 86400000).toISOString();
+
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("brand_id", data.brandId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+
+    const orderIds = (orders ?? []).map((o: any) => o.id);
+
+    const { data: existing } = await supabase
+      .from("mkt_order_attributions")
+      .select("order_id, campaign_id, source, confidence, mkt_campaigns:campaign_id(name)")
+      .eq("brand_id", data.brandId)
+      .in("order_id", orderIds.length ? orderIds : ["00000000-0000-0000-0000-000000000000"]);
+    const existingMap = new Map<string, any>();
+    for (const a of existing ?? []) existingMap.set(a.order_id, a);
+
+    // campaign name lookup for diff readability
+    const { data: campRows } = await supabase
+      .from("mkt_campaigns")
+      .select("id, name")
+      .eq("brand_id", data.brandId);
+    const campName = new Map<string, string>();
+    for (const c of campRows ?? []) campName.set(c.id, c.name);
+
+    let scanned = 0;
+    let would_attribute_high = 0;
+    let would_attribute_medium = 0;
+    let would_queue_low = 0;
+    let no_match = 0;
+    const would_flip_existing: any[] = [];
+    const phoneGaps: number[] = [];
+    const bySource: Record<string, number> = {};
+
+    for (const o of orders ?? []) {
+      scanned++;
+      let r;
+      try {
+        r = await computeCandidate(supabase, o.id);
+      } catch {
+        continue;
+      }
+      if (!r.matched) { no_match++; continue; }
+      const tier = tierOf(r.confidence);
+      bySource[r.source] = (bySource[r.source] ?? 0) + 1;
+      if (tier === "high") would_attribute_high++;
+      else if (tier === "medium") would_attribute_medium++;
+      else would_queue_low++;
+      if (r.source === "phone_match" && typeof r.signal?.gap_hours === "number") {
+        phoneGaps.push(r.signal.gap_hours);
+      }
+      const cur = existingMap.get(o.id);
+      if (cur && cur.campaign_id && cur.campaign_id !== r.campaign_id) {
+        would_flip_existing.push({
+          order_id: o.id,
+          old_campaign_id: cur.campaign_id,
+          old_campaign_name: cur.mkt_campaigns?.name ?? null,
+          old_source: cur.source,
+          old_confidence: Number(cur.confidence),
+          new_campaign_id: r.campaign_id,
+          new_campaign_name: campName.get(r.campaign_id) ?? null,
+          new_source: r.source,
+          new_confidence: r.confidence,
+          new_tier: tier,
+        });
+      }
+    }
+
+    // Phone-match gap distribution
+    phoneGaps.sort((a, b) => a - b);
+    const percentile = (p: number) =>
+      phoneGaps.length ? phoneGaps[Math.min(phoneGaps.length - 1, Math.floor(phoneGaps.length * p))] : null;
+    const phone_gap = {
+      n: phoneGaps.length,
+      median_h: percentile(0.5),
+      p90_h: percentile(0.9),
+      p95_h: percentile(0.95),
+      max_h: phoneGaps.length ? phoneGaps[phoneGaps.length - 1] : null,
+    };
+
+    // Existing low-conf demote proposal (product_link < 0.60 currently in attributions)
+    const { data: lowConfRows, count: low_conf_existing_count } = await supabase
+      .from("mkt_order_attributions")
+      .select("order_id, source, confidence", { count: "exact" })
+      .eq("brand_id", data.brandId)
+      .lt("confidence", CONFIDENCE_MEDIUM)
+      .neq("source", "manual");
+
+    return {
+      window_days: data.days,
+      scanned,
+      no_match,
+      would_attribute_high,
+      would_attribute_medium,
+      would_queue_low,
+      would_flip_count: would_flip_existing.length,
+      would_flip_sample: would_flip_existing.slice(0, 25),
+      by_source: bySource,
+      phone_gap_distribution_hours: phone_gap,
+      existing_low_conf_in_attributions: {
+        count: low_conf_existing_count ?? (lowConfRows?.length ?? 0),
+        note: "These are already-written attributions with confidence < 0.60 (excludes manual). Under new tier gate they would belong in the candidates queue. NOT auto-demoted — proposal only.",
+      },
+      thresholds: { high: CONFIDENCE_HIGH, medium: CONFIDENCE_MEDIUM, phone_window_hours: PHONE_WINDOW_HOURS },
+    };
+  });
+
+export const listAttributionCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandId: string; status?: "pending" | "accepted" | "dismissed" }) =>
+    z.object({
+      brandId: z.string().uuid(),
+      status: z.enum(["pending", "accepted", "dismissed"]).default("pending"),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("mkt_attribution_candidates")
+      .select("id, order_id, brand_id, suggested_campaign_id, source, confidence, matched_signal, status, created_at, mkt_campaigns:suggested_campaign_id(name)")
+      .eq("brand_id", data.brandId)
+      .eq("status", data.status)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const acceptAttributionCandidate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { candidateId: string }) =>
+    z.object({ candidateId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertRole(context.supabase, context.userId);
+    const supabase = context.supabase;
+    const { data: cand, error } = await supabase
+      .from("mkt_attribution_candidates")
+      .select("*")
+      .eq("id", data.candidateId)
+      .single();
+    if (error) throw error;
+    if (!cand.suggested_campaign_id) throw new Error("candidate_has_no_campaign");
+    // Accept as manual — confidence 1.0, protected
+    await upsertAttribution(supabase, {
+      order_id: cand.order_id,
+      brand_id: cand.brand_id,
+      campaign_id: cand.suggested_campaign_id,
+      source: "manual",
+      confidence: 1.0,
+      note: `accepted_candidate:${cand.source}`,
+    });
+    await autoLinkOrderProducts(supabase, cand.order_id, cand.suggested_campaign_id, cand.brand_id);
+    await supabase
+      .from("mkt_attribution_candidates")
+      .update({ status: "accepted" })
+      .eq("id", data.candidateId);
+    return { ok: true };
+  });
+
+export const dismissAttributionCandidate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { candidateId: string }) =>
+    z.object({ candidateId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertRole(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("mkt_attribution_candidates")
+      .update({ status: "dismissed" })
+      .eq("id", data.candidateId);
+    if (error) throw error;
+    return { ok: true };
+  });
