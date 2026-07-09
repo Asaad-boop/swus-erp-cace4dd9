@@ -36,6 +36,7 @@ import {
   deleteMarketingExpense,
 } from "@/lib/erp/marketing/expenses.functions";
 import { searchBrandProducts } from "@/lib/erp/marketing/campaigns.functions";
+import { MetaAdSpendPostCard } from "@/components/erp/marketing/meta-ad-spend-post-card";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/expenses")({
   component: ExpensesPage,
@@ -210,6 +211,8 @@ function ExpensesPage() {
           </>
         }
       />
+
+      <MetaAdSpendPostCard brandId={brand?.id ?? null} />
 
       {/* Per-subtype tiles (click-to-filter) */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
