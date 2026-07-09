@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, X, Search, Link2 } from "lucide-react";
+import { Loader2, Sparkles, X, Search, Link2, Check, Ban } from "lucide-react";
 import { format } from "date-fns";
 
 import { useBrandPicker } from "@/components/erp/brand-picker-gate";
@@ -29,6 +29,9 @@ import {
   setManualAttribution,
   clearAttribution,
   backfillCampaignProductLinks,
+  listAttributionCandidates,
+  acceptAttributionCandidate,
+  dismissAttributionCandidate,
 } from "@/lib/erp/marketing/attribution.functions";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing/attribution")({
@@ -47,7 +50,7 @@ function AttributionPage() {
   const qc = useQueryClient();
   const { brandId, effectiveBrand, picker } = useBrandPicker();
 
-  const [tab, setTab] = useState<"unattributed" | "attributed">("unattributed");
+  const [tab, setTab] = useState<"unattributed" | "candidates" | "attributed">("unattributed");
   const [days, setDays] = useState(30);
   const [search, setSearch] = useState("");
 
@@ -58,11 +61,20 @@ function AttributionPage() {
   const setManFn = useServerFn(setManualAttribution);
   const clearFn = useServerFn(clearAttribution);
   const backfillFn = useServerFn(backfillCampaignProductLinks);
+  const listCandFn = useServerFn(listAttributionCandidates);
+  const acceptCandFn = useServerFn(acceptAttributionCandidate);
+  const dismissCandFn = useServerFn(dismissAttributionCandidate);
 
   const ordersQ = useQuery({
     queryKey: ["mkt", "attribution-orders", brandId, tab, days],
     queryFn: () => listFn({ data: { brandId: brandId!, mode: tab, days } }),
-    enabled: !!brandId,
+    enabled: !!brandId && tab !== "candidates",
+  });
+
+  const candsQ = useQuery({
+    queryKey: ["mkt", "attribution-candidates", brandId],
+    queryFn: () => listCandFn({ data: { brandId: brandId!, status: "pending" } }),
+    enabled: !!brandId && tab === "candidates",
   });
 
   const campsQ = useQuery({
@@ -117,6 +129,25 @@ function AttributionPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const acceptCandMut = useMutation({
+    mutationFn: (candidateId: string) => acceptCandFn({ data: { candidateId } }),
+    onSuccess: () => {
+      toast.success("Candidate accepted");
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-candidates"] });
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const dismissCandMut = useMutation({
+    mutationFn: (candidateId: string) => dismissCandFn({ data: { candidateId } }),
+    onSuccess: () => {
+      toast.success("Candidate dismissed");
+      qc.invalidateQueries({ queryKey: ["mkt", "attribution-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const rows = useMemo(() => {
     const all = ordersQ.data ?? [];
     if (!search.trim()) return all;
@@ -127,6 +158,17 @@ function AttributionPage() {
       String(o.customer_name ?? "").toLowerCase().includes(q),
     );
   }, [ordersQ.data, search]);
+
+  const candRows = useMemo(() => {
+    const all = candsQ.data ?? [];
+    if (!search.trim()) return all;
+    const q = search.toLowerCase();
+    return all.filter((o: any) =>
+      String(o.order_number ?? "").toLowerCase().includes(q) ||
+      String(o.customer_phone ?? "").toLowerCase().includes(q) ||
+      String(o.customer_name ?? "").toLowerCase().includes(q),
+    );
+  }, [candsQ.data, search]);
 
   const campaigns = campsQ.data ?? [];
 
@@ -189,6 +231,10 @@ function AttributionPage() {
           <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
             <TabsList>
               <TabsTrigger value="unattributed">Unattributed</TabsTrigger>
+              <TabsTrigger value="candidates">
+                Low-conf candidates
+                {candsQ.data?.length ? ` (${candsQ.data.length})` : ""}
+              </TabsTrigger>
               <TabsTrigger value="attributed">Attributed</TabsTrigger>
             </TabsList>
             <TabsContent value="unattributed" className="mt-3">
@@ -201,6 +247,15 @@ function AttributionPage() {
                 onManual={(orderId, campaignId) => setManMut.mutate({ orderId, campaignId })}
                 onClear={(id) => clearMut.mutate(id)}
                 pending={oneMut.isPending || setManMut.isPending}
+              />
+            </TabsContent>
+            <TabsContent value="candidates" className="mt-3">
+              <CandidatesTable
+                loading={candsQ.isLoading}
+                rows={candRows}
+                onAccept={(id) => acceptCandMut.mutate(id)}
+                onDismiss={(id) => dismissCandMut.mutate(id)}
+                pending={acceptCandMut.isPending || dismissCandMut.isPending}
               />
             </TabsContent>
             <TabsContent value="attributed" className="mt-3">
