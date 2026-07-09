@@ -243,6 +243,32 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       campSpend.set(r.campaign_id, cur);
     }
 
+    // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
+    // Log-only; Phase 4a.1 will replace the local sum.
+    try {
+      let localBdt = 0;
+      for (const v of campSpend.values()) localBdt += v.bdt;
+      if (localBdt > 0) {
+        const { data: rpcRows } = await supabase.rpc("get_meta_spend_bdt", {
+          _brand_id: data.brandId, _from: from, _to: to,
+        });
+        const rpcSum = ((rpcRows ?? []) as any[]).reduce(
+          (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+        );
+        const drift = localBdt - rpcSum;
+        if (Math.abs(drift) >= 0.5) {
+          console.warn("[phase4a-drift] sku-pnl", {
+            brand: data.brandId, from, to,
+            local: +localBdt.toFixed(2),
+            rpc: +rpcSum.toFixed(2),
+            drift: +drift.toFixed(2),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[phase4a-drift] sku-pnl rpc failed", e);
+    }
+
     const { data: links } = campIds.length
       ? await supabase
           .from("mkt_campaign_products")
