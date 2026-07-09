@@ -212,7 +212,7 @@ function ExpensesPage() {
         }
       />
 
-      <MetaAdSpendPostCard brandId={brand?.id ?? null} />
+      <MetaAdSpendPostCard brandId={brandId} />
 
       {/* Per-subtype tiles (click-to-filter) */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
