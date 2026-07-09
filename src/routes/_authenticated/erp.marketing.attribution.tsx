@@ -367,3 +367,77 @@ function OrdersTable({ mode, loading, rows, campaigns, onResolve, onManual, onCl
     </div>
   );
 }
+type CandidatesTableProps = {
+  loading: boolean;
+  rows: any[];
+  onAccept: (id: string) => void;
+  onDismiss: (id: string) => void;
+  pending: boolean;
+};
+
+function CandidatesTable({ loading, rows, onAccept, onDismiss, pending }: CandidatesTableProps) {
+  if (loading) {
+    return <div className="py-10 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  }
+  if (!rows.length) {
+    return <div className="py-10 text-center text-sm text-muted-foreground">No pending candidates.</div>;
+  }
+  return (
+    <div className="rounded-md border overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Suggested Campaign</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead className="text-right">Confidence</TableHead>
+            <TableHead className="text-right">Revenue</TableHead>
+            <TableHead className="w-48">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((c: any) => (
+            <TableRow key={c.id}>
+              <TableCell className="font-medium text-sm">{c.order_number || c.order_id.slice(0, 8)}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">
+                {c.order_created_at ? format(new Date(c.order_created_at), "dd MMM") : "—"}
+              </TableCell>
+              <TableCell className="text-sm">
+                <div>{c.customer_name || "—"}</div>
+                <div className="text-xs text-muted-foreground">{c.customer_phone || ""}</div>
+              </TableCell>
+              <TableCell className="text-sm">{c.mkt_campaigns?.name || <span className="text-muted-foreground">—</span>}</TableCell>
+              <TableCell>
+                <Badge className={`${SOURCE_COLOR[c.source] ?? "bg-slate-100"} hover:opacity-90`}>{c.source}</Badge>
+              </TableCell>
+              <TableCell className="text-right text-xs">{(Number(c.confidence) * 100).toFixed(0)}%</TableCell>
+              <TableCell className="text-right">৳ {Number(c.total_amount || 0).toLocaleString()}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onAccept(c.id)}
+                    disabled={pending || !c.suggested_campaign_id}
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" /> Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onDismiss(c.id)}
+                    disabled={pending}
+                  >
+                    <Ban className="mr-1 h-3.5 w-3.5" /> Dismiss
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
