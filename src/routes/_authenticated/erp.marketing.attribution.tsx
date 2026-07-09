@@ -67,7 +67,7 @@ function AttributionPage() {
 
   const ordersQ = useQuery({
     queryKey: ["mkt", "attribution-orders", brandId, tab, days],
-    queryFn: () => listFn({ data: { brandId: brandId!, mode: tab, days } }),
+    queryFn: () => listFn({ data: { brandId: brandId!, mode: tab as "unattributed" | "attributed", days } }),
     enabled: !!brandId && tab !== "candidates",
   });
 
