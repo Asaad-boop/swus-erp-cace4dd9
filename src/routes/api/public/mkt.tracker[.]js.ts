@@ -2,11 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const SNIPPET = `(function(){
   try {
-    var s = document.currentScript;
+    var s = document.currentScript || (function(){
+      var all = document.getElementsByTagName('script');
+      for (var i=all.length-1;i>=0;i--){ if ((all[i].src||'').indexOf('/api/public/mkt/tracker.js')>-1) return all[i]; }
+      return null;
+    })();
     var KEY = (s && s.getAttribute('data-site-key')) || window.MKT_SITE_KEY;
     if (!KEY) { console.warn('[mkt] site key missing'); return; }
-    var ENDPOINT = (s && s.getAttribute('data-endpoint')) || (location.origin.indexOf('lovable')>-1 ? location.origin : '') + '/api/public/mkt/track';
-    if (!/^https?:/.test(ENDPOINT)) ENDPOINT = '${""}' + ENDPOINT;
+    var ORIGIN = (s && s.getAttribute('data-tracker-origin')) ||
+                 (s && s.src ? (new URL(s.src)).origin : '') ||
+                 'https://swus-erp.lovable.app';
+    var ENDPOINT = (s && s.getAttribute('data-endpoint')) || (ORIGIN + '/api/public/mkt/track');
+    if (!/^https?:/.test(ENDPOINT)) ENDPOINT = ORIGIN + ENDPOINT;
 
     function uuid(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
     function getCookie(n){var m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');return m?decodeURIComponent(m[1]):null;}
