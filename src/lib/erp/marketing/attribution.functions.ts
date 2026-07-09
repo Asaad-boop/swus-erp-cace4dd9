@@ -167,10 +167,27 @@ async function resolveOne(supabase: any, orderId: string): Promise<{
 }
 
 async function upsertAttribution(supabase: any, row: any) {
-  const { error } = await supabase
-    .from("mkt_order_attributions")
-    .upsert(row, { onConflict: "order_id" });
+  // Race-safe: RPC enforces manual-protect + confidence guards, and
+  // takes a pg_advisory_xact_lock keyed on order_id so concurrent
+  // bulk + single resolvers on the same order serialize.
+  const { data, error } = await supabase.rpc("mkt_upsert_order_attribution", {
+    _order_id:     row.order_id,
+    _brand_id:     row.brand_id,
+    _campaign_id:  row.campaign_id ?? null,
+    _adset_id:     row.adset_id ?? null,
+    _ad_id:        row.ad_id ?? null,
+    _source:       row.source ?? null,
+    _confidence:   row.confidence ?? null,
+    _utm_source:   row.utm_source ?? null,
+    _utm_medium:   row.utm_medium ?? null,
+    _utm_campaign: row.utm_campaign ?? null,
+    _utm_content:  row.utm_content ?? null,
+    _utm_term:     row.utm_term ?? null,
+    _fbclid:       row.fbclid ?? null,
+    _note:         row.note ?? null,
+  });
   if (error) throw error;
+  return data as { written: boolean; reason?: string } | null;
 }
 
 /**
