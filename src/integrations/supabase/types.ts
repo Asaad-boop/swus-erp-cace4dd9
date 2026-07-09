@@ -6291,6 +6291,45 @@ export type Database = {
           },
         ]
       }
+      mkt_attribution_candidates: {
+        Row: {
+          brand_id: string
+          confidence: number
+          created_at: string
+          id: string
+          matched_signal: Json
+          order_id: string
+          source: string
+          status: string
+          suggested_campaign_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          confidence: number
+          created_at?: string
+          id?: string
+          matched_signal?: Json
+          order_id: string
+          source: string
+          status?: string
+          suggested_campaign_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          matched_signal?: Json
+          order_id?: string
+          source?: string
+          status?: string
+          suggested_campaign_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mkt_campaign_products: {
         Row: {
           brand_id: string

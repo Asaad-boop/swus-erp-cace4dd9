@@ -1,109 +1,90 @@
-# Marketing + Meta Spend Module — Clean Rebuild Plan
+# Phase 3 — Attribution Rework (Delta Plan)
 
-## Somossa ki (ekhon ja ache)
+Bro, existing `attribution.functions.ts` explore korlam — Phase 3 er 70% already ache. Duplicate na kore delta ta explicit kore dilam. Approve dile implement kore dry-run report dibo, tarpor tumi review kore push approve korba.
 
-Ekhon Marketing module e onek jinis scattered:
+## Ki already ache (touch korbo na)
 
-- **Duita spend calculation path** — `spend_bdt` (flat FX) + `spend_bdt_fifo` (FIFO), duita e mismatch
-- **FIFO consumption logic incomplete** — dollar purchase kora hoy, but ad spend er sathe automatic consume hoy na consistently
-- **P&L te Meta cost thik moto dhoke na** — dashboard e ek number, finance e arek number
-- **Attribution unreliable** — order↔campaign link auto-resolve kore, kintu 290+ unmatched
-- **UI te 8-10 ta page** (accounts, campaigns, expenses, rollup, sync, meta-reports, sku-pnl, ad-account-funding, dollar-purchase, attribution) — user confused kon page e ki
-- **Multiple expense entry points** — manual expenses, dollar purchase, ad wallet, direct — kon ta kobe use korbe unclear
+- Priority order: UTM → fbclid → phone → product_link (matches exactly Phase 3 P1/P2/P3 + bonus P4)
+- Confidence scores: 0.95 / 0.85 / 0.65 / 0.40
+- Guard: `mkt_upsert_order_attribution` RPC (Phase 0) — sob write ei RPC diyei jai, manual protect + confidence tie-breaker kaj kore
+- `setManualAttribution`, `clearAttribution`, `listAttributionOrders` server fns — manual override backend ready
+- Product auto-link idempotent
 
-## Goal (ki chai)
+## Ki nai / weak — Phase 3 delta
 
-Ekta jinis: **"Ami ad e joto BDT khoroch korchi, seta accurate P&L te dhukbe, per-brand per-day per-campaign per-SKU dekhte parbo."**
+### 1. Phone match e 24h window nai
 
-## Approach — 4 Phase
+Ekhon: `mkt_tracking_events` er latest matching row (no time bound). Phase 3 spec: order.created_at er 24h aage porjonto only. Fix: `resolveOne` phone branch e filter add — `created_at BETWEEN order.created_at - 24h AND order.created_at`.
 
-### Phase 1: Foundation clean (Meta Spend → BDT conversion)
+### 2. Confidence tier labels + low-conf review gate nai
 
-**Kaj:**
+Ekhon: sob confidence auto-write hoy (even 0.40 product_link). Phase 3 spec: low → review queue, no auto-link.
+Fix:
 
-- FIFO ke single source of truth banano. `spend_bdt` (flat FX) column deprecate.
-- Dollar purchase → FIFO lot → daily spend consumption ei chain ta atomic + reliable kora
-- Ekta clean RPC: `get_meta_spend_bdt(brand_id, from, to)` — jekhane use hobe shob jaygay ei function call kore
+- Tier: high ≥0.85, medium 0.60–0.85, low <0.60
+- Low-conf hits: write hobe na `mkt_order_attributions` e; boro dhora e new table `mkt_attribution_candidates` (order_id, suggested_campaign_id, source, confidence, created_at) e insert
+- Order thakbe unattributed list e + candidate suggestion sathe dekhabe
 
-**Deliverables:**
+### 3. Dry-run / preview nai
 
-- 1 migration: `spend_bdt` column drop, FIFO consumption trigger fix, RPC create
-- 1 file: `src/lib/erp/marketing/meta-cost.functions.ts` — shob spend read hobe ei theke
+New server fn `previewBulkResolve(brandId, days)` — resolveOne logic run kore, but write kore na. Return: `{ scanned, would_attribute_high, would_attribute_medium, would_queue_low, would_flip_existing: [ {order_id, old_campaign, new_campaign, old_conf, new_conf} ] }`. Ei ta run kore tumi review korba, tarpor bulk apply approve.
 
-### Phase 2: Simplified UI (10 page → 4 page)
+### 4. Manual review + drag-drop UI (Unmatched Orders tab)
 
-**Notun structure:**
+Ekhon: `attribution` route ache but plain list. Add:
 
-```text
-/erp/marketing/
-├── overview       — Dashboard (spend, revenue, ROAS, profit per brand)
-├── spend          — Ad Spend Log (dollar purchase + wallet + daily spend, ekta page)
-├── campaigns      — Campaigns + per-campaign P&L (SKU rollup expandable)
-└── settings       — Ad accounts, brand mapping, sync config
-```
+- Toggle: "Unmatched" | "Low-conf candidates" | "Attributed"
+- Row drag-drop → campaign column (calls existing `setManualAttribution`)
+- Candidate row: "Accept suggestion" button = manual confirm = high conf write
 
-**Ja delete/merge hobe:**
+## Files & migration
 
-- `accounts` + `ad-account-funding` + `dollar-purchase` → `spend` page e merge
-- `expenses` + `sync` + `meta-reports` → `overview` er tab
-- `rollup` + `sku-pnl` → `campaigns` er inline view
-- `attribution` → `campaigns` er "unmatched orders" tab
+- **Migration**: create `mkt_attribution_candidates` table (id, order_id UNIQUE, brand_id, suggested_campaign_id nullable, source, confidence, matched_signal jsonb, created_at) + RLS (admin/ops read+write) + GRANT
+- `**attribution.functions.ts**`: add 24h window; tier gating in `resolveOne`; new `previewBulkResolve`, `listAttributionCandidates`, `acceptCandidate`, `dismissCandidate` server fns
+- `**erp.marketing.attribution.tsx**` (or its component): add candidate tab + drag-drop (use `@dnd-kit/core` — already installed check korbo)
 
-### Phase 3: Attribution rework (reliable order↔campaign link)
+## Constraints re-confirm
 
-**Notun logic:**
+- `orders` table: read-only ✅
+- Existing attributed rows: **kono bulk re-resolve auto-run hobe na** — dry-run only, apply toggle behind explicit button after your review
+- Phase 4a backlog tracking: `dashboard.functions.ts` / `campaigns.functions.ts` / `sku-pnl.functions.ts` ke `getMetaSpendBdt` RPC te migrate — tracked, drop korchi na, Phase 4a te explicit korbo ✅
 
-- UTM parameters priority 1
-- Facebook click ID (fbclid) priority 2
-- Phone number + time window (order create 24h er modhe ad click) priority 3
-- Manual override option (admin dashboard e drag-drop)
+## Delivery sequence
 
-**Rule:** Auto-resolve confidence score dibe (high/medium/low). Low confidence hole manual review queue e jabe, auto-link kora na.
+1. Migration (candidates table) — approve chao
+2. Backend: 24h window + tier gate + preview fn
+3. Run `previewBulkResolve` on your main brand, report flip count + example rows
+4. Tumi review kore approve → bulk apply
+5. UI (candidate tab + drag-drop) — separate push
 
-### Phase 4: Finance integration (P&L accuracy)
+Approve? Naki kono tier threshold / 24h → 48h type adjustment chao?  
 
-**Kaj:**
-
-- `erp_transactions` te ad spend entry auto-post hobe (FIFO BDT amount)
-- Ekta expense category: "Meta Ads" — per brand track
-- Product profitability page e ei accurate cost dekhabe
-- Daily/monthly P&L report e "Ad Spend" ekta clean line item hobe
 
 ---
 
-## Order System Safety
+**Phase 3 approved — proceed with delta plan. 2 additions before/with the preview report:**
 
-**Order table e SHUNNO change hobe.** Shudhu:
+1. **Migration**: Create `mkt_attribution_candidates` table (id, order_id UNIQUE, brand_id, suggested_campaign_id nullable, source, confidence, matched_signal jsonb, created_at) + RLS (admin/ops read+write) + GRANT. Proceed.
+2. **Backend delta**:
+  - Phone match: add 24h window filter (`created_at BETWEEN order.created_at - 24h AND order.created_at`)
+  - **Before hardcoding 24h**: query existing phone-matched attributions' actual gap-time (ad-click → order-create). Report median and p90 gap in the preview report. Amar business COD-heavy, high-value items e decision time beshi lagte pare — jodi p90 24h theke onek beshi hoy, flag koro, ami 48h e extend korte pari.
+  - Tier gating in `resolveOne`: high ≥0.85, medium 0.60–0.85, low <0.60. Low-conf → write to `mkt_attribution_candidates`, NOT to `mkt_order_attributions`.
+  - New server fns: `previewBulkResolve`, `listAttributionCandidates`, `acceptCandidate`, `dismissCandidate`
+3. **Existing low-confidence rows**: `mkt_order_attributions`-e already-written 0.40-confidence (product_link) rows-er ki hobe under new tier gate — auto-demote/move to candidates table? Report the count in preview, but **do NOT auto-apply retroactive changes**. Just propose.
+4. `previewBulkResolve(brandId, days)` **report must include:**
+  - `scanned`, `would_attribute_high`, `would_attribute_medium`, `would_queue_low`
+  - `would_flip_existing` (order_id, old_campaign, new_campaign, old_conf, new_conf)
+  - Phone-match gap-time distribution (median/p90)
+  - Existing low-conf row count + retroactive demote proposal (count only, not applied)
 
-- `orders.id`, `orders.brand_id`, `orders.total`, `orders.created_at` — read only
-- Order create/update/courier/inventory flow er kono line touch kora hobe na
-- Prottek phase er por tumi order create test korbe, kichu break hoyeche kina confirm korbe
+**Constraints unchanged:**
 
-## Execution Order
+- Orders table: read-only
+- No bulk re-resolve auto-applied — dry-run only until I explicitly approve apply
+- Phase 4a backlog (RPC migration for dashboard/campaigns/sku-pnl functions) — tracked, bundle with Phase 4a
 
-1. **Phase 1 first** (2-3 din er kaj) — eta done hole tumi accurate spend number dekhbe
-2. Phase 1 test + approve → **Phase 2** (UI cleanup, 2 din)
-3. Phase 2 approve → **Phase 3** (attribution, 1-2 din)
-4. Phase 3 approve → **Phase 4** (finance integration, 1 din)
+**Delivery sequence**: Migration → backend (24h + tier gate + preview fn) → run preview on main brand → report back with full stats above → I review → approve bulk apply → then UI (candidate tab + drag-drop) as separate push.
 
-**Prottek phase alada approval nibo.** Ek dhakay shob korbo na.
+Threshold values (0.85/0.60) confirmed, no change needed. Proceed with migration first.
 
-## Technical Notes
-
-- Purano data delete korbo na, migration reversible thakbe
-- `mkt_manual_expenses`, `mkt_insights_daily`, `meta_dollar_purchases` — schema mostly same, shudhu clean up
-- Notun `.functions.ts` file, purano gulo phase e phase e deprecate
-- Types.ts regenerate hobe prottek migration er por
-
-## Ki dorkar tomar theke
-
-1. **Approval** — ei plan e agree?
-2. **Priority confirm** — Phase 1 (Meta Spend accuracy) diye shuru korbo?
-3. **Data question** — purano dollar purchase / FIFO lot data ki rakhbo, na fresh start korbo?  
-  
-**Order first**: Notun sequence follow koro — race condition fix (mkt_order_attributions) → Phase 1 → Phase 4a (aggregate P&L only) → Phase 2 → Phase 3 → Phase 4b (SKU-level profitability). Original doc-er 1-2-3-4 sequential order na, eta follow koro.
-4. **Race condition first**: Shuru korar age `mkt_order_attributions` table-er race condition ta explain koro — kothay ache, ki cause korche, fix ki hobe. Amake confirm korte dao age, tarpor code e hat dao.
-5. **Phase 1 reconciliation mandatory**: Migration + RPC deploy korar por, purano `spend_bdt` (flat FX) vs notun FIFO-based number — duita compare kore ekta summary dao (kotota % difference, kon date range e koto gap). Eta na dile Phase 1 "done" bolo na.
-6. **No data loss**: Purano dollar purchase records, FIFO lot data — kichu delete/overwrite hobe na. Migration fully reversible thakte hobe. Fresh start na, existing data preserve.
-7. **Order table untouched**: Shudhu read-only access — `orders.id`, `brand_id`, `total`, `created_at`. Kono order flow logic touch korle age explicit bolo, amar approval lagbe.
-8. **Per-phase stop**: Prottek phase complete hole code push/merge korar age amake summary dao — ki change hoise, ki test kora hoise, ki risk ache. Amar approval na paile next phase e jeyo na.
+&nbsp;
