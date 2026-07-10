@@ -22,7 +22,7 @@ export const getPendingCodQueue = createServerFn({ method: "GET" })
     let q = supabase
       .from("orders")
       .select(
-        "id, shipping_name, shipping_phone, total, status, payment_status, delivered_at, created_at, courier_name, tracking_number",
+        "id, brand_id, shipping_name, shipping_phone, total, status, payment_status, delivered_at, created_at, courier_name, tracking_number",
       )
       .eq("brand_id", data.brandId)
       .in("status", ["delivered", "partial_delivered"])
@@ -63,7 +63,7 @@ export const getOutstandingCod = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("orders")
       .select(
-        "id, shipping_name, shipping_phone, total, delivered_at, updated_at, courier_name, tracking_number",
+        "id, brand_id, shipping_name, shipping_phone, total, delivered_at, updated_at, courier_name, tracking_number",
       )
       .eq("brand_id", data.brandId)
       .in("status", ["delivered", "partial_delivered"])
