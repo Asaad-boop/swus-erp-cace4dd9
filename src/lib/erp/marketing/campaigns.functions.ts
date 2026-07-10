@@ -395,22 +395,10 @@ export const listCampaignProducts = createServerFn({ method: "POST" })
     const productIds = (rows ?? []).map((r: any) => r.product_id).filter(Boolean);
     if (productIds.length === 0) return rows ?? [];
 
-    const { data: allocations, error: aErr } = await context.supabase
-      .from("erp_product_expense_allocations")
-      .select("product_id, amount")
-      .eq("campaign_id", data.campaignId)
-      .eq("expense_type", "meta_ads")
-      .in("product_id", productIds);
-    if (aErr) throw aErr;
-
-    const spendByProduct = new Map<string, number>();
-    for (const a of allocations ?? []) {
-      spendByProduct.set(a.product_id, (spendByProduct.get(a.product_id) ?? 0) + (Number(a.amount) || 0));
-    }
-
+    // Product-level allocation table dropped in Phase 1 cleanup.
     return (rows ?? []).map((r: any) => ({
       ...r,
-      allocated_meta_spend: +(spendByProduct.get(r.product_id) ?? 0).toFixed(2),
+      allocated_meta_spend: 0,
     }));
   });
 

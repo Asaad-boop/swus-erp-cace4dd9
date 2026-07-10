@@ -75,6 +75,34 @@ function ReportsPage() {
 }
 
 function PLReport({ brandId, from, to }: { brandId: string; from: string; to: string }) {
+  type PL = { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+  function adaptPl(raw: unknown): PL {
+    const d = (raw ?? {}) as {
+      revenue?: number;
+      cogs?: number;
+      opex_total?: number;
+      other_income?: number;
+      expense_by_category?: Record<string, number>;
+      net_profit?: number;
+    };
+    const revenue = Number(d.revenue ?? 0);
+    const cogs = Number(d.cogs ?? 0);
+    const other = Number(d.other_income ?? 0);
+    const income_accounts: PL["income_accounts"] = [
+      { code: "4000", name: "Sales Revenue", amount: revenue },
+    ];
+    if (other) income_accounts.push({ code: "4100", name: "Other Income", amount: other });
+    const expense_accounts: PL["expense_accounts"] = [];
+    if (cogs) expense_accounts.push({ code: "5000", name: "Cost of Goods Sold", amount: cogs });
+    const byCat = d.expense_by_category ?? {};
+    Object.entries(byCat).forEach(([name, amount], i) =>
+      expense_accounts.push({ code: `6${String(i + 1).padStart(3, "0")}`, name, amount: Number(amount) || 0 }),
+    );
+    const total_income = income_accounts.reduce((s, r) => s + r.amount, 0);
+    const total_expense = expense_accounts.reduce((s, r) => s + r.amount, 0);
+    return { income_accounts, expense_accounts, total_income, total_expense, net_profit: Number(d.net_profit ?? total_income - total_expense) };
+  }
+
   const [mode, setMode] = useState<"single" | "compare">("single");
   // Default Period B = previous period of same length
   const defaultB = (() => {
@@ -91,18 +119,18 @@ function PLReport({ brandId, from, to }: { brandId: string; from: string; to: st
   const q = useQuery({
     queryKey: ["pl_v2", brandId, from, to],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_pl_v2", { _brand_id: brandId, _from: from, _to: to });
+      const { data, error } = await supabase.rpc("erp_profit_loss", { _brand_id: brandId, _from: from, _to: to });
       if (error) throw error;
-      return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+      return adaptPl(data);
     },
   });
   const qB = useQuery({
     queryKey: ["pl_v2", brandId, bFrom, bTo],
     enabled: mode === "compare",
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_pl_v2", { _brand_id: brandId, _from: bFrom, _to: bTo });
+      const { data, error } = await supabase.rpc("erp_profit_loss", { _brand_id: brandId, _from: bFrom, _to: bTo });
       if (error) throw error;
-      return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+      return adaptPl(data);
     },
   });
 
