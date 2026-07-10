@@ -1,144 +1,344 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import {
-  Package, Truck, CheckCircle2, AlertTriangle, Wallet, FileSpreadsheet,
-  XCircle, Clock, Receipt, ArrowRight, AlertCircle, TrendingUp, RotateCcw,
+  Truck, CheckCircle2, Clock, AlertCircle, TrendingUp, Upload, ListChecks,
+  Package, ShieldCheck, ArrowRight, Wallet,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
-import { useBrandPicker } from "@/components/erp/brand-picker-gate";
+import { useBrand } from "@/contexts/brand-context";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BrandBadge } from "@/components/erp/brand-badge";
+import { fmtBdt } from "@/lib/erp/finance";
 import { getReconciliationStats } from "@/lib/erp/reconciliation-stats.functions";
 import { getReconciliationDashboard } from "@/lib/erp/reconciliation-queue.functions";
+import { SettlementUploadDialog } from "@/components/erp/finance/settlement-upload-dialog";
+import { SettlementLinesDialog } from "@/components/erp/finance/settlement-lines-dialog";
+import type { RemittanceRow } from "@/components/erp/finance/remittance-form";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/erp/reconciliation/")({
-  head: () => ({ meta: [{ title: "Reconciliation Overview — ERP" }] }),
+  head: () => ({ meta: [{ title: "COD Reconciliation — ERP" }] }),
   component: OverviewPage,
 });
 
-const bdt = (n: number) =>
-  new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(n);
+const REVIEW_ACTIONS = [
+  { value: "partial_delivery", label: "Partial Delivery" },
+  { value: "partial_return", label: "Partial Return" },
+  { value: "exchange", label: "Exchange" },
+  { value: "internal_adjust", label: "Internal Adjustment" },
+];
+
+type ReviewLine = {
+  id: string;
+  remittance_id: string;
+  brand_id: string;
+  matched_order_id: string | null;
+  merchant_order_id: string | null;
+  consignment_id: string | null;
+  collected_amount: number | null;
+  expected_amount: number | null;
+  variance: number | null;
+  created_at: string;
+};
+
+type OrderCtx = {
+  id: string;
+  invoice_no: string | null;
+  total: number | null;
+  advance_amount: number | null;
+  delivered_at: string | null;
+  status: string | null;
+};
 
 function OverviewPage() {
-  const { brandId, picker } = useBrandPicker({
-    label: "Pick a brand",
-    hint: "Brand wise reconciliation status dekhar jonno ekta brand select koro.",
-  });
+  const { brandIds, isLoading: brandLoading, brands } = useBrand();
+  const qc = useQueryClient();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [linesFor, setLinesFor] = useState<RemittanceRow | null>(null);
+
   const statsFn = useServerFn(getReconciliationStats);
-  const q = useQuery({
-    queryKey: ["reconciliation-stats", brandId],
-    queryFn: () => statsFn({ data: { brandId } }),
-    enabled: !!brandId,
-  });
-
   const dashFn = useServerFn(getReconciliationDashboard);
-  const dq = useQuery({
-    queryKey: ["reconciliation-dashboard", brandId],
-    queryFn: () => dashFn({ data: { brandId } }),
-    enabled: !!brandId,
+
+  // Per-brand fan-out (backend unchanged: single brand id per call).
+  const statsQueries = useQueries({
+    queries: brandIds.map((bid) => ({
+      queryKey: ["reconciliation-stats", bid],
+      queryFn: () => statsFn({ data: { brandId: bid } }),
+      enabled: !!bid,
+    })),
+  });
+  const dashQueries = useQueries({
+    queries: brandIds.map((bid) => ({
+      queryKey: ["reconciliation-dashboard", bid],
+      queryFn: () => dashFn({ data: { brandId: bid } }),
+      enabled: !!bid,
+    })),
   });
 
-  const s = q.data;
-  const os = s?.orderStatus ?? {};
-  const k = dq.data?.kpis;
+  const statsLoading = statsQueries.some((q) => q.isLoading);
+  const dashLoading = dashQueries.some((q) => q.isLoading);
+
+  const orderStatus = useMemo(() => {
+    const agg: Record<string, number> = {};
+    let total = 0;
+    for (const q of statsQueries) {
+      const s = q.data;
+      if (!s) continue;
+      total += s.totals.totalOrders;
+      for (const [k, v] of Object.entries(s.orderStatus)) agg[k] = (agg[k] ?? 0) + (v as number);
+    }
+    return { agg, total };
+  }, [statsQueries]);
+
+  const kpis = useMemo(() => {
+    const k = { pendingTotal: 0, pendingCount: 0, reconciledTotal: 0, outstandingTotal: 0, outstandingCount: 0, netCod: 0 };
+    for (const q of dashQueries) {
+      const d = q.data?.kpis;
+      if (!d) continue;
+      k.pendingTotal += d.pendingTotal;
+      k.pendingCount += d.pendingCount;
+      k.reconciledTotal += d.reconciledTotal;
+      k.outstandingTotal += d.outstandingTotal;
+      k.outstandingCount += d.outstandingCount;
+      k.netCod += d.netCod;
+    }
+    return k;
+  }, [dashQueries]);
+
+  // 7-day chart — aggregate last 7 of the 30-day series across brands
+  const chart7 = useMemo(() => {
+    const map = new Map<string, { date: string; expected: number; collected: number }>();
+    for (const q of dashQueries) {
+      const rows = q.data?.dailySeries ?? [];
+      for (const r of rows) {
+        const prev = map.get(r.date) ?? { date: r.date, expected: 0, collected: 0 };
+        prev.expected += r.expected;
+        prev.collected += r.collected;
+        map.set(r.date, prev);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
+  }, [dashQueries]);
+
+  // Needs-review settlement lines (brand-scoped)
+  const reviewQ = useQuery({
+    queryKey: ["settlement-needs-review", brandIds.join(",")],
+    enabled: brandIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_courier_settlement_lines")
+        .select("id,remittance_id,brand_id,matched_order_id,merchant_order_id,consignment_id,collected_amount,expected_amount,variance,created_at")
+        .eq("match_status", "needs_review")
+        .in("brand_id", brandIds)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as ReviewLine[];
+    },
+  });
+  const reviewLines = reviewQ.data ?? [];
+
+  const reviewOrderIds = useMemo(
+    () => Array.from(new Set(reviewLines.map((r) => r.matched_order_id).filter((x): x is string => !!x))),
+    [reviewLines],
+  );
+  const reviewCtxQ = useQuery({
+    queryKey: ["settlement-review-orders", reviewOrderIds.join(",")],
+    enabled: reviewOrderIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id,invoice_no,total,advance_amount,delivered_at,status")
+        .in("id", reviewOrderIds);
+      if (error) throw error;
+      const m = new Map<string, OrderCtx>();
+      for (const o of (data ?? []) as OrderCtx[]) m.set(o.id, o);
+      return m;
+    },
+  });
+  const ctxMap = reviewCtxQ.data ?? new Map<string, OrderCtx>();
+
+  // Advance-covered: orders with advance_amount > 0 and reconciled (MTD)
+  const advanceQ = useQuery({
+    queryKey: ["advance-covered-mtd", brandIds.join(",")],
+    enabled: brandIds.length > 0,
+    queryFn: async () => {
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { count, error } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .in("brand_id", brandIds)
+        .gt("advance_amount", 0)
+        .eq("reconciliation_status", "reconciled")
+        .gte("delivered_at", monthStart);
+      if (error) throw error;
+      return { count: count ?? 0 };
+    },
+  });
+  const advanceCount = advanceQ.data?.count ?? 0;
+
+  // Recent settlement batches
+  const batchesQ = useQuery({
+    queryKey: ["recent-settlement-batches", brandIds.join(",")],
+    enabled: brandIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("erp_cod_remittances")
+        .select("*")
+        .in("brand_id", brandIds)
+        .order("remittance_date", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return (data ?? []) as RemittanceRow[];
+    },
+  });
+  const batches = batchesQ.data ?? [];
+
+  const actionMut = useMutation({
+    mutationFn: async ({ lineId, action }: { lineId: string; action: string }) => {
+      const { error } = await supabase.rpc("apply_settlement_variance_action", { _line_id: lineId, _action: action });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Order status updated");
+      qc.invalidateQueries({ queryKey: ["settlement-needs-review"] });
+      qc.invalidateQueries({ queryKey: ["settlement-review-orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const activeBrandForUpload = brandIds.length === 1 ? brandIds[0] : null;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl">
-      {picker && <div className="flex justify-end -mb-1">{picker}</div>}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reconciliation Overview</h1>
+          <h1 className="text-2xl font-bold tracking-tight">COD Reconciliation</h1>
           <p className="text-sm text-muted-foreground">
-            Order, shipment, payment ar invoice reconciliation status ek nojore.
+            Courier settlement, pending COD ar review queue — active brand context anujayi.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link to="/erp/reconciliation/pending">
-              <Clock className="h-4 w-4 mr-2" /> Pending Queue
-            </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/erp/reconciliation/pending"><Clock className="h-4 w-4 mr-1.5" /> Pending queue</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link to="/erp/reconciliation/outstanding">
-              <AlertCircle className="h-4 w-4 mr-2" /> Outstanding
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/erp/reconciliation/invoice">
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Upload Invoice
-            </Link>
+          <Button size="sm" onClick={() => setUploadOpen(true)} disabled={brandIds.length === 0}>
+            <Upload className="h-4 w-4 mr-1.5" /> Upload settlement
           </Button>
         </div>
       </header>
 
-      {/* COD KPIs */}
+      {brandIds.length === 0 && !brandLoading && (
+        <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No active brands.</CardContent></Card>
+      )}
+
+      {/* KPI strip */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <Kpi title="Pending COD" value={fmtBdt(kpis.pendingTotal)} sub={`${kpis.pendingCount} orders`} icon={<Clock className="h-4 w-4" />} loading={dashLoading} />
+        <Kpi title="Reconciled (MTD)" value={fmtBdt(kpis.reconciledTotal)} icon={<CheckCircle2 className="h-4 w-4" />} loading={dashLoading} tone="good" />
+        <Kpi title="Needs review" value={String(reviewLines.length)} sub="settlement lines" icon={<AlertCircle className="h-4 w-4" />} loading={reviewQ.isLoading} tone="warn" />
+        <Kpi title="Net to bank (MTD)" value={fmtBdt(kpis.netCod)} icon={<TrendingUp className="h-4 w-4" />} loading={dashLoading} />
+        <Kpi title="Advance covered" value={String(advanceCount)} sub="orders (MTD)" icon={<Wallet className="h-4 w-4" />} loading={advanceQ.isLoading} />
+      </div>
+
+      {/* Needs review — prominent */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          COD Reconciliation
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <KpiCard
-            title="Pending COD"
-            amount={k?.pendingTotal}
-            sub={k ? `${k.pendingCount} orders` : ""}
-            tone="warn"
-            icon={<Clock className="h-5 w-5" />}
-            loading={dq.isLoading}
-          />
-          <KpiCard
-            title="Reconciled (MTD)"
-            amount={k?.reconciledTotal}
-            tone="good"
-            icon={<CheckCircle2 className="h-5 w-5" />}
-            loading={dq.isLoading}
-          />
-          <KpiCard
-            title="Outstanding > 14d"
-            amount={k?.outstandingTotal}
-            sub={k ? `${k.outstandingCount} orders` : ""}
-            tone="bad"
-            icon={<AlertCircle className="h-5 w-5" />}
-            loading={dq.isLoading}
-          />
-          <KpiCard
-            title="Return Fees (30d)"
-            amount={k?.returnFeesTotal}
-            tone="neutral"
-            icon={<RotateCcw className="h-5 w-5" />}
-            loading={dq.isLoading}
-          />
-          <KpiCard
-            title="Net COD (MTD)"
-            amount={k?.netCod}
-            tone="info"
-            icon={<TrendingUp className="h-5 w-5" />}
-            loading={dq.isLoading}
-          />
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+            Needs Review · {reviewLines.length}
+          </h2>
+          <p className="text-xs text-muted-foreground">Variance settlement lines waiting on a decision.</p>
         </div>
+        {reviewQ.isLoading ? (
+          <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
+        ) : reviewLines.length === 0 ? (
+          <Card className="border-emerald-500/30 bg-emerald-500/5">
+            <CardContent className="py-6 text-center text-sm text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-4 w-4" /> Kono review-pending settlement line nei.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-2">
+            {reviewLines.map((r) => {
+              const ctx = r.matched_order_id ? ctxMap.get(r.matched_order_id) : undefined;
+              const days = ctx?.delivered_at
+                ? Math.floor((Date.now() - new Date(ctx.delivered_at).getTime()) / 86400000)
+                : null;
+              const variance = Number(r.variance ?? 0);
+              return (
+                <Card key={r.id} className="border-amber-500/40 bg-amber-500/5">
+                  <CardContent className="p-3 flex flex-wrap items-center gap-3">
+                    <div className="min-w-[160px] space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold">
+                          {ctx?.invoice_no ?? r.merchant_order_id ?? "—"}
+                        </span>
+                        <BrandBadge brandId={r.brand_id} variant="compact" />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{r.consignment_id ?? ""}</div>
+                      {days != null && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          <Clock className="h-3 w-3" /> {days}d
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-4 text-xs tabular-nums flex-1 min-w-[260px]">
+                      <Metric label="Expected" value={r.expected_amount != null ? fmtBdt(r.expected_amount) : "—"} />
+                      <Metric label="Collected" value={r.collected_amount != null ? fmtBdt(r.collected_amount) : "—"} />
+                      <Metric
+                        label="Variance"
+                        value={`${variance >= 0 ? "+" : ""}${fmtBdt(variance)}`}
+                        cls={variance < 0 ? "text-red-600 font-semibold" : variance > 0 ? "text-emerald-600 font-semibold" : ""}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Select
+                        onValueChange={(v) => actionMut.mutate({ lineId: r.id, action: v })}
+                        disabled={actionMut.isPending || !r.matched_order_id}
+                      >
+                        <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Pick reason…" /></SelectTrigger>
+                        <SelectContent>
+                          {REVIEW_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value} className="text-xs">{a.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* 30-day chart */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          COD Collected vs Expected (last 30 days)
-        </h2>
-        <Card>
-          <CardContent className="p-4">
-            <div className="h-64 w-full">
-              {dq.isLoading ? (
+      {/* Chart + Batches */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold">Collected vs Expected · last 7 days</h3>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                {brandIds.length === brands.length ? "All brands" : `${brandIds.length} brand${brandIds.length > 1 ? "s" : ""}`}
+              </span>
+            </div>
+            <div className="h-56 w-full">
+              {dashLoading ? (
                 <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dq.data?.dailySeries ?? []}>
+                  <BarChart data={chart7}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="date" tickFormatter={(d) => String(d).slice(5)} className="text-xs" />
                     <YAxis tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} className="text-xs" />
-                    <Tooltip formatter={(v: number) => bdt(Number(v))} />
-                    <Legend />
+                    <Tooltip formatter={(v: number) => fmtBdt(Number(v))} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="expected" name="Expected" fill="hsl(var(--muted-foreground))" />
                     <Bar dataKey="collected" name="Collected" fill="hsl(var(--primary))" />
                   </BarChart>
@@ -147,204 +347,121 @@ function OverviewPage() {
             </div>
           </CardContent>
         </Card>
-      </section>
 
-      {/* Action items */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Action Required
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ActionCard
-            title="Status change baki"
-            value={s?.totals.pendingStatusChange}
-            hint="Courier delivered bole, order status update hoy nai"
-            icon={<Clock className="h-5 w-5" />}
-            tone="warn"
-            loading={q.isLoading}
-          />
-          <ActionCard
-            title="Invoice upload baki"
-            value={s?.totals.deliveredNotReconciled}
-            hint="Delivered orders, kintu invoice reconcile hoy nai"
-            icon={<Receipt className="h-5 w-5" />}
-            tone="warn"
-            loading={q.isLoading}
-          />
-          <ActionCard
-            title="Shipment book baki"
-            value={s?.totals.noShipmentBooked}
-            hint="Confirmed orders, kono courier shipment nei"
-            icon={<Truck className="h-5 w-5" />}
-            tone="bad"
-            loading={q.isLoading}
-          />
-          <ActionCard
-            title="Unpaid"
-            value={s?.totals.unpaidOrders}
-            hint="Payment receive hoy nai (paid mark hoy nai)"
-            icon={<AlertTriangle className="h-5 w-5" />}
-            tone="bad"
-            loading={q.isLoading}
-          />
-        </div>
-      </section>
-
-      {/* Order status breakdown */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Order Status
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="Total" value={s?.totals.totalOrders} icon={<Package className="h-4 w-4" />} loading={q.isLoading} />
-          <StatCard label="New" value={os["new"] ?? 0} icon={<Package className="h-4 w-4" />} loading={q.isLoading} />
-          <StatCard label="Confirmed" value={os["confirmed"] ?? 0} icon={<CheckCircle2 className="h-4 w-4" />} loading={q.isLoading} />
-          <StatCard label="In Transit" value={os["in_transit"] ?? 0} icon={<Truck className="h-4 w-4" />} loading={q.isLoading} />
-          <StatCard label="Delivered" value={os["delivered"] ?? 0} icon={<CheckCircle2 className="h-4 w-4" />} tone="good" loading={q.isLoading} />
-        </div>
-        {/* Show any other custom statuses */}
-        {Object.keys(os).filter((k) => !["new", "confirmed", "in_transit", "delivered"].includes(k)).length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            {Object.entries(os)
-              .filter(([k]) => !["new", "confirmed", "in_transit", "delivered"].includes(k))
-              .map(([k, v]) => (
-                <Badge key={k} variant="outline" className="text-xs">
-                  {k}: <span className="font-mono ml-1">{v}</span>
-                </Badge>
-              ))}
-          </div>
-        )}
-      </section>
-
-      {/* Payment + reconciliation */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Payment & Reconciliation
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Paid" value={s?.totals.paidOrders} icon={<Wallet className="h-4 w-4" />} tone="good" loading={q.isLoading} />
-          <StatCard label="Unpaid" value={s?.totals.unpaidOrders} icon={<XCircle className="h-4 w-4" />} tone="bad" loading={q.isLoading} />
-          <StatCard label="Shipped (not delivered)" value={s?.totals.shippedNotDelivered} icon={<Truck className="h-4 w-4" />} loading={q.isLoading} />
-          <StatCard label="Reconciled orders" value={s?.totals.reconciledOrders} icon={<Receipt className="h-4 w-4" />} tone="good" loading={q.isLoading} />
-        </div>
-      </section>
-
-      <Card>
-        <CardContent className="p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <div className="font-semibold">Pathao paid invoice ready?</div>
-            <div className="text-sm text-muted-foreground">
-              CSV upload korle delivered status, payment received entry, ar courier fee automatic boshe jabe.
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold">Recent settlements</h3>
+              <Link to="/erp/finance/receivables" search={{ tab: "cod" }} className="text-xs text-primary hover:underline">View all</Link>
             </div>
-          </div>
-          <Button asChild>
-            <Link to="/erp/reconciliation/invoice">
-              Go to Invoice Upload
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+            {batchesQ.isLoading ? (
+              <div className="text-sm text-muted-foreground">Loading…</div>
+            ) : batches.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No settlement batches yet.</div>
+            ) : (
+              <ul className="divide-y">
+                {batches.map((b) => (
+                  <li key={b.id} className="py-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium capitalize truncate">{b.courier} · {b.remittance_date}</div>
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                        <BrandBadge brandId={b.brand_id} variant="compact" />
+                        <span className="capitalize">{b.status}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold tabular-nums">{fmtBdt(b.amount)}</div>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => setLinesFor(b)}>
+                        <ListChecks className="h-3 w-3 mr-1" /> Lines
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Order status tiles */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Order status</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile label="In transit" value={orderStatus.agg["in_transit"] ?? 0} icon={<Truck className="h-4 w-4" />} loading={statsLoading} />
+          <StatTile label="Delivered" value={orderStatus.agg["delivered"] ?? 0} icon={<CheckCircle2 className="h-4 w-4" />} loading={statsLoading} />
+          <StatTile label="Completed" value={orderStatus.agg["completed"] ?? 0} icon={<ShieldCheck className="h-4 w-4" />} loading={statsLoading} />
+          <StatTile
+            label="Returned"
+            value={(orderStatus.agg["returned"] ?? 0) + (orderStatus.agg["full_return"] ?? 0) + (orderStatus.agg["partial_return"] ?? 0)}
+            icon={<Package className="h-4 w-4" />}
+            loading={statsLoading}
+          />
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          Total orders: <span className="font-medium">{orderStatus.total}</span>
+          <Link to="/erp/orders" className="ml-3 text-primary hover:underline inline-flex items-center gap-1">
+            View orders <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      </section>
+
+      <SettlementUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        brandId={activeBrandForUpload}
+        brandIds={brandIds}
+      />
+      <SettlementLinesDialog remittance={linesFor} onClose={() => setLinesFor(null)} />
     </div>
   );
 }
 
-function KpiCard({
-  title, amount, sub, icon, tone, loading,
+function Kpi({
+  title, value, sub, icon, loading, tone,
 }: {
-  title: string;
-  amount: number | undefined;
-  sub?: string;
-  icon: React.ReactNode;
-  tone: "warn" | "bad" | "good" | "info" | "neutral";
-  loading?: boolean;
+  title: string; value: string; sub?: string; icon: React.ReactNode; loading?: boolean;
+  tone?: "good" | "warn" | "bad";
 }) {
-  const toneMap: Record<string, string> = {
-    warn: "border-amber-500/40 bg-amber-500/5 text-amber-700",
-    bad: "border-red-500/40 bg-red-500/5 text-red-700",
-    good: "border-emerald-500/40 bg-emerald-500/5 text-emerald-700",
-    info: "border-sky-500/40 bg-sky-500/5 text-sky-700",
-    neutral: "border-border bg-muted/30 text-muted-foreground",
-  };
+  const toneCard = tone === "warn" ? "border-amber-500/40 bg-amber-500/5"
+    : tone === "good" ? "border-emerald-500/30"
+    : tone === "bad" ? "border-red-500/40 bg-red-500/5"
+    : "";
+  const toneText = tone === "warn" ? "text-amber-700 dark:text-amber-300"
+    : tone === "good" ? "text-emerald-700 dark:text-emerald-300"
+    : tone === "bad" ? "text-red-700 dark:text-red-300"
+    : "";
   return (
-    <Card className={toneMap[tone]?.split(" ").slice(0, 2).join(" ")}>
+    <Card className={toneCard}>
       <CardContent className="p-4 space-y-1">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">{title}</div>
-          <span className={toneMap[tone]?.split(" ").slice(2).join(" ")}>{icon}</span>
+          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{title}</div>
+          <span className={cn("text-muted-foreground", toneText)}>{icon}</span>
         </div>
-        <div className={`text-2xl font-bold tabular-nums ${toneMap[tone]?.split(" ").slice(2).join(" ")}`}>
-          {loading ? "…" : bdt(Number(amount ?? 0))}
-        </div>
+        <div className={cn("text-xl font-bold tabular-nums", toneText)}>{loading ? "…" : value}</div>
         {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
       </CardContent>
     </Card>
   );
 }
 
-function ActionCard({
-  title, value, hint, icon, tone, loading,
-}: {
-  title: string;
-  value: number | undefined;
-  hint: string;
-  icon: React.ReactNode;
-  tone?: "warn" | "bad" | "good";
-  loading?: boolean;
-}) {
-  const toneCls =
-    tone === "warn"
-      ? "border-amber-500/40 bg-amber-500/5"
-      : tone === "bad"
-        ? "border-red-500/40 bg-red-500/5"
-        : tone === "good"
-          ? "border-emerald-500/40 bg-emerald-500/5"
-          : "";
-  const iconCls =
-    tone === "warn"
-      ? "text-amber-700"
-      : tone === "bad"
-        ? "text-red-700"
-        : tone === "good"
-          ? "text-emerald-700"
-          : "text-muted-foreground";
+function Metric({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
-    <Card className={toneCls}>
-      <CardContent className="p-4 space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">{title}</div>
-          <span className={iconCls}>{icon}</span>
-        </div>
-        <div className="text-3xl font-bold tabular-nums">
-          {loading ? "…" : (value ?? 0)}
-        </div>
-        <div className="text-[11px] text-muted-foreground leading-tight">{hint}</div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={cn("tabular-nums", cls)}>{value}</span>
+    </div>
   );
 }
 
-function StatCard({
-  label, value, icon, tone, loading,
-}: {
-  label: string;
-  value: number | undefined;
-  icon?: React.ReactNode;
-  tone?: "good" | "bad";
-  loading?: boolean;
-}) {
-  const cls =
-    tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-red-700" : "text-foreground";
+function StatTile({ label, value, icon, loading }: { label: string; value: number; icon?: React.ReactNode; loading?: boolean }) {
   return (
     <Card>
       <CardContent className="p-4 space-y-1">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">{label}</div>
+          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</div>
           <span className="text-muted-foreground">{icon}</span>
         </div>
-        <div className={`text-2xl font-bold tabular-nums ${cls}`}>
-          {loading ? "…" : (value ?? 0)}
-        </div>
+        <div className="text-2xl font-bold tabular-nums">{loading ? "…" : value}</div>
       </CardContent>
     </Card>
   );
