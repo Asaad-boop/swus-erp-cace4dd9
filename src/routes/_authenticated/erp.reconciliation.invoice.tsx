@@ -1109,9 +1109,11 @@ function ApplyDialog({
   onApplied: () => void;
 }) {
   const { brands } = useBrand();
+  const qc = useQueryClient();
   const [includeMismatch, setIncludeMismatch] = useState(false);
-  const [overrideWalletId, setOverrideWalletId] = useState("");
-  const [overrideFeeCatId, setOverrideFeeCatId] = useState("");
+  // Per-brand chosen wallet (this run only, unless saveAsDefault checked)
+  const [brandWallet, setBrandWallet] = useState<Record<string, string>>({});
+  const [saveAsDefault, setSaveAsDefault] = useState<Record<string, boolean>>({});
 
   // Which brands are actually involved in this run's rows?
   const runRowsQ = useQuery({
@@ -1151,29 +1153,60 @@ function ApplyDialog({
   (walletMapQ.data ?? []).forEach((s: { brand_id: string; default_cod_wallet_id: string | null; default_cod_fee_category_id: string | null }) => {
     walletMap.set(s.brand_id, { wallet: s.default_cod_wallet_id, fee: s.default_cod_fee_category_id });
   });
-  const missingBrands = brandsInRun.filter((b) => !walletMap.get(b)?.wallet);
 
-  // Fallback: for single-brand or when user wants override, show wallet picker
-  const showOverride = brandId !== null || missingBrands.length > 0;
-  const overrideBrandIds = brandId ? [brandId] : missingBrands;
-  const accountsQ = useAccounts(overrideBrandIds.length ? overrideBrandIds : brands.map((b) => b.id));
-  const catsQ = useCategories(overrideBrandIds.length ? overrideBrandIds : brands.map((b) => b.id));
-  const expenseCats = (catsQ.data ?? []).filter((c) => c.kind === "expense" && c.is_active);
+  // Load accounts for all brands in this run (per-brand pickers)
+  const accountsQ = useAccounts(brandsInRun.length ? brandsInRun : brands.map((b) => b.id));
+  const accountsByBrand = useMemo(() => {
+    const m = new Map<string, Array<{ id: string; name: string; account_subtype?: string | null; account_type?: string | null }>>();
+    for (const a of (accountsQ.data ?? [])) {
+      if (!a.brand_id) continue;
+      const list = m.get(a.brand_id) ?? [];
+      list.push(a);
+      m.set(a.brand_id, list);
+    }
+    return m;
+  }, [accountsQ.data]);
+
+  // Effective chosen wallet per brand = local override → default → nothing
+  const effectiveWallet = (bid: string) => brandWallet[bid] ?? walletMap.get(bid)?.wallet ?? "";
+  const missingBrands = brandsInRun.filter((b) => !effectiveWallet(b));
+  const nameOf = (bid: string, wid: string) =>
+    accountsByBrand.get(bid)?.find((a) => a.id === wid)?.name ?? "—";
 
   const applyFn = useServerFn(applyPathaoReconciliationRun);
   const mut = useMutation({
-    mutationFn: () =>
-      applyFn({
+    mutationFn: async () => {
+      // 1) Persist "save as default" choices before apply so future runs pick them up
+      const toSave = brandsInRun.filter(
+        (b) => saveAsDefault[b] && brandWallet[b] && brandWallet[b] !== walletMap.get(b)?.wallet,
+      );
+      for (const b of toSave) {
+        const { error } = await supabase
+          .from("erp_settings")
+          .upsert(
+            { brand_id: b, default_cod_wallet_id: brandWallet[b] },
+            { onConflict: "brand_id" },
+          );
+        if (error) throw error;
+      }
+      // 2) Send per-brand overrides for THIS run (server takes precedence over defaults)
+      const overrides: Record<string, string> = {};
+      for (const b of brandsInRun) {
+        const chosen = effectiveWallet(b);
+        if (chosen) overrides[b] = chosen;
+      }
+      return applyFn({
         data: {
           runId,
-          walletAccountId: overrideWalletId || null,
-          feeCategoryId: overrideFeeCatId || null,
+          brandWallets: Object.keys(overrides).length ? overrides : undefined,
           includeMismatch,
         },
-      }),
+      });
+    },
     onSuccess: (r) => {
       if (r.failed === 0) toast.success(`Applied ${r.applied} rows`);
       else toast.warning(`Applied ${r.applied}, failed ${r.failed}`);
+      qc.invalidateQueries({ queryKey: ["erp-settings-cod"] });
       onApplied();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -1183,68 +1216,77 @@ function ApplyDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Apply to Finance</DialogTitle>
           <DialogDescription>
-            Per brand er default COD wallet auto-pick hobe (Finance → Settings)। Collected = income, courier fee = expense. Net = wallet e credit.
+            Protita brand-er jonno destination wallet niche select koro. Default already set thakle preselected thakbe — chaile ekhon change korte paro, ba "Save as default" tick korle porer bar theke ei-tai default hobe.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           {brandsInRun.length > 0 && (
-            <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Brands in this run ({brandsInRun.length})
+            <div className="rounded-md border bg-muted/20 divide-y">
+              <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Destination wallet · per brand ({brandsInRun.length})
               </div>
               {brandsInRun.map((bid) => {
-                const w = walletMap.get(bid)?.wallet;
+                const defaultWallet = walletMap.get(bid)?.wallet ?? "";
+                const chosen = effectiveWallet(bid);
+                const wallets = accountsByBrand.get(bid) ?? [];
+                const isChanged = !!brandWallet[bid] && brandWallet[bid] !== defaultWallet;
                 return (
-                  <div key={bid} className="flex items-center justify-between text-xs">
-                    <span className="font-medium">{brandName(bid)}</span>
-                    {w ? (
-                      <Badge variant="secondary" className="text-[10px] gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Default wallet set
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/50 text-amber-700">
-                        <AlertTriangle className="h-3 w-3" /> No default — pick fallback below
-                      </Badge>
+                  <div key={bid} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium truncate">{brandName(bid)}</span>
+                      {defaultWallet ? (
+                        <Badge variant="secondary" className="text-[10px] gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                          Default: {nameOf(bid, defaultWallet)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/50 text-amber-700 dark:text-amber-300">
+                          <AlertTriangle className="h-3 w-3" /> No default set
+                        </Badge>
+                      )}
+                    </div>
+                    <Select
+                      value={chosen}
+                      onValueChange={(v) => setBrandWallet((s) => ({ ...s, [bid]: v }))}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder={accountsQ.isLoading ? "Loading wallets…" : "Choose wallet…"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {wallets.length === 0 ? (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">No active wallets for this brand</div>
+                        ) : (
+                          wallets.map((a) => (
+                            <SelectItem key={a.id} value={a.id} className="text-sm">
+                              {a.name}
+                              {a.account_subtype && (
+                                <span className="text-muted-foreground ml-1 text-[11px] capitalize">· {a.account_subtype}</span>
+                              )}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {isChanged && (
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={!!saveAsDefault[bid]}
+                          onChange={(e) => setSaveAsDefault((s) => ({ ...s, [bid]: e.target.checked }))}
+                        />
+                        Save "{nameOf(bid, brandWallet[bid])}" as new default for this brand
+                      </label>
                     )}
                   </div>
                 );
               })}
             </div>
           )}
-          {(showOverride || missingBrands.length > 0) && (
-            <>
-              <div>
-                <Label className="text-xs">Fallback wallet (used when brand has no default set)</Label>
-                <Select value={overrideWalletId} onValueChange={setOverrideWalletId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Optional fallback…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(accountsQ.data ?? []).map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Fallback expense category (optional)</Label>
-                <Select value={overrideFeeCatId} onValueChange={setOverrideFeeCatId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Optional…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {expenseCats.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -1253,12 +1295,19 @@ function ApplyDialog({
             />
             Amount mismatch row gulao apply koro (invoice amount diye)
           </label>
+
+          {missingBrands.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>Ei brand-gulor jonno wallet select koro: <strong>{missingBrands.map(brandName).join(", ")}</strong></span>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             onClick={() => mut.mutate()}
-            disabled={mut.isPending || (missingBrands.length > 0 && !overrideWalletId)}
+            disabled={mut.isPending || missingBrands.length > 0}
           >
             {mut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Copy className="h-4 w-4 mr-1" />}
             Apply
