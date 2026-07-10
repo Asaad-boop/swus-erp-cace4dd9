@@ -164,7 +164,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
         compensation_cost: l.compensation_cost,
         promo_discount: l.promo_discount,
         payout: l.payout,
-        raw: l.raw as unknown as Record<string, string | null>,
+        raw: l.raw as unknown as never,
       }));
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
