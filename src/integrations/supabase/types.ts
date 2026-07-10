@@ -1818,13 +1818,19 @@ export type Database = {
       erp_exchange_cases: {
         Row: {
           brand_id: string
+          case_number: string | null
+          courier_tracking_id: string | null
           created_at: string
           created_by: string | null
           exchange_charge_collected: number
+          exchange_status: string
           exchange_type: string
+          exchange_type_detail: string | null
           id: string
+          new_order_id: string | null
           note: string | null
           old_item_condition: string
+          original_item_restocked: boolean
           original_order_id: string
           original_order_item_id: string | null
           original_product_id: string | null
@@ -1832,11 +1838,13 @@ export type Database = {
           original_variant_id: string | null
           product_cost_loss: number
           refund_amount: number
+          replacement_courier: string | null
           replacement_delivery_cost: number
           replacement_order_id: string | null
           replacement_product_id: string | null
           replacement_qty: number
           replacement_sku: string | null
+          replacement_tracking_id: string | null
           replacement_variant_id: string | null
           resolved_at: string | null
           return_delivery_cost: number
@@ -1845,13 +1853,19 @@ export type Database = {
         }
         Insert: {
           brand_id: string
+          case_number?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           exchange_charge_collected?: number
+          exchange_status?: string
           exchange_type: string
+          exchange_type_detail?: string | null
           id?: string
+          new_order_id?: string | null
           note?: string | null
           old_item_condition: string
+          original_item_restocked?: boolean
           original_order_id: string
           original_order_item_id?: string | null
           original_product_id?: string | null
@@ -1859,11 +1873,13 @@ export type Database = {
           original_variant_id?: string | null
           product_cost_loss?: number
           refund_amount?: number
+          replacement_courier?: string | null
           replacement_delivery_cost?: number
           replacement_order_id?: string | null
           replacement_product_id?: string | null
           replacement_qty?: number
           replacement_sku?: string | null
+          replacement_tracking_id?: string | null
           replacement_variant_id?: string | null
           resolved_at?: string | null
           return_delivery_cost?: number
@@ -1872,13 +1888,19 @@ export type Database = {
         }
         Update: {
           brand_id?: string
+          case_number?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           exchange_charge_collected?: number
+          exchange_status?: string
           exchange_type?: string
+          exchange_type_detail?: string | null
           id?: string
+          new_order_id?: string | null
           note?: string | null
           old_item_condition?: string
+          original_item_restocked?: boolean
           original_order_id?: string
           original_order_item_id?: string | null
           original_product_id?: string | null
@@ -1886,11 +1908,13 @@ export type Database = {
           original_variant_id?: string | null
           product_cost_loss?: number
           refund_amount?: number
+          replacement_courier?: string | null
           replacement_delivery_cost?: number
           replacement_order_id?: string | null
           replacement_product_id?: string | null
           replacement_qty?: number
           replacement_sku?: string | null
+          replacement_tracking_id?: string | null
           replacement_variant_id?: string | null
           resolved_at?: string | null
           return_delivery_cost?: number
@@ -1903,6 +1927,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_new_order_id_fkey"
+            columns: ["new_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -2233,6 +2264,7 @@ export type Database = {
           amount_diff: number | null
           applied_expense_txn_id: string | null
           applied_income_txn_id: string | null
+          brand_id: string | null
           cod_fee: number
           collected: number
           consignment_id: string | null
@@ -2242,15 +2274,18 @@ export type Database = {
           id: string
           invoice_date: string | null
           match_status: string
+          match_type: string | null
           matched_order_id: string | null
           matched_via: string | null
           merchant_order_id: string | null
           note: string | null
           other_fee: number
+          partial_amount: number | null
           payout: number
           raw: Json | null
           recipient_name: string | null
           recipient_phone: string | null
+          return_fee: number | null
           run_id: string
           store_name: string | null
           total_fee: number
@@ -2260,6 +2295,7 @@ export type Database = {
           amount_diff?: number | null
           applied_expense_txn_id?: string | null
           applied_income_txn_id?: string | null
+          brand_id?: string | null
           cod_fee?: number
           collected?: number
           consignment_id?: string | null
@@ -2269,15 +2305,18 @@ export type Database = {
           id?: string
           invoice_date?: string | null
           match_status?: string
+          match_type?: string | null
           matched_order_id?: string | null
           matched_via?: string | null
           merchant_order_id?: string | null
           note?: string | null
           other_fee?: number
+          partial_amount?: number | null
           payout?: number
           raw?: Json | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          return_fee?: number | null
           run_id: string
           store_name?: string | null
           total_fee?: number
@@ -2287,6 +2326,7 @@ export type Database = {
           amount_diff?: number | null
           applied_expense_txn_id?: string | null
           applied_income_txn_id?: string | null
+          brand_id?: string | null
           cod_fee?: number
           collected?: number
           consignment_id?: string | null
@@ -2296,15 +2336,18 @@ export type Database = {
           id?: string
           invoice_date?: string | null
           match_status?: string
+          match_type?: string | null
           matched_order_id?: string | null
           matched_via?: string | null
           merchant_order_id?: string | null
           note?: string | null
           other_fee?: number
+          partial_amount?: number | null
           payout?: number
           raw?: Json | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          return_fee?: number | null
           run_id?: string
           store_name?: string | null
           total_fee?: number
@@ -2323,6 +2366,13 @@ export type Database = {
             columns: ["applied_income_txn_id"]
             isOneToOne: false
             referencedRelation: "erp_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_reconciliation_rows_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
           {
@@ -2523,6 +2573,9 @@ export type Database = {
       erp_return_cases: {
         Row: {
           brand_id: string
+          case_number: string | null
+          courier_name: string | null
+          courier_tracking_id: string | null
           created_at: string
           created_by: string | null
           customer_paid_delivery: number
@@ -2535,18 +2588,30 @@ export type Database = {
           packaging_loss: number
           product_cost_loss: number
           product_id: string | null
+          qc_condition: string | null
+          qc_done_at: string | null
+          qc_done_by: string | null
+          qc_notes: string | null
           qty: number
           refund_amount: number
+          refund_status: string
           resolved_at: string | null
           return_delivery_cost: number
+          return_status: string
           return_type: string
           sku: string | null
           status: string
+          stock_restored: boolean
+          stock_restored_at: string | null
+          stock_updated: boolean
           updated_at: string
           variant_id: string | null
         }
         Insert: {
           brand_id: string
+          case_number?: string | null
+          courier_name?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_paid_delivery?: number
@@ -2559,18 +2624,30 @@ export type Database = {
           packaging_loss?: number
           product_cost_loss?: number
           product_id?: string | null
+          qc_condition?: string | null
+          qc_done_at?: string | null
+          qc_done_by?: string | null
+          qc_notes?: string | null
           qty?: number
           refund_amount?: number
+          refund_status?: string
           resolved_at?: string | null
           return_delivery_cost?: number
+          return_status?: string
           return_type: string
           sku?: string | null
           status?: string
+          stock_restored?: boolean
+          stock_restored_at?: string | null
+          stock_updated?: boolean
           updated_at?: string
           variant_id?: string | null
         }
         Update: {
           brand_id?: string
+          case_number?: string | null
+          courier_name?: string | null
+          courier_tracking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_paid_delivery?: number
@@ -2583,13 +2660,22 @@ export type Database = {
           packaging_loss?: number
           product_cost_loss?: number
           product_id?: string | null
+          qc_condition?: string | null
+          qc_done_at?: string | null
+          qc_done_by?: string | null
+          qc_notes?: string | null
           qty?: number
           refund_amount?: number
+          refund_status?: string
           resolved_at?: string | null
           return_delivery_cost?: number
+          return_status?: string
           return_type?: string
           sku?: string | null
           status?: string
+          stock_restored?: boolean
+          stock_restored_at?: string | null
+          stock_updated?: boolean
           updated_at?: string
           variant_id?: string | null
         }
