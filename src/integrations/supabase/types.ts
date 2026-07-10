@@ -9159,6 +9159,10 @@ export type Database = {
         Args: { _entry: Json; _log_field: string; _order_id: string }
         Returns: undefined
       }
+      apply_settlement_variance_action: {
+        Args: { _action: string; _line_id: string }
+        Returns: Json
+      }
       backfill_order_profit_snapshots: {
         Args: { p_brand_id: string }
         Returns: number
