@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_phase4b_brand_remap: {
+        Row: {
+          prior_brand_id: string | null
+          ref: string | null
+          row_id: string | null
+          tbl: string | null
+        }
+        Insert: {
+          prior_brand_id?: string | null
+          ref?: string | null
+          row_id?: string | null
+          tbl?: string | null
+        }
+        Update: {
+          prior_brand_id?: string | null
+          ref?: string | null
+          row_id?: string | null
+          tbl?: string | null
+        }
+        Relationships: []
+      }
       abandoned_cart_messages: {
         Row: {
           brand_id: string | null

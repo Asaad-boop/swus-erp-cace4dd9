@@ -87,8 +87,19 @@ export async function runStructureSync(supabase: any, accountId: string) {
         ]);
 
         if (camps.length) {
+          // Preserve existing brand_id — do NOT overwrite manual mappings on re-sync.
+          // New campaigns start with brand_id = NULL (unassigned) until manually confirmed.
+          const { data: existingCamps } = await supabase
+            .from("mkt_campaigns")
+            .select("external_id,brand_id")
+            .eq("account_id", acc.id);
+          const existingBrandByExt = new Map<string, string | null>(
+            (existingCamps ?? []).map((r: any) => [r.external_id, r.brand_id ?? null]),
+          );
           const rows = camps.map((c) => ({
-            brand_id: acc.brand_id,
+            brand_id: existingBrandByExt.has(c.id)
+              ? existingBrandByExt.get(c.id) ?? null
+              : null,
             account_id: acc.id,
             external_id: c.id,
             name: c.name,
@@ -109,19 +120,24 @@ export async function runStructureSync(supabase: any, accountId: string) {
 
         const { data: campRows } = await supabase
           .from("mkt_campaigns")
-          .select("id,external_id")
+          .select("id,external_id,brand_id")
           .eq("account_id", acc.id);
         const campMap = new Map<string, string>(
           (campRows ?? []).map((r: any) => [r.external_id, r.id]),
+        );
+        const campBrandById = new Map<string, string | null>(
+          (campRows ?? []).map((r: any) => [r.id, r.brand_id ?? null]),
         );
 
         if (adsets.length) {
           const rows = adsets
             .filter((a) => campMap.has(a.campaign_id))
-            .map((a) => ({
-              brand_id: acc.brand_id,
+            .map((a) => {
+              const campId = campMap.get(a.campaign_id)!;
+              return {
+              brand_id: campBrandById.get(campId) ?? null,
               account_id: acc.id,
-              campaign_id: campMap.get(a.campaign_id)!,
+              campaign_id: campId,
               external_id: a.id,
               name: a.name,
               status: a.status ?? null,
@@ -130,7 +146,8 @@ export async function runStructureSync(supabase: any, accountId: string) {
               lifetime_budget: a.lifetime_budget ? Number(a.lifetime_budget) / 100 : null,
               targeting_summary: a.targeting ? JSON.stringify(a.targeting).slice(0, 500) : null,
               raw: a as any,
-            }));
+              };
+            });
           if (rows.length) {
             const { error } = await supabase
               .from("mkt_adsets")
@@ -150,10 +167,12 @@ export async function runStructureSync(supabase: any, accountId: string) {
         if (ads.length) {
           const rows = ads
             .filter((a) => campMap.has(a.campaign_id) && adsetMap.has(a.adset_id))
-            .map((a) => ({
-              brand_id: acc.brand_id,
+            .map((a) => {
+              const campId = campMap.get(a.campaign_id)!;
+              return {
+              brand_id: campBrandById.get(campId) ?? null,
               account_id: acc.id,
-              campaign_id: campMap.get(a.campaign_id)!,
+              campaign_id: campId,
               adset_id: adsetMap.get(a.adset_id)!,
               external_id: a.id,
               name: a.name,
@@ -162,7 +181,8 @@ export async function runStructureSync(supabase: any, accountId: string) {
               creative_body: a.creative?.body ?? null,
               creative_thumbnail: a.creative?.thumbnail_url ?? null,
               raw: a as any,
-            }));
+              };
+            });
           if (rows.length) {
             const { error } = await supabase
               .from("mkt_ads")
@@ -226,7 +246,7 @@ export async function runInsightsSync(
         const [{ data: adRows }, { data: adsetRows }, { data: campRows }] = await Promise.all([
           supabase.from("mkt_ads").select("id,external_id").eq("account_id", acc.id),
           supabase.from("mkt_adsets").select("id,external_id").eq("account_id", acc.id),
-          supabase.from("mkt_campaigns").select("id,external_id").eq("account_id", acc.id),
+          supabase.from("mkt_campaigns").select("id,external_id,brand_id").eq("account_id", acc.id),
         ]);
         const adMap = new Map<string, string>(
           (adRows ?? []).map((r: any) => [r.external_id, r.id]),
@@ -237,11 +257,17 @@ export async function runInsightsSync(
         const campMap = new Map<string, string>(
           (campRows ?? []).map((r: any) => [r.external_id, r.id]),
         );
+        // Canonical brand source — per-campaign, NOT ad-account (shared accounts run multi-brand).
+        const campBrandByExt = new Map<string, string | null>(
+          (campRows ?? []).map((r: any) => [r.external_id, r.brand_id ?? null]),
+        );
 
         const rows = insights.map((ins) => {
           const conv = extractMetaConversions(ins);
+          const campBrand = ins.campaign_id ? campBrandByExt.get(ins.campaign_id) ?? null : null;
           return {
-            brand_id: acc.brand_id,
+            // Fall back to acc.brand_id only if the campaign has no brand assigned yet.
+            brand_id: campBrand ?? acc.brand_id ?? null,
             account_id: acc.id,
             date: ins.date_start,
             ad_id: ins.ad_id ? adMap.get(ins.ad_id) ?? null : null,
