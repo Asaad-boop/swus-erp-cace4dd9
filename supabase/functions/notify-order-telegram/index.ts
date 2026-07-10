@@ -109,8 +109,7 @@ Deno.serve(async (req) => {
       order.source_website || order.source_platform || order.utm_source || order.source || "direct";
 
     const lines = [
-      `🛒 <b>New ${esc(brandName)} Order</b>`,
-      `<b>#${esc(order.invoice_no ?? String(order.id).slice(0, 8))}</b>`,
+      `🛒 <b>New ${esc(brandName)} Order</b> · <b>#${esc(order.invoice_no ?? String(order.id).slice(0, 8))}</b> · 💰 <b>${fmtBDT(order.total)}</b>`,
       ``,
       `👤 ${esc(order.shipping_name ?? order.guest_name ?? "—")}  ·  📞 ${esc(order.shipping_phone ?? order.guest_phone ?? "—")}`,
       order.shipping_city || order.shipping_thana
