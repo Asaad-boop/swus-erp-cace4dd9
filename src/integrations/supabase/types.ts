@@ -35,6 +35,39 @@ export type Database = {
         }
         Relationships: []
       }
+      _backup_step3_categorize: {
+        Row: {
+          amount: number | null
+          brand_id: string | null
+          category_id: string | null
+          description: string | null
+          id: string | null
+          snapshot_at: string | null
+          transaction_date: string | null
+          txn_type: string | null
+        }
+        Insert: {
+          amount?: number | null
+          brand_id?: string | null
+          category_id?: string | null
+          description?: string | null
+          id?: string | null
+          snapshot_at?: string | null
+          transaction_date?: string | null
+          txn_type?: string | null
+        }
+        Update: {
+          amount?: number | null
+          brand_id?: string | null
+          category_id?: string | null
+          description?: string | null
+          id?: string | null
+          snapshot_at?: string | null
+          transaction_date?: string | null
+          txn_type?: string | null
+        }
+        Relationships: []
+      }
       abandoned_cart_messages: {
         Row: {
           brand_id: string | null
