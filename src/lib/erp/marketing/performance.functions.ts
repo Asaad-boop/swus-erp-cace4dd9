@@ -220,6 +220,43 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
       insMap.set(r.campaign_id, cur);
     }
 
+    // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
+    // Log-only for now; Phase 4a.1 will replace the local sum.
+    if (brandIds.length === 1) {
+      try {
+        // Local sum mirrors the per-row BDT logic used to build rows below.
+        let localBdt = 0;
+        for (const c of campaigns as any[]) {
+          const ins = insMap.get(c.id);
+          if (!ins) continue;
+          const acc = c.mkt_ad_accounts ?? {};
+          const currency: string = (acc.currency ?? "USD").toUpperCase();
+          const usdFx: number = Number(acc.usd_to_bdt_rate) || (fxMap.get(c.brand_id) ?? 0);
+          const fx: number = currency === "BDT" ? 1 : usdFx;
+          localBdt += ins.spend_bdt_fifo > 0 ? ins.spend_bdt_fifo : ins.spend * fx;
+        }
+        if (localBdt > 0) {
+          const { data: rpcRows } = await supabase.rpc("get_meta_spend_bdt", {
+            _brand_id: brandIds[0], _from: from, _to: to,
+          });
+          const rpcSum = ((rpcRows ?? []) as any[]).reduce(
+            (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+          );
+          const drift = localBdt - rpcSum;
+          if (Math.abs(drift) >= 0.5) {
+            console.warn("[phase4a-drift] performance", {
+              brand: brandIds[0], from, to,
+              local: +localBdt.toFixed(2),
+              rpc: +rpcSum.toFixed(2),
+              drift: +drift.toFixed(2),
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[phase4a-drift] performance rpc failed", e);
+      }
+    }
+
     const { data: manuals } = await supabase
       .from("mkt_manual_expenses")
       .select("campaign_id, amount")
