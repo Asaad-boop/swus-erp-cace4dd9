@@ -246,7 +246,7 @@ export async function runInsightsSync(
         const [{ data: adRows }, { data: adsetRows }, { data: campRows }] = await Promise.all([
           supabase.from("mkt_ads").select("id,external_id").eq("account_id", acc.id),
           supabase.from("mkt_adsets").select("id,external_id").eq("account_id", acc.id),
-          supabase.from("mkt_campaigns").select("id,external_id").eq("account_id", acc.id),
+          supabase.from("mkt_campaigns").select("id,external_id,brand_id").eq("account_id", acc.id),
         ]);
         const adMap = new Map<string, string>(
           (adRows ?? []).map((r: any) => [r.external_id, r.id]),
@@ -257,11 +257,17 @@ export async function runInsightsSync(
         const campMap = new Map<string, string>(
           (campRows ?? []).map((r: any) => [r.external_id, r.id]),
         );
+        // Canonical brand source — per-campaign, NOT ad-account (shared accounts run multi-brand).
+        const campBrandByExt = new Map<string, string | null>(
+          (campRows ?? []).map((r: any) => [r.external_id, r.brand_id ?? null]),
+        );
 
         const rows = insights.map((ins) => {
           const conv = extractMetaConversions(ins);
+          const campBrand = ins.campaign_id ? campBrandByExt.get(ins.campaign_id) ?? null : null;
           return {
-            brand_id: acc.brand_id,
+            // Fall back to acc.brand_id only if the campaign has no brand assigned yet.
+            brand_id: campBrand ?? acc.brand_id ?? null,
             account_id: acc.id,
             date: ins.date_start,
             ad_id: ins.ad_id ? adMap.get(ins.ad_id) ?? null : null,
