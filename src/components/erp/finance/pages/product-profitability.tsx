@@ -29,7 +29,7 @@ import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
 import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
 import { ExchangeCaseDialog } from "@/components/erp/finance/exchange-case-dialog";
-import { RefreshCcw } from "lucide-react";
+import { Plus, RefreshCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -859,9 +859,7 @@ function MarketingTab({ marketing }: { marketing: Report["marketing"] }) {
             </Badge>
           ))}
         </div>
-        <Button size="sm" variant="outline" onClick={onAllocate} disabled={!canAllocate}>
-          <Plus className="h-3 w-3 mr-1" /> Allocate Expense
-        </Button>
+        {/* Allocate Expense removed — expense allocation table dropped in Phase 1. */}
       </div>
 
       {byType.length > 0 && (
