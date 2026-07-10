@@ -29,8 +29,7 @@ import { fmtBdt } from "@/lib/erp/finance";
 import { cn } from "@/lib/utils";
 import { ReturnCaseDialog } from "@/components/erp/finance/return-case-dialog";
 import { ExchangeCaseDialog } from "@/components/erp/finance/exchange-case-dialog";
-import { ProductExpenseAllocationDialog } from "@/components/erp/finance/product-expense-allocation-dialog";
-import { Plus, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -81,7 +80,7 @@ export function ProductProfitabilityPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [exchangeOpen, setExchangeOpen] = useState(false);
-  const [allocOpen, setAllocOpen] = useState(false);
+  // Expense allocation removed — COGS now sourced from products.cost_price.
   const qc = useQueryClient();
   const backfillMut = useMutation({
     mutationFn: async () => {
@@ -556,7 +555,7 @@ export function ProductProfitabilityPage() {
                 </TabsContent>
 
                 <TabsContent value="marketing" className="mt-3">
-                  <MarketingTab marketing={r.marketing} onAllocate={() => setAllocOpen(true)} canAllocate={!!brandId && !!productId} />
+                  <MarketingTab marketing={r.marketing} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -567,7 +566,6 @@ export function ProductProfitabilityPage() {
         <>
           <ReturnCaseDialog open={returnOpen} onClose={() => setReturnOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
           <ExchangeCaseDialog open={exchangeOpen} onClose={() => setExchangeOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
-          <ProductExpenseAllocationDialog open={allocOpen} onClose={() => setAllocOpen(false)} brandId={brandId} productId={productId} productName={r.product.name} />
         </>
       )}
     </div>
@@ -792,7 +790,7 @@ function PnLPill({ label, value, sub, tone, icon: Icon, big }: { label: string; 
   );
 }
 
-function MarketingTab({ marketing, onAllocate, canAllocate }: { marketing: Report["marketing"]; onAllocate: () => void; canAllocate: boolean }) {
+function MarketingTab({ marketing }: { marketing: Report["marketing"] }) {
   const total = marketing.reduce((s, m) => s + (Number(m.amount) || 0), 0);
   const allocTotal = marketing.filter((m) => m.kind === "allocation").reduce((s, m) => s + (Number(m.amount) || 0), 0);
   const manualTotal = marketing.filter((m) => m.kind === "manual").reduce((s, m) => s + (Number(m.amount) || 0), 0);
