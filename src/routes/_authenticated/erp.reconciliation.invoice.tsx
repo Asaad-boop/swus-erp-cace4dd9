@@ -1157,7 +1157,7 @@ function ApplyDialog({
   // Load accounts for all brands in this run (per-brand pickers)
   const accountsQ = useAccounts(brandsInRun.length ? brandsInRun : brands.map((b) => b.id));
   const accountsByBrand = useMemo(() => {
-    const m = new Map<string, Array<{ id: string; name: string; account_subtype: string | null; account_type: string | null }>>();
+    const m = new Map<string, Array<{ id: string; name: string; account_subtype?: string | null; account_type?: string | null }>>();
     for (const a of (accountsQ.data ?? [])) {
       if (!a.brand_id) continue;
       const list = m.get(a.brand_id) ?? [];
