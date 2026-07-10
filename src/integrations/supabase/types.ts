@@ -1963,6 +1963,7 @@ export type Database = {
         Row: {
           brand_id: string | null
           created_at: string
+          excluded_from_pnl: boolean
           id: string
           is_active: boolean
           kind: string
@@ -1971,6 +1972,7 @@ export type Database = {
         Insert: {
           brand_id?: string | null
           created_at?: string
+          excluded_from_pnl?: boolean
           id?: string
           is_active?: boolean
           kind?: string
@@ -1979,6 +1981,7 @@ export type Database = {
         Update: {
           brand_id?: string | null
           created_at?: string
+          excluded_from_pnl?: boolean
           id?: string
           is_active?: boolean
           kind?: string
