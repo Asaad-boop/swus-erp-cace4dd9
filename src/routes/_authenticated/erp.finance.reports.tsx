@@ -91,18 +91,18 @@ function PLReport({ brandId, from, to }: { brandId: string; from: string; to: st
   const q = useQuery({
     queryKey: ["pl_v2", brandId, from, to],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_pl_v2", { _brand_id: brandId, _from: from, _to: to });
+      const { data, error } = await supabase.rpc("erp_profit_loss", { _brand_id: brandId, _from: from, _to: to });
       if (error) throw error;
-      return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+      return adaptPl(data);
     },
   });
   const qB = useQuery({
     queryKey: ["pl_v2", brandId, bFrom, bTo],
     enabled: mode === "compare",
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_pl_v2", { _brand_id: brandId, _from: bFrom, _to: bTo });
+      const { data, error } = await supabase.rpc("erp_profit_loss", { _brand_id: brandId, _from: bFrom, _to: bTo });
       if (error) throw error;
-      return data as { income_accounts: Array<{ code: string; name: string; amount: number }>; expense_accounts: Array<{ code: string; name: string; amount: number }>; total_income: number; total_expense: number; net_profit: number };
+      return adaptPl(data);
     },
   });
 
