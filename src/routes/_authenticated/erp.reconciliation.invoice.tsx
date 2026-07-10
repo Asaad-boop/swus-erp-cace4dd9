@@ -1154,18 +1154,18 @@ function ApplyDialog({
     walletMap.set(s.brand_id, { wallet: s.default_cod_wallet_id, fee: s.default_cod_fee_category_id });
   });
 
-  // Load accounts for all brands in this run (per-brand pickers)
-  const accountsQ = useAccounts(brandsInRun.length ? brandsInRun : brands.map((b) => b.id));
+  // Load accounts across ALL brands so each per-brand picker can show every wallet
+  const accountsQ = useAccounts(brands.map((b) => b.id));
+  const allAccounts = useMemo(
+    () => (accountsQ.data ?? []) as Array<{ id: string; name: string; brand_id: string | null; account_subtype?: string | null; account_type?: string | null }>,
+    [accountsQ.data],
+  );
   const accountsByBrand = useMemo(() => {
-    const m = new Map<string, Array<{ id: string; name: string; account_subtype?: string | null; account_type?: string | null }>>();
-    for (const a of (accountsQ.data ?? [])) {
-      if (!a.brand_id) continue;
-      const list = m.get(a.brand_id) ?? [];
-      list.push(a);
-      m.set(a.brand_id, list);
-    }
+    // Every brand picker gets the full list (shared + brand-owned)
+    const m = new Map<string, typeof allAccounts>();
+    for (const bid of brandsInRun) m.set(bid, allAccounts);
     return m;
-  }, [accountsQ.data]);
+  }, [allAccounts, brandsInRun]);
 
   // Effective chosen wallet per brand = local override → default → nothing
   const effectiveWallet = (bid: string) => brandWallet[bid] ?? walletMap.get(bid)?.wallet ?? "";
