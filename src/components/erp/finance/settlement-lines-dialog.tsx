@@ -67,7 +67,7 @@ export function SettlementLinesDialog({ remittance, onClose }: { remittance: Rem
       if (typeof s[key] === "number") (s[key] as number) = (s[key] as number) + 1;
       s.payoutTotal += Number(r.payout || 0);
       s.expectedTotal += Number(r.expected_amount || 0);
-      if (r.match_status === "shortfall") s.shortfallTotal += Number(r.expected_amount || 0) - Number(r.payout || 0);
+      if (r.match_status === "shortfall") s.shortfallTotal += -Number(r.variance || 0);
     }
     return s;
   }, [rows]);
