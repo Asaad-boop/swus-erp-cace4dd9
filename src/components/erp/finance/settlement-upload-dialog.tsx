@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import Papa from "papaparse";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Upload, FileWarning } from "lucide-react";
+import { Upload, FileWarning, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -91,14 +91,24 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
   const [refNo, setRefNo] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [lines, setLines] = useState<ParsedLine[]>([]);
+  const [dupKeys, setDupKeys] = useState<Set<string>>(new Set());
+  const [checkingDups, setCheckingDups] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const effectiveBrand = brandId ?? pickedBrand;
 
+  const dupKey = (l: Pick<ParsedLine, "consignment_id" | "invoice_type" | "created_date">) =>
+    `${l.consignment_id ?? ""}|${l.invoice_type ?? ""}|${l.created_date ?? ""}`;
+
+  const freshLines = useMemo(
+    () => lines.filter((l) => !l.consignment_id || !dupKeys.has(dupKey(l))),
+    [lines, dupKeys],
+  );
+
   const summary = useMemo(() => {
     const byOrder = new Map<string, { payout: number; count: number }>();
     let payoutTotal = 0;
-    for (const l of lines) {
+    for (const l of freshLines) {
       payoutTotal += l.payout;
       const key = l.merchant_order_id ?? l.consignment_id ?? "?";
       const prev = byOrder.get(key) ?? { payout: 0, count: 0 };
@@ -106,20 +116,62 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
       prev.count += 1;
       byOrder.set(key, prev);
     }
-    return { lineCount: lines.length, orderCount: byOrder.size, payoutTotal };
-  }, [lines]);
+    return {
+      lineCount: freshLines.length,
+      totalParsed: lines.length,
+      skipCount: lines.length - freshLines.length,
+      orderCount: byOrder.size,
+      payoutTotal,
+    };
+  }, [lines, freshLines]);
 
   async function handleFile(f: File) {
     setFile(f);
     const text = await f.text();
     const parsed = parseCsv(text);
     setLines(parsed);
+    setDupKeys(new Set());
+    // Pre-check DB for existing consignment_ids to warn & skip.
+    const consignments = Array.from(
+      new Set(parsed.map((l) => l.consignment_id).filter((x): x is string => !!x)),
+    );
+    if (consignments.length === 0) return;
+    setCheckingDups(true);
+    try {
+      // Chunk IN() queries to stay under URL limits.
+      const CHUNK = 500;
+      const found: Array<{ consignment_id: string | null; invoice_type: string | null; created_date: string | null }> = [];
+      for (let i = 0; i < consignments.length; i += CHUNK) {
+        const slice = consignments.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from("erp_courier_settlement_lines")
+          .select("consignment_id,invoice_type,created_date")
+          .in("consignment_id", slice);
+        if (error) throw error;
+        found.push(...((data ?? []) as typeof found));
+      }
+      const existing = new Set(found.map((r) => dupKey(r)));
+      const dups = new Set<string>();
+      for (const l of parsed) {
+        const k = dupKey(l);
+        if (existing.has(k)) dups.add(k);
+      }
+      setDupKeys(dups);
+      if (dups.size > 0) {
+        toast.warning(`${dups.size} line(s) already uploaded — will be skipped.`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Duplicate check failed: ${msg}`);
+    } finally {
+      setCheckingDups(false);
+    }
   }
 
   const uploadMut = useMutation({
     mutationFn: async () => {
       if (!effectiveBrand) throw new Error("Brand required");
-      if (!lines.length) throw new Error("No rows parsed from CSV");
+      if (!freshLines.length) throw new Error("No new rows to upload (all duplicates or empty CSV)");
       setBusy(true);
       const { data: u } = await supabase.auth.getUser();
       // 1) create batch remittance header
@@ -132,7 +184,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
           amount: summary.payoutTotal,
           expected_amount: null,
           reference_no: refNo || (file ? file.name : null),
-          notes: `Settlement upload · ${summary.lineCount} lines · ${summary.orderCount} orders`,
+          notes: `Settlement upload · ${summary.lineCount} lines · ${summary.orderCount} orders${summary.skipCount ? ` · ${summary.skipCount} dup skipped` : ""}`,
           status: "pending",
           created_by: u.user?.id,
         })
@@ -143,7 +195,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
 
       // 2) insert lines in chunks
       const CHUNK = 200;
-      const rows = lines.map((l) => ({
+      const rows = freshLines.map((l) => ({
         remittance_id: remittanceId,
         brand_id: effectiveBrand,
         courier,
@@ -169,7 +221,15 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase.from("erp_courier_settlement_lines").insert(chunk);
-        if (error) throw error;
+        if (error) {
+          // 23505 = unique_violation → race condition (another user uploaded same CSV concurrently)
+          if ((error as { code?: string }).code === "23505") {
+            throw new Error(
+              "Duplicate detected mid-upload (another user may have uploaded the same file). Refresh and re-check.",
+            );
+          }
+          throw error;
+        }
       }
 
       // 3) run reconciliation
@@ -177,18 +237,20 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
         _remittance_id: remittanceId,
       });
       if (recErr) throw recErr;
-      return { remittanceId, rec };
+      return { remittanceId, rec, skipCount: summary.skipCount };
     },
     onSuccess: (res) => {
       const r = (res.rec ?? {}) as Record<string, number>;
+      const skipMsg = res.skipCount ? ` · ${res.skipCount} dup skipped` : "";
       toast.success(
-        `Uploaded · matched ${r.matched ?? 0} · shortfall ${r.shortfall ?? 0} · unmatched ${r.unmatched ?? 0}`,
+        `Uploaded · matched ${r.matched ?? 0} · needs review ${r.needs_review ?? 0} · unmatched ${r.unmatched ?? 0}${skipMsg}`,
       );
       qc.invalidateQueries({ queryKey: ["cod_remittances"] });
       qc.invalidateQueries({ queryKey: ["settlement_lines"] });
       setBusy(false);
       setFile(null);
       setLines([]);
+      setDupKeys(new Set());
       onClose();
     },
     onError: (e: Error) => {
@@ -256,9 +318,24 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
 
           {lines.length > 0 && (
             <div className="rounded border bg-muted/30 p-3 text-xs space-y-1">
-              <div><span className="text-muted-foreground">Lines parsed:</span> <strong>{summary.lineCount}</strong></div>
+              <div>
+                <span className="text-muted-foreground">Lines parsed:</span> <strong>{summary.totalParsed}</strong>
+                {summary.skipCount > 0 && (
+                  <span className="ml-2 text-amber-600">· {summary.skipCount} duplicate skipped</span>
+                )}
+                {checkingDups && <span className="ml-2 text-muted-foreground">· checking…</span>}
+              </div>
+              <div><span className="text-muted-foreground">New lines to upload:</span> <strong>{summary.lineCount}</strong></div>
               <div><span className="text-muted-foreground">Unique orders:</span> <strong>{summary.orderCount}</strong></div>
               <div><span className="text-muted-foreground">Total payout:</span> <strong>{fmtBdt(summary.payoutTotal)}</strong></div>
+            </div>
+          )}
+          {summary.skipCount > 0 && (
+            <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>{summary.skipCount}</strong> line(s) already exist in the database (same consignment + invoice type + date) and will be automatically skipped. Only {summary.lineCount} new line(s) will be uploaded.
+              </span>
             </div>
           )}
           {lines.length === 0 && file && (
@@ -273,8 +350,8 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={() => uploadMut.mutate()} disabled={busy || !lines.length || !effectiveBrand}>
-            {busy ? "Uploading…" : "Upload & Reconcile"}
+          <Button onClick={() => uploadMut.mutate()} disabled={busy || checkingDups || !freshLines.length || !effectiveBrand}>
+            {busy ? "Uploading…" : checkingDups ? "Checking…" : `Upload & Reconcile${summary.lineCount ? ` (${summary.lineCount})` : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>
