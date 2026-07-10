@@ -1,0 +1,2 @@
+DELETE FROM erp_reconciliation_rows WHERE run_id IN ('589b6e51-3544-4463-b004-b3e3101c9ead','97dcb42a-c193-4d0f-bb85-d98b98ddd3ea');
+DELETE FROM erp_reconciliation_runs WHERE id IN ('589b6e51-3544-4463-b004-b3e3101c9ead','97dcb42a-c193-4d0f-bb85-d98b98ddd3ea');
