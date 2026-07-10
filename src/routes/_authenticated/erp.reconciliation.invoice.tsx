@@ -1170,8 +1170,8 @@ function ApplyDialog({
   // Effective chosen wallet per brand = local override → default → nothing
   const effectiveWallet = (bid: string) => brandWallet[bid] ?? walletMap.get(bid)?.wallet ?? "";
   const missingBrands = brandsInRun.filter((b) => !effectiveWallet(b));
-  const nameOf = (bid: string, wid: string) =>
-    accountsByBrand.get(bid)?.find((a) => a.id === wid)?.name ?? "—";
+  const nameOf = (_bid: string, wid: string) =>
+    allAccounts.find((a) => a.id === wid)?.name ?? "—";
 
   const applyFn = useServerFn(applyPathaoReconciliationRun);
   const mut = useMutation({
