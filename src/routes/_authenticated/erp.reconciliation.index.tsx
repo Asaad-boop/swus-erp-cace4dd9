@@ -172,7 +172,7 @@ function OverviewPage() {
     enabled: brandIds.length > 0,
     queryFn: async () => {
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from("orders")
         .select("id", { count: "exact", head: true })
         .in("brand_id", brandIds)
@@ -180,7 +180,7 @@ function OverviewPage() {
         .eq("reconciliation_status", "reconciled")
         .gte("delivered_at", monthStart);
       if (error) throw error;
-      return { count: data ? (data as unknown as { length: number }).length : 0 };
+      return { count: count ?? 0 };
     },
   });
   const advanceCount = advanceQ.data?.count ?? 0;
