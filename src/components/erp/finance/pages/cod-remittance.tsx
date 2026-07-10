@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Truck, Plus, CheckCircle2, Clock, ShieldCheck, FileDown, Trash2, Pencil, Banknote } from "lucide-react";
+import { Truck, Plus, CheckCircle2, Clock, ShieldCheck, FileDown, Trash2, Pencil, Banknote, Upload, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
@@ -17,6 +17,8 @@ import { fmtBdt } from "@/lib/erp/finance";
 import { exportToXlsx } from "@/lib/erp/hr/excel";
 import { RemittanceForm, type RemittanceRow } from "@/components/erp/finance/remittance-form";
 import { CodCollectionDialog } from "@/components/erp/finance/cod-collection-dialog";
+import { SettlementUploadDialog } from "@/components/erp/finance/settlement-upload-dialog";
+import { SettlementLinesDialog } from "@/components/erp/finance/settlement-lines-dialog";
 import { cn } from "@/lib/utils";
 
 type Wallet = { id: string; name: string; account_subtype: string | null; account_type: string | null; brand_id: string; current_balance: number };
@@ -36,6 +38,8 @@ export function CodRemittancePage() {
   const [editing, setEditing] = useState<RemittanceRow | null>(null);
   const [collectOpen, setCollectOpen] = useState(false);
   const [receiveFor, setReceiveFor] = useState<RemittanceRow | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [linesFor, setLinesFor] = useState<RemittanceRow | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "received" | "reconciled">("all");
   const [courierFilter, setCourierFilter] = useState<string>("all");
 
@@ -152,6 +156,9 @@ export function CodRemittancePage() {
           <Button variant="outline" size="sm" onClick={() => setCollectOpen(true)}>
             <Banknote className="h-4 w-4 mr-1.5" /> Record Collection
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)}>
+            <Upload className="h-4 w-4 mr-1.5" /> Upload Settlement CSV
+          </Button>
           <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-1.5" /> New Remittance
           </Button>
@@ -236,6 +243,9 @@ export function CodRemittancePage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setLinesFor(r)} title="View reconciliation lines">
+                          <ListChecks className="h-3 w-3" />
+                        </Button>
                         {r.status === "pending" && (
                           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setReceiveFor(r)}>
                             Mark received
@@ -279,6 +289,16 @@ export function CodRemittancePage() {
         row={receiveFor}
         wallets={wallets}
         onClose={() => setReceiveFor(null)}
+      />
+      <SettlementUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        brandId={isAllBrands ? null : brandId}
+        brandIds={brandIds}
+      />
+      <SettlementLinesDialog
+        remittance={linesFor}
+        onClose={() => setLinesFor(null)}
       />
     </div>
   );

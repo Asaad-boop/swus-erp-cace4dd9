@@ -1799,6 +1799,107 @@ export type Database = {
           },
         ]
       }
+      erp_courier_settlement_lines: {
+        Row: {
+          additional_charge: number
+          brand_id: string
+          cod_fee: number
+          collectable_amount: number
+          collected_amount: number
+          compensation_cost: number
+          consignment_id: string | null
+          courier: string
+          created_at: string
+          created_date: string | null
+          delivery_fee: number
+          discount: number
+          expected_amount: number | null
+          final_fee: number
+          id: string
+          invoice_type: string | null
+          match_status: string
+          matched_order_id: string | null
+          merchant_order_id: string | null
+          notes: string | null
+          payout: number
+          promo_discount: number
+          raw: Json | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          remittance_id: string
+          store_name: string | null
+          variance: number | null
+        }
+        Insert: {
+          additional_charge?: number
+          brand_id: string
+          cod_fee?: number
+          collectable_amount?: number
+          collected_amount?: number
+          compensation_cost?: number
+          consignment_id?: string | null
+          courier: string
+          created_at?: string
+          created_date?: string | null
+          delivery_fee?: number
+          discount?: number
+          expected_amount?: number | null
+          final_fee?: number
+          id?: string
+          invoice_type?: string | null
+          match_status?: string
+          matched_order_id?: string | null
+          merchant_order_id?: string | null
+          notes?: string | null
+          payout?: number
+          promo_discount?: number
+          raw?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          remittance_id: string
+          store_name?: string | null
+          variance?: number | null
+        }
+        Update: {
+          additional_charge?: number
+          brand_id?: string
+          cod_fee?: number
+          collectable_amount?: number
+          collected_amount?: number
+          compensation_cost?: number
+          consignment_id?: string | null
+          courier?: string
+          created_at?: string
+          created_date?: string | null
+          delivery_fee?: number
+          discount?: number
+          expected_amount?: number | null
+          final_fee?: number
+          id?: string
+          invoice_type?: string | null
+          match_status?: string
+          matched_order_id?: string | null
+          merchant_order_id?: string | null
+          notes?: string | null
+          payout?: number
+          promo_discount?: number
+          raw?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          remittance_id?: string
+          store_name?: string | null
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_courier_settlement_lines_remittance_id_fkey"
+            columns: ["remittance_id"]
+            isOneToOne: false
+            referencedRelation: "erp_cod_remittances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_exchange_cases: {
         Row: {
           brand_id: string
@@ -9977,6 +10078,10 @@ export type Database = {
       recompute_reserved_stock: {
         Args: { p_product_id: string; p_variant_id: string }
         Returns: undefined
+      }
+      reconcile_courier_settlement: {
+        Args: { _remittance_id: string }
+        Returns: Json
       }
       record_ar_payment: {
         Args: {
