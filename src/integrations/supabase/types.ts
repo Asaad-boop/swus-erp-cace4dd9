@@ -1994,6 +1994,7 @@ export type Database = {
           excluded_from_pnl: boolean
           id: string
           is_active: boolean
+          is_cogs_category: boolean
           kind: string
           name: string
         }
@@ -2003,6 +2004,7 @@ export type Database = {
           excluded_from_pnl?: boolean
           id?: string
           is_active?: boolean
+          is_cogs_category?: boolean
           kind?: string
           name: string
         }
@@ -2012,6 +2014,7 @@ export type Database = {
           excluded_from_pnl?: boolean
           id?: string
           is_active?: boolean
+          is_cogs_category?: boolean
           kind?: string
           name?: string
         }
