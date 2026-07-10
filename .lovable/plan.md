@@ -1,90 +1,136 @@
-# Phase 3 — Attribution Rework (Delta Plan)
+## Finance Rebuild — Phase 1
 
-Bro, existing `attribution.functions.ts` explore korlam — Phase 3 er 70% already ache. Duplicate na kore delta ta explicit kore dilam. Approve dile implement kore dry-run report dibo, tarpor tumi review kore push approve korba.
+Boro rebuild, tai plan die confirm nichhi. Constraint: `orders` read-only. Prottek step-e verify output dibo.
 
-## Ki already ache (touch korbo na)
-
-- Priority order: UTM → fbclid → phone → product_link (matches exactly Phase 3 P1/P2/P3 + bonus P4)
-- Confidence scores: 0.95 / 0.85 / 0.65 / 0.40
-- Guard: `mkt_upsert_order_attribution` RPC (Phase 0) — sob write ei RPC diyei jai, manual protect + confidence tie-breaker kaj kore
-- `setManualAttribution`, `clearAttribution`, `listAttributionOrders` server fns — manual override backend ready
-- Product auto-link idempotent
-
-## Ki nai / weak — Phase 3 delta
-
-### 1. Phone match e 24h window nai
-
-Ekhon: `mkt_tracking_events` er latest matching row (no time bound). Phase 3 spec: order.created_at er 24h aage porjonto only. Fix: `resolveOne` phone branch e filter add — `created_at BETWEEN order.created_at - 24h AND order.created_at`.
-
-### 2. Confidence tier labels + low-conf review gate nai
-
-Ekhon: sob confidence auto-write hoy (even 0.40 product_link). Phase 3 spec: low → review queue, no auto-link.
-Fix:
-
-- Tier: high ≥0.85, medium 0.60–0.85, low <0.60
-- Low-conf hits: write hobe na `mkt_order_attributions` e; boro dhora e new table `mkt_attribution_candidates` (order_id, suggested_campaign_id, source, confidence, created_at) e insert
-- Order thakbe unattributed list e + candidate suggestion sathe dekhabe
-
-### 3. Dry-run / preview nai
-
-New server fn `previewBulkResolve(brandId, days)` — resolveOne logic run kore, but write kore na. Return: `{ scanned, would_attribute_high, would_attribute_medium, would_queue_low, would_flip_existing: [ {order_id, old_campaign, new_campaign, old_conf, new_conf} ] }`. Ei ta run kore tumi review korba, tarpor bulk apply approve.
-
-### 4. Manual review + drag-drop UI (Unmatched Orders tab)
-
-Ekhon: `attribution` route ache but plain list. Add:
-
-- Toggle: "Unmatched" | "Low-conf candidates" | "Attributed"
-- Row drag-drop → campaign column (calls existing `setManualAttribution`)
-- Candidate row: "Accept suggestion" button = manual confirm = high conf write
-
-## Files & migration
-
-- **Migration**: create `mkt_attribution_candidates` table (id, order_id UNIQUE, brand_id, suggested_campaign_id nullable, source, confidence, matched_signal jsonb, created_at) + RLS (admin/ops read+write) + GRANT
-- `**attribution.functions.ts**`: add 24h window; tier gating in `resolveOne`; new `previewBulkResolve`, `listAttributionCandidates`, `acceptCandidate`, `dismissCandidate` server fns
-- `**erp.marketing.attribution.tsx**` (or its component): add candidate tab + drag-drop (use `@dnd-kit/core` — already installed check korbo)
-
-## Constraints re-confirm
-
-- `orders` table: read-only ✅
-- Existing attributed rows: **kono bulk re-resolve auto-run hobe na** — dry-run only, apply toggle behind explicit button after your review
-- Phase 4a backlog tracking: `dashboard.functions.ts` / `campaigns.functions.ts` / `sku-pnl.functions.ts` ke `getMetaSpendBdt` RPC te migrate — tracked, drop korchi na, Phase 4a te explicit korbo ✅
-
-## Delivery sequence
-
-1. Migration (candidates table) — approve chao
-2. Backend: 24h window + tier gate + preview fn
-3. Run `previewBulkResolve` on your main brand, report flip count + example rows
-4. Tumi review kore approve → bulk apply
-5. UI (candidate tab + drag-drop) — separate push
-
-Approve? Naki kono tier threshold / 24h → 48h type adjustment chao?  
+### Pre-drop audit (grep result)
 
 
----
+| Table                                                                                                                                                                                                                                                                                | Callers found                                                                                                 | Verdict                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `erp_bill_payments`, `erp_ar_payments`, `erp_supplier_payments`, `erp_recurring_runs`, `erp_bills`, `erp_budgets`, `erp_tax_entries`, `erp_recurring_rules`, `erp_reconciliation_runs`, `erp_reconciliation_rows`, `erp_statement_imports`, `erp_return_cases`, `erp_exchange_cases` | 0 src references                                                                                              | Safe drop                                                                                                                                                                 |
+| `erp_period_locks`                                                                                                                                                                                                                                                                   | `src/components/erp/finance/pages/settings.tsx` (Settings → Period Locks section: load/upsert/delete)         | Live but never used in P&L guards — drop table + remove Settings section (whole "Period Lock" card)                                                                       |
+| `erp_statement_lines`                                                                                                                                                                                                                                                                | `src/components/erp/finance/pages/reconciliation.tsx` (bank statement import + list)                          | Feature-e use holo, tobe eta bank-statement reconciliation, oi puro page-e (import + rows) drop kora dorkar. Confirm koro: puro "Bank Reconciliation" page tao off korbo? |
+| `erp_product_expense_allocations`                                                                                                                                                                                                                                                    | dialog + `marketing/campaigns.functions.ts`:399 + `marketing/sync.server.ts`:584,643 (marketing writes these) | Marketing writers-o remove korte hobe; product-profitability page theke dialog import + button remove                                                                     |
+| `useProfitLoss` hook                                                                                                                                                                                                                                                                 | `src/components/erp/finance/pages/simple.tsx` (Quick Entry P&L card)                                          | Migrate to new canonical RPC, then delete hook                                                                                                                            |
+| `bd-charges.ts`                                                                                                                                                                                                                                                                      | 0                                                                                                             | Delete                                                                                                                                                                    |
 
-**Phase 3 approved — proceed with delta plan. 2 additions before/with the preview report:**
 
-1. **Migration**: Create `mkt_attribution_candidates` table (id, order_id UNIQUE, brand_id, suggested_campaign_id nullable, source, confidence, matched_signal jsonb, created_at) + RLS (admin/ops read+write) + GRANT. Proceed.
-2. **Backend delta**:
-  - Phone match: add 24h window filter (`created_at BETWEEN order.created_at - 24h AND order.created_at`)
-  - **Before hardcoding 24h**: query existing phone-matched attributions' actual gap-time (ad-click → order-create). Report median and p90 gap in the preview report. Amar business COD-heavy, high-value items e decision time beshi lagte pare — jodi p90 24h theke onek beshi hoy, flag koro, ami 48h e extend korte pari.
-  - Tier gating in `resolveOne`: high ≥0.85, medium 0.60–0.85, low <0.60. Low-conf → write to `mkt_attribution_candidates`, NOT to `mkt_order_attributions`.
-  - New server fns: `previewBulkResolve`, `listAttributionCandidates`, `acceptCandidate`, `dismissCandidate`
-3. **Existing low-confidence rows**: `mkt_order_attributions`-e already-written 0.40-confidence (product_link) rows-er ki hobe under new tier gate — auto-demote/move to candidates table? Report the count in preview, but **do NOT auto-apply retroactive changes**. Just propose.
-4. `previewBulkResolve(brandId, days)` **report must include:**
-  - `scanned`, `would_attribute_high`, `would_attribute_medium`, `would_queue_low`
-  - `would_flip_existing` (order_id, old_campaign, new_campaign, old_conf, new_conf)
-  - Phone-match gap-time distribution (median/p90)
-  - Existing low-conf row count + retroactive demote proposal (count only, not applied)
+### Step A — Cleanup migration
 
-**Constraints unchanged:**
+Single migration (reversible: structure `pg_dump`-style CREATE saved in migration comment):
 
-- Orders table: read-only
-- No bulk re-resolve auto-applied — dry-run only until I explicitly approve apply
-- Phase 4a backlog (RPC migration for dashboard/campaigns/sku-pnl functions) — tracked, bundle with Phase 4a
+- DROP TABLE (CASCADE) for all Safe-drop list + `erp_period_locks`, `erp_statement_lines`, `erp_statement_imports`, `erp_product_expense_allocations`.
+- Code removals in same batch:
+  - delete `src/lib/erp/bd-charges.ts`
+  - delete `src/components/erp/finance/product-expense-allocation-dialog.tsx`
+  - remove `ProductExpenseAllocation` import + dialog + trigger button from `pages/product-profitability.tsx`
+  - remove marketing writer blocks (`campaigns.functions.ts:~399`, `sync.server.ts:~584,643`) — just skip the allocation insert, keep transaction insert
+  - remove Period Lock card from `pages/settings.tsx`
+  - reconciliation.tsx bank-statement section: **awaiting your confirm** before touching
+  - `useProfitLoss` — replace call sites first (Step B), then delete
 
-**Delivery sequence**: Migration → backend (24h + tier gate + preview fn) → run preview on main brand → report back with full stats above → I review → approve bulk apply → then UI (candidate tab + drag-drop) as separate push.
+### Step B — Canonical P&L RPC
 
-Threshold values (0.85/0.60) confirmed, no change needed. Proceed with migration first.
+Repurpose `erp_profit_loss` (cleaner: already brand+date signature, already used by hook). New body:
 
-&nbsp;
+```text
+Revenue:
+  SUM CASE
+    WHEN return_type='full_return' THEN 0
+    WHEN return_type='partial_return' THEN total - partial_amount
+    ELSE total
+  END
+  FROM orders WHERE brand_id=$1 AND delivery_date BETWEEN $2 AND $3
+             AND status IN ('delivered','completed')
+
+COGS:
+  SUM(debit) FROM erp_journal_lines jl
+  JOIN erp_journal_entries je ON je.id=jl.entry_id
+  JOIN erp_chart_accounts ca ON ca.id=jl.account_id
+  WHERE ca.account_type='cogs' AND je.brand_id=$1
+    AND je.entry_date BETWEEN $2 AND $3
+
+OpEx:
+  SUM(amount) FROM erp_transactions t
+  LEFT JOIN erp_expense_categories c ON c.id=t.category_id
+  WHERE t.brand_id=$1 AND t.txn_type='expense'
+    AND t.transaction_date BETWEEN $2 AND $3
+    AND COALESCE(c.excluded_from_pnl,false)=false
+  GROUP BY category → expense_by_category jsonb
+
+Returns: { revenue, cogs, gross_profit, opex_total, expense_by_category, net_profit, delivered_orders }
+```
+
+Callers migrated to this single RPC:
+
+1. `/finance` index (`getFinanceOverview` → drop JS heuristic `revenue × totalCost/totalPrice`, call RPC)
+2. `/finance/reports` P&L tab (`get_pl_v2` → replace with new RPC; keep `get_pl_v2` alive till both switched, then drop)
+3. `/finance/product-profitability` — page-level totals from RPC; per-SKU rows still from `sku-pnl.functions.ts` but rollup line matches RPC
+4. `useProfitLoss` hook → thin wrapper, then remove after Simple page swap
+
+### Step C — COD receivable single source
+
+`getFinanceOverview` COD calc → read from `erp_cod_remittances` + reconciliation-derived `orders.net_collected` (already SET-idempotent). Formula:
+`cod_outstanding = SUM(orders.total where cod & shipped & not delivered) − SUM(orders.net_collected where reconciled)`
+Same one used on Overview + Receivables page.
+
+### Step D — Product expense allocations
+
+Covered in Step A (drop table + dialog + marketing writers). COGS will come from `products.cost_price` via journal in Phase 2.
+
+### Verification after each step
+
+Same brand + same date range (owner picks), print before/after:
+
+- Overview net profit
+- Reports P&L tab net profit
+- Product-profitability page total
+Target: teenta same number.
+
+### Confirmations needed before I start
+
+1. `erp_statement_lines` + puro Bank Reconciliation page (`pages/reconciliation.tsx`) drop korbo? (Ha/Na)
+2. `get_pl_v2` RPC drop korbo naki temporarily rakhbo? (Recommend: Step B end-e drop)
+3. Verify-er jonno kon brand + date range use korbo?  
+  
+Confirm proceed with full Step A–D, নিচের correction গুলো সহ।
+  #### Step A — Cleanup (as proposed, confirmed)
+  - Safe-drop list (১৩ table, ০ references) — drop করো
+  - `erp_period_locks` — table drop + Settings থেকে Period Lock card সরাও
+  - `erp_statement_lines` + পুরো Bank Reconciliation page (`pages/reconciliation.tsx`) — **drop করো** (confirmed)
+  - `erp_product_expense_allocations` + dialog + marketing writer blocks (`campaigns.functions.ts:399`, `sync.server.ts:584,643`) — drop করো, marketing-এর transaction insert অংশ রেখে দাও, শুধু allocation-insert অংশ সরাও
+  - `bd-charges.ts` — delete
+  - `useProfitLoss` hook — Step B শেষে caller migrate করে delete
+  #### Step B — Canonical P&L RPC (corrected)
+  Repurpose `erp_profit_loss`:
+  text
+  ```text
+  Revenue:
+    SUM CASE
+      WHEN return_type='full_return' THEN 0
+      WHEN return_type='partial_return' THEN total - partial_amount
+      ELSE total
+    END
+    FROM orders WHERE brand_id=$1 AND delivered_at::date BETWEEN $2 AND $3
+      AND status IN ('delivered','completed','partial_delivered','partial_return','exchange','paid_return')
+
+  COGS:
+    SUM(oi.quantity * p.cost_price) FROM order_items oi
+    JOIN orders o ON o.id=oi.order_id
+    JOIN products p ON p.id=oi.product_id
+    WHERE o.brand_id=$1 AND o.delivered_at::date BETWEEN $2 AND $3
+      AND o.status IN ('delivered','completed','partial_delivered','partial_return','exchange','paid_return')
+    -- Also return: count of matching order_items where p.cost_price IS NULL OR 0, as `items_missing_cost_data`
+
+  OpEx: (অপরিবর্তিত, আগের প্রস্তাব অনুযায়ী)
+
+  Returns: { revenue, cogs, items_missing_cost_data, gross_profit, opex_total, expense_by_category, net_profit, delivered_orders }
+  ```
+  **Correction reason**: `delivery_date` column নাই (`delivered_at` ব্যবহার করো)। `account_type='cogs'` কোনো account নাই — import journal আসলে asset/liability posting (purchase-side), expense recognition না, তাই COGS journal থেকে না, `products.cost_price × order_items.quantity` থেকে আসবে। এটা এখন অসম্পূর্ণ থাকবে (৮৯% product-এ cost_price নাই) — `items_missing_cost_data` count দিয়ে সেটা transparent flag করো, silent ভুল সংখ্যা না দেখিয়ে।
+  **Pre-check required**: `apply_settlement_variance_action` RPC (COD review-queue dropdown) — এটা কি `orders.return_type` + `partial_amount` set করে "Partial return"/"Exchange" বাছলে? Confirm করো, না করলে এই migration-এই যোগ করো — নাহলে উপরের revenue CASE logic কখনো trigger হবে না।
+  Caller migration: `/finance` index, `/finance/reports` P&L tab, `/finance/product-profitability` rollup — সব এই RPC-এ।
+  #### Step C — COD receivable single source (as proposed, unchanged)
+  `getFinanceOverview` COD calc → `erp_cod_remittances` + `orders.net_collected` থেকে পড়বে।
+  #### Verification
+  Brand: HobbyShop। Range: `2026-06-01` → `2026-07-10`। Before/after net profit — Overview, Reports P&L, Product-profitability তিনটাই same number দেখাচ্ছে কিনা দেখাও। `items_missing_cost_data` count-ও রিপোর্ট করো।
+  **Constraint**: orders table read-only। Migration reversible। Push-এর আগে summary।
