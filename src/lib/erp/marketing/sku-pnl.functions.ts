@@ -329,7 +329,10 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     let unallocatedManual = 0;
     for (const e of (manExp ?? []) as any[]) {
       const cur = (e.currency ?? "BDT").toUpperCase();
-      const fx = cur === "BDT" ? 1 : 110;
+      // Use brand's real USD→BDT rate; skip row silently if none configured
+      // (hardcoded fallbacks hide bad data — Phase 4a rule).
+      const fx = cur === "BDT" ? 1 : brandUsdBdt;
+      if (cur !== "BDT" && fx <= 0) continue;
       const amt = (Number(e.amount) || 0) * fx;
       if (amt <= 0) continue;
       // Skip meta_ads here — already counted via mkt_insights_daily

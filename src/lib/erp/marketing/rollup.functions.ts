@@ -74,7 +74,7 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
 
     const { data: campaigns, error: cErr } = await supabase
       .from("mkt_campaigns")
-      .select("id, name, status, effective_status, mkt_ad_accounts(id, name)")
+      .select("id, name, status, effective_status, brand_id, mkt_ad_accounts(id, name, currency, usd_to_bdt_rate)")
       .eq("brand_id", data.brandId)
       .order("name");
     if (cErr) throw cErr;
@@ -89,17 +89,61 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
       };
     }
 
-    // Ad spend per campaign
+    // Per-brand USD→BDT fallback for accounts without their own rate
+    const { getBrandUsdBdt } = await import("./fx.server");
+    const brandUsdBdt = await getBrandUsdBdt(supabase, data.brandId);
+
+    // Ad spend per campaign — convert USD → BDT using FIFO when present,
+    // else account/brand FX. Raw USD summed straight into BDT totals was
+    // the ~110x ROAS inflation bug (Phase 4a — C1 fix).
     const { data: insights } = await supabase
       .from("mkt_insights_daily")
-      .select("campaign_id, spend")
+      .select("campaign_id, spend, spend_bdt_fifo, conversion_source, estimated_bdt_cost")
       .in("campaign_id", campIds)
       .gte("date", from)
       .lte("date", to);
+    const campFx = new Map<string, number>();
+    for (const c of (campaigns ?? []) as any[]) {
+      const acc = c.mkt_ad_accounts ?? {};
+      const currency: string = (acc.currency ?? "USD").toUpperCase();
+      const fx: number = currency === "BDT" ? 1 : (Number(acc.usd_to_bdt_rate) || brandUsdBdt);
+      campFx.set(c.id, fx);
+    }
     const adSpendMap = new Map<string, number>();
-    for (const r of insights ?? []) {
+    for (const r of (insights ?? []) as any[]) {
       if (!r.campaign_id) continue;
-      adSpendMap.set(r.campaign_id, (adSpendMap.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0));
+      const fx = campFx.get(r.campaign_id) ?? brandUsdBdt;
+      const fifo = Number(r.spend_bdt_fifo) || 0;
+      const bdt = fifo > 0 && r.conversion_source === "fifo"
+        ? fifo
+        : (Number(r.spend) || 0) * fx;
+      adSpendMap.set(r.campaign_id, (adSpendMap.get(r.campaign_id) ?? 0) + bdt);
+    }
+
+    // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
+    // Log-only for now; Phase 4a.1 will replace the local sum.
+    try {
+      let localBdt = 0;
+      for (const v of adSpendMap.values()) localBdt += v;
+      if (localBdt > 0) {
+        const { data: rpcRows } = await supabase.rpc("get_meta_spend_bdt", {
+          _brand_id: data.brandId, _from: from, _to: to,
+        });
+        const rpcSum = ((rpcRows ?? []) as any[]).reduce(
+          (s, r) => s + (Number(r.spend_bdt) || 0), 0,
+        );
+        const drift = localBdt - rpcSum;
+        if (Math.abs(drift) >= 0.5) {
+          console.warn("[phase4a-drift] rollup", {
+            brand: data.brandId, from, to,
+            local: +localBdt.toFixed(2),
+            rpc: +rpcSum.toFixed(2),
+            drift: +drift.toFixed(2),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[phase4a-drift] rollup rpc failed", e);
     }
 
     // Manual spend per campaign
@@ -357,16 +401,34 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
 
       const campIds = Array.from(campToOrders.keys());
       if (campIds.length) {
+        // Fetch campaigns for FX conversion of USD spend → BDT
+        const { data: campMeta } = await supabase
+          .from("mkt_campaigns")
+          .select("id, mkt_ad_accounts(currency, usd_to_bdt_rate)")
+          .in("id", campIds);
+        const { getBrandUsdBdt } = await import("./fx.server");
+        const brandUsdBdt = await getBrandUsdBdt(supabase, data.brandId);
+        const campFx = new Map<string, number>();
+        for (const c of (campMeta ?? []) as any[]) {
+          const cur = ((c.mkt_ad_accounts?.currency ?? "USD") as string).toUpperCase();
+          const fx = cur === "BDT" ? 1 : (Number(c.mkt_ad_accounts?.usd_to_bdt_rate) || brandUsdBdt);
+          campFx.set(c.id, fx);
+        }
         const { data: ins } = await supabase
           .from("mkt_insights_daily")
-          .select("campaign_id, spend")
+          .select("campaign_id, spend, spend_bdt_fifo, conversion_source")
           .in("campaign_id", campIds)
           .gte("date", from)
           .lte("date", to);
         const adSpendByCamp = new Map<string, number>();
-        for (const r of ins ?? []) {
+        for (const r of (ins ?? []) as any[]) {
           if (!r.campaign_id) continue;
-          adSpendByCamp.set(r.campaign_id, (adSpendByCamp.get(r.campaign_id) ?? 0) + (Number(r.spend) || 0));
+          const fx = campFx.get(r.campaign_id) ?? brandUsdBdt;
+          const fifo = Number(r.spend_bdt_fifo) || 0;
+          const bdt = fifo > 0 && r.conversion_source === "fifo"
+            ? fifo
+            : (Number(r.spend) || 0) * fx;
+          adSpendByCamp.set(r.campaign_id, (adSpendByCamp.get(r.campaign_id) ?? 0) + bdt);
         }
 
         const allocatedAd = new Map<string, number>();
