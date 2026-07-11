@@ -148,20 +148,32 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
                   const { loadPathaoCreds, createPathaoClient } = await import("@/lib/erp/pathao.server");
                   const creds = await loadPathaoCreds(supabaseAdmin, o.brand_id);
                   const client = createPathaoClient(creds);
-                  const res: any = await client.track(identifier).catch(() => null);
+                  const res: any = await client.track(identifier).catch((e) => {
+                    errors.push({ order_id: o.id, error: `pathao.track: ${(e as Error).message}` });
+                    return null;
+                  });
                   if (!res) return;
                   responsePayload = res;
-                  raw = res?.data?.order_status ?? res?.data?.status ?? null;
+                  // pathao.server.ts `call()` already unwraps `json.data`, so
+                  // `res` is the inner object: { order_status, order_status_slug, ... }
+                  raw = res?.order_status ?? res?.order_status_slug ?? res?.status ?? null;
                 } else {
                   const { loadSteadfastCreds, createSteadfastClient } = await import("@/lib/erp/steadfast.server");
                   const creds = await loadSteadfastCreds(supabaseAdmin, o.brand_id);
                   const client = createSteadfastClient(creds);
                   let res: any = null;
-                  if (identifier) res = await client.trackByCid(identifier).catch(() => null);
-                  if (!res && o.invoice_no) res = await client.trackByInvoice(o.invoice_no).catch(() => null);
+                  if (identifier) res = await client.trackByCid(identifier).catch((e) => {
+                    errors.push({ order_id: o.id, error: `steadfast.trackByCid: ${(e as Error).message}` });
+                    return null;
+                  });
+                  if (!res && o.invoice_no) res = await client.trackByInvoice(o.invoice_no).catch((e) => {
+                    errors.push({ order_id: o.id, error: `steadfast.trackByInvoice: ${(e as Error).message}` });
+                    return null;
+                  });
                   if (!res) return;
                   responsePayload = res;
-                  raw = res?.data?.delivery_status ?? res?.delivery_status ?? null;
+                  // Steadfast returns raw json: { status: 200, delivery_status: "..." }
+                  raw = res?.delivery_status ?? res?.data?.delivery_status ?? null;
                 }
 
                 if (!raw) return;
@@ -180,7 +192,9 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
                   await supabaseAdmin
                     .from("courier_shipments")
                     .update({
-                      status: raw,
+                      // Canonical normalized form so cron/webhook/manual sync
+                      // all agree ("delivered", not mixed "Delivered"/"delivered").
+                      status: norm,
                       response_payload: responsePayload,
                       rider_name: provider === "pathao" && isActiveDelivery ? (payload?.delivery_man_name ?? payload?.delivery_man?.name ?? null) : null,
                       rider_phone: provider === "pathao" && isActiveDelivery ? (payload?.delivery_man_phone ?? payload?.delivery_man?.phone ?? null) : null,
