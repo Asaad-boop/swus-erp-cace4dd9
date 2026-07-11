@@ -460,9 +460,10 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
         }
         // mirror status back to row so re-book flows can see it
         if (r.ok && r.raw_status) {
+          const norm = String(r.raw_status).toLowerCase().replace(/[\s-]+/g, "_");
           await supabase
             .from("courier_shipments")
-            .update({ status: r.raw_status, updated_at: new Date().toISOString() })
+            .update({ status: norm, updated_at: new Date().toISOString() })
             .eq("id", ship.id);
         }
         return r;

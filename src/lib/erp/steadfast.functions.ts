@@ -140,9 +140,10 @@ export const steadfastTrackFn = createServerFn({ method: "POST" })
     const status = info?.delivery_status ?? info?.data?.delivery_status ?? info?.status ?? null;
 
     if (status) {
+      const norm = String(status).toLowerCase().replace(/[\s-]+/g, "_");
       await supabase
         .from("courier_shipments")
-        .update({ status, response_payload: info as never, updated_at: new Date().toISOString() })
+        .update({ status: norm, response_payload: info as never, updated_at: new Date().toISOString() })
         .eq("id", ship.id);
     }
     return { status, info };

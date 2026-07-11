@@ -648,7 +648,7 @@ export const pathaoTrackFn = createServerFn({ method: "POST" })
       await supabase
         .from("courier_shipments")
         .update({
-          status,
+          status: norm,
           response_payload: info as never,
           rider_name: riderName,
           rider_phone: riderPhone,
