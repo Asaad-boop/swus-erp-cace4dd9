@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBrand } from "@/contexts/brand-context";
-import { useOrdersQuery, useOrderStatusCounts, type OrdersFilter } from "@/hooks/erp/use-orders-query";
+import { useOrdersQuery, useOrderStatusCounts, useNeedsAttentionIds, type OrdersFilter } from "@/hooks/erp/use-orders-query";
 import { useCourierShipments, normalizeCourierStatus, COURIER_BUCKETS, COURIER_BUCKET_META, type CourierBucket, type CourierShipmentRow } from "@/hooks/erp/use-courier-shipments";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { OrdersStatusTabs } from "@/components/erp/orders/orders-status-tabs";
@@ -37,17 +37,26 @@ function OrdersPage() {
     brandId: null, brandIds: [], search: "", statuses: ["confirmed"], source: null,
     dateFrom: null, dateTo: null, courier: null, page: 0, pageSize: 50,
   });
-  const [view, setView] = useState<"orders" | "incomplete">("orders");
+  const [view, setView] = useState<"orders" | "incomplete" | "needs_attention">("orders");
   const [incompletePage, setIncompletePage] = useState(0);
   const [exporting, setExporting] = useState(false);
+
+  const naQuery = useNeedsAttentionIds({
+    ...filter,
+    brandId: activeBrand?.id ?? null,
+    brandIds: isAllBrands ? brandIds : activeBrand ? [activeBrand.id] : [],
+  });
+  const needsAttentionCount = naQuery.data?.count ?? 0;
 
   const effective = useMemo<OrdersFilter>(
     () => ({
       ...filter,
       brandId: activeBrand?.id ?? null,
       brandIds: isAllBrands ? brandIds : activeBrand ? [activeBrand.id] : [],
+      ids: view === "needs_attention" ? (naQuery.data?.ids ?? []) : null,
+      statuses: view === "needs_attention" ? [] : filter.statuses,
     }),
-    [filter, activeBrand?.id, isAllBrands, brandIds, activeBrand],
+    [filter, activeBrand?.id, isAllBrands, brandIds, activeBrand, view, naQuery.data?.ids],
   );
 
   const { data, isLoading, isFetching } = useOrdersQuery(effective);
@@ -323,7 +332,10 @@ function OrdersPage() {
   const hasActiveFilters = !!(filter.search || filter.source || filter.courier || filter.dateFrom || filter.dateTo || filter.statuses.length > 0);
 
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
-  const activeTab = view === "incomplete" ? "incomplete" : tabForStatuses(effective.statuses);
+  const activeTab =
+    view === "incomplete" ? "incomplete"
+      : view === "needs_attention" ? "needs_attention"
+      : tabForStatuses(effective.statuses);
 
   return (
     <div className="p-4 md:p-6 space-y-4 min-h-screen bg-gradient-to-b from-muted/30 via-muted/10 to-background">
@@ -396,10 +408,14 @@ function OrdersPage() {
           counts={countsData?.counts ?? {}}
           total={countsData?.total ?? 0}
           incompleteCount={incompleteCount ?? 0}
+          needsAttentionCount={needsAttentionCount}
           onChange={(statuses, key) => {
             if (key === "incomplete") {
               setView("incomplete");
               setIncompletePage(0);
+            } else if (key === "needs_attention") {
+              setView("needs_attention");
+              setFilter({ ...filter, statuses: [], page: 0 });
             } else {
               setView("orders");
               setFilter({ ...filter, statuses, page: 0 });
