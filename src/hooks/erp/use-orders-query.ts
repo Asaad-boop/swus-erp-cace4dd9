@@ -51,9 +51,8 @@ export function useOrdersQuery(filter: OrdersFilter) {
           q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
         }
       } else {
-        // Website checkout queue stays in Web Orders until staff confirms it.
-        // Some checkout integrations used pixel/utm as order.source; treat those as web orders too.
-        q = q.or(`status.neq.new,source.is.null,${WEB_ORDER_SOURCE_FILTER}`);
+        // `new` orders live exclusively in the Web Orders queue — never surface them here.
+        q = q.neq("status", "new");
         q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
       }
       if (filter.source) q = q.eq("source", filter.source as never);
@@ -162,7 +161,7 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
         supabase.from("orders").select("status", { count: "exact" }),
         brandIds,
       )
-        .or(`status.neq.new,source.is.null,${WEB_ORDER_SOURCE_FILTER}`)
+        .neq("status", "new")
         .or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`)
         .limit(10000);
 
