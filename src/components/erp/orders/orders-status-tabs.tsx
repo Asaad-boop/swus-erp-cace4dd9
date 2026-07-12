@@ -17,7 +17,6 @@ const TAB_DOT: Record<StatusTabKey, string> = {
   on_hold:        "bg-yellow-500",
   cancelled:      "bg-zinc-400",
   incomplete:     "bg-pink-500",
-  needs_attention: "bg-rose-500",
 };
 
 type Props = {
@@ -26,10 +25,9 @@ type Props = {
   total: number;
   onChange: (statuses: OrderStatus[], tabKey: StatusTabKey) => void;
   incompleteCount?: number;
-  needsAttentionCount?: number;
 };
 
-export function OrdersStatusTabs({ active, counts, total, onChange, incompleteCount = 0, needsAttentionCount = 0 }: Props) {
+export function OrdersStatusTabs({ active, counts, total, onChange, incompleteCount = 0 }: Props) {
   return (
     <div className="border-b bg-gradient-to-b from-muted/30 to-card overflow-x-auto">
       <div className="flex items-stretch gap-0.5 px-2 min-w-max">
@@ -38,9 +36,7 @@ export function OrdersStatusTabs({ active, counts, total, onChange, incompleteCo
             ? total
             : t.key === "incomplete"
               ? incompleteCount
-              : t.key === "needs_attention"
-                ? needsAttentionCount
-                : t.statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
+              : t.statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
           const isActive = active === t.key;
           return (
             <button
