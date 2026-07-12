@@ -1531,12 +1531,9 @@ function OrderDetailsPage() {
           {/* Payment Verification — customer-provided txn / number */}
           {(() => {
             const pm = (order.payment_method ?? "").toLowerCase();
-            const hasAdvance = Number(order.advance_amount ?? 0) > 0
-              || !!order.advance_payment_number
-              || !!order.advance_txn_id
-              || !!(order as { transaction_id?: string | null }).transaction_id;
             const isDigitalPay = pm && !pm.includes("cod") && pm !== "cash";
-            if (!hasAdvance && !isDigitalPay) return null;
+            // COD orders e verification card dorkar nei — sudhu digital (bKash/Nagad/Rocket) hole show koro.
+            if (!isDigitalPay) return null;
             const verified = !!order.verified_at;
             const txnId = order.advance_txn_id
               ?? (order as { transaction_id?: string | null }).transaction_id
