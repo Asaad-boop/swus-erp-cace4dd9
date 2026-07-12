@@ -144,8 +144,7 @@ export function PrintableInvoice({
         .invoice-page + .invoice-page { page-break-before: always; break-before: page; }
         .invoice-page:last-child { page-break-after: auto; break-after: auto; }
       }`}</style>
-      <div style={containerStyle} className="relative invoice-inner">
-        <span ref={innerRef as any} style={{ display: "contents" }} />
+      <div ref={innerRef} style={containerStyle} className="relative invoice-inner">
         {cfg.header.showWatermark && !isPos && (
           <div
             aria-hidden
