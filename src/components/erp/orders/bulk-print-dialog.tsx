@@ -9,6 +9,8 @@ import { useInvoiceConfig } from "@/hooks/erp/use-invoice-config";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { customerName, customerPhone, invoiceDisplay } from "@/lib/erp/orders";
 import { DEFAULT_INVOICE_CONFIG, formatMoney, type InvoiceConfig } from "@/lib/erp/invoice-config";
+import { markOrdersPrinted } from "@/lib/erp/mark-printed";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type PrintMode = "invoice" | "sticker" | "picking" | "sheet";
 
@@ -33,6 +35,7 @@ export function BulkPrintDialog({
   const { activeBrand, brands } = useBrand();
   const { data: cfg } = useInvoiceConfig(activeBrand?.id);
   const config = cfg ?? DEFAULT_INVOICE_CONFIG;
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["bulk-print", mode, orderIds.sort().join(",")],
@@ -136,7 +139,12 @@ export function BulkPrintDialog({
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               <X className="h-3.5 w-3.5" /> Cancel
             </Button>
-            <Button size="sm" disabled={!ready} onClick={() => window.print()}>
+            <Button size="sm" disabled={!ready} onClick={() => {
+              window.print();
+              void markOrdersPrinted(orders.map((o: { id: string }) => o.id)).then(() => {
+                qc.invalidateQueries({ queryKey: ["orders"] });
+              });
+            }}>
               {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
               Print {orders.length || ""}
             </Button>

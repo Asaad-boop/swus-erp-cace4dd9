@@ -187,6 +187,7 @@ export type OrderRow = {
   actual_shipping_cost?: number | null;
   reconciliation_status?: string | null;
   net_collected?: number | null;
+  printed_at?: string | null;
 };
 
 export type OrderItemMini = {

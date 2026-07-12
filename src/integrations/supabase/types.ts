@@ -6944,6 +6944,7 @@ export type Database = {
           preorder_converted_at: string | null
           preorder_expected_date: string | null
           preorder_ready_at: string | null
+          printed_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number
@@ -7061,6 +7062,7 @@ export type Database = {
           preorder_converted_at?: string | null
           preorder_expected_date?: string | null
           preorder_ready_at?: string | null
+          printed_at?: string | null
           priority?: Database["public"]["Enums"]["order_priority"]
           reconciliation_status?: string | null
           refund_amount?: number
@@ -7178,6 +7180,7 @@ export type Database = {
           preorder_converted_at?: string | null
           preorder_expected_date?: string | null
           preorder_ready_at?: string | null
+          printed_at?: string | null
           priority?: Database["public"]["Enums"]["order_priority"]
           reconciliation_status?: string | null
           refund_amount?: number
@@ -9083,6 +9086,7 @@ export type Database = {
           preorder_converted_at: string | null
           preorder_expected_date: string | null
           preorder_ready_at: string | null
+          printed_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number
@@ -9209,6 +9213,7 @@ export type Database = {
           preorder_converted_at: string | null
           preorder_expected_date: string | null
           preorder_ready_at: string | null
+          printed_at: string | null
           priority: Database["public"]["Enums"]["order_priority"]
           reconciliation_status: string | null
           refund_amount: number

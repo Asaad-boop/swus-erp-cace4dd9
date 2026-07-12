@@ -21,6 +21,8 @@ export type OrdersFilter = {
   pageSize: number;
   /** Restrict to specific order ids (used by Needs Attention tab). */
   ids?: string[] | null;
+  /** Print status filter: "all" (default), "printed", or "unprinted". */
+  printedFilter?: "all" | "printed" | "unprinted";
 };
 
 export function useOrdersQuery(filter: OrdersFilter) {
@@ -37,7 +39,7 @@ export function useOrdersQuery(filter: OrdersFilter) {
         supabase
           .from("orders")
           .select(
-            "id,invoice_no,created_at,updated_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,paid_at,cancelled_at,reconciliation_status,net_collected,items:order_items(id,name,image,quantity,variant_label,line_total)",
+            "id,invoice_no,created_at,updated_at,status,confirmation_status,total,subtotal,shipping_fee,discount_amount,advance_amount,payment_method,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,shipping_thana,guest_name,guest_phone,is_guest_order,user_id,brand_id,source,courier_name,tracking_number,actual_shipping_cost,assigned_to,admin_notes,customer_note,shipping_note,call_status,call_attempt_count,delivered_at,shipped_at,confirmed_at,paid_at,cancelled_at,reconciliation_status,net_collected,printed_at,items:order_items(id,name,image,quantity,variant_label,line_total)",
             { count: "exact" },
           ),
         brandIds,
@@ -55,6 +57,8 @@ export function useOrdersQuery(filter: OrdersFilter) {
         q = q.neq("status", "new");
         q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
       }
+      if (filter.printedFilter === "printed") q = q.not("printed_at", "is", null);
+      else if (filter.printedFilter === "unprinted") q = q.is("printed_at", null);
       if (filter.source) q = q.eq("source", filter.source as never);
       if (filter.courier) q = q.eq("courier_name", filter.courier);
       if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);

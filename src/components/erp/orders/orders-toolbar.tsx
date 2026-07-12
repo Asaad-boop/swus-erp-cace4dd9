@@ -1,4 +1,4 @@
-import { Search, X, Calendar as CalendarIcon, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Search, X, Calendar as CalendarIcon, SlidersHorizontal, ArrowUpDown, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,6 +45,23 @@ export function OrdersToolbar({
           <SelectItem value="manual">Manual</SelectItem>
           <SelectItem value="facebook">Facebook</SelectItem>
           <SelectItem value="phone">Phone</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filter.printedFilter ?? "all"}
+        onValueChange={(v) => update({ printedFilter: v as "all" | "printed" | "unprinted" })}
+      >
+        <SelectTrigger className="w-[140px] h-9">
+          <span className="flex items-center gap-1.5 text-xs">
+            <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+            <SelectValue placeholder="Print status" />
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All prints</SelectItem>
+          <SelectItem value="printed">Printed</SelectItem>
+          <SelectItem value="unprinted">Not printed</SelectItem>
         </SelectContent>
       </Select>
 
