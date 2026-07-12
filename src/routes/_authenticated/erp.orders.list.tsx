@@ -21,7 +21,8 @@ import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-uplo
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
 import { PhoneHistorySyncDialog } from "@/components/erp/orders/phone-history-sync-dialog";
-import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { downloadCsv, exportOrdersCsv, statusAge, statusSinceTs, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 const WEB_ORDER_SOURCE_FILTER = "source.not.in.(website,pixel,utm)";
 
@@ -157,6 +158,19 @@ function OrdersPage() {
   }, [idsKey, qc]);
 
   const courierFilterActive = courierStatusFilter !== "all";
+
+  // Proactive nudge: stuck orders (3+ days in current status) on this page
+  const stuckIds = useMemo(() => {
+    const out: string[] = [];
+    for (const r of visibleRows) {
+      const age = statusAge(statusSinceTs(r));
+      if (age.tone === "stale") out.push(r.id);
+    }
+    return out;
+  }, [visibleRows]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  useEffect(() => { setNudgeDismissed(false); }, [filter.page, filter.statuses.join(",")]);
+
   const courierCounts = useMemo(() => {
     const counts: Partial<Record<CourierBucket, number>> = {};
     for (const r of rows) {
