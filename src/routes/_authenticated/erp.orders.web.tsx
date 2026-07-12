@@ -486,6 +486,7 @@ function _WebOrdersPageBody() {
   const activeTab = search.tab;
   const sort = search.sort;
   const sourceFilter = search.source;
+  const paymentFilter = search.payment;
   const datePreset = search.preset;
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
@@ -586,6 +587,9 @@ function _WebOrdersPageBody() {
 
       if (activeTab !== "all") q = q.eq("web_status", activeTab);
       if (activeTab === "processing") q = q.eq("status", "new" as never);
+      if (paymentFilter && paymentFilter !== "all") {
+        q = q.eq("payment_method", paymentFilter as never);
+      }
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
         const esc = s.replace(/[,()]/g, " ");
