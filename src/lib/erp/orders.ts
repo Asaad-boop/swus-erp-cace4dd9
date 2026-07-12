@@ -181,6 +181,8 @@ export type OrderRow = {
   status_since?: string | null;
   items?: OrderItemMini[];
   actual_shipping_cost?: number | null;
+  reconciliation_status?: string | null;
+  net_collected?: number | null;
 };
 
 export type OrderItemMini = {
@@ -205,6 +207,57 @@ export function shortId(id: string) {
 /** Display invoice number, falling back to a short order id. */
 export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
   return o.invoice_no ?? shortId(o.id);
+}
+
+/**
+ * COD reconciliation badge for delivered-family orders.
+ * Reads `orders.reconciliation_status` (populated by COD Settlement system):
+ *   - "reconciled" / "waived" → matched (green)
+ *   - "needs_review" → variance / in review queue (amber)
+ *   - "pending" / null → not reconciled yet (faint grey)
+ * Display only — no writes. Only render for delivered/partial_delivered/paid.
+ */
+export const RECONCILE_BADGE_STATUSES = new Set<string>([
+  "delivered", "partial_delivered", "paid",
+]);
+
+export type ReconcileTone = "matched" | "review" | "pending";
+
+export function reconcileBadge(o: {
+  status?: string | null;
+  reconciliation_status?: string | null;
+  total?: number | null;
+  net_collected?: number | null;
+}): { tone: ReconcileTone; label: string; icon: string; className: string; tooltip: string } | null {
+  if (!o.status || !RECONCILE_BADGE_STATUSES.has(o.status)) return null;
+  const rs = o.reconciliation_status ?? "pending";
+  const expected = Number(o.total ?? 0);
+  const collected = o.net_collected == null ? null : Number(o.net_collected);
+  const variance = collected == null ? null : collected - expected;
+  const money = (n: number) => `৳${n.toLocaleString()}`;
+  const varLine = variance == null
+    ? "Collected: —"
+    : `Collected: ${money(collected!)}${variance !== 0 ? ` · Variance: ${variance > 0 ? "+" : ""}${money(variance)}` : ""}`;
+  const tip = `Expected: ${money(expected)}\n${varLine}`;
+  if (rs === "reconciled" || rs === "waived") {
+    return {
+      tone: "matched", label: rs === "waived" ? "Waived" : "Matched", icon: "✓",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60",
+      tooltip: `COD ${rs === "waived" ? "waived" : "matched"}\n${tip}`,
+    };
+  }
+  if (rs === "needs_review") {
+    return {
+      tone: "review", label: "Review", icon: "!",
+      className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60",
+      tooltip: `COD needs review\n${tip}`,
+    };
+  }
+  return {
+    tone: "pending", label: "Unrec.", icon: "○",
+    className: "bg-muted/40 text-muted-foreground border-border/60",
+    tooltip: `COD not reconciled yet\n${tip}`,
+  };
 }
 
 /**
