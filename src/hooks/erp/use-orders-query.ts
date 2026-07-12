@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
+import { NEEDS_ATTENTION_STATUSES, isNeedsAttention, statusSinceTs } from "@/lib/erp/orders";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
@@ -18,6 +19,8 @@ export type OrdersFilter = {
   courier: string | null;
   page: number;
   pageSize: number;
+  /** Restrict to specific order ids (used by Needs Attention tab). */
+  ids?: string[] | null;
 };
 
 export function useOrdersQuery(filter: OrdersFilter) {
@@ -28,7 +31,7 @@ export function useOrdersQuery(filter: OrdersFilter) {
       : [];
   return useQuery({
     queryKey: ["orders", filter],
-    enabled: brandIds.length > 0,
+    enabled: brandIds.length > 0 && (filter.ids == null || filter.ids.length > 0),
     queryFn: async () => {
       let q = applyBrandScope(
         supabase
@@ -40,7 +43,9 @@ export function useOrdersQuery(filter: OrdersFilter) {
         brandIds,
       ).order("created_at", { ascending: false });
 
-      if (filter.statuses.length > 0) {
+      if (filter.ids && filter.ids.length > 0) {
+        q = q.in("id", filter.ids);
+      } else if (filter.statuses.length > 0) {
         q = q.in("status", filter.statuses);
         if (filter.statuses.includes("confirmed")) {
           q = q.or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
