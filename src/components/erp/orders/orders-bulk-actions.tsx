@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown, Phone, Zap, Search } from "lucide-react";
+import { CheckCheck, Printer, Sticker, ClipboardList, FileSpreadsheet, Truck, RefreshCw, Download, Copy, X, Loader2, ChevronDown, Phone, Zap, Search, PackageCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +39,16 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
   const matchStatus = (label: string) => !query || label.toLowerCase().includes(query);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <div className="flex items-center gap-1">
+      <InlineQuickBtn icon={PackageCheck} label="Delivered" color="#059669" onClick={() => onStatus("delivered")} disabled={disabled} />
+      <InlineQuickBtn icon={CheckCheck} label="RTS" color="#16a34a" onClick={() => onStatus("ready_to_ship")} disabled={disabled} />
+      <InlineQuickBtn icon={X} label="Cancel" color="#dc2626" onClick={() => onStatus("cancelled")} disabled={disabled} />
+      <InlineQuickBtn icon={RefreshCw} label="Sync" color="#0284c7" onClick={onSyncCourier} disabled={disabled} />
+      <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 gap-1.5">
           <Zap className="h-3.5 w-3.5" />
-          <span className="font-semibold">Actions</span>
+          <span className="font-semibold">More</span>
           {selectedCount > 0 && (
             <span className="ml-0.5 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold tabular-nums">
               {selectedCount}
@@ -157,7 +162,8 @@ export function OrdersBulkActions({ selectedCount, totalCount, onSelectAll, onCl
           </Section>
         </div>
       </PopoverContent>
-    </Popover>
+      </Popover>
+    </div>
   );
 }
 
@@ -170,6 +176,24 @@ function Section({ label, hint, children }: { label: string; hint?: string; chil
       </div>
       <div className="space-y-0.5">{children}</div>
     </div>
+  );
+}
+
+function InlineQuickBtn({
+  icon: Icon, label, color, onClick, disabled,
+}: { icon: React.ElementType; label: string; color: string; onClick?: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? "Select orders first" : label}
+      className="hidden md:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md border bg-card text-[12px] font-semibold transition-all hover:shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ borderColor: `${color}40`, color }}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span>{label}</span>
+    </button>
   );
 }
 
