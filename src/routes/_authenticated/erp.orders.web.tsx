@@ -571,7 +571,7 @@ function _WebOrdersPageBody() {
         supabase
           .from("orders")
           .select(
-            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,status,web_status,total,advance_amount,call_attempt_count,call_status,brand_id,updated_at",
+            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,status,web_status,total,advance_amount,payment_method,call_attempt_count,call_status,brand_id,updated_at",
             { count: "exact" },
           ),
         brandIds,
@@ -908,12 +908,13 @@ function _WebOrdersPageBody() {
 
   const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key, page: 1 }), replace: true });
 
-  const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
+  const updateFilters = (patch: Partial<{ source: string; sort: SortKey; payment: string; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
     navigate({
       search: (prev: WebOrdersSearch) => ({
         ...prev,
         ...(patch.source !== undefined ? { source: patch.source } : {}),
         ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
+        ...(patch.payment !== undefined ? { payment: patch.payment } : {}),
         ...(patch.datePreset !== undefined ? { preset: patch.datePreset } : {}),
         ...(patch.dateFrom !== undefined ? { from: patch.dateFrom } : {}),
         ...(patch.dateTo !== undefined ? { to: patch.dateTo } : {}),
@@ -922,7 +923,7 @@ function _WebOrdersPageBody() {
     });
   };
   const clearAllFilters = () => navigate({
-    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
+    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", payment: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
     replace: true,
   });
 
@@ -1095,6 +1096,7 @@ function _WebOrdersPageBody() {
               dateFrom: search.from,
               dateTo: search.to,
               source: sourceFilter,
+              payment: paymentFilter,
               sort,
             }}
             onChange={(patch) => updateFilters(patch)}
