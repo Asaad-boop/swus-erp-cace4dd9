@@ -59,6 +59,7 @@ const searchSchema = z.object({
   q: fallback(z.string(), "").default(""),
   source: fallback(z.string(), "all").default("all"),
   sort: fallback(z.enum(["newest", "oldest", "highest", "lowest", "recent_note"]), "newest").default("newest"),
+  payment: fallback(z.string(), "all").default("all"),
   preset: fallback(z.enum(["all", "today", "yesterday", "7d", "30d", "custom"]), "all").default("all"),
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
@@ -114,6 +115,7 @@ type WebOrderRow = {
   web_status: WebStatus | null;
   total: number;
   advance_amount: number | null;
+  payment_method: string | null;
   call_attempt_count: number | null;
   call_status: string | null;
   brand_id: string | null;
@@ -484,6 +486,7 @@ function _WebOrdersPageBody() {
   const activeTab = search.tab;
   const sort = search.sort;
   const sourceFilter = search.source;
+  const paymentFilter = search.payment;
   const datePreset = search.preset;
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<Set<AutoTagKey>>(new Set());
@@ -555,7 +558,7 @@ function _WebOrdersPageBody() {
   // Paginated orders (page 1-indexed in URL)
   const page = search.page ?? 1;
   const pageSize = search.pageSize ?? DEFAULT_PAGE_SIZE; // 0 = All
-  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, paymentFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
 
   const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
@@ -568,7 +571,7 @@ function _WebOrdersPageBody() {
         supabase
           .from("orders")
           .select(
-            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,status,web_status,total,advance_amount,call_attempt_count,call_status,brand_id,updated_at",
+            "id,created_at,shipping_name,shipping_phone,shipping_address,shipping_city,shipping_district,guest_name,guest_phone,latest_note,customer_note,notes,tags,source_website,status,web_status,total,advance_amount,payment_method,call_attempt_count,call_status,brand_id,updated_at",
             { count: "exact" },
           ),
         brandIds,
@@ -584,6 +587,9 @@ function _WebOrdersPageBody() {
 
       if (activeTab !== "all") q = q.eq("web_status", activeTab);
       if (activeTab === "processing") q = q.eq("status", "new" as never);
+      if (paymentFilter && paymentFilter !== "all") {
+        q = q.eq("payment_method", paymentFilter as never);
+      }
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
         const esc = s.replace(/[,()]/g, " ");
@@ -898,16 +904,17 @@ function _WebOrdersPageBody() {
       navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: 1 }), replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to]);
+  }, [activeTab, debouncedSearch, sort, sourceFilter, paymentFilter, dateRange.from, dateRange.to]);
 
   const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key, page: 1 }), replace: true });
 
-  const updateFilters = (patch: Partial<{ source: string; sort: SortKey; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
+  const updateFilters = (patch: Partial<{ source: string; sort: SortKey; payment: string; datePreset: DatePreset; dateFrom: string | null; dateTo: string | null }>) => {
     navigate({
       search: (prev: WebOrdersSearch) => ({
         ...prev,
         ...(patch.source !== undefined ? { source: patch.source } : {}),
         ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
+        ...(patch.payment !== undefined ? { payment: patch.payment } : {}),
         ...(patch.datePreset !== undefined ? { preset: patch.datePreset } : {}),
         ...(patch.dateFrom !== undefined ? { from: patch.dateFrom } : {}),
         ...(patch.dateTo !== undefined ? { to: patch.dateTo } : {}),
@@ -916,7 +923,7 @@ function _WebOrdersPageBody() {
     });
   };
   const clearAllFilters = () => navigate({
-    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
+    search: (prev: WebOrdersSearch) => ({ ...prev, source: "all", payment: "all", sort: "newest" as const, preset: "all" as const, from: null, to: null }),
     replace: true,
   });
 
@@ -1089,6 +1096,7 @@ function _WebOrdersPageBody() {
               dateFrom: search.from,
               dateTo: search.to,
               source: sourceFilter,
+              payment: paymentFilter,
               sort,
             }}
             onChange={(patch) => updateFilters(patch)}
@@ -1338,6 +1346,11 @@ function _WebOrdersPageBody() {
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
                               <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
+                              {r.payment_method && r.payment_method !== "cod" && (
+                                <span className="mt-1 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-pink-500/10 text-pink-700 dark:text-pink-300 ring-1 ring-inset ring-pink-500/40">
+                                  📱 {r.payment_method}
+                                </span>
+                              )}
                             </button>
                           </PopoverTrigger>
                           <AllItemsPopover items={items} total={r.total} />
