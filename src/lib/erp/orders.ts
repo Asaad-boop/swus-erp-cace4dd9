@@ -175,6 +175,8 @@ export type OrderRow = {
   shipped_at: string | null;
   confirmed_at: string | null;
   paid_at?: string | null;
+  cancelled_at?: string | null;
+  updated_at?: string | null;
   items?: OrderItemMini[];
   actual_shipping_cost?: number | null;
 };
@@ -201,6 +203,66 @@ export function shortId(id: string) {
 /** Display invoice number, falling back to a short order id. */
 export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
   return o.invoice_no ?? shortId(o.id);
+}
+
+/**
+ * Best-available timestamp for "current status since".
+ * Uses status-specific timestamp when present, else updated_at, else created_at.
+ * NOTE: We intentionally do NOT query order_status_history here — that table
+ * exists but per-row fetches would be too expensive for the list view.
+ */
+export function statusSinceTs(o: {
+  status: string;
+  created_at: string;
+  updated_at?: string | null;
+  confirmed_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  paid_at?: string | null;
+  cancelled_at?: string | null;
+}): string {
+  switch (o.status) {
+    case "confirmed":
+      return o.confirmed_at ?? o.updated_at ?? o.created_at;
+    case "shipped":
+    case "in_transit":
+      return o.shipped_at ?? o.updated_at ?? o.created_at;
+    case "delivered":
+    case "partial_delivered":
+      return o.delivered_at ?? o.updated_at ?? o.created_at;
+    case "paid":
+    case "paid_return":
+    case "unpaid_return":
+      return o.paid_at ?? o.updated_at ?? o.created_at;
+    case "cancelled":
+      return o.cancelled_at ?? o.updated_at ?? o.created_at;
+    default:
+      return o.updated_at ?? o.created_at;
+  }
+}
+
+export type StatusAgeTone = "fresh" | "warn" | "stale";
+
+export function statusAge(sinceIso: string, nowMs: number = Date.now()): {
+  label: string;
+  tone: StatusAgeTone;
+  hours: number;
+} {
+  const then = new Date(sinceIso).getTime();
+  const diffMs = Math.max(0, nowMs - then);
+  const hours = diffMs / (1000 * 60 * 60);
+  const days = hours / 24;
+  let label: string;
+  if (hours < 1) {
+    const mins = Math.max(1, Math.round(diffMs / 60000));
+    label = `${mins} মিনিট`;
+  } else if (hours < 24) {
+    label = `${Math.round(hours)} ঘণ্টা`;
+  } else {
+    label = `${Math.floor(days)} দিন`;
+  }
+  const tone: StatusAgeTone = days < 1 ? "fresh" : days < 3 ? "warn" : "stale";
+  return { label, tone, hours };
 }
 
 export function exportOrdersCsv(orders: OrderRow[]): string {
