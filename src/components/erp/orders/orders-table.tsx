@@ -116,14 +116,14 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             <span
               title={printedAt ? `Printed ${format(new Date(printedAt), "dd/MM/yyyy h:mm a")}` : "Not printed yet"}
               className={cn(
-                "inline-flex items-center justify-center h-4 w-4 rounded",
+                "inline-flex items-center justify-center h-5 w-5 rounded-md ring-1 ring-inset shadow-sm",
                 printedAt
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-muted-foreground/40",
+                  ? "bg-emerald-500 text-white ring-emerald-600 dark:bg-emerald-500 dark:text-white dark:ring-emerald-400"
+                  : "bg-muted text-muted-foreground/70 ring-border",
               )}
               aria-label={printedAt ? "Printed" : "Not printed"}
             >
-              <Printer className="h-3 w-3" />
+              <Printer className="h-3.5 w-3.5" strokeWidth={2.75} />
             </span>
           </div>
         );
