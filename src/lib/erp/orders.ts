@@ -74,10 +74,10 @@ export const NEEDS_ATTENTION_STATUSES = Object.keys(
 ) as OrderStatus[];
 
 export function isNeedsAttention(
-  o: Parameters<typeof statusSinceTs>[0] & { status: OrderStatus },
+  o: Parameters<typeof statusSinceTs>[0],
   nowMs: number = Date.now(),
 ): boolean {
-  const th = NEEDS_ATTENTION_THRESHOLDS[o.status];
+  const th = NEEDS_ATTENTION_THRESHOLDS[o.status as OrderStatus];
   if (th == null) return false;
   const since = new Date(statusSinceTs(o)).getTime();
   return (nowMs - since) / (1000 * 60 * 60) > th;
