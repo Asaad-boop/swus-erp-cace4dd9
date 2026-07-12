@@ -1080,7 +1080,10 @@ function OrderDetailsPage() {
             </div>
             {!isWebOrder && (
               <>
-                <Button size="sm" variant="outline" className="h-8" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => {
+                  window.print();
+                  void import("@/lib/erp/mark-printed").then(({ markOrdersPrinted }) => markOrdersPrinted([order.id]));
+                }}><Printer className="h-3.5 w-3.5 mr-1" />Invoice</Button>
                 <Button size="sm" variant="outline" className="h-8" onClick={() => setBookOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Pathao</Button>
                 <Button size="sm" variant="outline" className="h-8" onClick={() => setBookSteadfastOpen(true)}><Truck className="h-3.5 w-3.5 mr-1" />Steadfast</Button>
               </>

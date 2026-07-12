@@ -9,6 +9,8 @@ import { Printer } from "lucide-react";
 import { PrintableInvoice } from "@/components/erp/orders/order-invoice";
 import { PickingListPrint } from "./picking-list-print";
 import { PickupManifestPrint } from "./pickup-manifest-print";
+import { markOrdersPrinted } from "@/lib/erp/mark-printed";
+import { useQueryClient } from "@tanstack/react-query";
 
 type OrderRow = {
   id: string;
@@ -54,6 +56,7 @@ export function BatchPrintDialog({
   }, [initialMode, open]);
 
   const chosen = orders.filter((o) => selected[o.id]);
+  const qc = useQueryClient();
 
   function toggle(id: string) {
     setSelected((s) => ({ ...s, [id]: !s[id] }));
@@ -66,6 +69,9 @@ export function BatchPrintDialog({
     // Render hidden .print-area then trigger window.print
     setTimeout(() => {
       window.print();
+      void markOrdersPrinted(chosen.map((o) => o.id)).then(() => {
+        qc.invalidateQueries({ queryKey: ["orders"] });
+      });
       onPrinted?.(chosen.length, mode);
     }, 50);
   }
