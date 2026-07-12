@@ -3,14 +3,13 @@ import { STATUS_TABS, type OrderStatus, type StatusTabKey } from "@/lib/erp/orde
 
 const TAB_DOT: Record<StatusTabKey, string> = {
   all:            "bg-foreground/60",
+  new:            "bg-slate-500",
   pending:        "bg-blue-500",
   packing:        "bg-purple-500",
-  rts:            "bg-cyan-500",
   shipped:        "bg-amber-500",
   in_transit:     "bg-amber-600",
   delivered:      "bg-emerald-500",
   partial:        "bg-emerald-400",
-  paid:           "bg-teal-500",
   pending_return: "bg-orange-500",
   returned:       "bg-red-500",
   exchange:       "bg-violet-500",

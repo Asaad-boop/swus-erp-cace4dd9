@@ -35,6 +35,39 @@ export type Database = {
         }
         Relationships: []
       }
+      _backup_status_migration_2026_07_12: {
+        Row: {
+          backed_up_at: string | null
+          id: string | null
+          old_paid_at: string | null
+          old_payment_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          old_status: string | null
+          old_updated_at: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          id?: string | null
+          old_paid_at?: string | null
+          old_payment_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          old_status?: string | null
+          old_updated_at?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          id?: string | null
+          old_paid_at?: string | null
+          old_payment_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          old_status?: string | null
+          old_updated_at?: string | null
+        }
+        Relationships: []
+      }
       _backup_step3_categorize: {
         Row: {
           amount: number | null

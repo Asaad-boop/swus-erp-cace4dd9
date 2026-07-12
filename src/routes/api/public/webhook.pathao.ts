@@ -126,16 +126,14 @@ async function processPathao(payload: any, expected: string): Promise<Response> 
           return Response.json({ ok: true, matched: true, action: "noop", raw: normalizeCourierStatus(rawStatus) });
         }
 
-        const { error: uErr } = await supabaseAdmin.from("orders").update({ status: mapped }).eq("id", orderId);
-        if (uErr) return Response.json({ ok: false, error: uErr.message });
-
-        await supabaseAdmin.from("order_status_history").insert({
-          order_id: orderId,
-          from_status: currentStatus,
-          to_status: mapped,
-          reason: "pathao_webhook",
-          note: `pathao: ${normalizeCourierStatus(rawStatus)}`,
+        // Route via RPC — mirrors cron path, writes order_status_history via the function itself.
+        const { error: uErr } = await supabaseAdmin.rpc("transition_order_status", {
+          _order_id: orderId,
+          _new_status: mapped as any,
+          _reason: "pathao_webhook",
+          _note: `pathao: ${normalizeCourierStatus(rawStatus)}`,
         });
+        if (uErr) return Response.json({ ok: false, error: uErr.message });
 
         return Response.json({ ok: true, matched: true, action: "updated", from: currentStatus, to: mapped });
 }
