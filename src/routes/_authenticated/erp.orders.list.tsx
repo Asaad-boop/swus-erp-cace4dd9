@@ -355,6 +355,19 @@ function OrdersPage() {
               <span className="text-muted-foreground">total</span>
               {isFetching && <span className="text-primary font-medium">· syncing</span>}
             </div>
+            {needsAttentionCount > 0 && (
+              <button
+                onClick={() => {
+                  setView("needs_attention");
+                  setFilter({ ...filter, statuses: [], page: 0 });
+                }}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-rose-300 bg-rose-50 text-rose-800 text-xs font-semibold hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60"
+                title="View orders past SLA threshold"
+              >
+                <span className="tabular-nums">{needsAttentionCount}</span>
+                <span>need attention</span>
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5">
