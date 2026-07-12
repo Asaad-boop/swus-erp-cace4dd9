@@ -59,6 +59,7 @@ const searchSchema = z.object({
   q: fallback(z.string(), "").default(""),
   source: fallback(z.string(), "all").default("all"),
   sort: fallback(z.enum(["newest", "oldest", "highest", "lowest", "recent_note"]), "newest").default("newest"),
+  payment: fallback(z.string(), "all").default("all"),
   preset: fallback(z.enum(["all", "today", "yesterday", "7d", "30d", "custom"]), "all").default("all"),
   from: fallback(z.string().nullable(), null).default(null),
   to: fallback(z.string().nullable(), null).default(null),
@@ -114,6 +115,7 @@ type WebOrderRow = {
   web_status: WebStatus | null;
   total: number;
   advance_amount: number | null;
+  payment_method: string | null;
   call_attempt_count: number | null;
   call_status: string | null;
   brand_id: string | null;
