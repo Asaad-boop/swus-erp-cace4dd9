@@ -34,10 +34,9 @@ export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderSt
 // Top-of-page tabs (reference layout). Each tab maps to one or more of our statuses.
 export type StatusTabKey =
   | "all" | "pending" | "packing" | "rts" | "shipped" | "in_transit" | "delivered"
-  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled" | "incomplete" | "needs_attention";
+  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled" | "incomplete";
 
 export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
-  { key: "needs_attention", label: "Needs Attention", statuses: [] },
   { key: "pending", label: "Pending", statuses: ["confirmed"] },
   { key: "packing", label: "Packing", statuses: ["ready_to_pack", "packed"] },
   { key: "rts", label: "RTS", statuses: ["ready_to_ship"] },
@@ -53,35 +52,6 @@ export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderSta
   { key: "cancelled", label: "Cancelled", statuses: ["cancelled"] },
   { key: "all", label: "All", statuses: [] },
 ];
-
-/**
- * SLA thresholds (hours) — an order in the given status for longer than this is
- * "needs attention". Single-condition, no warning/critical split.
- */
-export const NEEDS_ATTENTION_THRESHOLDS: Partial<Record<OrderStatus, number>> = {
-  confirmed: 24,
-  ready_to_pack: 24,
-  packed: 24,
-  ready_to_ship: 24,
-  shipped: 72,
-  in_transit: 72,
-  on_hold: 24,
-  pending_return: 48,
-};
-
-export const NEEDS_ATTENTION_STATUSES = Object.keys(
-  NEEDS_ATTENTION_THRESHOLDS,
-) as OrderStatus[];
-
-export function isNeedsAttention(
-  o: Parameters<typeof statusSinceTs>[0],
-  nowMs: number = Date.now(),
-): boolean {
-  const th = NEEDS_ATTENTION_THRESHOLDS[o.status as OrderStatus];
-  if (th == null) return false;
-  const since = new Date(statusSinceTs(o)).getTime();
-  return (nowMs - since) / (1000 * 60 * 60) > th;
-}
 
 export function tabForStatuses(statuses: OrderStatus[]): StatusTabKey {
   if (!statuses.length) return "all";
