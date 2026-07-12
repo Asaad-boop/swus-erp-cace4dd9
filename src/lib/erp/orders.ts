@@ -177,6 +177,8 @@ export type OrderRow = {
   paid_at?: string | null;
   cancelled_at?: string | null;
   updated_at?: string | null;
+  /** Set by useOrdersQuery from order_status_history (latest matching to_status). */
+  status_since?: string | null;
   items?: OrderItemMini[];
   actual_shipping_cost?: number | null;
 };
@@ -207,9 +209,14 @@ export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
 
 /**
  * Best-available timestamp for "current status since".
- * Uses status-specific timestamp when present, else updated_at, else created_at.
- * NOTE: We intentionally do NOT query order_status_history here — that table
- * exists but per-row fetches would be too expensive for the list view.
+ * Priority:
+ *   1. `status_since` — pre-hydrated by useOrdersQuery from order_status_history
+ *      (single batched query for the visible page; matches to_status = current status).
+ *   2. Status-specific timestamp column (confirmed_at, shipped_at, etc).
+ *   3. updated_at, then created_at.
+ * Fallback to updated_at is used only for the ~16% of orders with no history row
+ * (pre-history-table legacy orders). Never trust updated_at alone for fresh orders —
+ * it bumps on any field edit, hiding genuinely stuck rows.
  */
 export function statusSinceTs(o: {
   status: string;
@@ -220,7 +227,9 @@ export function statusSinceTs(o: {
   delivered_at?: string | null;
   paid_at?: string | null;
   cancelled_at?: string | null;
+  status_since?: string | null;
 }): string {
+  if (o.status_since) return o.status_since;
   switch (o.status) {
     case "confirmed":
       return o.confirmed_at ?? o.updated_at ?? o.created_at;
