@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { customerName, customerPhone, invoiceDisplay, settlementBadge, statusAccent, statusAge, statusBadge, statusSinceTs, STATUS_GROUPS, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { customerName, customerPhone, invoiceDisplay, reconcileBadge, settlementBadge, statusAccent, statusAge, statusBadge, statusSinceTs, STATUS_GROUPS, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
 import { useCustomerHistory, useCourierHistory, type CourierProviderStat } from "@/hooks/erp/use-orders-query";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -209,6 +209,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
         const b = statusBadge(row.original.status);
         const accent = statusAccent(row.original.status);
         const settle = settlementBadge(row.original);
+        const recon = reconcileBadge(row.original);
         const age = statusAge(statusSinceTs(row.original));
         const ageClass =
           age.tone === "fresh"
@@ -236,6 +237,18 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             {settle && (
               <span className={cn("inline-flex items-center h-5 px-2 rounded-full border text-[10px] font-bold tracking-wide uppercase", settle.className)}>
                 {settle.label}
+              </span>
+            )}
+            {recon && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 h-5 px-1.5 rounded-full border text-[10px] font-semibold whitespace-nowrap",
+                  recon.className,
+                )}
+                title={recon.tooltip}
+              >
+                <span aria-hidden>{recon.icon}</span>
+                COD {recon.label}
               </span>
             )}
           </div>
