@@ -21,7 +21,8 @@ import { PathaoBulkUploadDialog } from "@/components/erp/orders/pathao-bulk-uplo
 import { BulkPrintDialog, type PrintMode } from "@/components/erp/orders/bulk-print-dialog";
 import { CourierStatusSyncDialog } from "@/components/erp/orders/courier-status-sync-dialog";
 import { PhoneHistorySyncDialog } from "@/components/erp/orders/phone-history-sync-dialog";
-import { downloadCsv, exportOrdersCsv, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { downloadCsv, exportOrdersCsv, statusAge, statusSinceTs, tabForStatuses, type OrderRow, type OrderStatus } from "@/lib/erp/orders";
+import { AlertTriangle, RefreshCcw } from "lucide-react";
 
 const WEB_ORDER_SOURCE_FILTER = "source.not.in.(website,pixel,utm)";
 
@@ -157,6 +158,19 @@ function OrdersPage() {
   }, [idsKey, qc]);
 
   const courierFilterActive = courierStatusFilter !== "all";
+
+  // Proactive nudge: stuck orders (3+ days in current status) on this page
+  const stuckIds = useMemo(() => {
+    const out: string[] = [];
+    for (const r of visibleRows) {
+      const age = statusAge(statusSinceTs(r));
+      if (age.tone === "stale") out.push(r.id);
+    }
+    return out;
+  }, [visibleRows]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  useEffect(() => { setNudgeDismissed(false); }, [filter.page, filter.statuses.join(",")]);
+
   const courierCounts = useMemo(() => {
     const counts: Partial<Record<CourierBucket, number>> = {};
     for (const r of rows) {
@@ -423,6 +437,39 @@ function OrdersPage() {
           </>
         ) : (
           <>
+          {stuckIds.length > 0 && !nudgeDismissed && (
+            <div className="flex items-center gap-2 px-3 py-2 border-b bg-amber-500/10 text-[12px]">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span className="font-medium text-foreground/90">
+                <span className="tabular-nums font-bold">{stuckIds.length}</span> order{stuckIds.length > 1 ? "s" : ""} stuck 3+ days in current status
+              </span>
+              <span className="text-muted-foreground hidden sm:inline">— bulk sync courier status?</span>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 text-[11px]"
+                onClick={() => setSelectedIds(new Set(stuckIds))}
+              >
+                Select {stuckIds.length}
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 gap-1.5 text-[11px]"
+                onClick={() => { setSelectedIds(new Set(stuckIds)); setSyncOpen(true); }}
+              >
+                <RefreshCcw className="h-3 w-3" /> Sync all
+              </Button>
+              <button
+                type="button"
+                onClick={() => setNudgeDismissed(true)}
+                className="ml-1 h-6 w-6 grid place-items-center rounded hover:bg-muted text-muted-foreground"
+                title="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <OrdersToolbar
           filter={effective}
           onChange={setFilter}
