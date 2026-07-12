@@ -68,7 +68,35 @@ export function useOrdersQuery(filter: OrdersFilter) {
 
       const { data, error, count } = await q;
       if (error) throw error;
-      return { rows: (data ?? []) as OrderRow[], total: count ?? 0 };
+      const rows = (data ?? []) as OrderRow[];
+
+      // Attach `status_since` from order_status_history in ONE query for the whole page.
+      // Prefer the latest history row whose to_status matches the current order.status
+      // (guards against direct .update() writes that skipped the transition RPC).
+      if (rows.length > 0) {
+        const ids = rows.map((r) => r.id);
+        const { data: hist } = await supabase
+          .from("order_status_history")
+          .select("order_id,to_status,created_at")
+          .in("order_id", ids)
+          .order("created_at", { ascending: false });
+        if (hist && hist.length > 0) {
+          const latestMatch = new Map<string, string>();
+          const statusById = new Map(rows.map((r) => [r.id, r.status]));
+          for (const h of hist as { order_id: string; to_status: string; created_at: string }[]) {
+            if (latestMatch.has(h.order_id)) continue;
+            if (h.to_status === statusById.get(h.order_id)) {
+              latestMatch.set(h.order_id, h.created_at);
+            }
+          }
+          for (const r of rows) {
+            const ts = latestMatch.get(r.id);
+            if (ts) (r as OrderRow & { status_since?: string }).status_since = ts;
+          }
+        }
+      }
+
+      return { rows, total: count ?? 0 };
     },
   });
 }
