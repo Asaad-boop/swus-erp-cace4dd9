@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
@@ -6,7 +6,7 @@ import { customerName, customerPhone, invoiceDisplay } from "@/lib/erp/orders";
 import { useBrand } from "@/contexts/brand-context";
 import { useInvoiceConfig } from "@/hooks/erp/use-invoice-config";
 import {
-  DEFAULT_INVOICE_CONFIG, FONT_FAMILY_MAP, FONT_SIZE_MAP, amountInWords, formatMoney, pageCss,
+  DEFAULT_INVOICE_CONFIG, FONT_FAMILY_MAP, FONT_SIZE_MAP, MARGIN_MAP, amountInWords, formatMoney, pageCss,
   type InvoiceConfig,
 } from "@/lib/erp/invoice-config";
 
@@ -46,6 +46,48 @@ export function PrintableInvoice({
 
   const isPos = cfg.paper === "80mm" || cfg.paper === "58mm";
   const themeKey = isPos ? "pos" : cfg.theme;
+
+  // Auto-fit: shrink content with transform-scale at print time so any invoice
+  // fits on exactly ONE page regardless of length. POS/roll paper is auto-height
+  // so we skip scaling there.
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (isPos) return;
+    const PAPER_H_MM: Record<string, number> = { A4: 297, A5: 210 };
+    const PAPER_W_MM: Record<string, number> = { A4: 210, A5: 148 };
+    const landscape = cfg.orientation === "landscape";
+    const paperH = landscape ? (PAPER_W_MM[cfg.paper] ?? 210) : (PAPER_H_MM[cfg.paper] ?? 297);
+    const marginMm = parseFloat(MARGIN_MAP[cfg.margin]);
+    const availMm = paperH - 2 * marginMm;
+    const availPx = availMm * (96 / 25.4);
+
+    const fit = () => {
+      const el = innerRef.current;
+      if (!el) return;
+      el.style.transform = "";
+      el.style.width = "";
+      // measure natural height
+      const h = el.scrollHeight;
+      if (h > availPx + 1) {
+        const scale = Math.max(0.4, availPx / h);
+        el.style.transformOrigin = "top left";
+        el.style.transform = `scale(${scale})`;
+        el.style.width = `${100 / scale}%`;
+      }
+    };
+    const reset = () => {
+      const el = innerRef.current;
+      if (!el) return;
+      el.style.transform = "";
+      el.style.width = "";
+    };
+    window.addEventListener("beforeprint", fit);
+    window.addEventListener("afterprint", reset);
+    return () => {
+      window.removeEventListener("beforeprint", fit);
+      window.removeEventListener("afterprint", reset);
+    };
+  }, [cfg, isPos, order, items]);
 
   // QR
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
@@ -103,6 +145,7 @@ export function PrintableInvoice({
         .invoice-page:last-child { page-break-after: auto; break-after: auto; }
       }`}</style>
       <div style={containerStyle} className="relative invoice-inner">
+        <span ref={innerRef as any} style={{ display: "contents" }} />
         {cfg.header.showWatermark && !isPos && (
           <div
             aria-hidden
