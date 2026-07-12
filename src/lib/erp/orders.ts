@@ -3,49 +3,48 @@ import type { Database } from "@/integrations/supabase/types";
 export type OrderStatus = Database["public"]["Enums"]["order_status"];
 export type ConfirmationStatus = Database["public"]["Enums"]["confirmation_status"];
 
-// Pipeline order: Fulfillment → Return → Exchange → Finance → Closing
+// Canonical 16-value pipeline: New → Fulfillment → Return → Exchange → Closing.
+// Finance state (Paid/Unpaid) now lives on `orders.payment_status`, not `orders.status`.
 export const ORDER_STATUSES: OrderStatus[] = [
+  "new",
   // Fulfillment
-  "confirmed", "ready_to_pack", "packed", "ready_to_ship",
-  "shipped", "in_transit", "delivered", "partial_delivered",
+  "confirmed", "packed", "shipped", "in_transit",
+  "delivered", "partial_delivered", "completed",
   // Return
-  "pending_return", "returned", "partial_return",
+  "pending_return", "return_in_transit", "returned", "partial_return",
   // Exchange
   "exchange", "exchanged",
-  // Finance
-  "paid", "paid_return", "unpaid_return",
   // Closing
   "on_hold", "cancelled",
 ];
 
-export type StatusGroup = "fulfillment" | "return" | "exchange" | "finance" | "closing";
+export type StatusGroup = "intake" | "fulfillment" | "return" | "exchange" | "closing";
 
 export const STATUS_GROUPS: { key: StatusGroup; label: string; statuses: OrderStatus[] }[] = [
+  { key: "intake", label: "New", statuses: ["new"] },
   {
     key: "fulfillment", label: "Fulfillment",
-    statuses: ["confirmed", "ready_to_pack", "packed", "ready_to_ship", "shipped", "in_transit", "delivered", "partial_delivered"],
+    statuses: ["confirmed", "packed", "shipped", "in_transit", "delivered", "partial_delivered", "completed"],
   },
-  { key: "return", label: "Return", statuses: ["pending_return", "returned", "partial_return"] },
+  { key: "return", label: "Return", statuses: ["pending_return", "return_in_transit", "returned", "partial_return"] },
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
-  { key: "finance", label: "Finance", statuses: ["paid", "paid_return", "unpaid_return"] },
   { key: "closing", label: "Closing", statuses: ["on_hold", "cancelled"] },
 ];
 
 // Top-of-page tabs (reference layout). Each tab maps to one or more of our statuses.
 export type StatusTabKey =
-  | "all" | "pending" | "packing" | "rts" | "shipped" | "in_transit" | "delivered"
-  | "partial" | "paid" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled" | "incomplete";
+  | "all" | "new" | "pending" | "packing" | "shipped" | "in_transit" | "delivered"
+  | "partial" | "pending_return" | "returned" | "exchange" | "on_hold" | "cancelled" | "incomplete";
 
 export const STATUS_TABS: { key: StatusTabKey; label: string; statuses: OrderStatus[] }[] = [
+  { key: "new", label: "New", statuses: ["new"] },
   { key: "pending", label: "Pending", statuses: ["confirmed"] },
-  { key: "packing", label: "Packing", statuses: ["ready_to_pack", "packed"] },
-  { key: "rts", label: "RTS", statuses: ["ready_to_ship"] },
+  { key: "packing", label: "Packing", statuses: ["packed"] },
   { key: "shipped", label: "Shipped", statuses: ["shipped"] },
   { key: "in_transit", label: "In Transit", statuses: ["in_transit"] },
-  { key: "delivered", label: "Delivered", statuses: ["delivered"] },
+  { key: "delivered", label: "Delivered", statuses: ["delivered", "completed"] },
   { key: "partial", label: "Partial", statuses: ["partial_delivered", "partial_return"] },
-  { key: "paid", label: "Paid", statuses: ["paid"] },
-  { key: "pending_return", label: "Pending Return", statuses: ["pending_return"] },
+  { key: "pending_return", label: "Pending Return", statuses: ["pending_return", "return_in_transit"] },
   { key: "returned", label: "Returned", statuses: ["returned"] },
   { key: "exchange", label: "Exchange", statuses: ["exchange", "exchanged"] },
   { key: "on_hold", label: "On Hold", statuses: ["on_hold"] },
@@ -71,8 +70,10 @@ export const STATUS_BADGE: Record<string, { label: string; className: string }> 
   in_transit: { label: "In Transit", className: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300" },
   delivered: { label: "Delivered", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
   partial_delivered: { label: "Partial Delivery", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
-  // Finance — courier paid out COD
-  paid: { label: "Paid", className: "bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-200" },
+  // Legacy fulfillment status kept as fallback (migrated to delivered — badge retained for older history rows)
+  paid: { label: "Delivered", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
+  completed: { label: "Completed", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200" },
+  return_in_transit: { label: "Return In Transit", className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300" },
   // Return
   pending_return: { label: "Return In Transit", className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300" },
   returned: { label: "Returned", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
@@ -113,9 +114,11 @@ export function statusAccent(s: string) { return STATUS_ACCENT[s] ?? "#a1a1aa"; 
  * Settlement = post-delivery financial state. Once an order reaches
  * delivered / returned / exchanged (any partial variant included), it
  * must show Paid or Unpaid consistently across list & detail pages.
+ * Note: 'paid' / 'paid_return' / 'unpaid_return' kept here so older
+ * history rows (pre-migration) still render a settlement badge.
  */
 export const SETTLEMENT_STATUSES = new Set<string>([
-  "delivered", "partial_delivered",
+  "delivered", "partial_delivered", "completed",
   "returned", "partial_return",
   "exchange", "exchanged",
   "paid", "paid_return", "unpaid_return",
@@ -125,8 +128,10 @@ export function isSettlementStatus(status: string | null | undefined): boolean {
   return !!status && SETTLEMENT_STATUSES.has(status);
 }
 
-export function isOrderPaid(o: { status?: string | null; paid_at?: string | null }): boolean {
+export function isOrderPaid(o: { status?: string | null; paid_at?: string | null; payment_status?: string | null }): boolean {
   if (!o) return false;
+  if (o.payment_status === "paid") return true;
+  // Legacy fallback for un-migrated / historical rows.
   if (o.status === "paid" || o.status === "paid_return") return true;
   return !!o.paid_at;
 }
@@ -218,7 +223,7 @@ export function invoiceDisplay(o: { invoice_no: string | null; id: string }) {
  * Display only — no writes. Only render for delivered/partial_delivered/paid.
  */
 export const RECONCILE_BADGE_STATUSES = new Set<string>([
-  "delivered", "partial_delivered", "paid",
+  "delivered", "partial_delivered", "completed",
 ]);
 
 export type ReconcileTone = "matched" | "review" | "pending";
