@@ -1528,6 +1528,113 @@ function OrderDetailsPage() {
             </div>
           </section>
 
+          {/* Payment Verification — customer-provided txn / number */}
+          {(() => {
+            const pm = (order.payment_method ?? "").toLowerCase();
+            const hasAdvance = Number(order.advance_amount ?? 0) > 0
+              || !!order.advance_payment_number
+              || !!order.advance_txn_id
+              || !!(order as { transaction_id?: string | null }).transaction_id;
+            const isDigitalPay = pm && !pm.includes("cod") && pm !== "cash";
+            if (!hasAdvance && !isDigitalPay) return null;
+            const verified = !!order.verified_at;
+            const txnId = order.advance_txn_id
+              ?? (order as { transaction_id?: string | null }).transaction_id
+              ?? null;
+            const payNumber = order.advance_payment_number ?? null;
+            const method = order.payment_method ?? "—";
+            return (
+              <section className={cn(
+                "rounded-2xl border shadow-sm overflow-hidden",
+                verified
+                  ? "border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20"
+                  : "border-pink-200 dark:border-pink-900/50 bg-pink-50/40 dark:bg-pink-950/20"
+              )}>
+                <header className="px-5 py-3 border-b border-gray-100 dark:border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {verified
+                      ? <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                      : <ShieldAlert className="h-4 w-4 text-pink-600" />}
+                    <h3 className="text-[13px] font-semibold">
+                      Payment Verification
+                    </h3>
+                  </div>
+                  <Badge className={cn(
+                    "text-[10px] font-bold uppercase",
+                    verified
+                      ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+                      : "bg-pink-600 hover:bg-pink-600 text-white"
+                  )}>
+                    {verified ? "Verified" : "Pending"}
+                  </Badge>
+                </header>
+                <div className="p-4 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Method</span>
+                    <Badge variant="outline" className="capitalize">{method}</Badge>
+                  </div>
+                  {Number(order.advance_amount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Amount</span>
+                      <span className="font-semibold tabular-nums">৳{bdtCompact(Number(order.advance_amount))}</span>
+                    </div>
+                  )}
+                  {payNumber && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500">Sender Number</span>
+                      <CopyChip value={String(payNumber)}>
+                        <span className="font-mono font-semibold">{payNumber}</span>
+                      </CopyChip>
+                    </div>
+                  )}
+                  {txnId && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500">Transaction ID</span>
+                      <CopyChip value={String(txnId)}>
+                        <span className="font-mono font-semibold">{txnId}</span>
+                      </CopyChip>
+                    </div>
+                  )}
+                  {!payNumber && !txnId && (
+                    <div className="text-[11px] text-gray-500 italic">
+                      Customer এখনো txn ID / sender number দেয়নি।
+                    </div>
+                  )}
+                  {verified && order.verified_at && (
+                    <div className="text-[11px] text-emerald-700 dark:text-emerald-400 pt-1">
+                      ✓ Verified {formatDistanceToNow(new Date(order.verified_at), { addSuffix: true })}
+                    </div>
+                  )}
+                  <div className="pt-2 flex gap-2">
+                    {verified ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 flex-1"
+                        disabled={verifyPayment.isPending}
+                        onClick={() => verifyPayment.mutate(false)}
+                      >
+                        <Undo2 className="h-3.5 w-3.5 mr-1" />Unverify
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="h-8 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={verifyPayment.isPending}
+                        onClick={() => verifyPayment.mutate(true)}
+                      >
+                        {verifyPayment.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                        Mark Verified
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
+
           {/* Shipment tracking — hidden on Web Order (pre-confirmation) */}
           {!isWebOrder && (
             <ShipmentPanel
