@@ -1,4 +1,4 @@
-import { ArrowUpDown, Globe } from "lucide-react";
+import { ArrowUpDown, Globe, Wallet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { DateRangePicker, buildPreset, type MktRangeValue } from "@/components/erp/marketing/date-range-picker";
@@ -23,12 +23,21 @@ const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "other", label: "🌐 Other" },
 ];
 
+const PAYMENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "All Payments" },
+  { value: "cod", label: "💵 COD" },
+  { value: "bkash", label: "📱 bKash" },
+  { value: "nagad", label: "📱 Nagad" },
+  { value: "rocket", label: "📱 Rocket" },
+];
+
 export type FilterState = {
   datePreset: DatePreset;
   dateFrom: string | null;
   dateTo: string | null;
   source: string;
   sort: SortKey;
+  payment: string;
 };
 
 export function computeDateRange(preset: DatePreset, customFrom: string | null, customTo: string | null) {
@@ -104,6 +113,22 @@ export function WebOrdersFilterBar({ state, onChange, onClearAll: _onClearAll }:
         </SelectTrigger>
         <SelectContent>
           {SOURCE_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Payment method */}
+      <Select value={state.payment} onValueChange={(v) => onChange({ payment: v })}>
+        <SelectTrigger className={cn(
+          "h-7 w-[140px] rounded-full border-transparent bg-transparent text-[12px] gap-1.5 shadow-none hover:bg-background focus:ring-0 focus:ring-offset-0",
+          state.payment !== "all" && "bg-background ring-1 ring-inset ring-border/60",
+        )}>
+          <Wallet className="h-3.5 w-3.5 opacity-60" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {PAYMENT_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
           ))}
         </SelectContent>
