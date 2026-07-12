@@ -558,7 +558,7 @@ function _WebOrdersPageBody() {
   // Paginated orders (page 1-indexed in URL)
   const page = search.page ?? 1;
   const pageSize = search.pageSize ?? DEFAULT_PAGE_SIZE; // 0 = All
-  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
+  const ordersQueryKey = ["web-orders-page", brandsKey, activeTab, debouncedSearch, sort, sourceFilter, paymentFilter, dateRange.from, dateRange.to, sourceOrderIds?.join(",") ?? "", page, pageSize] as const;
 
   const ordersQuery = useQuery({
     queryKey: ordersQueryKey,
@@ -904,7 +904,7 @@ function _WebOrdersPageBody() {
       navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, page: 1 }), replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedSearch, sort, sourceFilter, dateRange.from, dateRange.to]);
+  }, [activeTab, debouncedSearch, sort, sourceFilter, paymentFilter, dateRange.from, dateRange.to]);
 
   const setActiveTab = (key: WebStatus | "all") => navigate({ search: (prev: WebOrdersSearch) => ({ ...prev, tab: key, page: 1 }), replace: true });
 
@@ -1346,6 +1346,11 @@ function _WebOrdersPageBody() {
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
                               <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
+                              {r.payment_method && r.payment_method !== "cod" && (
+                                <span className="mt-1 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-pink-500/10 text-pink-700 dark:text-pink-300 ring-1 ring-inset ring-pink-500/40">
+                                  📱 {r.payment_method}
+                                </span>
+                              )}
                             </button>
                           </PopoverTrigger>
                           <AllItemsPopover items={items} total={r.total} />
