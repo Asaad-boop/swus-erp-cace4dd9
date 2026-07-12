@@ -198,6 +198,85 @@ export type CustomerHistoryOrder = {
   total: number;
 };
 
+/**
+ * Returns the id set of orders that have exceeded the per-status SLA threshold
+ * defined in NEEDS_ATTENTION_THRESHOLDS. Uses status_since from order_status_history
+ * (batched, single query), falling back to per-status timestamp columns for the
+ * ~16% of legacy orders without a history row.
+ */
+export function useNeedsAttentionIds(filter: OrdersFilter) {
+  const brandIds = filter.brandIds && filter.brandIds.length > 0
+    ? filter.brandIds
+    : filter.brandId
+      ? [filter.brandId]
+      : [];
+  return useQuery({
+    queryKey: ["orders-needs-attention", brandIds, filter.search, filter.source, filter.courier, filter.dateFrom, filter.dateTo],
+    enabled: brandIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      let q = applyBrandScope(
+        supabase
+          .from("orders")
+          .select("id,status,updated_at,created_at,confirmed_at,shipped_at,delivered_at,paid_at,cancelled_at,source,web_status"),
+        brandIds,
+      )
+        .in("status", NEEDS_ATTENTION_STATUSES)
+        .or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`)
+        .limit(5000);
+
+      if (filter.source) q = q.eq("source", filter.source as never);
+      if (filter.courier) q = q.eq("courier_name", filter.courier);
+      if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);
+      if (filter.dateTo) q = q.lte("created_at", filter.dateTo);
+      if (filter.search.trim()) {
+        const s = filter.search.trim();
+        q = q.or(
+          `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,tracking_number.ilike.%${s}%`,
+        );
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      type Cand = {
+        id: string; status: OrderStatus;
+        updated_at: string | null; created_at: string;
+        confirmed_at: string | null; shipped_at: string | null;
+        delivered_at: string | null; paid_at: string | null; cancelled_at: string | null;
+        status_since?: string;
+      };
+      const candidates = (data ?? []) as Cand[];
+
+      if (candidates.length > 0) {
+        const ids = candidates.map((c) => c.id);
+        const { data: hist } = await supabase
+          .from("order_status_history")
+          .select("order_id,to_status,created_at")
+          .in("order_id", ids)
+          .order("created_at", { ascending: false });
+        if (hist && hist.length > 0) {
+          const latestMatch = new Map<string, string>();
+          const statusById = new Map(candidates.map((r) => [r.id, r.status as string]));
+          for (const h of hist as { order_id: string; to_status: string; created_at: string }[]) {
+            if (latestMatch.has(h.order_id)) continue;
+            if (h.to_status === statusById.get(h.order_id)) {
+              latestMatch.set(h.order_id, h.created_at);
+            }
+          }
+          for (const c of candidates) {
+            const ts = latestMatch.get(c.id);
+            if (ts) c.status_since = ts;
+          }
+        }
+      }
+
+      const now = Date.now();
+      const flagged = candidates.filter((c) => isNeedsAttention(c, now));
+      return { ids: flagged.map((r) => r.id), count: flagged.length };
+    },
+  });
+}
+
 export function useCustomerHistory(phone: string | null, brandId: string | null, enabled: boolean) {
   const norm = (phone ?? "").replace(/[^0-9]/g, "").slice(-11);
   return useQuery({
