@@ -102,6 +102,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
       header: "Invoice",
       cell: ({ row }) => {
         const inv = invoiceDisplay(row.original);
+        const printedAt = row.original.printed_at;
         return (
           <div className="flex items-center gap-1 whitespace-nowrap">
             <span className="font-mono text-xs font-semibold">{inv}</span>
@@ -112,6 +113,18 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
             >
               <Copy className="h-3 w-3" />
             </button>
+            <span
+              title={printedAt ? `Printed ${format(new Date(printedAt), "dd/MM/yyyy h:mm a")}` : "Not printed yet"}
+              className={cn(
+                "inline-flex items-center justify-center h-4 w-4 rounded",
+                printedAt
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground/40",
+              )}
+              aria-label={printedAt ? "Printed" : "Not printed"}
+            >
+              <Printer className="h-3 w-3" />
+            </span>
           </div>
         );
       },
