@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { OrderRow, OrderStatus } from "@/lib/erp/orders";
-import { NEEDS_ATTENTION_STATUSES, isNeedsAttention, statusSinceTs } from "@/lib/erp/orders";
+import { statusSinceTs } from "@/lib/erp/orders";
 import { fetchCourierHistoryFn } from "@/lib/erp/courier-history.functions";
 import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 
