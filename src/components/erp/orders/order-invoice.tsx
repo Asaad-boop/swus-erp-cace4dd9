@@ -64,22 +64,20 @@ export function PrintableInvoice({
     const fit = () => {
       const el = innerRef.current;
       if (!el) return;
-      el.style.transform = "";
-      el.style.width = "";
+      (el.style as any).zoom = "";
       // measure natural height
       const h = el.scrollHeight;
       if (h > availPx + 1) {
         const scale = Math.max(0.4, availPx / h);
-        el.style.transformOrigin = "top left";
-        el.style.transform = `scale(${scale})`;
-        el.style.width = `${100 / scale}%`;
+        // `zoom` affects layout (unlike transform:scale) so the print page-box
+        // actually shrinks and content fits on one A4/A5 page.
+        (el.style as any).zoom = String(scale);
       }
     };
     const reset = () => {
       const el = innerRef.current;
       if (!el) return;
-      el.style.transform = "";
-      el.style.width = "";
+      (el.style as any).zoom = "";
     };
     window.addEventListener("beforeprint", fit);
     window.addEventListener("afterprint", reset);
