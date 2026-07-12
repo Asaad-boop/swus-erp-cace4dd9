@@ -761,6 +761,23 @@ function OrderDetailsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const verifyPayment = useMutation({
+    mutationFn: async (verify: boolean) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ verified_at: verify ? new Date().toISOString() : null })
+        .eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, verify) => {
+      toast.success(verify ? "Payment verified" : "Verification cleared");
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["web-orders"] });
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const confirmOrder = useMutation({
     mutationFn: async () => {
       const advanceError = getAdvanceValidationError();
