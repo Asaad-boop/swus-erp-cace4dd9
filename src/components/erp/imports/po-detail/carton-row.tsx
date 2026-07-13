@@ -265,20 +265,36 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
   const productCost = Number(carton.supplier_cost_bdt || 0);
   const shipCost = Number(carton.shipping_charge_bdt || 0);
   const courierCost = Number(courierBdt || 0);
-  const totalLanded = productCost + shipCost + courierCost;
-  const perPieceTotal = totalExpected > 0 ? totalLanded / totalExpected : 0;
+  const actualUnitsForCost = (carton.items ?? []).reduce((s: number, it: any) => {
+    const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+    const counted = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
+    return s + Math.max(counted, Number(it.quantity_expected || 0));
+  }, 0);
+  const poAllocatedExtras = (carton.items ?? []).reduce((s: number, it: any) => {
+    const pi: any = piMap.get(it.po_item_id);
+    const landed = Number(pi?.landed_cost_bdt ?? 0);
+    const base = Number(pi?.unit_cost_bdt ?? 0);
+    if (landed <= base) return s;
+    const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+    const counted = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
+    return s + (landed - base) * Math.max(counted, Number(it.quantity_expected || 0));
+  }, 0);
+  const totalLanded = productCost + shipCost + courierCost + poAllocatedExtras;
+  const perPieceTotal = actualUnitsForCost > 0 ? totalLanded / actualUnitsForCost : 0;
   const lossCount = totalDamaged + totalMissing;
   const finalInventoryCost = totalLanded;
   const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
   const lossValue = lossCount * perPieceTotal;
 
-  // Per-item landed unit cost (uses each product's own unit cost, not carton average)
-  const extrasPerPiece = totalExpected > 0 ? (shipCost + courierCost) / totalExpected : 0;
-  const itemUnitCost = (cartonItem: any): number => {
+  // Per-item landed unit cost (uses each product's own unit cost, then adds carton shipping/courier)
+  const shipCourierPerPiece = actualUnitsForCost > 0 ? (shipCost + courierCost) / actualUnitsForCost : 0;
+  const rawItemUnitCost = (cartonItem: any): number => {
     const pi: any = piMap.get(cartonItem.po_item_id);
-    // Prefer PO-level landed (includes ship+commission at PO scope), else fall back
-    const base = Number(pi?.landed_cost_bdt ?? pi?.unit_cost_bdt ?? 0);
-    if (base > 0) return base + Number(courierCost || 0) / Math.max(totalOk || totalExpected, 1);
+    // Prefer saved PO-level landed cost when available; otherwise use this item's own product unit cost.
+    const savedLanded = Number(pi?.landed_cost_bdt ?? 0);
+    if (savedLanded > 0) return savedLanded + shipCourierPerPiece;
+    const base = Number(pi?.unit_cost_bdt ?? 0);
+    if (base > 0) return base + shipCourierPerPiece;
     // Last resort: split carton product cost proportionally by unit_cost_cny share
     const unitCny = Number(pi?.unit_cost_cny ?? pi?.unit_cost_foreign ?? 0);
     const totalCnyValue = (carton.items ?? []).reduce((s: number, x: any) => {
@@ -289,8 +305,14 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
       ? (unitCny * Number(cartonItem.quantity_expected || 0) / totalCnyValue) * productCost
       : 0;
     const qty = Number(cartonItem.quantity_expected || 0);
-    return (qty > 0 ? productShare / qty : 0) + extrasPerPiece;
+    return (qty > 0 ? productShare / qty : 0) + shipCourierPerPiece;
   };
+  const preOkCost = (carton.items ?? []).reduce((s: number, it: any) => {
+    const r = rows[it.id] ?? { ok: 0 };
+    return s + Number(r.ok || 0) * rawItemUnitCost(it);
+  }, 0);
+  const costFactor = preOkCost > 0 ? finalInventoryCost / preOkCost : 1;
+  const itemUnitCost = (cartonItem: any): number => rawItemUnitCost(cartonItem) * costFactor;
 
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
@@ -339,7 +361,7 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
           <Mini label="Shipping (CN→BD)" value={fmtBdt(shipCost)} />
           <Mini label="Local courier" value={fmtBdt(courierCost)} />
           <Mini label="Total landed" value={fmtBdt(totalLanded)} />
-          <Mini label={`Per piece (${totalExpected})`} value={fmtBdt(perPieceTotal)} valueClass="text-primary" />
+          <Mini label={`Per piece (${actualUnitsForCost || totalExpected})`} value={fmtBdt(perPieceTotal)} valueClass="text-primary" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-xs">
           <Mini label="OK pieces" value={String(totalOk)} />
