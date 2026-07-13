@@ -1346,7 +1346,7 @@ function _WebOrdersPageBody() {
                                 {items.length} {items.length === 1 ? "item" : "items"} · {totalQty} qty
                               </div>
                               <AdvanceBadge advance={r.advance_amount} total={r.total} variant="full" className="mt-1 items-start" />
-                              {r.payment_method && r.payment_method !== "cod" && (
+                              {r.payment_method && r.payment_method.toLowerCase() !== "cod" && (
                                 <span className="mt-1 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-pink-500/10 text-pink-700 dark:text-pink-300 ring-1 ring-inset ring-pink-500/40">
                                   📱 {r.payment_method}
                                 </span>
