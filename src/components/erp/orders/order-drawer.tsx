@@ -17,6 +17,7 @@ import { useOrderDetail, useStaffList } from "@/hooks/erp/use-orders-query";
 import { useOrderLock } from "@/hooks/erp/use-order-lock";
 import { STATUS_GROUPS, STATUS_BADGE, customerName, customerPhone, invoiceDisplay, statusBadge, type OrderStatus } from "@/lib/erp/orders";
 import { setOrderActualShippingCostFn } from "@/lib/erp/courier-sync.functions";
+import { confirmOrderAdvanceReceivedFn } from "@/lib/erp/finance/advance.functions";
 
 type Props = { orderId: string | null; onClose: () => void; mode?: "web" | "fulfillment" };
 
@@ -115,6 +116,16 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
   const [customerEditing, setCustomerEditing] = useState(false);
   const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(EMPTY_CUSTOMER_DRAFT);
   const setFeeFn = useServerFn(setOrderActualShippingCostFn);
+  const confirmAdvanceFn = useServerFn(confirmOrderAdvanceReceivedFn);
+  const confirmAdvance = useMutation({
+    mutationFn: () => confirmAdvanceFn({ data: { orderId: orderId! } }),
+    onSuccess: (r) => {
+      toast.success(r.alreadyRecorded ? "Already recorded in accounts" : "Advance recorded in accounts ✓");
+      qc.invalidateQueries({ queryKey: ["order-detail", orderId] });
+      qc.invalidateQueries({ queryKey: ["finance"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const order = data?.order;
   const items = data?.items ?? [];
@@ -573,6 +584,21 @@ export function OrderDrawer({ orderId, onClose, mode = "fulfillment" }: Props) {
                             <span><b className="text-foreground">Source:</b> {advanceSource || "—"}</span>
                             <span><b className="text-foreground">Number:</b> {advancePaymentNumber || "—"}</span>
                             <span><b className="text-foreground">Txn ID:</b> {advanceTxnId || "—"}</span>
+                          </div>
+                          <div className="pt-1.5 border-t flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] text-muted-foreground">
+                              {advancePaymentNumber
+                                ? "Payment number diyecho — accounts e record koro."
+                                : "Payment number ID pele niche entry diye Confirm Received chapo."}
+                            </span>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+                              disabled={!advancePaymentNumber || confirmAdvance.isPending}
+                              onClick={() => confirmAdvance.mutate()}
+                            >
+                              {confirmAdvance.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Received"}
+                            </Button>
                           </div>
                         </div>
                       )}
