@@ -304,8 +304,9 @@ function PoDetailPage() {
         </div>
       )}
 
-      {/* "Goods arrived in BD?" alert */}
-      {!["arrived_bd", "completed", "cancelled"].includes(po.status) && (
+      {/* "Goods arrived in BD?" alert — hide once any carton has reached arrived_bd or beyond */}
+      {!["arrived_bd", "partially_received", "completed", "cancelled"].includes(po.status) &&
+        !cartons.some((c: any) => ["arrived_bd", "released", "in_stock"].includes(c.status)) && (
         <Card className="p-4 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900/40">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
