@@ -74,10 +74,18 @@ export function LandedCostCard({
       const unitBdt = (Number(it.unit_cost_cny) || 0) * (fxRate || 0);
       const lineValue = unitBdt * qty;
       const share = totals.totalProductBdt > 0 ? (lineValue / totals.totalProductBdt) * totals.extras : 0;
-      const landedUnit = qty > 0 ? unitBdt + share / qty : unitBdt;
-      return { ...it, unitBdt, lineValue, extrasShare: share, landedUnit, landedLine: landedUnit * qty };
+      const commissionShare = totals.commissionPerUnit * qty;
+      const landedUnit = qty > 0 ? unitBdt + share / qty + totals.commissionPerUnit : unitBdt;
+      return {
+        ...it,
+        unitBdt,
+        lineValue,
+        extrasShare: share + commissionShare,
+        landedUnit,
+        landedLine: landedUnit * qty,
+      };
     });
-  }, [items, fxRate, totals.totalProductBdt, totals.extras]);
+  }, [items, fxRate, totals.totalProductBdt, totals.extras, totals.commissionPerUnit]);
 
   // Live preview hook for New PO
   const push = (patch?: Partial<{ fx: number; fr: number; cu: number; ot: number; ac: number }>) => {
