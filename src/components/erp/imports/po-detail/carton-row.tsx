@@ -30,11 +30,18 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
 
   const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
   const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
-  // Local courier (cargo-agent CN→BD) is settled separately via the agent
-  // ledger, not per-carton at release. Exclude it from the per-carton
-  // due calculation — otherwise a paid & released carton still shows a
-  // "Due" chip equal to local_courier_bdt.
-  const cartonBillable = supplierCost + shippingCost;
+  // carton.paid_bdt sums ONLY carton-scoped payments (carton_release,
+  // supplier_balance, local_courier). PO-level supplier_advance /
+  // supplier_payment / shipping are not attached to a carton, so they
+  // must be pro-rated into each carton's advance share — otherwise a
+  // released & fully-paid carton still shows a phantom "Due" chip equal
+  // to the advance-covered amount. Local-courier (agent CN→BD) is
+  // settled separately via the agent ledger, so exclude it here.
+  const advanceShare = poSupplierTotal > 0
+    ? (poPaid * supplierCost) / poSupplierTotal
+    : 0;
+  const supplierDueAfterAdvance = Math.max(0, supplierCost - advanceShare);
+  const cartonBillable = +(supplierDueAfterAdvance + shippingCost).toFixed(2);
   const cartonPaid = Number(carton.paid_bdt ?? 0);
   const cartonDue = Math.max(0, +(cartonBillable - cartonPaid).toFixed(2));
   const hasDue = cartonDue > 0.009 && (status === "released" || status === "in_stock");
