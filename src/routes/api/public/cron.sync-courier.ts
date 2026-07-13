@@ -184,7 +184,6 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
                   raw = res?.delivery_status ?? res?.data?.delivery_status ?? null;
                 }
 
-                if (!raw) return;
                 if (!raw) {
                   // Diagnostic: capture up to 5 samples so we can tell if the
                   // extractor is missing a shape vs. the courier truly has no
