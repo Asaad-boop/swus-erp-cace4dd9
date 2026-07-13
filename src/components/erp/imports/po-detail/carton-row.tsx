@@ -30,8 +30,11 @@ export function CartonRow({ carton, poId, poNumber, poItems, brandId, poDue, poP
 
   const supplierCost = Number(carton.supplier_cost_bdt ?? 0);
   const shippingCost = Number(carton.shipping_charge_bdt ?? 0);
-  const courierCost = Number(carton.local_courier_bdt ?? 0);
-  const cartonBillable = supplierCost + shippingCost + courierCost;
+  // Local courier (cargo-agent CN→BD) is settled separately via the agent
+  // ledger, not per-carton at release. Exclude it from the per-carton
+  // due calculation — otherwise a paid & released carton still shows a
+  // "Due" chip equal to local_courier_bdt.
+  const cartonBillable = supplierCost + shippingCost;
   const cartonPaid = Number(carton.paid_bdt ?? 0);
   const cartonDue = Math.max(0, +(cartonBillable - cartonPaid).toFixed(2));
   const hasDue = cartonDue > 0.009 && (status === "released" || status === "in_stock");
