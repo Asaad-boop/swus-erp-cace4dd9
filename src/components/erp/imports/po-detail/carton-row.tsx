@@ -243,6 +243,7 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
   const qc = useQueryClient();
   const { data: warehouses = [] } = useQuery({ queryKey: ["imp-wh", brandId], queryFn: () => whFn({ data: { brandId } }) });
   const { data: wallets = [] } = useAccounts([brandId]);
+  const piMap = useMemo(() => new Map((_poItems ?? []).map((p: any) => [p.id, p])), [_poItems]);
 
   const [rows, setRows] = useState<Record<string, { ok: number; damaged: number; missing: number }>>(() => {
     const init: any = {};
@@ -267,9 +268,29 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
   const totalLanded = productCost + shipCost + courierCost;
   const perPieceTotal = totalExpected > 0 ? totalLanded / totalExpected : 0;
   const lossCount = totalDamaged + totalMissing;
-  const lossValue = lossCount * perPieceTotal;
   const finalInventoryCost = totalLanded;
   const perOkPiece = totalOk > 0 ? finalInventoryCost / totalOk : 0;
+  const lossValue = lossCount * perPieceTotal;
+
+  // Per-item landed unit cost (uses each product's own unit cost, not carton average)
+  const extrasPerPiece = totalExpected > 0 ? (shipCost + courierCost) / totalExpected : 0;
+  const itemUnitCost = (cartonItem: any): number => {
+    const pi: any = piMap.get(cartonItem.po_item_id);
+    // Prefer PO-level landed (includes ship+commission at PO scope), else fall back
+    const base = Number(pi?.landed_cost_bdt ?? pi?.unit_cost_bdt ?? 0);
+    if (base > 0) return base + Number(courierCost || 0) / Math.max(totalOk || totalExpected, 1);
+    // Last resort: split carton product cost proportionally by unit_cost_cny share
+    const unitCny = Number(pi?.unit_cost_cny ?? pi?.unit_cost_foreign ?? 0);
+    const totalCnyValue = (carton.items ?? []).reduce((s: number, x: any) => {
+      const p: any = piMap.get(x.po_item_id);
+      return s + Number(p?.unit_cost_cny ?? p?.unit_cost_foreign ?? 0) * Number(x.quantity_expected || 0);
+    }, 0);
+    const productShare = totalCnyValue > 0
+      ? (unitCny * Number(cartonItem.quantity_expected || 0) / totalCnyValue) * productCost
+      : 0;
+    const qty = Number(cartonItem.quantity_expected || 0);
+    return (qty > 0 ? productShare / qty : 0) + extrasPerPiece;
+  };
 
   const rowErrors = useMemo(() => (carton.items ?? []).flatMap((it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
@@ -344,7 +365,7 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
           <TableBody>
             {(carton.items ?? []).map((it: any) => {
               const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
-              const itemUnit = totalOk > 0 ? perOkPiece : 0;
+              const itemUnit = itemUnitCost(it);
               const expected = Number(it.quantity_expected || 0);
               const totalRow = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
               const extra = totalRow - expected;
