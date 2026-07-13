@@ -5,6 +5,7 @@ const TAB_DOT: Record<StatusTabKey, string> = {
   all:            "bg-foreground/60",
   pending:        "bg-blue-500",
   packing:        "bg-purple-500",
+  ready_to_ship:  "bg-cyan-500",
   shipped:        "bg-amber-500",
   in_transit:     "bg-amber-600",
   delivered:      "bg-emerald-500",
