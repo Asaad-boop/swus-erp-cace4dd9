@@ -281,7 +281,7 @@ export function OrdersTable({ rows, loading, selectedIds, onToggleSelect, onTogg
               Delivery ৳{Number(row.original.actual_shipping_cost).toLocaleString()}
             </div>
           )}
-          <AdvanceBadge advance={row.original.advance_amount} total={row.original.total} variant="full" className="mt-1" />
+          <AdvanceBadge advance={row.original.advance_amount} total={row.original.total} txnId={(row.original as any).advance_txn_id} variant="full" className="mt-1" />
         </div>
       ),
     },
