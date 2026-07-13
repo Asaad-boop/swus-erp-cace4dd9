@@ -120,6 +120,14 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         let checked = 0;
         let updated = 0;
         const errors: Array<{ order_id: string; error: string }> = [];
+        const nullRawSamples: Array<{
+          order_id: string;
+          consignment_id: string | null;
+          provider: string;
+          shipment_created_at: string | null;
+          response_keys: string[];
+          response_sample: any;
+        }> = [];
 
         const batchSize = 4;
         for (let i = 0; i < ordersToCheck.length; i += batchSize) {
@@ -177,6 +185,32 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
                 }
 
                 if (!raw) return;
+                if (!raw) {
+                  // Diagnostic: capture up to 5 samples so we can tell if the
+                  // extractor is missing a shape vs. the courier truly has no
+                  // status yet.
+                  if (nullRawSamples.length < 5) {
+                    const payload = responsePayload?.data ?? responsePayload ?? {};
+                    nullRawSamples.push({
+                      order_id: o.id,
+                      consignment_id: ship?.consignment_id ?? ship?.tracking_code ?? identifier,
+                      provider,
+                      shipment_created_at: ship?.created_at ?? null,
+                      response_keys: payload && typeof payload === "object" ? Object.keys(payload) : [],
+                      response_sample: responsePayload,
+                    });
+                  }
+                  // Bump updated_at so rotation is natural — without this, any
+                  // shipment whose courier hasn't started reporting yet stays
+                  // at the head of the queue forever and starves the rest.
+                  if (ship?.id) {
+                    await supabaseAdmin
+                      .from("courier_shipments")
+                      .update({ updated_at: new Date().toISOString() })
+                      .eq("id", ship.id);
+                  }
+                  return;
+                }
                 const overrides = await loadMapping(o.brand_id);
                 const mapped = mapCourierStatus(provider, raw, overrides);
                 // If courier reports cancelled, drop the shipment row instead
@@ -223,7 +257,7 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
           );
         }
 
-        return Response.json({ checked, updated, errors: errors.slice(0, 20) });
+        return Response.json({ checked, updated, errors: errors.slice(0, 20), null_raw_samples: nullRawSamples });
       },
     },
   },
