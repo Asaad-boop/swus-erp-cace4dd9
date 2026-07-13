@@ -13,8 +13,9 @@ export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   assigned_for_pickup: "ready_to_ship",
   picked: "shipped",
   pickup: "shipped",
-  pickup_failed: "ready_to_ship",
+  pickup_failed: "on_hold",
   pickup_cancelled: "cancelled",
+  pickup_rescheduled: "on_hold",
   at_the_sorting_hub: "in_transit",
   at_sorting_hub: "in_transit",
   in_transit: "in_transit",
@@ -22,22 +23,27 @@ export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   assigned_for_delivery: "in_transit",
   on_delivery: "in_transit",
   out_for_delivery: "in_transit",
+  delivery_rescheduled: "on_hold",
   delivered: "delivered",
   partial_delivery: "partial_delivered",
   partial_delivered: "partial_delivered",
-  paid: "completed",
-  invoice_paid: "completed",
-  payment_invoice: "completed",
-  payment_completed: "completed",
+  // Payment/settlement events — NOT fulfillment. Do NOT transition order.status
+  // from raw courier payment pings; `completed` is set only via the
+  // reconcile_courier_settlement / apply_settlement_variance_action RPCs.
+  // Keys intentionally omitted: paid, invoice_paid, payment_invoice,
+  // payment_completed, payment_processing.
+  payment_processing: "on_hold",
   completed: "completed",
   delivery_failed: "on_hold",
   hold: "on_hold",
   on_hold: "on_hold",
+  merchant_confirmed: "on_hold",
   return: "return_in_transit",
   returning: "return_in_transit",
   returned: "returned",
   return_to_pickup: "return_in_transit",
   return_to_merchant: "return_in_transit",
+  return_rescheduled: "on_hold",
   cancelled: "cancelled",
   canceled: "cancelled",
   exchange: "exchange",
@@ -53,8 +59,8 @@ export const DEFAULT_STEADFAST_MAP: Record<string, OrderStatus> = {
   in_transit: "in_transit",
   delivered: "delivered",
   partial_delivered: "partial_delivered",
-  paid: "completed",
-  payment_paid: "completed",
+  // Payment events — see Pathao note above. Not fulfillment transitions.
+  // Omitted: paid, payment_paid.
   delivery_failed: "on_hold",
   cancelled: "cancelled",
   unknown: "on_hold",
@@ -62,6 +68,13 @@ export const DEFAULT_STEADFAST_MAP: Record<string, OrderStatus> = {
   return: "return_in_transit",
   returned: "returned",
   partial_delivered_return: "partial_return",
+  // *_approval_pending variants — awaiting merchant/courier approval, treat as hold.
+  delivered_approval_pending: "on_hold",
+  partial_delivered_approval_pending: "on_hold",
+  cancelled_approval_pending: "on_hold",
+  unknown_approval_pending: "on_hold",
+  return_approval_pending: "on_hold",
+  hold_approval_pending: "on_hold",
 };
 
 export type CourierStatusMappingOverrides = {
