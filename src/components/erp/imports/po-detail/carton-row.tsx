@@ -265,12 +265,21 @@ function InlineQcForm({ carton, brandId, poItems: _poItems, poId, poDue: _poDue 
   const productCost = Number(carton.supplier_cost_bdt || 0);
   const shipCost = Number(carton.shipping_charge_bdt || 0);
   const courierCost = Number(courierBdt || 0);
-  const totalLanded = productCost + shipCost + courierCost;
   const actualUnitsForCost = (carton.items ?? []).reduce((s: number, it: any) => {
     const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
     const counted = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
     return s + Math.max(counted, Number(it.quantity_expected || 0));
   }, 0);
+  const poAllocatedExtras = (carton.items ?? []).reduce((s: number, it: any) => {
+    const pi: any = piMap.get(it.po_item_id);
+    const landed = Number(pi?.landed_cost_bdt ?? 0);
+    const base = Number(pi?.unit_cost_bdt ?? 0);
+    if (landed <= base) return s;
+    const r = rows[it.id] ?? { ok: 0, damaged: 0, missing: 0 };
+    const counted = Number(r.ok || 0) + Number(r.damaged || 0) + Number(r.missing || 0);
+    return s + (landed - base) * Math.max(counted, Number(it.quantity_expected || 0));
+  }, 0);
+  const totalLanded = productCost + shipCost + courierCost + poAllocatedExtras;
   const perPieceTotal = actualUnitsForCost > 0 ? totalLanded / actualUnitsForCost : 0;
   const lossCount = totalDamaged + totalMissing;
   const finalInventoryCost = totalLanded;
