@@ -483,9 +483,10 @@ function NewOrderPage() {
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) throw itemsErr;
-      // Reserve stock now that order_items exist
-      const { error: reserveErr } = await supabase.rpc("reserve_stock", { _order_id: orderId });
-      if (reserveErr) throw reserveErr;
+      // Stock reservation is handled by DB triggers (tg_orders_stock_reservation
+      // + trg_order_items_reserved) — they touch reserved_stock only. Do NOT
+      // call the legacy 1-arg reserve_stock RPC here: it decrements physical
+      // products.stock unlogged and double-counts with the trigger.
 
       // Telegram notification handled by DB webhook on orders insert — avoid double-firing.
       return { id: orderId, invoice_no: (orderData as { invoice_no?: string | null }).invoice_no ?? null };
