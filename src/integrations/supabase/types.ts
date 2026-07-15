@@ -9571,14 +9571,14 @@ export type Database = {
       }
       refresh_crm_customers_mv: { Args: never; Returns: undefined }
       release_order_lock: { Args: { _order_id: string }; Returns: undefined }
-      release_stock: { Args: { _order_id: string }; Returns: undefined }
       release_stock_reservation: {
         Args: { _order_id: string }
         Returns: undefined
       }
-      reserve_stock:
-        | { Args: { _order_id: string }; Returns: undefined }
-        | { Args: { _items: Json; _order_id: string }; Returns: undefined }
+      reserve_stock: {
+        Args: { _items: Json; _order_id: string }
+        Returns: undefined
+      }
       resolve_login_email: { Args: { p_identifier: string }; Returns: string }
       run_recurring_rules: { Args: { _brand_id?: string }; Returns: Json }
       seed_default_coa: { Args: { _brand_id: string }; Returns: number }
