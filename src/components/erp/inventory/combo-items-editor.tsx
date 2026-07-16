@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package2, Search, Boxes } from "lucide-react";
@@ -396,6 +396,3 @@ export function ComboBadge({ productId }: { productId: string }) {
     </Badge>
   );
 }
-
-// Silence unused warnings when tree-shaken partial imports
-export const _keep = { useMemo };
