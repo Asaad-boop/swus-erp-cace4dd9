@@ -4,7 +4,7 @@ import {
   Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes,
   AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3, MoreVertical,
   ScanLine, Plus, Settings, Lock, TrendingUp, TrendingDown, Layers, Clock,
-  Edit3, AlertCircle, X, Trash2, Tag,
+  Edit3, AlertCircle, X, Trash2, Tag, DollarSign,
 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -292,6 +292,7 @@ function InventoryPage() {
         <TabsList className="bg-transparent border-b border-border/70 rounded-none p-0 h-auto gap-6 w-full justify-start">
           <PillTab value="products" icon={<Package className="h-3.5 w-3.5" />}>Products</PillTab>
           <PillTab value="opening" icon={<Layers className="h-3.5 w-3.5" />}>Opening Stock</PillTab>
+          <PillTab value="cost" icon={<DollarSign className="h-3.5 w-3.5" />}>Cost Price</PillTab>
           <PillTab value="low" icon={<AlertTriangle className="h-3.5 w-3.5" />} badge={lowQuery.data?.length}>
             Low Stock
           </PillTab>
@@ -741,6 +742,10 @@ function InventoryPage() {
 
         <TabsContent value="opening" className="space-y-3 mt-0">
           <OpeningStockTab brandId={activeBrand?.id ?? null} />
+        </TabsContent>
+
+        <TabsContent value="cost" className="space-y-3 mt-0">
+          <CostPriceTab brandIds={brandIds} />
         </TabsContent>
 
         {/* LOW STOCK — card grid */}
