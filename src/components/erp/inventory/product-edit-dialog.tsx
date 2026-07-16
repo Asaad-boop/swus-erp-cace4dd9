@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ColorsManager } from "./colors-manager";
 import { BrandListingsEditor } from "./brand-listings-editor";
+import { ComboItemsEditor } from "./combo-items-editor";
 
 type Props = { product: ProductRow | null; onClose: () => void };
 
@@ -47,6 +48,7 @@ type Form = {
   is_active: boolean;
   is_featured: boolean;
   is_new_arrival: boolean;
+  is_combo: boolean;
   benefits: string[];
   specs: { key: string; value: string }[];
   image: string;
@@ -78,6 +80,7 @@ function toForm(p: Record<string, any>): Form {
     is_active: !!p.is_active,
     is_featured: !!p.is_featured,
     is_new_arrival: !!p.is_new_arrival,
+    is_combo: !!p.is_combo,
     benefits: Array.isArray(p.benefits) ? p.benefits.filter(Boolean) : [],
     specs: Object.entries(specsObj).map(([k, v]) => ({ key: k, value: String(v) })),
     image: str(p.image),
@@ -162,6 +165,7 @@ export function ProductEditDialog({ product, onClose }: Props) {
         is_active: f.is_active,
         is_featured: f.is_featured,
         is_new_arrival: f.is_new_arrival,
+        is_combo: f.is_combo,
         benefits: f.benefits.filter(Boolean),
         specs: cleanSpecs,
         image: f.image || null,
