@@ -1340,9 +1340,11 @@ function OrderDetailsPage() {
                 <p className="text-xs text-muted-foreground text-center py-8">No items in this order</p>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-border -mx-2">
-                  {items.map((it) => {
+                  {items.filter((it) => !(it as any).is_combo_child).map((it) => {
                     const unit = Number(it.unit_price ?? it.price);
                     const total = Number(it.line_total ?? unit * it.quantity);
+                    const children = items.filter((c) => (c as any).combo_parent_item_id === it.id);
+                    const isCombo = children.length > 0;
                     return (
                       <li key={it.id} className="px-2 py-3 rounded-lg hover:bg-gray-50/70 dark:hover:bg-muted/30 transition-colors">
                         <div className="flex items-start gap-3">
@@ -1350,7 +1352,14 @@ function OrderDetailsPage() {
                             {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : <span className="text-[8px] text-muted-foreground">No Image</span>}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
+                              {isCombo && (
+                                <span className="rounded bg-violet-500/15 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide">
+                                  Combo
+                                </span>
+                              )}
+                            </div>
                              <div className="text-sm font-medium truncate">{it.name}</div>
                              {it.variant_label && (
                                <div className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
@@ -1361,6 +1370,7 @@ function OrderDetailsPage() {
                              <div className="flex items-center gap-2 text-[10px]">
                                <span className="text-rose-600">৳{bdtCompact(unit)}</span>
                                {(() => {
+                                 if (isCombo) return null;
                                  const s = stockMap?.get(it.product_id);
                                  if (s === undefined) return null;
                                  if (s <= 0) return <span className="rounded px-1 py-0.5 bg-rose-500/15 text-rose-600 font-semibold">Out of stock</span>;
@@ -1368,6 +1378,20 @@ function OrderDetailsPage() {
                                  return <span className="rounded px-1 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">Stock: {s}</span>;
                                })()}
                              </div>
+                             {isCombo && (
+                               <div className="mt-2 rounded-md border border-violet-200 dark:border-violet-800/50 bg-violet-50/40 dark:bg-violet-950/20 px-2 py-1.5">
+                                 <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300 mb-1">Includes</div>
+                                 <ul className="space-y-1">
+                                   {children.map((c) => (
+                                     <li key={c.id} className="flex items-center gap-2 text-[11px]">
+                                       {c.image ? <img src={c.image} alt="" className="h-5 w-5 rounded object-cover" /> : <span className="h-5 w-5 rounded bg-muted" />}
+                                       <span className="truncate flex-1">{c.name}</span>
+                                       <span className="text-muted-foreground tabular-nums">× {c.quantity}</span>
+                                     </li>
+                                   ))}
+                                 </ul>
+                               </div>
+                             )}
                           </div>
                           <button onClick={() => deleteItem.mutate(it.id)} className="p-1.5 rounded-md hover:bg-rose-500/10 text-gray-400 hover:text-rose-600 transition-colors" title="Remove item">
                             <Trash2 className="h-3.5 w-3.5" />
