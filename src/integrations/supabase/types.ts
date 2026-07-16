@@ -1991,6 +1991,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "erp_exchange_cases_original_product_id_fkey"
+            columns: ["original_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "erp_exchange_cases_original_variant_id_fkey"
             columns: ["original_variant_id"]
             isOneToOne: false
@@ -2010,6 +2017,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exchange_cases_replacement_product_id_fkey"
+            columns: ["replacement_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "erp_exchange_cases_replacement_variant_id_fkey"
@@ -2743,6 +2757,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_return_cases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "erp_return_cases_variant_id_fkey"
@@ -4534,6 +4555,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "imp_carton_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "imp_carton_items_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
@@ -4795,6 +4823,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "imp_po_items_variant_id_fkey"
@@ -5086,6 +5121,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "local_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "local_po_items_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
@@ -5139,6 +5181,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "local_po_receipt_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "local_po_receipt_items_receipt_id_fkey"
@@ -6106,6 +6155,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "mkt_campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
         ]
       }
       mkt_campaigns: {
@@ -6422,6 +6478,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mkt_manual_expenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "mkt_manual_expenses_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
@@ -6679,10 +6742,18 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "mkt_tracking_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
         ]
       }
       order_items: {
         Row: {
+          combo_parent_item_id: string | null
           courier_cost_allocated: number
           created_at: string
           delivery_charge_allocated: number
@@ -6690,6 +6761,7 @@ export type Database = {
           discount_type: Database["public"]["Enums"]["discount_type"] | null
           id: string
           image: string | null
+          is_combo_child: boolean
           line_discount_allocated: number
           line_total: number | null
           name: string
@@ -6709,6 +6781,7 @@ export type Database = {
           variant_label: string | null
         }
         Insert: {
+          combo_parent_item_id?: string | null
           courier_cost_allocated?: number
           created_at?: string
           delivery_charge_allocated?: number
@@ -6716,6 +6789,7 @@ export type Database = {
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
           id?: string
           image?: string | null
+          is_combo_child?: boolean
           line_discount_allocated?: number
           line_total?: number | null
           name: string
@@ -6735,6 +6809,7 @@ export type Database = {
           variant_label?: string | null
         }
         Update: {
+          combo_parent_item_id?: string | null
           courier_cost_allocated?: number
           created_at?: string
           delivery_charge_allocated?: number
@@ -6742,6 +6817,7 @@ export type Database = {
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
           id?: string
           image?: string | null
+          is_combo_child?: boolean
           line_discount_allocated?: number
           line_total?: number | null
           name?: string
@@ -6762,6 +6838,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "order_items_combo_parent_item_id_fkey"
+            columns: ["combo_parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
@@ -6774,6 +6857,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
         ]
       }
@@ -7311,6 +7401,82 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_brand_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+        ]
+      }
+      product_combo_items: {
+        Row: {
+          child_product_id: string
+          child_variant_id: string | null
+          combo_product_id: string
+          created_at: string
+          display_order: number
+          id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          child_product_id: string
+          child_variant_id?: string | null
+          combo_product_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          child_product_id?: string
+          child_variant_id?: string | null
+          combo_product_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_combo_items_child_product_id_fkey"
+            columns: ["child_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combo_items_child_product_id_fkey"
+            columns: ["child_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
+            foreignKeyName: "product_combo_items_child_variant_id_fkey"
+            columns: ["child_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combo_items_combo_product_id_fkey"
+            columns: ["combo_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combo_items_combo_product_id_fkey"
+            columns: ["combo_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
         ]
       }
       product_option_types: {
@@ -7342,6 +7508,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_option_types_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
         ]
       }
@@ -7473,6 +7646,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
         ]
       }
       products: {
@@ -7491,6 +7671,7 @@ export type Database = {
           id: string
           image: string
           is_active: boolean
+          is_combo: boolean
           is_featured: boolean
           is_new_arrival: boolean
           is_preorder: boolean
@@ -7531,6 +7712,7 @@ export type Database = {
           id?: string
           image: string
           is_active?: boolean
+          is_combo?: boolean
           is_featured?: boolean
           is_new_arrival?: boolean
           is_preorder?: boolean
@@ -7571,6 +7753,7 @@ export type Database = {
           id?: string
           image?: string
           is_active?: boolean
+          is_combo?: boolean
           is_featured?: boolean
           is_new_arrival?: boolean
           is_preorder?: boolean
@@ -7722,6 +7905,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reorder_suggestions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "reorder_suggestions_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
@@ -7796,6 +7986,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
         ]
       }
@@ -7924,6 +8121,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "stock_movements_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
@@ -7989,6 +8193,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktake_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "stocktake_items_session_id_fkey"
@@ -8292,6 +8503,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
         ]
       }
       v_brand_catalog: {
@@ -8333,6 +8551,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "product_brand_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
+          },
+          {
             foreignKeyName: "products_brand_id_fkey"
             columns: ["owner_brand_id"]
             isOneToOne: false
@@ -8347,6 +8572,15 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_combo_summary: {
+        Row: {
+          buildable_units: number | null
+          combo_product_id: string | null
+          component_count: number | null
+          total_cost: number | null
+        }
+        Relationships: []
       }
       v_meta_ad_wallet_summary: {
         Row: {
@@ -8465,6 +8699,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imp_po_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_combo_summary"
+            referencedColumns: ["combo_product_id"]
           },
           {
             foreignKeyName: "imp_purchase_orders_brand_id_fkey"

@@ -23,7 +23,7 @@ type Item = {
 
 export function PrintableInvoice({
   order,
-  items,
+  items: itemsRaw,
   configOverride,
   visible,
   bulk,
@@ -35,6 +35,9 @@ export function PrintableInvoice({
   bulk?: boolean; // when true, omit #print-invoice id so multiple copies don't stack via the single-print CSS
 }) {
   const { activeBrand, brands } = useBrand();
+  // Combo children are stock-only rows (unit_price = 0). Never show them on
+  // the printed invoice — the parent combo line already carries the full price.
+  const items = itemsRaw.filter((it) => !(it as any).is_combo_child);
   // Prefer the order's own brand so invoices print correctly even when no brand
   // is selected in the header (e.g. "All brands" or bulk print across brands).
   const orderBrand =
