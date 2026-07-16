@@ -7485,7 +7485,7 @@ export type Database = {
           category_id: string | null
           cost_price: number
           created_at: string
-          description: string
+          description: string | null
           display_order: number
           gallery: Json
           id: string
@@ -7525,7 +7525,7 @@ export type Database = {
           category_id?: string | null
           cost_price?: number
           created_at?: string
-          description?: string
+          description?: string | null
           display_order?: number
           gallery?: Json
           id?: string
@@ -7565,7 +7565,7 @@ export type Database = {
           category_id?: string | null
           cost_price?: number
           created_at?: string
-          description?: string
+          description?: string | null
           display_order?: number
           gallery?: Json
           id?: string
