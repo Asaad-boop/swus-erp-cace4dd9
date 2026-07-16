@@ -4,7 +4,7 @@ import {
   Download, Search, ArrowUp, ArrowDown, History, Check, Package, Boxes,
   AlertTriangle, Wallet, ChevronRight, ChevronDown, BarChart3, MoreVertical,
   ScanLine, Plus, Settings, Lock, TrendingUp, TrendingDown, Layers, Clock,
-  Edit3, AlertCircle, X, Trash2, Tag,
+  Edit3, AlertCircle, X, Trash2, Tag, DollarSign,
 } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -292,6 +292,7 @@ function InventoryPage() {
         <TabsList className="bg-transparent border-b border-border/70 rounded-none p-0 h-auto gap-6 w-full justify-start">
           <PillTab value="products" icon={<Package className="h-3.5 w-3.5" />}>Products</PillTab>
           <PillTab value="opening" icon={<Layers className="h-3.5 w-3.5" />}>Opening Stock</PillTab>
+          <PillTab value="cost" icon={<DollarSign className="h-3.5 w-3.5" />}>Cost Price</PillTab>
           <PillTab value="low" icon={<AlertTriangle className="h-3.5 w-3.5" />} badge={lowQuery.data?.length}>
             Low Stock
           </PillTab>
@@ -741,6 +742,10 @@ function InventoryPage() {
 
         <TabsContent value="opening" className="space-y-3 mt-0">
           <OpeningStockTab brandId={activeBrand?.id ?? null} />
+        </TabsContent>
+
+        <TabsContent value="cost" className="space-y-3 mt-0">
+          <CostPriceTab brandIds={brandIds} />
         </TabsContent>
 
         {/* LOW STOCK — card grid */}
@@ -1287,6 +1292,154 @@ function OpeningStockTab({ brandId }: { brandId: string | null }) {
                     delta != null && delta > 0 && "text-emerald-600",
                   )}>
                     {delta == null ? "—" : delta > 0 ? `+${delta}` : delta}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function CostPriceTab({ brandIds }: { brandIds: string[] }) {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const { data, isLoading } = useInventoryQuery({
+    brandIds, search, stockState: "all", page: 0, pageSize: 500,
+  });
+  const allRows = data?.rows ?? [];
+  const rows = useMemo(
+    () => showAll
+      ? allRows
+      : allRows.filter((r) => !r.cost_price || Number(r.cost_price) === 0),
+    [allRows, showAll],
+  );
+  const missingCount = allRows.filter((r) => !r.cost_price || Number(r.cost_price) === 0).length;
+  const [costs, setCosts] = useState<Record<string, string>>({});
+
+  const apply = useMutation({
+    mutationFn: async (entries: { id: string; cost: number }[]) => {
+      for (const e of entries) {
+        const { error } = await supabase.rpc("update_product_inventory_fields", {
+          _product_id: e.id, _cost_price: e.cost,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(`Cost updated for ${vars.length} product${vars.length === 1 ? "" : "s"}`);
+      setCosts({});
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pending = useMemo(() => {
+    const list: { id: string; cost: number; title: string }[] = [];
+    for (const r of rows) {
+      const raw = costs[r.id];
+      if (raw == null || raw === "") continue;
+      const cost = Number(raw);
+      if (!Number.isFinite(cost) || cost < 0) continue;
+      if (cost === Number(r.cost_price ?? 0)) continue;
+      list.push({ id: r.id, cost, title: r.title });
+    }
+    return list;
+  }, [costs, rows]);
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <CardContent className="p-4 text-sm space-y-1">
+          <div className="font-medium flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-emerald-600" /> Cost Price setup
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Je products import theke asheni ba manually cost add korte chao — protita product er unit cost likho.
+            Cost price product-profitability & P&L reports e COGS calculate korte use hoy.
+            <span className="font-medium"> {missingCount}</span> product er ekhono cost missing.
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-8" placeholder="Search title, SKU, barcode…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <Checkbox checked={showAll} onCheckedChange={(v) => setShowAll(!!v)} />
+            Show all (including ones with cost)
+          </label>
+          <span className="text-xs text-muted-foreground">{pending.length} pending</span>
+          <Button disabled={!pending.length || apply.isPending} onClick={() => apply.mutate(pending)}>
+            <Check className="h-4 w-4 mr-1" />
+            {apply.isPending ? "Saving…" : `Save ${pending.length || ""}`.trim()}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead className="text-right">Stock</TableHead>
+              <TableHead className="text-right">Sell price</TableHead>
+              <TableHead className="text-right">Current cost</TableHead>
+              <TableHead className="text-right w-[160px]">New cost (BDT)</TableHead>
+              <TableHead className="text-right">Margin</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+            )}
+            {!isLoading && rows.length === 0 && (
+              <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                {showAll ? "No products" : "🎉 All products have a cost price set"}
+              </TableCell></TableRow>
+            )}
+            {rows.map((r) => {
+              const raw = costs[r.id] ?? "";
+              const newCost = raw === "" ? Number(r.cost_price ?? 0) : Number(raw);
+              const price = Number(r.price ?? 0);
+              const marginPct = price > 0 && newCost > 0 ? ((price - newCost) / price) * 100 : null;
+              return (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      {r.image && <img src={r.image} alt="" className="h-8 w-8 rounded object-cover" />}
+                      <div className="min-w-0">
+                        <div className="font-medium truncate max-w-[300px]">{r.title}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">{r.sku ? `SKU: ${r.sku}` : r.slug}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">{r.stock}</TableCell>
+                  <TableCell className="text-right font-mono">৳{price}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {r.cost_price ? `৳${r.cost_price}` : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Input
+                      type="number" min={0} placeholder={r.cost_price ? `৳${r.cost_price}` : "—"}
+                      value={raw}
+                      onChange={(e) => setCosts((c) => ({ ...c, [r.id]: e.target.value }))}
+                      className="h-8 text-right text-sm w-[140px] ml-auto"
+                    />
+                  </TableCell>
+                  <TableCell className={cn(
+                    "text-right font-mono text-xs",
+                    marginPct == null && "text-muted-foreground",
+                    marginPct != null && marginPct < 0 && "text-red-600",
+                    marginPct != null && marginPct >= 30 && "text-emerald-600",
+                  )}>
+                    {marginPct == null ? "—" : `${marginPct.toFixed(0)}%`}
                   </TableCell>
                 </TableRow>
               );
