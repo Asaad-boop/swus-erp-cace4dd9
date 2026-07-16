@@ -359,6 +359,29 @@ export function ProductEditDialog({ product, onClose }: Props) {
 
                   <Separator />
 
+                  {/* COMBO / BUNDLE */}
+                  <section className="space-y-4">
+                    <SectionHeader icon={<Package className="h-4 w-4" />} title="Combo / bundle" big hint="Sell multiple products as one SKU" />
+                    <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+                      <div>
+                        <div className="text-sm font-medium">This is a combo product</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Combo hole nijer stock track hobe na — child products er stock kombe order er somoy.
+                        </div>
+                      </div>
+                      <Switch checked={f.is_combo} onCheckedChange={(v) => set("is_combo", v)} />
+                    </div>
+                    {f.is_combo && (
+                      <ComboItemsEditor
+                        comboProductId={product.id}
+                        ownerBrandId={f.brand_id || null}
+                        comboPrice={Number(f.price) || 0}
+                      />
+                    )}
+                  </section>
+
+                  <Separator />
+
                   {/* SHIPPING */}
                   <section className="space-y-4">
                     <SectionHeader icon={<Truck className="h-4 w-4" />} title="Shipping overrides" big hint="Blank = brand default" />
