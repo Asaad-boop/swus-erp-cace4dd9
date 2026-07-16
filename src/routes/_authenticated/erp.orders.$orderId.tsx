@@ -1347,6 +1347,12 @@ function OrderDetailsPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-mono text-muted-foreground">{it.product_id.slice(0, 8)}</div>
                              <div className="text-sm font-medium truncate">{it.name}</div>
+                             {it.variant_label && (
+                               <div className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
+                                 <span className="opacity-70">Variant:</span>
+                                 <span>{it.variant_label}</span>
+                               </div>
+                             )}
                              <div className="flex items-center gap-2 text-[10px]">
                                <span className="text-rose-600">৳{bdtCompact(unit)}</span>
                                {(() => {
