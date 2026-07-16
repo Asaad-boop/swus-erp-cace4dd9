@@ -691,7 +691,12 @@ function OrderDetailsPage() {
   /* ------------------------------ Item arithmetic -------------------------- */
 
   const itemsSubtotal = useMemo(
-    () => items.reduce((s, it) => s + Number(it.line_total ?? Number(it.unit_price ?? it.price) * it.quantity), 0),
+    () => items.reduce(
+      (s, it) => (it as any).is_combo_child
+        ? s
+        : s + Number(it.line_total ?? Number(it.unit_price ?? it.price) * it.quantity),
+      0,
+    ),
     [items],
   );
   const grandTotal = Math.max(0, itemsSubtotal + Number(form.shipping_fee) - Number(form.discount) - Number(form.advance));
