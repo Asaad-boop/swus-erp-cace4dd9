@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getCampaignProfitMap, type CampaignProfitAgg } from "./canonical.server";
 
 export type DecisionBucket = "scale" | "monitor" | "optimize" | "kill" | "insufficient";
 
@@ -49,6 +50,8 @@ export type PerfRow = {
   true_roas: number | null;
   confirmed_roas: number | null;
   actual_cost_per_purchase_bdt: number | null;
+  // Phase 4a.1 — canonical cost-completeness flag
+  cost_missing_units: number;
   // Decision
   decision: DecisionBucket;
   decision_reason: string;
@@ -76,6 +79,7 @@ export type PerfTotals = {
   margin_pct: number | null;
   true_roas: number | null;
   confirmed_roas: number | null;
+  cost_missing_units: number;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
@@ -308,20 +312,28 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         cur.confirmed_orders += 1;
         cur.confirmed_revenue += Number(o.total) || 0;
       }
-      if (status === "delivered") {
-        cur.delivered_orders += 1;
-        cur.delivered_revenue += Number(o.total) || 0;
-        for (const it of o.order_items ?? []) {
-          const qty = Number(it.quantity) || 0;
-          const unitCost = Number(it.unit_cost_snapshot ?? it.cost_price) || 0;
-          cur.cogs += unitCost * qty;
-          cur.operating_cost +=
-            (Number(it.courier_cost_allocated) || 0) +
-            (Number(it.packaging_cost_allocated) || 0) +
-            (Number(it.refund_amount_allocated) || 0);
-        }
-      }
       aggMap.set(r.campaign_id, cur);
+    }
+
+    // Phase 4a.1 — canonical delivered_orders / revenue / COGS / opex per campaign.
+    // Confirmed_* stays on the attribution join (pre-delivery leading indicator).
+    const canonicalMap = new Map<string, CampaignProfitAgg>();
+    const canonPerBrand = await Promise.all(
+      brandIds.map((bid) => getCampaignProfitMap(supabase, bid, from, to)),
+    );
+    for (const m of canonPerBrand) for (const [k, v] of m) canonicalMap.set(k, v);
+    for (const c of campaigns as any[]) {
+      const canon = canonicalMap.get(c.id);
+      if (!canon) continue;
+      const cur = aggMap.get(c.id) ?? {
+        confirmed_orders: 0, delivered_orders: 0, delivered_revenue: 0,
+        confirmed_revenue: 0, cogs: 0, operating_cost: 0,
+      };
+      cur.delivered_orders = canon.delivered_orders;
+      cur.delivered_revenue = canon.delivered_revenue;
+      cur.cogs = canon.cogs;
+      cur.operating_cost = canon.operating_cost;
+      aggMap.set(c.id, cur);
     }
 
     // Linked products per campaign — for visual ID in the Performance table
@@ -396,6 +408,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         true_roas,
         meta_purchases: ins.meta_purchases,
       });
+      const canon = canonicalMap.get(c.id);
       return {
         campaign_id: c.id,
         external_id: c.external_id,
@@ -439,6 +452,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         confirmed_roas,
         actual_cost_per_purchase_bdt:
           agg.delivered_orders > 0 ? total_spend_bdt / agg.delivered_orders : null,
+        cost_missing_units: canon?.cost_missing_units ?? 0,
         decision: dec.decision,
         decision_reason: dec.reason,
         products: prodMap.get(c.id) ?? [],
@@ -462,6 +476,7 @@ export const getPerformanceDashboard = createServerFn({ method: "POST" })
         t.cogs_bdt += r.cogs_bdt;
         t.operating_cost_bdt += r.operating_cost_bdt;
         t.profit_bdt += r.profit_bdt;
+        t.cost_missing_units += r.cost_missing_units;
         return t;
       },
       emptyTotals(),
