@@ -49,7 +49,7 @@ export function NetProfitCard({
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(
           supabase.from("order_items").select(
-            "quantity, cost_price, unit_cost_snapshot, courier_cost_allocated, packaging_cost_allocated, orders!inner(brand_id, status, created_at)",
+            "quantity, unit_cost_snapshot, courier_cost_allocated, packaging_cost_allocated, orders!inner(brand_id, status, created_at)",
           ),
           brandIds,
           "orders.brand_id" as any,
@@ -72,7 +72,7 @@ export function NetProfitCard({
       let cogs = 0, courier = 0, pack = 0;
       let cogsSeen = false, courierSeen = false, packSeen = false;
       for (const r of (items.data ?? []) as any[]) {
-        const unit = Number(r.unit_cost_snapshot ?? r.cost_price ?? 0);
+        const unit = Number(r.unit_cost_snapshot ?? 0);
         const qty = Number(r.quantity ?? 0);
         if (unit > 0) cogsSeen = true;
         cogs += unit * qty;
