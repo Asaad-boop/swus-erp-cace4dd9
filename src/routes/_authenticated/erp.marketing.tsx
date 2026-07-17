@@ -33,9 +33,8 @@ function MarketingLayout() {
     if (!brands.length) return;
     const urlBrand = search.brand;
     if (!urlBrand) {
-      // Push current context state into URL as source of truth
       const next = isAllBrands ? "all" : (activeBrand?.slug ?? "all");
-      navigate({ to: "/erp/marketing", search: { brand: next }, replace: true, params: {} as never });
+      navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, brand: next }), replace: true });
       return;
     }
     if (urlBrand === "all") {
@@ -51,7 +50,7 @@ function MarketingLayout() {
     if (!brands.length) return;
     const desired = isAllBrands ? "all" : (activeBrand?.slug ?? "all");
     if (search.brand !== desired) {
-      navigate({ to: "/erp/marketing", search: { brand: desired }, replace: true, params: {} as never });
+      navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, brand: desired }), replace: true });
     }
      
   }, [isAllBrands, activeBrand?.slug]);
