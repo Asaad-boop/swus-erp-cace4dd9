@@ -17,7 +17,6 @@ import { useMultiBrandPicker } from "@/components/erp/brand-picker-gate";
 import { cn } from "@/lib/utils";
 import {
   Activity,
-  BarChart3,
   RefreshCw,
   TrendingUp,
   TrendingDown,
@@ -35,6 +34,7 @@ import {
   getMarketingPulse,
   type PulseMover,
   type PulseRollupPeriod,
+  type PulseData,
 } from "@/lib/erp/marketing/pulse.functions";
 import { syncBrandInsightsRange } from "@/lib/erp/marketing/meta.functions";
 
@@ -184,7 +184,7 @@ function MarketingPulse() {
 }
 
 // ─────────────────── 1. TODAY STRIP ───────────────────
-function TodayStrip({ d }: { d: NonNullable<ReturnType<typeof useTodayD>> }) {
+function TodayStrip({ d }: { d: PulseData["today"] }) {
   const roas = d.delivered_roas ?? d.confirmed_roas;
   const roasTone =
     roas == null ? "indigo" : roas >= 2 ? "emerald" : roas >= 1 ? "amber" : "rose";
@@ -261,11 +261,6 @@ function TodayStrip({ d }: { d: NonNullable<ReturnType<typeof useTodayD>> }) {
   );
 }
 
-function useTodayD() {
-  // helper for TypeScript narrowing in TodayStrip
-  return undefined as unknown as import("@/lib/erp/marketing/pulse.functions").PulseData["today"];
-}
-
 function TodayKpi({
   icon: Icon,
   label,
@@ -308,11 +303,7 @@ function TodayKpi({
 }
 
 // ─────────────────── 2. REALITY STRIP ───────────────────
-function RealityStrip({
-  d,
-}: {
-  d: import("@/lib/erp/marketing/pulse.functions").PulseData["today"];
-}) {
+function RealityStrip({ d }: { d: PulseData["today"] }) {
   if (d.spend_bdt <= 0) {
     return (
       <Card className="p-6 text-sm text-muted-foreground text-center rounded-2xl">
