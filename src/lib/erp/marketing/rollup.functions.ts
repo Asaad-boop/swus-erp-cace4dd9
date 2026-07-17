@@ -466,8 +466,21 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
       }
     }
 
+    // Phase 4a.1 — canonical delivered revenue / COGS / opex per product,
+    // so this rollup matches SKU-P&L exactly.
+    const skuCanonical = await getSkuProfitMap(supabase, data.brandId, from, to);
+
     const rows: ProductProfitRow[] = ids.map((pid) => {
-      const agg = productAgg.get(pid) ?? { units_sold: 0, delivered_revenue: 0, cogs: 0, operating_cost: 0 };
+      const canon = skuCanonical.get(pid);
+      const agg = canon
+        ? {
+            units_sold: canon.delivered_units,
+            delivered_revenue: canon.delivered_revenue,
+            cogs: canon.cogs,
+            operating_cost: canon.operating_cost,
+          }
+        : (productAgg.get(pid) ?? { units_sold: 0, delivered_revenue: 0, cogs: 0, operating_cost: 0 });
+      const cost_missing_units = canon?.cost_missing_units ?? 0;
       const direct = directSpend.get(pid) ?? 0;
       const alloc = finalAllocatedAd.get(pid) ?? 0;
       const total_marketing = direct + alloc;
@@ -489,6 +502,7 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
         net_profit,
         roas: total_marketing > 0 ? agg.delivered_revenue / total_marketing : null,
         poas: total_marketing > 0 ? net_profit / total_marketing : null,
+        cost_missing_units,
       };
     });
 
