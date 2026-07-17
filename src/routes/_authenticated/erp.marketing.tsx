@@ -1,125 +1,90 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { useState } from "react";
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandSwitcher } from "@/components/erp/brand-switcher";
+import { useBrand } from "@/contexts/brand-context";
+import { LastSyncedBadge } from "@/components/erp/marketing/last-synced-badge";
+import { MarketingLeftRail, MARKETING_SECTIONS } from "@/components/erp/marketing/_shell/left-rail";
+import { MarketingActionInbox } from "@/components/erp/marketing/_shell/action-inbox";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/erp/marketing")({
   head: () => ({ meta: [{ title: "Marketing — ERP" }] }),
   component: MarketingLayout,
 });
 
-// 4-hub top navigation. Each hub owns a set of legacy sub-routes accessed
-// via contextual sub-tabs — the underlying pages are unchanged (Phase 2
-// UI-only consolidation).
-type Hub = {
-  key: string;
-  label: string;
-  default: string;
-  matches: (path: string) => boolean;
-  sub: { to: string; label: string; exact?: boolean }[];
-};
-
-const hubs: Hub[] = [
-  {
-    key: "overview",
-    label: "Overview",
-    default: "/erp/marketing",
-    matches: (p) =>
-      p === "/erp/marketing" ||
-      p.startsWith("/erp/marketing/expenses") ||
-      p.startsWith("/erp/marketing/sync") ||
-      p.startsWith("/erp/marketing/meta-reports"),
-    sub: [
-      { to: "/erp/marketing", label: "Dashboard", exact: true },
-      { to: "/erp/marketing/expenses", label: "Manual Expenses" },
-      { to: "/erp/marketing/meta-reports", label: "Meta Reports" },
-      { to: "/erp/marketing/sync", label: "Sync Log" },
-    ],
-  },
-  {
-    key: "spend",
-    label: "Ad Spend",
-    default: "/erp/finance/dollar-purchase",
-    matches: (p) =>
-      p.startsWith("/erp/finance/dollar-purchase") ||
-      p.startsWith("/erp/marketing/ad-account-funding"),
-    sub: [
-      { to: "/erp/finance/dollar-purchase", label: "Dollar Purchase" },
-      { to: "/erp/marketing/ad-account-funding", label: "Ad Funding Ledger" },
-    ],
-  },
-  {
-    key: "campaigns",
-    label: "Campaigns",
-    default: "/erp/marketing/campaigns",
-    matches: (p) =>
-      p.startsWith("/erp/marketing/campaigns") ||
-      p.startsWith("/erp/marketing/rollup") ||
-      p.startsWith("/erp/marketing/sku-pnl") ||
-      p.startsWith("/erp/marketing/attribution"),
-    sub: [
-      { to: "/erp/marketing/campaigns", label: "Campaigns" },
-      { to: "/erp/marketing/rollup", label: "Profit Rollup" },
-      { to: "/erp/marketing/sku-pnl", label: "SKU P&L" },
-      { to: "/erp/marketing/attribution", label: "Unmatched Orders" },
-    ],
-  },
-  {
-    key: "settings",
-    label: "Settings",
-    default: "/erp/marketing/accounts",
-    matches: (p) => p.startsWith("/erp/marketing/accounts"),
-    sub: [{ to: "/erp/marketing/accounts", label: "Ad Accounts & Brand Mapping" }],
-  },
-];
-
 function MarketingLayout() {
   const { pathname } = useLocation();
-  const activeHub = hubs.find((h) => h.matches(pathname)) ?? hubs[0];
+  const { brandIds } = useBrand();
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const active = MARKETING_SECTIONS.find((s) => s.matches(pathname)) ?? MARKETING_SECTIONS[0];
+
   return (
     <div className="flex flex-col h-full bg-[#F8F9FA]">
-      <div className="border-b border-gray-100 bg-white px-4 md:px-6 pt-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {hubs.map((h) => {
-            const active = h.key === activeHub.key;
-            return (
-              <Link
-                key={h.key}
-                to={h.default as never}
-                className={cn(
-                  "px-4 py-1.5 text-sm font-semibold rounded-full transition-all whitespace-nowrap",
-                  active
-                    ? "bg-[#1877F2] text-white shadow-sm"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
-                )}
-              >
-                {h.label}
-              </Link>
-            );
-          })}
-        </div>
-        {activeHub.sub.length > 1 && (
-          <div className="flex items-center gap-4 mt-3 -mb-px overflow-x-auto">
-            {activeHub.sub.map((s) => {
-              const active = s.exact ? pathname === s.to : pathname.startsWith(s.to);
-              return (
-                <Link
-                  key={s.to}
-                  to={s.to as never}
-                  className={cn(
-                    "pb-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap",
-                    active
-                      ? "border-[#1877F2] text-[#1877F2]"
-                      : "border-transparent text-gray-500 hover:text-gray-800",
-                  )}
-                >
-                  {s.label}
-                </Link>
-              );
-            })}
+      {/* ── Global marketing header ── */}
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gray-100 bg-white px-3 md:px-4 py-2.5 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setLeftOpen((v) => !v)}
+            aria-label={leftOpen ? "Collapse sections" : "Expand sections"}
+          >
+            {leftOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+          </Button>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#1877F2]/10 text-[#1877F2]">
+            <BarChart3 className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Marketing
+            </div>
+            <div className="text-sm font-semibold text-gray-900 truncate leading-tight">
+              {active.label}
+            </div>
           </div>
-        )}
-      </div>
-      <div className="flex-1 p-4 md:p-6 overflow-auto">
-        <Outlet />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <BrandSwitcher />
+          {brandIds.length > 0 && <LastSyncedBadge brandIds={brandIds} />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setRightOpen((v) => !v)}
+            aria-label={rightOpen ? "Hide action inbox" : "Show action inbox"}
+          >
+            {rightOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+          </Button>
+        </div>
+      </header>
+
+      {/* ── 3-pane body ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <aside
+          className={cn(
+            "shrink-0 border-r border-gray-100 bg-white overflow-y-auto transition-all",
+            leftOpen ? "w-52" : "w-0",
+          )}
+        >
+          {leftOpen && <MarketingLeftRail />}
+        </aside>
+
+        <main className="flex-1 min-w-0 overflow-auto p-3 md:p-4">
+          <Outlet />
+        </main>
+
+        <aside
+          className={cn(
+            "shrink-0 overflow-hidden transition-all",
+            rightOpen ? "w-72" : "w-0",
+          )}
+        >
+          {rightOpen && <MarketingActionInbox />}
+        </aside>
       </div>
     </div>
   );
