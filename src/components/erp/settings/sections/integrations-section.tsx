@@ -66,8 +66,7 @@ export function IntegrationsSection({ brandId }: { brandId: string }) {
         <Alert>
           <AlertDescription className="text-xs">
             Meta Ad Accounts (Pixel ID, Access Token, App ID/Secret) are managed in
-            <a href="/erp/marketing/accounts" className="text-primary underline ml-1">Marketing → Accounts</a>.
-            That page is restricted to admin role (Tier 1 security).
+            the Marketing module (currently being rebuilt — settings will move back here shortly).
           </AlertDescription>
         </Alert>
       </Card>
