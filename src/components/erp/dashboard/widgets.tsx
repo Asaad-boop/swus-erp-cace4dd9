@@ -38,8 +38,18 @@ export function NetProfitCard({
     queryFn: async () => {
       const fromISO = range.from.toISOString();
       const toISO = range.to.toISOString();
-      const fromDate = fromISO.slice(0, 10);
-      const toDate = toISO.slice(0, 10);
+      // mkt_insights_daily.date is stored in local (BDT) calendar day, so
+      // derive the date filter from local components — never from ISO/UTC
+      // slice, which shifts to the previous day for UTC+6 timestamps like
+      // "today 00:00 BDT" (= yesterday 18:00 UTC).
+      const toLocalDate = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
+      const fromDate = toLocalDate(range.from);
+      const toDate = toLocalDate(range.to);
 
       const [rev, items, ads, returns, exch] = await Promise.all([
         applyBrandScope(
