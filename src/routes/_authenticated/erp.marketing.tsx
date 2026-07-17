@@ -1,5 +1,8 @@
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandSwitcher } from "@/components/erp/brand-switcher";
@@ -9,14 +12,49 @@ import { MarketingLeftRail, MARKETING_SECTIONS } from "@/components/erp/marketin
 import { MarketingActionInbox } from "@/components/erp/marketing/_shell/action-inbox";
 import { Button } from "@/components/ui/button";
 
+const marketingSearchSchema = z.object({
+  brand: fallback(z.string(), "").default(""),
+});
+
 export const Route = createFileRoute("/_authenticated/erp/marketing")({
   head: () => ({ meta: [{ title: "Marketing — ERP" }] }),
+  validateSearch: zodValidator(marketingSearchSchema),
   component: MarketingLayout,
 });
 
 function MarketingLayout() {
   const { pathname } = useLocation();
-  const { brandIds } = useBrand();
+  const { brandIds, brands, activeBrand, isAllBrands, setActiveBrandId } = useBrand();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+
+  // ── URL <-> BrandContext sync (?brand=all | <slug>) ──
+  useEffect(() => {
+    if (!brands.length) return;
+    const urlBrand = search.brand;
+    if (!urlBrand) {
+      const next = isAllBrands ? "all" : (activeBrand?.slug ?? "all");
+      navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, brand: next }), replace: true });
+      return;
+    }
+    if (urlBrand === "all") {
+      if (!isAllBrands) setActiveBrandId("all");
+    } else {
+      const match = brands.find((b) => b.slug === urlBrand);
+      if (match && match.id !== activeBrand?.id) setActiveBrandId(match.id);
+    }
+     
+  }, [search.brand, brands.length]);
+
+  useEffect(() => {
+    if (!brands.length) return;
+    const desired = isAllBrands ? "all" : (activeBrand?.slug ?? "all");
+    if (search.brand !== desired) {
+      navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, brand: desired }), replace: true });
+    }
+     
+  }, [isAllBrands, activeBrand?.slug]);
+
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const active = MARKETING_SECTIONS.find((s) => s.matches(pathname)) ?? MARKETING_SECTIONS[0];
