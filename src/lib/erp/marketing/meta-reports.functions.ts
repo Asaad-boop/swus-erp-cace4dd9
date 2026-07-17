@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getCampaignProfitMap, type CampaignProfitAgg } from "./canonical.server";
 
 /**
  * Consolidated data for the Meta Reports page (tabs A-G).
@@ -49,6 +50,7 @@ export type MetaReportData = {
     confirmed_revenue_bdt: number;
     true_roas: number | null;
     poas: number | null;
+    cost_missing_units: number;
   }>; // Tab F
   brandRows: Array<{
     brand_id: string | null;
@@ -66,6 +68,7 @@ export type MetaReportData = {
     net_profit_bdt: number;
     roas: number | null;
     poas: number | null;
+    cost_missing_units: number;
   }>; // Tab E
   filters: {
     adAccounts: Array<{ id: string; name: string; brand_id: string | null }>;
@@ -232,16 +235,28 @@ export const getMetaReports = createServerFn({ method: "POST" })
       const st = o.status as string;
       const total = Number(o.total) || 0;
       if (st !== "cancelled" && st !== "returned") { cur.confirmed += 1; cur.rev_confirmed += total; }
-      if (st === "delivered") {
-        cur.delivered += 1; cur.rev_delivered += total;
-        for (const it of o.order_items ?? []) {
-          const qty = Number(it.quantity) || 0;
-          const unitCost = Number(it.unit_cost_snapshot ?? it.cost_price) || 0;
-          cur.cogs += unitCost * qty;
-          cur.opex += (Number(it.courier_cost_allocated) || 0) + (Number(it.packaging_cost_allocated) || 0) + (Number(it.refund_amount_allocated) || 0);
-        }
-      }
       cAgg.set(r.campaign_id, cur);
+    }
+
+    // Phase 4a.1 — canonical delivered orders / revenue / COGS / opex per campaign,
+    // merged across all selected brands. Confirmed_* stays attribution-derived.
+    const scopedBrands = brandIds.length ? brandIds : Array.from(new Set(campaigns.map((c: any) => c.brand_id).filter(Boolean))) as string[];
+    const canonicalMap = new Map<string, CampaignProfitAgg>();
+    if (scopedBrands.length) {
+      const perBrand = await Promise.all(
+        scopedBrands.map((bid) => getCampaignProfitMap(supabase, bid, from, to)),
+      );
+      for (const m of perBrand) for (const [k, v] of m) canonicalMap.set(k, v);
+    }
+    for (const c of campaigns as any[]) {
+      const canon = canonicalMap.get(c.id);
+      if (!canon) continue;
+      const cur = cAgg.get(c.id) ?? { confirmed: 0, delivered: 0, rev_confirmed: 0, rev_delivered: 0, cogs: 0, opex: 0 };
+      cur.delivered = canon.delivered_orders;
+      cur.rev_delivered = canon.delivered_revenue;
+      cur.cogs = canon.cogs;
+      cur.opex = canon.operating_cost;
+      cAgg.set(c.id, cur);
     }
 
     // Tab F rows (one per ad/adset/campaign combo)
@@ -276,17 +291,18 @@ export const getMetaReports = createServerFn({ method: "POST" })
         delivered_revenue_bdt: +(agg?.rev_delivered ?? 0).toFixed(2),
         confirmed_revenue_bdt: +(agg?.rev_confirmed ?? 0).toFixed(2),
         true_roas, poas,
+        cost_missing_units: ar.campId ? (canonicalMap.get(ar.campId)?.cost_missing_units ?? 0) : 0,
       });
     }
     campaignRows.sort((a, b) => b.spend_bdt - a.spend_bdt);
 
     // Tab E: brand rollup
-    type BAgg = { fifo: number; fallback: number; usd: number; orders: number; rev: number; del_rev: number; cogs: number; opex: number };
+    type BAgg = { fifo: number; fallback: number; usd: number; orders: number; rev: number; del_rev: number; cogs: number; opex: number; cost_missing_units: number };
     const bAgg = new Map<string, BAgg>();
     const bEnsure = (bid: string | null) => {
       const k = bid ?? "—";
       let v = bAgg.get(k);
-      if (!v) { v = { fifo: 0, fallback: 0, usd: 0, orders: 0, rev: 0, del_rev: 0, cogs: 0, opex: 0 }; bAgg.set(k, v); }
+      if (!v) { v = { fifo: 0, fallback: 0, usd: 0, orders: 0, rev: 0, del_rev: 0, cogs: 0, opex: 0, cost_missing_units: 0 }; bAgg.set(k, v); }
       return v;
     };
     for (const r of spendByDateAccount) {
@@ -302,6 +318,8 @@ export const getMetaReports = createServerFn({ method: "POST" })
       v.del_rev += agg.rev_delivered;
       v.cogs += agg.cogs;
       v.opex += agg.opex;
+      const canon = canonicalMap.get(c.id);
+      if (canon) v.cost_missing_units += canon.cost_missing_units;
     }
     const brandRows: MetaReportData["brandRows"] = [];
     for (const [k, v] of bAgg) {
@@ -323,6 +341,7 @@ export const getMetaReports = createServerFn({ method: "POST" })
         net_profit_bdt: +profit.toFixed(2),
         roas: bdt > 0 ? +(v.del_rev / bdt).toFixed(2) : null,
         poas: bdt > 0 ? +(profit / bdt).toFixed(2) : null,
+        cost_missing_units: v.cost_missing_units,
       });
     }
     brandRows.sort((a, b) => b.spend_bdt - a.spend_bdt);

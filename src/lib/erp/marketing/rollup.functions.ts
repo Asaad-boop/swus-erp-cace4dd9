@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getCampaignProfitMap, getSkuProfitMap } from "./canonical.server";
 
 export type CampaignProfitRow = {
   campaign_id: string;
@@ -18,6 +19,7 @@ export type CampaignProfitRow = {
   // costs
   cogs: number;
   operating_cost: number; // courier+packaging+refund allocations
+  cost_missing_units: number; // Phase 4a.1 — flags rows with unresolved unit cost
   // derived
   gross_profit: number; // revenue - cogs - op
   net_profit: number; // gross - total_spend
@@ -41,6 +43,7 @@ export type ProductProfitRow = {
   net_profit: number;
   roas: number | null;
   poas: number | null;
+  cost_missing_units: number;
 };
 
 function dateRangeDefaults(input: { from?: string; to?: string }) {
@@ -174,49 +177,30 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
       .gte("orders.created_at", fromStart)
       .lte("orders.created_at", toEnd);
 
-    type Agg = {
-      confirmed_orders: number;
-      delivered_orders: number;
-      delivered_revenue: number;
-      cogs: number;
-      operating_cost: number;
-    };
-    const aggMap = new Map<string, Agg>();
+    // Confirmed-orders count kept on the attribution join (leading indicator,
+    // pre-delivery). Delivered revenue / COGS / operating_cost all come from
+    // the canonical get_campaign_profit RPC so numbers match every other
+    // marketing surface (Phase 4a.1 consolidation).
+    const confirmedMap = new Map<string, number>();
     for (const r of (attribs ?? []) as any[]) {
       if (!r.campaign_id || !r.orders) continue;
-      const order = r.orders;
-      const status = order.status as string;
-      const cur = aggMap.get(r.campaign_id) ?? {
-        confirmed_orders: 0,
-        delivered_orders: 0,
-        delivered_revenue: 0,
-        cogs: 0,
-        operating_cost: 0,
-      };
-      const isCancelled = status === "cancelled" || status === "returned";
-      if (!isCancelled) cur.confirmed_orders += 1;
-      if (status === "delivered") {
-        cur.delivered_orders += 1;
-        cur.delivered_revenue += Number(order.total) || 0;
-        for (const it of order.order_items ?? []) {
-          const qty = Number(it.quantity) || 0;
-          const unitCost = Number(it.unit_cost_snapshot ?? it.cost_price) || 0;
-          cur.cogs += unitCost * qty;
-          cur.operating_cost +=
-            (Number(it.courier_cost_allocated) || 0) +
-            (Number(it.packaging_cost_allocated) || 0) +
-            (Number(it.refund_amount_allocated) || 0);
-        }
+      const status = r.orders.status as string;
+      if (status !== "cancelled" && status !== "returned") {
+        confirmedMap.set(r.campaign_id, (confirmedMap.get(r.campaign_id) ?? 0) + 1);
       }
-      aggMap.set(r.campaign_id, cur);
     }
+    const canonicalMap = await getCampaignProfitMap(supabase, data.brandId, from, to);
 
     const rows: CampaignProfitRow[] = (campaigns ?? []).map((c: any) => {
       const ad = adSpendMap.get(c.id) ?? 0;
       const man = manualSpendMap.get(c.id) ?? 0;
-      const agg = aggMap.get(c.id) ?? { confirmed_orders: 0, delivered_orders: 0, delivered_revenue: 0, cogs: 0, operating_cost: 0 };
+      const canon = canonicalMap.get(c.id) ?? {
+        delivered_orders: 0, delivered_units: 0, delivered_revenue: 0,
+        cogs: 0, operating_cost: 0, gross_profit: 0, cost_missing_units: 0,
+      };
+      const confirmed_orders = confirmedMap.get(c.id) ?? 0;
       const total_spend = ad + man;
-      const gross_profit = agg.delivered_revenue - agg.cogs - agg.operating_cost;
+      const gross_profit = canon.gross_profit;
       const net_profit = gross_profit - total_spend;
       return {
         campaign_id: c.id,
@@ -226,16 +210,17 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
         ad_spend: ad,
         manual_spend: man,
         total_spend,
-        confirmed_orders: agg.confirmed_orders,
-        delivered_orders: agg.delivered_orders,
-        delivered_revenue: agg.delivered_revenue,
-        cogs: agg.cogs,
-        operating_cost: agg.operating_cost,
+        confirmed_orders,
+        delivered_orders: canon.delivered_orders,
+        delivered_revenue: canon.delivered_revenue,
+        cogs: canon.cogs,
+        operating_cost: canon.operating_cost,
+        cost_missing_units: canon.cost_missing_units,
         gross_profit,
         net_profit,
-        roas: total_spend > 0 ? agg.delivered_revenue / total_spend : null,
+        roas: total_spend > 0 ? canon.delivered_revenue / total_spend : null,
         poas: total_spend > 0 ? net_profit / total_spend : null,
-        profit_margin: agg.delivered_revenue > 0 ? net_profit / agg.delivered_revenue : null,
+        profit_margin: canon.delivered_revenue > 0 ? net_profit / canon.delivered_revenue : null,
       };
     });
 
@@ -249,6 +234,7 @@ export const getCampaignProfitRollup = createServerFn({ method: "POST" })
         acc.delivered_revenue += r.delivered_revenue;
         acc.cogs += r.cogs;
         acc.operating_cost += r.operating_cost;
+        acc.cost_missing_units += r.cost_missing_units;
         acc.gross_profit += r.gross_profit;
         acc.net_profit += r.net_profit;
         return acc;
@@ -291,6 +277,7 @@ function emptyTotals() {
     delivered_revenue: 0,
     cogs: 0,
     operating_cost: 0,
+    cost_missing_units: 0,
     gross_profit: 0,
     net_profit: 0,
     roas: null as number | null,
@@ -479,8 +466,21 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
       }
     }
 
+    // Phase 4a.1 — canonical delivered revenue / COGS / opex per product,
+    // so this rollup matches SKU-P&L exactly.
+    const skuCanonical = await getSkuProfitMap(supabase, data.brandId, from, to);
+
     const rows: ProductProfitRow[] = ids.map((pid) => {
-      const agg = productAgg.get(pid) ?? { units_sold: 0, delivered_revenue: 0, cogs: 0, operating_cost: 0 };
+      const canon = skuCanonical.get(pid);
+      const agg = canon
+        ? {
+            units_sold: canon.delivered_units,
+            delivered_revenue: canon.delivered_revenue,
+            cogs: canon.cogs,
+            operating_cost: canon.operating_cost,
+          }
+        : (productAgg.get(pid) ?? { units_sold: 0, delivered_revenue: 0, cogs: 0, operating_cost: 0 });
+      const cost_missing_units = canon?.cost_missing_units ?? 0;
       const direct = directSpend.get(pid) ?? 0;
       const alloc = finalAllocatedAd.get(pid) ?? 0;
       const total_marketing = direct + alloc;
@@ -502,6 +502,7 @@ export const getProductProfitRollup = createServerFn({ method: "POST" })
         net_profit,
         roas: total_marketing > 0 ? agg.delivered_revenue / total_marketing : null,
         poas: total_marketing > 0 ? net_profit / total_marketing : null,
+        cost_missing_units,
       };
     });
 

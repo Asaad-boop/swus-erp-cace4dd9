@@ -9103,6 +9103,19 @@ export type Database = {
           sku: string
         }[]
       }
+      get_campaign_profit: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: {
+          campaign_id: string
+          cogs: number
+          cost_missing_units: number
+          delivered_orders: number
+          delivered_revenue: number
+          delivered_units: number
+          gross_profit: number
+          operating_cost: number
+        }[]
+      }
       get_campaign_report: {
         Args: { p_brand_id: string; p_from: string; p_to: string }
         Returns: {
@@ -9212,6 +9225,18 @@ export type Database = {
           p_variant_id?: string
         }
         Returns: Json
+      }
+      get_sku_profit: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: {
+          cogs: number
+          cost_missing_units: number
+          delivered_revenue: number
+          delivered_units: number
+          gross_profit: number
+          operating_cost: number
+          product_id: string
+        }[]
       }
       get_trial_balance: {
         Args: { _as_of: string; _brand_id: string }
@@ -9613,6 +9638,27 @@ export type Database = {
           return_rate: number
           returned_orders: number
           total_orders: number
+        }[]
+      }
+      mkt_delivered_line_costs: {
+        Args: { _brand_id: string; _from: string; _to: string }
+        Returns: {
+          campaign_id: string
+          cost_missing: boolean
+          cost_source: string
+          courier_cost_allocated: number
+          day: string
+          line_cogs: number
+          line_total: number
+          operating_cost: number
+          order_id: string
+          order_item_id: string
+          packaging_cost_allocated: number
+          product_id: string
+          quantity: number
+          refund_amount_allocated: number
+          unit_cost: number
+          variant_id: string
         }[]
       }
       mkt_get_campaign_daily_rollup: {

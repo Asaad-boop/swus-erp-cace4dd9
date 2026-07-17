@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getSkuProfitMap } from "./canonical.server";
 
 export type SkuPnlRow = {
   product_id: string | null;
@@ -22,6 +23,8 @@ export type SkuPnlRow = {
   damaged_cogs_loss: number;
   // Profit
   gross_profit: number;
+  // Phase 4a.1 — canonical cost-completeness flag
+  cost_missing_units: number;
   total_ad_spend: number;
   influencer_spend: number;
   ugc_spend: number;
@@ -69,20 +72,17 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     const fromStart = `${from}T00:00:00.000Z`;
 
     // 1) Delivered order items in window
-    const { data: items, error: iErr } = await supabase
-      .from("order_items")
-      .select("product_id, quantity, line_total, unit_cost_snapshot, courier_cost_allocated, orders!inner(status, brand_id, created_at)")
-      .eq("orders.brand_id", data.brandId)
-      .eq("orders.status", "delivered")
-      .gte("orders.created_at", fromStart)
-      .lte("orders.created_at", toEnd);
-    if (iErr) throw iErr;
+    // Phase 4a.1 — canonical per-product revenue + COGS. Deterministic
+    // fallback chain (snapshot → variant WAC → product WAC → cost_price).
+    // Same source as Campaigns / Rollup / Dashboard.
+    const skuCanonical = await getSkuProfitMap(supabase, data.brandId, from, to);
 
     type Agg = {
       units_sold: number;
       gross_revenue: number;
       gross_cogs: number;
       courier_fees: number;
+      cost_missing_units: number;
       units_returned_sellable: number;
       units_returned_damaged: number;
       sellable_returns: number;
@@ -96,7 +96,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       if (!a) {
         a = {
           units_sold: 0, gross_revenue: 0, gross_cogs: 0,
-          courier_fees: 0,
+          courier_fees: 0, cost_missing_units: 0,
           units_returned_sellable: 0, units_returned_damaged: 0,
           sellable_returns: 0, damaged_returns: 0,
           cogs_reversed: 0, damaged_cogs_loss: 0,
@@ -107,17 +107,14 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     };
 
     const productIds = new Set<string>();
-    for (const r of (items ?? []) as any[]) {
-      if (!r.product_id) continue;
-      productIds.add(r.product_id);
-      const a = ensure(r.product_id);
-      const qty = Number(r.quantity) || 0;
-      const lineTotal = Number(r.line_total) || 0;
-      a.units_sold += qty;
-      a.gross_revenue += lineTotal;
-      a.courier_fees += Number(r.courier_cost_allocated) || 0;
-      const unitCost = r.unit_cost_snapshot != null ? Number(r.unit_cost_snapshot) : null;
-      if (unitCost != null) a.gross_cogs += unitCost * qty;
+    for (const [pid, canon] of skuCanonical) {
+      productIds.add(pid);
+      const a = ensure(pid);
+      a.units_sold = canon.delivered_units;
+      a.gross_revenue = canon.delivered_revenue;
+      a.gross_cogs = canon.cogs;
+      a.courier_fees = canon.operating_cost; // courier + packaging + refund (was courier_fees alone before)
+      a.cost_missing_units = canon.cost_missing_units;
     }
 
     // 2) Product meta + WAC fallback for items without unit_cost_snapshot
@@ -138,15 +135,8 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       });
     }
 
-    // Fill missing gross_cogs using WAC where unit_cost_snapshot was null
-    for (const r of (items ?? []) as any[]) {
-      if (!r.product_id) continue;
-      if (r.unit_cost_snapshot != null) continue;
-      const meta = productMeta.get(r.product_id);
-      if (!meta) continue;
-      const a = ensure(r.product_id);
-      a.gross_cogs += meta.wac * (Number(r.quantity) || 0);
-    }
+    // (WAC fallback now handled by canonical get_sku_profit — deterministic
+    // fallback chain runs in Postgres, so no post-hoc fill needed here.)
 
     // 2b) Returns from erp_return_cases — split by item_condition (sellable vs damaged/dispose)
     const { data: returns, error: rErr } = await supabase
@@ -376,7 +366,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     for (const pid of allIds) {
       const a = perProduct.get(pid) ?? {
         units_sold: 0, gross_revenue: 0, gross_cogs: 0,
-        courier_fees: 0,
+        courier_fees: 0, cost_missing_units: 0,
         units_returned_sellable: 0, units_returned_damaged: 0,
         sellable_returns: 0, damaged_returns: 0,
         cogs_reversed: 0, damaged_cogs_loss: 0,
@@ -417,6 +407,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
         net_cogs: +net_cogs.toFixed(2),
         damaged_cogs_loss: +a.damaged_cogs_loss.toFixed(2),
         gross_profit: +gross_profit.toFixed(2),
+        cost_missing_units: a.cost_missing_units,
         total_ad_spend: +adSpend.toFixed(2),
         influencer_spend: +m.influencer.toFixed(2),
         ugc_spend: +m.ugc.toFixed(2),
