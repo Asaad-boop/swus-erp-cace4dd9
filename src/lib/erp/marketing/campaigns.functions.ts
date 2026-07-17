@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getCampaignProfitMap } from "./canonical.server";
 
 export type CampaignRollupRow = {
   id: string;
@@ -36,6 +37,8 @@ export type CampaignRollupRow = {
   delivered_orders: number;
   delivered_revenue: number;
   return_orders: number;
+  // Phase 4a.1 — canonical cost data flag
+  cost_missing_units: number;
   // Computed
   roas_meta: number | null;
   roas_confirmed: number | null;
@@ -130,12 +133,24 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         cur.confirmed_orders += 1;
         cur.confirmed_revenue += total;
       }
-      if (status === "delivered") {
-        cur.delivered_orders += 1;
-        cur.delivered_revenue += total;
-      }
       if (status === "returned") cur.return_orders += 1;
       attrMap.set(r.campaign_id, cur);
+    }
+
+    // Phase 4a.1 — delivered orders / revenue come from canonical RPC.
+    // Uses order_items.line_total (excludes shipping, no attribution double-count)
+    // and the deterministic COGS fallback chain, matching every other surface.
+    // Confirmed metrics stay on the attribution join (pre-delivery leading indicators).
+    const canonicalMap = brandIds.length === 1
+      ? await getCampaignProfitMap(context.supabase, brandIds[0], from, to)
+      : new Map();
+    for (const c of campaigns as any[]) {
+      const canon = canonicalMap.get(c.id);
+      if (!canon) continue;
+      const cur = attrMap.get(c.id) ?? { confirmed_orders: 0, confirmed_revenue: 0, delivered_orders: 0, delivered_revenue: 0, return_orders: 0 };
+      cur.delivered_orders = canon.delivered_orders;
+      cur.delivered_revenue = canon.delivered_revenue;
+      attrMap.set(c.id, cur);
     }
 
     // Phase 4a — side-by-side drift check vs canonical get_meta_spend_bdt RPC.
@@ -191,6 +206,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
     return campaigns.map((c: any): CampaignRollupRow => {
       const ins = insMap.get(c.id) ?? { spend: 0, impressions: 0, clicks: 0, meta_purchases: 0, meta_purchase_value: 0, meta_leads: 0, spend_bdt_fifo: 0, fifo_rows: 0, fallback_rows: 0 };
       const att = attrMap.get(c.id) ?? { confirmed_orders: 0, confirmed_revenue: 0, delivered_orders: 0, delivered_revenue: 0, return_orders: 0 };
+      const canon = canonicalMap.get(c.id);
       const ctr = ins.impressions > 0 ? (ins.clicks / ins.impressions) * 100 : null;
       const cpm = ins.impressions > 0 ? (ins.spend / ins.impressions) * 1000 : null;
       const acc = c.mkt_ad_accounts ?? {};
@@ -240,6 +256,7 @@ export const listCampaignsRollup = createServerFn({ method: "POST" })
         roas_delivered,
         cpo_confirmed_bdt,
         cpo_delivered_bdt,
+        cost_missing_units: canon?.cost_missing_units ?? 0,
         products: prodMap.get(c.id) ?? [],
       };
     });
@@ -339,11 +356,20 @@ export const getCampaignDetail = createServerFn({ method: "POST" })
         attrTotals.confirmed_orders += 1;
         attrTotals.confirmed_revenue += total;
       }
-      if (status === "delivered") {
-        attrTotals.delivered_orders += 1;
-        attrTotals.delivered_revenue += total;
-      }
       if (status === "returned") attrTotals.return_orders += 1;
+    }
+
+    // Phase 4a.1 — canonical delivered totals for this single campaign
+    const detailCanon = await getCampaignProfitMap(
+      context.supabase,
+      (camp as any).brand_id,
+      from,
+      to,
+    );
+    const detailC = detailCanon.get(data.campaignId);
+    if (detailC) {
+      attrTotals.delivered_orders = detailC.delivered_orders;
+      attrTotals.delivered_revenue = detailC.delivered_revenue;
     }
 
     const totals = series.reduce(
