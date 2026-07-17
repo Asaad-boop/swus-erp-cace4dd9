@@ -2309,6 +2309,57 @@ export type Database = {
           },
         ]
       }
+      erp_product_expense_allocations: {
+        Row: {
+          allocation_date: string
+          allocation_method: string
+          amount: number
+          brand_id: string
+          campaign_id: string | null
+          created_at: string
+          expense_transaction_id: string | null
+          expense_type: string
+          id: string
+          mkt_ad_account_id: string | null
+          note: string | null
+          product_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_date: string
+          allocation_method?: string
+          amount?: number
+          brand_id: string
+          campaign_id?: string | null
+          created_at?: string
+          expense_transaction_id?: string | null
+          expense_type: string
+          id?: string
+          mkt_ad_account_id?: string | null
+          note?: string | null
+          product_id: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_date?: string
+          allocation_method?: string
+          amount?: number
+          brand_id?: string
+          campaign_id?: string | null
+          created_at?: string
+          expense_transaction_id?: string | null
+          expense_type?: string
+          id?: string
+          mkt_ad_account_id?: string | null
+          note?: string | null
+          product_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       erp_reconciliation_rows: {
         Row: {
           amount_diff: number | null
@@ -5900,7 +5951,7 @@ export type Database = {
         Row: {
           account_id: string
           adset_id: string
-          brand_id: string
+          brand_id: string | null
           campaign_id: string
           created_at: string
           creative_body: string | null
@@ -5916,7 +5967,7 @@ export type Database = {
         Insert: {
           account_id: string
           adset_id: string
-          brand_id: string
+          brand_id?: string | null
           campaign_id: string
           created_at?: string
           creative_body?: string | null
@@ -5932,7 +5983,7 @@ export type Database = {
         Update: {
           account_id?: string
           adset_id?: string
-          brand_id?: string
+          brand_id?: string | null
           campaign_id?: string
           created_at?: string
           creative_body?: string | null
@@ -5986,7 +6037,7 @@ export type Database = {
       mkt_adsets: {
         Row: {
           account_id: string
-          brand_id: string
+          brand_id: string | null
           campaign_id: string
           created_at: string
           daily_budget: number | null
@@ -6002,7 +6053,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
-          brand_id: string
+          brand_id?: string | null
           campaign_id: string
           created_at?: string
           daily_budget?: number | null
@@ -6018,7 +6069,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
-          brand_id?: string
+          brand_id?: string | null
           campaign_id?: string
           created_at?: string
           daily_budget?: number | null
@@ -6167,7 +6218,7 @@ export type Database = {
       mkt_campaigns: {
         Row: {
           account_id: string
-          brand_id: string
+          brand_id: string | null
           created_at: string
           daily_budget: number | null
           effective_status: string | null
@@ -6184,7 +6235,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
-          brand_id: string
+          brand_id?: string | null
           created_at?: string
           daily_budget?: number | null
           effective_status?: string | null
@@ -6201,7 +6252,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
-          brand_id?: string
+          brand_id?: string | null
           created_at?: string
           daily_budget?: number | null
           effective_status?: string | null

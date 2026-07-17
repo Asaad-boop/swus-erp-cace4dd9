@@ -22,6 +22,29 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
         if (!ok) {
           return new Response('Unauthorized', { status: 401 });
         }
+        // Optional override window (for manual backfill via curl / one-off jobs).
+        // Body: { days?: number, since?: 'YYYY-MM-DD', until?: 'YYYY-MM-DD' }
+        let overrideDays: number | undefined;
+        let overrideSince: string | undefined;
+        let overrideUntil: string | undefined;
+        try {
+          const body = (await request.clone().json().catch(() => null)) as
+            | { days?: number; since?: string; until?: string }
+            | null;
+          if (body) {
+            if (typeof body.days === "number" && body.days > 0 && body.days <= 90) {
+              overrideDays = Math.floor(body.days);
+            }
+            if (typeof body.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.since)) {
+              overrideSince = body.since;
+            }
+            if (typeof body.until === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.until)) {
+              overrideUntil = body.until;
+            }
+          }
+        } catch {
+          // ignore malformed body — default 3-day window applies
+        }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { runStructureSync, runInsightsSync } = await import(
           "@/lib/erp/marketing/sync.server"
@@ -52,7 +75,11 @@ export const Route = createFileRoute("/api/public/cron/sync-marketing")({
             out.structure = { ok: false, error: String(e?.message ?? e) };
           }
           try {
-            const r = await runInsightsSync(supabaseAdmin, acc.id, { days: 3 });
+            const r = await runInsightsSync(supabaseAdmin, acc.id, {
+              days: overrideDays ?? 3,
+              since: overrideSince,
+              until: overrideUntil,
+            });
             out.insights = { ok: true, rows: r.rows };
             out.finance = (r as any)?.meta?.finance ?? null;
           } catch (e: any) {
