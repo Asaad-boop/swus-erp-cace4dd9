@@ -108,7 +108,7 @@ export function AnalyticsSection({ brandId }: { brandId: string }) {
         </Field>
         <Alert>
           <AlertDescription className="text-xs">
-            Server-side Conversions API token lives in <a href="/erp/marketing/accounts" className="text-primary underline">Marketing → Accounts</a>.
+            Server-side Conversions API token is managed in the Marketing module (currently being rebuilt).
           </AlertDescription>
         </Alert>
       </Card>
