@@ -17,6 +17,75 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Classify a caught error as transient (network/timeout/rate-limit/Meta 5xx)
+ * or permanent (invalid token, disabled account, bad request).
+ *
+ * Transient → keep account status as-is; only stamp `last_error` so future cron
+ * cycles will retry automatically. Permanent → set status = 'error' so it stops
+ * being auto-picked until a human fixes creds.
+ */
+function classifyMetaError(e: any): "transient" | "permanent" {
+  const msg = String(e?.message ?? e ?? "").toLowerCase();
+  const name = String(e?.name ?? "").toLowerCase();
+  const code = Number(e?.code);
+
+  // Meta Graph API permanent error codes:
+  //   190 = invalid/expired OAuth token
+  //   102 = session expired
+  //   200/210 = permission denied
+  //   803 = object does not exist
+  //   100 = invalid parameter (bad ad-account id, missing field)
+  //   294 = ads_management permission required
+  const permanentCodes = new Set([100, 102, 190, 200, 210, 294, 803]);
+  if (permanentCodes.has(code)) return "permanent";
+
+  // Meta transient / retryable codes:
+  //   1, 2   = unknown / temporary service issue
+  //   4, 17, 32, 613 = rate limit / throttling
+  //   368    = temporarily blocked
+  const transientCodes = new Set([1, 2, 4, 17, 32, 368, 613]);
+  if (transientCodes.has(code)) return "transient";
+
+  // AbortError / timeout / network — all transient
+  if (
+    name === "aborterror" ||
+    msg.includes("aborted") ||
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("fetch failed") ||
+    msg.includes("network") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout") ||
+    msg.includes("enotfound") ||
+    msg.includes("socket hang up")
+  ) {
+    return "transient";
+  }
+
+  // Meta API 5xx wrapper messages
+  if (/meta api 5\d\d/.test(msg)) return "transient";
+  // Meta API 4xx wrapper messages without a Meta code → likely permanent
+  if (/meta api 4\d\d/.test(msg)) return "permanent";
+
+  // Missing token / config problems raised by our own code → permanent
+  if (msg.includes("access token missing") || msg.includes("no access token")) {
+    return "permanent";
+  }
+
+  // Default: treat unknown as transient so we don't disable accounts on
+  // ambiguous errors. Cron will keep retrying; if it's truly permanent the
+  // next cycle will surface the same message.
+  return "transient";
+}
+
+async function stampAccountError(supabase: any, accountId: string, e: any) {
+  const kind = classifyMetaError(e);
+  const patch: any = { last_error: `[${kind}] ${String(e?.message ?? e)}` };
+  if (kind === "permanent") patch.status = "error";
+  await supabase.from("mkt_ad_accounts").update(patch).eq("id", accountId);
+}
+
 async function withSyncLog<T extends { rows: number; meta?: any }>(
   supabase: any,
   args: {
@@ -207,10 +276,7 @@ export async function runStructureSync(supabase: any, accountId: string) {
       },
     });
   } catch (e: any) {
-    await supabase
-      .from("mkt_ad_accounts")
-      .update({ last_error: String(e?.message ?? e), status: "error" })
-      .eq("id", acc.id);
+    await stampAccountError(supabase, acc.id, e);
     throw e;
   }
 }
@@ -394,10 +460,7 @@ export async function runInsightsSync(
       },
     });
   } catch (e: any) {
-    await supabase
-      .from("mkt_ad_accounts")
-      .update({ last_error: String(e?.message ?? e), status: "error" })
-      .eq("id", acc.id);
+    await stampAccountError(supabase, acc.id, e);
     throw e;
   }
 }

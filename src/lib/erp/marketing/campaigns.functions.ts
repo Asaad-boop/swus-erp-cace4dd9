@@ -457,9 +457,10 @@ export const linkCampaignProduct = createServerFn({ method: "POST" })
       .eq("id", data.campaignId)
       .single();
     if (cErr || !camp) throw new Error("Campaign not found");
+    if (!camp.brand_id) throw new Error("Campaign brand_id missing — assign a brand first");
     const { error } = await context.supabase.from("mkt_campaign_products").upsert(
       {
-        brand_id: camp.brand_id,
+        brand_id: camp.brand_id as string,
         campaign_id: data.campaignId,
         product_id: data.productId,
         weight: data.weight ?? 1,
