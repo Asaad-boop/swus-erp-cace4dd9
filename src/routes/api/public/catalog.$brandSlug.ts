@@ -48,11 +48,15 @@ export const Route = createFileRoute("/api/public/catalog/$brandSlug")({
           .select("value")
           .eq("key", `orders:${brand.id}`)
           .maybeSingle();
-        let allowOversell = false;
+        // Default: allow oversell (storefront can accept orders when stock is 0).
+        // Only disable if the brand has explicitly set allow_website_oversell = false.
+        let allowOversell = true;
         if (settingRow?.value) {
           try {
             const parsed = JSON.parse(settingRow.value as string);
-            allowOversell = Boolean(parsed?.allow_website_oversell);
+            if (parsed && typeof parsed.allow_website_oversell === "boolean") {
+              allowOversell = parsed.allow_website_oversell;
+            }
           } catch { /* ignore */ }
         }
 

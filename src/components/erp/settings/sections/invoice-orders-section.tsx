@@ -31,7 +31,7 @@ const DEFAULTS: OrderSettings = {
   cod_fee_value: 0,
   return_window_days: 7,
   order_id_format: "{prefix}{seq}",
-  allow_website_oversell: false,
+  allow_website_oversell: true,
 };
 
 export function InvoiceOrdersSection({ brandId }: { brandId: string }) {
