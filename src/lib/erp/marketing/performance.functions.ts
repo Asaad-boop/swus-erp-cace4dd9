@@ -515,5 +515,6 @@ function emptyTotals(): PerfTotals {
     margin_pct: null,
     true_roas: null,
     confirmed_roas: null,
+    cost_missing_units: 0,
   };
 }

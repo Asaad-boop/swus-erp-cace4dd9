@@ -135,15 +135,8 @@ export const getSkuPnl = createServerFn({ method: "POST" })
       });
     }
 
-    // Fill missing gross_cogs using WAC where unit_cost_snapshot was null
-    for (const r of (items ?? []) as any[]) {
-      if (!r.product_id) continue;
-      if (r.unit_cost_snapshot != null) continue;
-      const meta = productMeta.get(r.product_id);
-      if (!meta) continue;
-      const a = ensure(r.product_id);
-      a.gross_cogs += meta.wac * (Number(r.quantity) || 0);
-    }
+    // (WAC fallback now handled by canonical get_sku_profit — deterministic
+    // fallback chain runs in Postgres, so no post-hoc fill needed here.)
 
     // 2b) Returns from erp_return_cases — split by item_condition (sellable vs damaged/dispose)
     const { data: returns, error: rErr } = await supabase
@@ -373,7 +366,7 @@ export const getSkuPnl = createServerFn({ method: "POST" })
     for (const pid of allIds) {
       const a = perProduct.get(pid) ?? {
         units_sold: 0, gross_revenue: 0, gross_cogs: 0,
-        courier_fees: 0,
+        courier_fees: 0, cost_missing_units: 0,
         units_returned_sellable: 0, units_returned_damaged: 0,
         sellable_returns: 0, damaged_returns: 0,
         cogs_reversed: 0, damaged_cogs_loss: 0,
