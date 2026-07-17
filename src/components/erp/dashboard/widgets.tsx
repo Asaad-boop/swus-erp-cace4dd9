@@ -19,6 +19,18 @@ const USD = (n: number) => "$" + n.toLocaleString("en-US", { maximumFractionDigi
 
 type Range = { from: Date; to: Date; days: number };
 
+// Daily-partitioned tables (mkt_insights_daily.date, remittance_date,
+// invoice_date, …) store the local calendar day. Deriving the filter from
+// toISOString().slice(0,10) shifts to the previous UTC day for BDT (UTC+6)
+// timestamps like "today 00:00 BDT", so range.from ends up one day earlier
+// and the widget double-counts yesterday. Always use local components.
+const toLocalDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 function EmptyLine({ text }: { text: string }) {
   return <p className="text-sm text-muted-foreground py-4 text-center">{text}</p>;
 }
@@ -38,8 +50,8 @@ export function NetProfitCard({
     queryFn: async () => {
       const fromISO = range.from.toISOString();
       const toISO = range.to.toISOString();
-      const fromDate = fromISO.slice(0, 10);
-      const toDate = toISO.slice(0, 10);
+      const fromDate = toLocalDate(range.from);
+      const toDate = toLocalDate(range.to);
 
       const [rev, items, ads, returns, exch] = await Promise.all([
         applyBrandScope(
@@ -255,8 +267,8 @@ export function CodRemittancePipelineCard({
       const { data: rows } = await applyBrandScope(
         supabase.from("erp_cod_remittances").select("courier, status, amount, expected_amount, remittance_date"),
         brandIds,
-      ).gte("remittance_date", range.from.toISOString().slice(0, 10))
-       .lte("remittance_date", range.to.toISOString().slice(0, 10));
+      ).gte("remittance_date", toLocalDate(range.from))
+       .lte("remittance_date", toLocalDate(range.to));
       const list = (rows ?? []) as any[];
       if (list.length === 0) return { empty: true, byCourier: {} as Record<string, any>, totals: null as any };
       const byCourier: Record<string, { pending: number; received: number; reconciled: number; expected: number }> = {};
@@ -334,8 +346,8 @@ export function RoasComparisonCard({
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
-      const fromDate = range.from.toISOString().slice(0, 10);
-      const toDate = range.to.toISOString().slice(0, 10);
+      const fromDate = toLocalDate(range.from);
+      const toDate = toLocalDate(range.to);
       const fromISO = range.from.toISOString();
       const toISO = range.to.toISOString();
 
@@ -678,8 +690,8 @@ export function CourierPerformanceCard({
           brandIds,
         ).gte("created_at", fromISO).lte("created_at", toISO),
         supabase.from("erp_reconciliation_rows").select("store_name, cod_fee, collected")
-          .gte("invoice_date", range.from.toISOString().slice(0, 10))
-          .lte("invoice_date", range.to.toISOString().slice(0, 10)),
+          .gte("invoice_date", toLocalDate(range.from))
+          .lte("invoice_date", toLocalDate(range.to)),
       ]);
 
       type Row = { total: number; delivered: number; timeSum: number; timeCnt: number; feeSum: number; collectedSum: number };
