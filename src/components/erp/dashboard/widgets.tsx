@@ -493,7 +493,7 @@ export function AdWalletBalanceCard({
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <DollarSign className="size-4 text-emerald-600" /> Ad Wallet Balance
         </CardTitle>
-        <Link to="/erp/marketing/ad-account-funding" className="text-xs text-indigo-600 hover:underline">Top-up →</Link>
+        <Link to="/erp/finance/dollar-purchase" className="text-xs text-indigo-600 hover:underline">Top-up →</Link>
       </CardHeader>
       <CardContent>
         {isLoading ? <Skeleton className="h-20" /> : data?.empty ? (
