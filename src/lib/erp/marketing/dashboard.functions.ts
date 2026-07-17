@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getCampaignProfitMap, type CampaignProfitAgg } from "./canonical.server";
 
 /** Dashboard summary — Today's strip, 7-day trend, top campaigns, budget pacing. */
 
@@ -22,6 +23,8 @@ export type DashboardSummary = {
     confirmed_revenue_bdt: number;
     delivered_orders: number;
     delivered_revenue_bdt: number;
+    /** Phase 4a.1 — units with no resolvable unit cost. Non-zero = profit may be understated. */
+    delivered_cost_missing_units: number;
     confirmed_roas: number | null;
     delivered_roas: number | null;
     cpo_bdt: number | null; // spend / confirmed_orders
@@ -238,8 +241,6 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
     let attributedToday = 0;
     let confirmedOrdersToday = 0;
     let confirmedRevToday = 0;
-    let deliveredOrdersToday = 0;
-    let deliveredRevToday = 0;
     for (const r of (attrToday ?? []) as any[]) {
       if (!r.orders) continue;
       attributedToday += 1;
@@ -249,11 +250,24 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
         confirmedOrdersToday += 1;
         confirmedRevToday += total;
       }
-      if (status === "delivered" || status === "completed") {
-        deliveredOrdersToday += 1;
-        deliveredRevToday += total;
-      }
     }
+
+    // Phase 4a.1 — canonical delivered totals for today (across selected brands).
+    // Matches Campaigns / Rollup / SKU-P&L exactly (line-total based, dedup'd).
+    const canonToday: CampaignProfitAgg = {
+      delivered_orders: 0, delivered_units: 0, delivered_revenue: 0,
+      cogs: 0, operating_cost: 0, gross_profit: 0, cost_missing_units: 0,
+    };
+    const canonTodayMaps = await Promise.all(
+      brandIds.map((bid) => getCampaignProfitMap(supabase, bid, todayBD, todayBD).catch(() => new Map())),
+    );
+    for (const m of canonTodayMaps) for (const v of m.values()) {
+      canonToday.delivered_orders += v.delivered_orders;
+      canonToday.delivered_revenue += v.delivered_revenue;
+      canonToday.cost_missing_units += v.cost_missing_units;
+    }
+    const deliveredOrdersToday = canonToday.delivered_orders;
+    const deliveredRevToday = canonToday.delivered_revenue;
 
     const today = {
       date_bd: todayBD,
@@ -278,6 +292,7 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       confirmed_revenue_bdt: confirmedRevToday,
       delivered_orders: deliveredOrdersToday,
       delivered_revenue_bdt: deliveredRevToday,
+      delivered_cost_missing_units: canonToday.cost_missing_units,
       confirmed_roas: spendBdtToday > 0 ? confirmedRevToday / spendBdtToday : null,
       delivered_roas: spendBdtToday > 0 ? deliveredRevToday / spendBdtToday : null,
       cpo_bdt: confirmedOrdersToday > 0 ? spendBdtToday / confirmedOrdersToday : null,
@@ -309,7 +324,30 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const total = Number(r.orders.total) || 0;
       const status = r.orders.status as string;
       if (status !== "cancelled" && status !== "returned") cur.confirmed_revenue_bdt += total;
-      if (status === "delivered" || status === "completed") cur.delivered_revenue_bdt += total;
+      // delivered revenue overwritten below from canonical (line-total based)
+    }
+    // Phase 4a.1 — canonical delivered_revenue per day for 7-day trend.
+    const canon7dMaps = await Promise.all(
+      brandIds.map((bid) => getCampaignProfitMap(supabase, bid, sevenAgoBD, todayBD).catch(() => new Map())),
+    );
+    const canon7dByCampaign = new Map<string, CampaignProfitAgg>();
+    for (const m of canon7dMaps) for (const [k, v] of m) canon7dByCampaign.set(k, v);
+    // Per-day breakdown needs day-grain; the RPC aggregates window totals,
+    // so we fall back to a lightweight per-day RPC batch (7 calls × brand count).
+    const dayKeys = Array.from(trendMap.keys());
+    const perDayCanon = await Promise.all(
+      dayKeys.map(async (day) => {
+        const maps = await Promise.all(
+          brandIds.map((bid) => getCampaignProfitMap(supabase, bid, day, day).catch(() => new Map())),
+        );
+        let sum = 0;
+        for (const m of maps) for (const v of m.values()) sum += v.delivered_revenue;
+        return [day, sum] as const;
+      }),
+    );
+    for (const [day, rev] of perDayCanon) {
+      const cur = trendMap.get(day);
+      if (cur) cur.delivered_revenue_bdt = rev;
     }
     const trend7d = Array.from(trendMap.entries()).map(([date, v]) => ({ date, ...v }));
 
@@ -333,8 +371,13 @@ export const getDashboardSummary = createServerFn({ method: "POST" })
       const total = Number(r.orders.total) || 0;
       const status = r.orders.status as string;
       if (status !== "cancelled" && status !== "returned") cur.confirmed += total;
-      if (status === "delivered" || status === "completed") cur.delivered += total;
       campAgg.set(r.campaign_id, cur);
+    }
+    // Phase 4a.1 — canonical delivered revenue per campaign (last 7d)
+    for (const [campId, v] of canon7dByCampaign) {
+      const cur = campAgg.get(campId) ?? { spend_bdt: 0, confirmed: 0, delivered: 0 };
+      cur.delivered = v.delivered_revenue;
+      campAgg.set(campId, cur);
     }
     const topCampaigns = Array.from(campAgg.entries())
       .filter(([, v]) => v.spend_bdt > 0)
