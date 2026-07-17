@@ -1,0 +1,1 @@
+UPDATE public.mkt_ad_accounts SET status='active', last_error=NULL WHERE id='21741ec7-5518-4bdc-867e-20a222481f5d';
