@@ -30,7 +30,7 @@ const searchSchema = z.object({
   brand: fallback(z.string(), "all").default("all"),
 });
 
-export const Route = createFileRoute("/_authenticated/erp/marketing")({
+export const Route = createFileRoute("/_authenticated/erp/marketing/")({
   head: () => ({ meta: [{ title: "Marketing Overview — ERP" }] }),
   validateSearch: zodValidator(searchSchema),
   component: MarketingOverview,
