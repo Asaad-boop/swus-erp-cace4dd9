@@ -440,13 +440,11 @@ export async function runInsightsSync(
           })
           .eq("id", acc.id);
 
-        // Auto-post Meta spend to finance (BDT). Failure here doesn't fail the sync.
-        let financePosted: any = null;
-        try {
-          financePosted = await postMetaSpendToFinance(supabase, acc, since, until);
-        } catch (postErr: any) {
-          financePosted = { error: String(postErr?.message ?? postErr) };
-        }
+        // Legacy per-account finance posting DISABLED — canonical daily poster
+        // `post_meta_ad_spend_daily` (pg_cron) is the single source of truth for
+        // erp_transactions Meta ad-spend rows. Keeping this on caused duplicate
+        // uncategorized `reference_type='meta_spend'` rows in erp_transactions.
+        const financePosted: any = { skipped: "legacy_disabled_use_post_meta_ad_spend_daily" };
 
         return {
           rows: rows.length,
