@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { useQuery, useServerFn } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { useServerFn as useSFn } from "@tanstack/react-start";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ function MarketingOverview() {
   }, [brand, brands]);
 
   const today = useMemo(() => todayInDhaka(), []);
-  const fetchOverview = useSFn(getMarketingOverview);
+  const fetchOverview = useServerFn(getMarketingOverview);
 
   const q = useQuery({
     queryKey: ["mkt-overview", selection.ids.sort().join(","), today],
@@ -76,7 +76,10 @@ function MarketingOverview() {
   });
 
   const setBrand = (nextSlug: string) =>
-    navigate({ search: (prev) => ({ ...prev, brand: nextSlug }), replace: true });
+    navigate({
+      search: (prev: { brand: string }) => ({ ...prev, brand: nextSlug }),
+      replace: true,
+    });
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
