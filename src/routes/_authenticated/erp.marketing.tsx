@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import {
   Tag,
   Wallet,
   RefreshCcw,
+  CalendarDays,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
 import { useBrand } from "@/contexts/brand-context";
@@ -126,6 +127,12 @@ function MarketingOverview() {
             loading={brandsLoading}
             onChange={setBrand}
           />
+          <Link to="/erp/marketing/daily" search={{ brand: selection.key }}>
+            <Button size="sm" variant="outline">
+              <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+              Daily
+            </Button>
+          </Link>
           <Button
             size="sm"
             variant="outline"
