@@ -68,6 +68,15 @@ export const Route = createFileRoute("/_authenticated/erp/marketing/daily")({
 
 const bdt = (n: number) => "৳" + Math.round(n).toLocaleString("en-IN");
 
+// A row is "recent" if its date is within the last 3 days (Asia/Dhaka-ish,
+// we use UTC boundary — good enough for a UX hint).
+function isRecentDay(day: string): boolean {
+  const t = Date.parse(day + "T00:00:00Z");
+  if (!Number.isFinite(t)) return false;
+  const ageMs = Date.now() - t;
+  return ageMs < 3 * 86400000;
+}
+
 function DailyPerformancePage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -376,7 +385,25 @@ function TableView({
                           : "text-muted-foreground",
                     )}
                   >
-                    {r.real_roas != null ? r.real_roas.toFixed(2) + "x" : "—"}
+                    {r.real_roas != null ? (
+                      r.real_roas.toFixed(2) + "x"
+                    ) : r.spend_bdt > 0 && r.delivered_revenue_bdt === 0 && isRecentDay(r.day) ? (
+                      <span
+                        className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        title="Delivered orders এখনও pending — ROAS পরে calculate হবে যখন orders deliver হবে"
+                      >
+                        Pending
+                      </span>
+                    ) : r.spend_bdt > 0 && r.delivered_revenue_bdt === 0 ? (
+                      <span
+                        className="text-muted-foreground"
+                        title="Meta sync-এর আগের data — delivered revenue unavailable"
+                      >
+                        —
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.meta_revenue_bdt != null ? bdt(r.meta_revenue_bdt) : "—"}
