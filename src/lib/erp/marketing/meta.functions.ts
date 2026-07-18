@@ -465,3 +465,112 @@ export const getLastSyncStatus = createServerFn({ method: "POST" })
       lastStartedAt: lastAny?.started_at ?? null,
     };
   });
+
+// ---- 9. Sync Meta account "Account Spending Limit" to match our tracked USD-on-hand ----
+// Meta's spend_cap is a lifetime, cumulative cap in currency minor units (cents for USD).
+// To make "remaining under cap" == our wallet balance, set:
+//     new spend_cap (cents) = amount_spent (cents) + wallet_balance_usd * 100
+// Runs across all active USD ad accounts (optionally filtered by brand).
+
+export const syncSpendCapToWallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { brandIds?: string[]; accountId?: string }) =>
+    z
+      .object({
+        brandIds: z.array(z.string().uuid()).optional(),
+        accountId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMktRole(context.supabase, context.userId);
+
+    // Resolve accounts
+    let accountIds: string[] = [];
+    if (data.accountId) {
+      accountIds = [data.accountId];
+    } else if (data.brandIds && data.brandIds.length) {
+      const { data: links, error } = await context.supabase
+        .from("mkt_ad_account_brands")
+        .select("ad_account_id")
+        .in("brand_id", data.brandIds);
+      if (error) throw error;
+      accountIds = Array.from(new Set((links ?? []).map((r: any) => r.ad_account_id)));
+    } else {
+      const { data: allAcc, error } = await context.supabase
+        .from("mkt_ad_accounts")
+        .select("id")
+        .eq("status", "active");
+      if (error) throw error;
+      accountIds = (allAcc ?? []).map((r: any) => r.id);
+    }
+    if (accountIds.length === 0) return { updated: [], skipped: [] as any[] };
+
+    const { data: accounts, error: accErr } = await context.supabase
+      .from("mkt_ad_accounts")
+      .select("id,name,external_id,currency,status,access_token")
+      .in("id", accountIds);
+    if (accErr) throw accErr;
+
+    // Latest wallet balance per account
+    const { data: ledger, error: ledErr } = await context.supabase
+      .from("meta_ad_wallet_ledger")
+      .select("ad_account_id,balance_usd_after,created_at")
+      .in("ad_account_id", accountIds)
+      .order("created_at", { ascending: false });
+    if (ledErr) throw ledErr;
+    const balanceByAcc = new Map<string, number>();
+    for (const row of ledger ?? []) {
+      if (!row.ad_account_id || balanceByAcc.has(row.ad_account_id)) continue;
+      balanceByAcc.set(row.ad_account_id, Number(row.balance_usd_after) || 0);
+    }
+
+    const { getAdAccountSpendState, setAdAccountSpendCap } = await import("./meta.server");
+
+    const updated: Array<{
+      accountId: string;
+      name: string;
+      wallet_usd: number;
+      amount_spent_usd: number;
+      new_spend_cap_usd: number;
+    }> = [];
+    const skipped: Array<{ accountId: string; name: string; reason: string }> = [];
+
+    for (const acc of accounts ?? []) {
+      const name = acc.name as string;
+      const token = acc.access_token as string | null;
+      if (!token) {
+        skipped.push({ accountId: acc.id, name, reason: "No access token" });
+        continue;
+      }
+      if (acc.currency && acc.currency !== "USD") {
+        skipped.push({ accountId: acc.id, name, reason: `Currency ${acc.currency} not USD` });
+        continue;
+      }
+      const balance = balanceByAcc.get(acc.id) ?? 0;
+      if (balance <= 0) {
+        skipped.push({ accountId: acc.id, name, reason: `Balance ${balance.toFixed(2)}` });
+        continue;
+      }
+      try {
+        const state = await getAdAccountSpendState(acc.external_id, token);
+        const amountSpentCents = Number(state.amount_spent) || 0;
+        const newCapCents = amountSpentCents + Math.round(balance * 100);
+        await setAdAccountSpendCap(acc.external_id, newCapCents, token);
+        await context.supabase
+          .from("mkt_ad_accounts")
+          .update({ last_error: null })
+          .eq("id", acc.id);
+        updated.push({
+          accountId: acc.id,
+          name,
+          wallet_usd: balance,
+          amount_spent_usd: amountSpentCents / 100,
+          new_spend_cap_usd: newCapCents / 100,
+        });
+      } catch (e: any) {
+        skipped.push({ accountId: acc.id, name, reason: e?.message ?? String(e) });
+      }
+    }
+    return { updated, skipped };
+  });
