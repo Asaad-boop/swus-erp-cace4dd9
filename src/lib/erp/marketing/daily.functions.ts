@@ -25,6 +25,7 @@ const Input = z.object({
 export type DailyRow = {
   day: string;
   spend_bdt: number;
+  confirmed_orders: number;
   delivered_orders: number;
   delivered_revenue_bdt: number;
   real_roas: number | null;
@@ -69,7 +70,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
     // Fan out per brand, 3 queries in parallel per brand
     const perBrand = await Promise.all(
       brandIds.map(async (bid) => {
-        const [spend, lines, insights] = await Promise.all([
+        const [spend, lines, insights, confirmed] = await Promise.all([
           context.supabase.rpc("get_meta_spend_bdt", {
             _brand_id: bid,
             _from: from,
@@ -86,14 +87,25 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
             .eq("brand_id", bid)
             .gte("date", from)
             .lte("date", to),
+          // Confirmed count: attributed orders that reached confirmed status
+          // in-window (confirmed_at::date). Inner join keeps only attributed.
+          context.supabase
+            .from("orders")
+            .select("id, confirmed_at, mkt_order_attributions!inner(order_id)")
+            .eq("brand_id", bid)
+            .not("confirmed_at", "is", null)
+            .gte("confirmed_at", `${from}T00:00:00`)
+            .lte("confirmed_at", `${to}T23:59:59.999`),
         ]);
         if (spend.error) throw spend.error;
         if (lines.error) throw lines.error;
         if (insights.error) throw insights.error;
+        if (confirmed.error) throw confirmed.error;
         return {
           spend: (spend.data ?? []) as any[],
           lines: (lines.data ?? []) as any[],
           insights: (insights.data ?? []) as any[],
+          confirmed: (confirmed.data ?? []) as any[],
         };
       }),
     );
@@ -101,6 +113,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
     // Aggregate per-day across brands
     type Bucket = {
       spend_bdt: number;
+      confirmedOrderIds: Set<string>;
       orderIds: Set<string>;
       revenue_bdt: number;
       meta_rev_bdt: number;
@@ -114,6 +127,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
     for (const d of days) {
       buckets.set(d, {
         spend_bdt: 0,
+        confirmedOrderIds: new Set<string>(),
         orderIds: new Set<string>(),
         revenue_bdt: 0,
         meta_rev_bdt: 0,
@@ -158,6 +172,12 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
         }
         bk.meta_orders += Number(ins.meta_purchases) || 0;
       }
+      for (const c of b.confirmed) {
+        const key = String(c.confirmed_at).slice(0, 10);
+        const bk = buckets.get(key);
+        if (!bk) continue;
+        if (c.id) bk.confirmedOrderIds.add(c.id);
+      }
     }
 
     const rows: DailyRow[] = days
@@ -176,6 +196,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
         return {
           day,
           spend_bdt: b.spend_bdt,
+          confirmed_orders: b.confirmedOrderIds.size,
           delivered_orders: orders,
           delivered_revenue_bdt: b.revenue_bdt,
           real_roas: realRoas,
@@ -192,6 +213,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
     const totals = rows.reduce(
       (acc, r) => {
         acc.spend_bdt += r.spend_bdt;
+        acc.confirmed_orders += r.confirmed_orders;
         acc.delivered_orders += r.delivered_orders;
         acc.delivered_revenue_bdt += r.delivered_revenue_bdt;
         acc.meta_revenue_bdt += r.meta_revenue_bdt ?? 0;
@@ -200,6 +222,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
       },
       {
         spend_bdt: 0,
+        confirmed_orders: 0,
         delivered_orders: 0,
         delivered_revenue_bdt: 0,
         meta_revenue_bdt: 0,
