@@ -286,3 +286,35 @@ export function isMetaConfigured(): boolean {
     return false;
   }
 }
+
+/** Read current amount_spent + spend_cap for an ad account (in currency minor units, cents for USD). */
+export async function getAdAccountSpendState(actId: string, token: string) {
+  const path = `/${actId.startsWith("act_") ? actId : `act_${actId}`}`;
+  return metaGet<{
+    id: string;
+    currency: string;
+    amount_spent: string; // cents
+    spend_cap: string | null; // cents, "0" or null = no cap
+  }>(path, { fields: "id,currency,amount_spent,spend_cap" }, token);
+}
+
+/** Set the lifetime account spending limit. Value in currency minor units (cents for USD).
+ *  Meta requires spend_cap > amount_spent. Pass 0 to remove the cap. */
+export async function setAdAccountSpendCap(actId: string, spendCapMinor: number, token: string) {
+  const path = `/${actId.startsWith("act_") ? actId : `act_${actId}`}`;
+  const url = `${GRAPH_BASE}${path}`;
+  const body = new URLSearchParams({
+    spend_cap: String(Math.max(0, Math.floor(spendCapMinor))),
+    access_token: token,
+  });
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const json = (await res.json()) as any;
+  if (!res.ok || json?.error) {
+    throw new Error(json?.error?.message || `Meta API ${res.status}`);
+  }
+  return json as { success?: boolean };
+}
