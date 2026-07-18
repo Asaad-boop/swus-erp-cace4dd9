@@ -115,6 +115,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
       spend_bdt: number;
       confirmedOrderIds: Set<string>;
       orderIds: Set<string>;
+      seenItemIds: Set<string>;
       revenue_bdt: number;
       meta_rev_bdt: number;
       meta_orders: number;
@@ -129,6 +130,7 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
         spend_bdt: 0,
         confirmedOrderIds: new Set<string>(),
         orderIds: new Set<string>(),
+        seenItemIds: new Set<string>(),
         revenue_bdt: 0,
         meta_rev_bdt: 0,
         meta_orders: 0,
@@ -149,8 +151,17 @@ export const getDailyPerformance = createServerFn({ method: "POST" })
         const bk = buckets.get(key);
         if (!bk) continue;
         if (l.order_id) bk.orderIds.add(l.order_id);
-        bk.revenue_bdt += Number(l.line_total) || 0;
-        if (l.cost_missing) bk.cost_missing = true;
+        // Dedup by order_item_id: mkt_delivered_line_costs returns one row
+        // per (order_item, distinct campaign attribution) so an item with
+        // multiple attributions would double-count revenue if summed raw.
+        const itemKey = l.order_item_id ? String(l.order_item_id) : null;
+        if (itemKey && bk.seenItemIds.has(itemKey)) {
+          // already counted this line for the day
+        } else {
+          if (itemKey) bk.seenItemIds.add(itemKey);
+          bk.revenue_bdt += Number(l.line_total) || 0;
+          if (l.cost_missing) bk.cost_missing = true;
+        }
       }
       for (const ins of b.insights) {
         const key = String(ins.date).slice(0, 10);
