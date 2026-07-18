@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { useServerFn } from "@tanstack/react-start";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
 import { useBrand } from "@/contexts/brand-context";
 import { getMarketingOverview } from "@/lib/erp/marketing/overview.functions";
+import { syncSpendCapToWallet } from "@/lib/erp/marketing/meta.functions";
 
 const searchSchema = z.object({
   brand: fallback(z.string(), "all").default("all"),
@@ -66,6 +69,29 @@ function MarketingOverview() {
 
   const today = useMemo(() => todayInDhaka(), []);
   const fetchOverview = useServerFn(getMarketingOverview);
+  const syncCap = useServerFn(syncSpendCapToWallet);
+  const capMutation = useMutation({
+    mutationFn: () =>
+      syncCap({
+        data: selection.key === "all" ? {} : { brandIds: selection.ids },
+      }),
+    onSuccess: (r: any) => {
+      const u = r?.updated ?? [];
+      const s = r?.skipped ?? [];
+      if (u.length === 0 && s.length === 0) {
+        toast.info("Kono ad account nei");
+        return;
+      }
+      for (const it of u) {
+        toast.success(
+          `${it.name}: cap = $${it.new_spend_cap_usd.toFixed(2)} (spent $${it.amount_spent_usd.toFixed(2)} + wallet $${it.wallet_usd.toFixed(2)})`,
+        );
+      }
+      for (const it of s) toast.warning(`${it.name}: skipped — ${it.reason}`);
+      q.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Spend cap sync fail"),
+  });
 
   const q = useQuery({
     queryKey: ["mkt-overview", selection.ids.sort().join(","), today],
@@ -108,6 +134,16 @@ function MarketingOverview() {
           >
             <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${q.isFetching ? "animate-spin" : ""}`} />
             Refresh
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => capMutation.mutate()}
+            disabled={capMutation.isPending}
+            title="Meta Account Spending Limit = amount_spent + USD-on-hand"
+          >
+            <Wallet className={`h-3.5 w-3.5 mr-1.5 ${capMutation.isPending ? "animate-pulse" : ""}`} />
+            Sync spend cap
           </Button>
         </div>
       </div>
