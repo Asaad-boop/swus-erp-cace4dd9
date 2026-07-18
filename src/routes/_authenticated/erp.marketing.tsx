@@ -1,27 +1,394 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent } from "@/components/ui/card";
-import { Megaphone } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { useQuery, useServerFn } from "@tanstack/react-query";
+import { z } from "zod";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { useServerFn as useSFn } from "@tanstack/react-start";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  DollarSign,
+  Package,
+  Percent,
+  Tag,
+  Wallet,
+  RefreshCcw,
+} from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
+import { useBrand } from "@/contexts/brand-context";
+import { getMarketingOverview } from "@/lib/erp/marketing/overview.functions";
 
-export const Route = createFileRoute("/_authenticated/erp/marketing")({
-  head: () => ({ meta: [{ title: "Marketing — ERP" }] }),
-  component: MarketingPlaceholder,
+const searchSchema = z.object({
+  brand: fallback(z.string(), "all").default("all"),
 });
 
-function MarketingPlaceholder() {
+export const Route = createFileRoute("/_authenticated/erp/marketing")({
+  head: () => ({ meta: [{ title: "Marketing Overview — ERP" }] }),
+  validateSearch: zodValidator(searchSchema),
+  component: MarketingOverview,
+});
+
+function todayInDhaka(): string {
+  // YYYY-MM-DD in Asia/Dhaka regardless of client TZ
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+const bdt = (n: number) =>
+  "৳" + Math.round(n).toLocaleString("en-IN");
+const usd = (n: number) =>
+  "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+
+function MarketingOverview() {
+  const { brand } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { brands, isLoading: brandsLoading } = useBrand();
+
+  // Resolve URL brand → brandIds for RPC calls
+  const selection = useMemo(() => {
+    if (brand === "all") {
+      return { key: "all", label: "All Brands", ids: brands.map((b) => b.id) };
+    }
+    const b = brands.find((x) => x.slug === brand || x.id === brand);
+    if (b) return { key: b.slug, label: b.name, ids: [b.id] };
+    return { key: "all", label: "All Brands", ids: brands.map((b) => b.id) };
+  }, [brand, brands]);
+
+  const today = useMemo(() => todayInDhaka(), []);
+  const fetchOverview = useSFn(getMarketingOverview);
+
+  const q = useQuery({
+    queryKey: ["mkt-overview", selection.ids.sort().join(","), today],
+    queryFn: () => fetchOverview({ data: { brandIds: selection.ids, today } }),
+    enabled: selection.ids.length > 0,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const setBrand = (nextSlug: string) =>
+    navigate({ search: (prev) => ({ ...prev, brand: nextSlug }), replace: true });
+
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <Card>
-        <CardContent className="py-12 text-center space-y-3">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-muted">
-            <Megaphone className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <h1 className="text-lg font-semibold">Marketing module — rebuilding</h1>
-          <p className="text-sm text-muted-foreground">
-            Purano UI clean kora holo. Data, sync, canonical RPCs untouched.
-            Notun design next-e ashche.
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-semibold tracking-tight">
+            Marketing Overview
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Aajker snapshot · Dhaka time · Data: canonical RPCs
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex items-center gap-2">
+          <BrandTabs
+            active={selection.key}
+            brands={brands}
+            loading={brandsLoading}
+            onChange={setBrand}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => q.refetch()}
+            disabled={q.isFetching}
+          >
+            <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${q.isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Action strip */}
+      <ActionStrip loading={q.isLoading} data={q.data?.actions} />
+
+      {/* Today card */}
+      <TodayCard loading={q.isLoading} data={q.data?.today} />
+
+      {/* Sparkline */}
+      <SparklineCard loading={q.isLoading} data={q.data?.sparkline} />
+
+      {q.error && (
+        <Card className="border-destructive/40">
+          <CardContent className="py-3 text-sm text-destructive">
+            Overview load fail holo: {(q.error as Error).message}
+          </CardContent>
+        </Card>
+      )}
     </div>
+  );
+}
+
+function BrandTabs({
+  active,
+  brands,
+  loading,
+  onChange,
+}: {
+  active: string;
+  brands: { id: string; name: string; slug: string }[];
+  loading: boolean;
+  onChange: (slug: string) => void;
+}) {
+  const items = [{ slug: "all", name: "All" }, ...brands.map((b) => ({ slug: b.slug, name: b.name }))];
+  return (
+    <div className="inline-flex items-center rounded-md border bg-background p-0.5">
+      {loading && brands.length === 0 ? (
+        <Skeleton className="h-7 w-40" />
+      ) : (
+        items.map((it) => {
+          const on = active === it.slug;
+          return (
+            <button
+              key={it.slug}
+              onClick={() => onChange(it.slug)}
+              className={`px-3 h-7 text-xs font-medium rounded transition ${
+                on
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {it.name}
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+type Actions = NonNullable<Awaited<ReturnType<typeof getMarketingOverview>>>["actions"];
+
+function ActionStrip({ loading, data }: { loading: boolean; data?: Actions }) {
+  if (loading || !data) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 rounded-md" />
+        ))}
+      </div>
+    );
+  }
+  const syncOk = data.stale_accounts === 0 && data.active_accounts > 0;
+  const walletLow = data.wallet_usd < 50;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <ActionPill
+        icon={syncOk ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+        tone={syncOk ? "ok" : "warn"}
+        label="Sync"
+        value={
+          data.active_accounts === 0
+            ? "No accounts"
+            : syncOk
+              ? `${data.active_accounts} healthy`
+              : `${data.stale_accounts}/${data.active_accounts} stale`
+        }
+      />
+      <ActionPill
+        icon={<Tag className="h-4 w-4" />}
+        tone={data.pending_attribution > 0 ? "info" : "muted"}
+        label="Pending attribution"
+        value={`${data.pending_attribution.toLocaleString()} orders`}
+      />
+      <ActionPill
+        icon={<AlertTriangle className="h-4 w-4" />}
+        tone={data.unassigned_campaigns > 0 ? "warn" : "muted"}
+        label="Unassigned campaigns"
+        value={`${data.unassigned_campaigns.toLocaleString()}`}
+      />
+      <ActionPill
+        icon={<Wallet className="h-4 w-4" />}
+        tone={walletLow ? "warn" : "ok"}
+        label="Ad wallet"
+        value={usd(data.wallet_usd)}
+      />
+    </div>
+  );
+}
+
+function ActionPill({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "ok" | "warn" | "info" | "muted";
+}) {
+  const toneClass =
+    tone === "ok"
+      ? "text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900/40"
+      : tone === "warn"
+        ? "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900/40"
+        : tone === "info"
+          ? "text-sky-600 bg-sky-50 border-sky-100 dark:bg-sky-950/30 dark:border-sky-900/40"
+          : "text-muted-foreground bg-muted/40 border-border";
+  return (
+    <div className={`flex items-center gap-3 rounded-md border px-3 py-2 ${toneClass}`}>
+      <div className="shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wide opacity-75 leading-tight">
+          {label}
+        </div>
+        <div className="text-sm font-semibold truncate">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+type Today = NonNullable<Awaited<ReturnType<typeof getMarketingOverview>>>["today"];
+
+function TodayCard({ loading, data }: { loading: boolean; data?: Today }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Today</CardTitle>
+        <Badge variant="outline" className="text-[10px] font-normal">
+          {loading ? "…" : data?.date}
+        </Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Metric
+            label="Ad spend"
+            icon={<DollarSign className="h-3.5 w-3.5" />}
+            value={loading ? undefined : bdt(data!.spend_bdt)}
+            hint="get_meta_spend_bdt"
+          />
+          <Metric
+            label="Delivered revenue"
+            icon={<DollarSign className="h-3.5 w-3.5" />}
+            value={loading ? undefined : bdt(data!.revenue_bdt)}
+            hint="get_campaign_profit"
+          />
+          <Metric
+            label="Real ROAS"
+            icon={<Percent className="h-3.5 w-3.5" />}
+            value={loading ? undefined : data!.roas > 0 ? `${data!.roas.toFixed(2)}x` : "—"}
+            tone={data && data.roas >= 1 ? "positive" : data && data.roas > 0 ? "negative" : "neutral"}
+            hint="revenue ÷ spend"
+          />
+          <Metric
+            label="Orders · CPO"
+            icon={<Package className="h-3.5 w-3.5" />}
+            value={
+              loading
+                ? undefined
+                : `${data!.orders} · ${data!.cpo > 0 ? bdt(data!.cpo) : "—"}`
+            }
+            hint="delivered orders"
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  icon,
+  hint,
+  tone = "neutral",
+}: {
+  label: string;
+  value?: string;
+  icon?: React.ReactNode;
+  hint?: string;
+  tone?: "positive" | "negative" | "neutral";
+}) {
+  const toneCls =
+    tone === "positive"
+      ? "text-emerald-600"
+      : tone === "negative"
+        ? "text-rose-600"
+        : "text-foreground";
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <div className={`mt-1 text-2xl font-semibold tabular-nums ${toneCls}`}>
+        {value ?? <Skeleton className="h-7 w-24" />}
+      </div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function SparklineCard({
+  loading,
+  data,
+}: {
+  loading: boolean;
+  data?: { day: string; spend: number }[];
+}) {
+  const total = (data ?? []).reduce((a, b) => a + b.spend, 0);
+  return (
+    <Card>
+      <CardHeader className="pb-1 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Last 7 days · ad spend</CardTitle>
+        <div className="text-xs text-muted-foreground">
+          Total: <span className="font-semibold text-foreground">{loading ? "…" : bdt(total)}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {loading || !data ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <div className="h-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="mktSpendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="day"
+                  tickFormatter={(d) => (d ? d.slice(5) : "")}
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                />
+                <Tooltip
+                  cursor={{ stroke: "hsl(var(--border))" }}
+                  contentStyle={{
+                    fontSize: 12,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                  }}
+                  formatter={(v: any) => [bdt(Number(v)), "Spend"]}
+                  labelFormatter={(l) => l}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="spend"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#mktSpendGrad)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
