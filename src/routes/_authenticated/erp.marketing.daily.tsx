@@ -126,6 +126,7 @@ function DailyPerformancePage() {
     const header = [
       "date",
       "spend_bdt",
+      "confirmed_orders",
       "delivered_orders",
       "delivered_revenue_bdt",
       "real_roas",
@@ -147,6 +148,7 @@ function DailyPerformancePage() {
         [
           r.day,
           Math.round(r.spend_bdt),
+          r.confirmed_orders,
           r.delivered_orders,
           Math.round(r.delivered_revenue_bdt),
           r.real_roas != null ? r.real_roas.toFixed(2) : "",
@@ -321,7 +323,18 @@ function TableView({
               <tr>
                 <th className="text-left px-3 py-2 font-medium">Date</th>
                 <th className="text-right px-3 py-2 font-medium">Spend</th>
-                <th className="text-right px-3 py-2 font-medium">Orders</th>
+                <th
+                  className="text-right px-3 py-2 font-medium"
+                  title="Attributed orders that reached confirmed status on this date (early signal — not the same as delivered)"
+                >
+                  Confirmed
+                </th>
+                <th
+                  className="text-right px-3 py-2 font-medium"
+                  title="Attributed orders delivered on this date. Confirmed ≠ Delivered — orders may deliver on a different day."
+                >
+                  Delivered
+                </th>
                 <th className="text-right px-3 py-2 font-medium">Delivered rev.</th>
                 <th className="text-right px-3 py-2 font-medium">Real ROAS</th>
                 <th className="text-right px-3 py-2 font-medium">Meta rev.</th>
@@ -333,7 +346,7 @@ function TableView({
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center py-6 text-muted-foreground text-xs">
+                  <td colSpan={10} className="text-center py-6 text-muted-foreground text-xs">
                     Ei range-e kono data nei
                   </td>
                 </tr>
@@ -343,6 +356,9 @@ function TableView({
                   <td className="px-3 py-2 tabular-nums font-mono text-xs">{r.day}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.spend_bdt > 0 ? bdt(r.spend_bdt) : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {r.confirmed_orders || "—"}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.delivered_orders || "—"}
@@ -408,6 +424,9 @@ function TableView({
                 <tr>
                   <td className="px-3 py-2">Total ({rows.length}d)</td>
                   <td className="px-3 py-2 text-right tabular-nums">{bdt(totals.spend_bdt)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {totals.confirmed_orders}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">{totals.delivered_orders}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {bdt(totals.delivered_revenue_bdt)}
