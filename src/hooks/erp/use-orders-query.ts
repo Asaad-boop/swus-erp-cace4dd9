@@ -161,32 +161,43 @@ export function useOrderStatusCounts(filter: OrdersFilter) {
     enabled: brandIds.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
-      let q = applyBrandScope(
-        supabase.from("orders").select("status", { count: "exact" }),
-        brandIds,
-      )
-        .neq("status", "new")
-        .or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`)
-        .limit(10000);
+      // Supabase caps a single response at ~1000 rows, so we paginate through
+      // the status column to build accurate counts (previously the tab counts
+      // silently underreported once total > 1000 and All capped at 1,000).
+      const buildQuery = () => {
+        let q = applyBrandScope(
+          supabase.from("orders").select("status"),
+          brandIds,
+        )
+          .neq("status", "new")
+          .or(`status.neq.confirmed,source.is.null,${WEB_ORDER_SOURCE_FILTER},web_status.eq.complete`);
+        if (filter.source) q = q.eq("source", filter.source as never);
+        if (filter.courier) q = q.eq("courier_name", filter.courier);
+        if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);
+        if (filter.dateTo) q = q.lte("created_at", filter.dateTo);
+        if (filter.search.trim()) {
+          const s = filter.search.trim();
+          q = q.or(
+            `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,tracking_number.ilike.%${s}%`,
+          );
+        }
+        return q;
+      };
 
-      if (filter.source) q = q.eq("source", filter.source as never);
-      if (filter.courier) q = q.eq("courier_name", filter.courier);
-      if (filter.dateFrom) q = q.gte("created_at", filter.dateFrom);
-      if (filter.dateTo) q = q.lte("created_at", filter.dateTo);
-      if (filter.search.trim()) {
-        const s = filter.search.trim();
-        q = q.or(
-          `shipping_name.ilike.%${s}%,shipping_phone.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,tracking_number.ilike.%${s}%`,
-        );
-      }
-
-      const { data, error } = await q;
-      if (error) throw error;
       const counts: Record<string, number> = {};
       let total = 0;
-      for (const row of (data ?? []) as { status: OrderStatus }[]) {
-        counts[row.status] = (counts[row.status] ?? 0) + 1;
-        total++;
+      const PAGE = 1000;
+      for (let page = 0; page < 50; page++) {
+        const from = page * PAGE;
+        const to = from + PAGE - 1;
+        const { data, error } = await buildQuery().range(from, to);
+        if (error) throw error;
+        const rows = (data ?? []) as { status: OrderStatus }[];
+        for (const row of rows) {
+          counts[row.status] = (counts[row.status] ?? 0) + 1;
+          total++;
+        }
+        if (rows.length < PAGE) break;
       }
       return { counts, total };
     },
