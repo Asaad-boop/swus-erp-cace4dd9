@@ -604,33 +604,44 @@ function NewPoPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {items.map((it) => {
-                      const alloc = c.allocations[it.id] ?? 0;
-                      const over = alloc > it.quantity;
+                    {leaves.map((l) => {
+                      const alloc = c.allocations[l.key] ?? 0;
+                      const over = alloc > l.qty;
                       return (
                         <div
-                          key={it.id}
+                          key={l.key}
                           className={cn(
                             "flex items-center gap-2 text-xs p-1.5 rounded border bg-background/60",
                             over ? "border-red-300" : "border-border/60",
                           )}
                         >
-                          {it.picked.image ? (
-                            <img src={it.picked.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
+                          {l.image ? (
+                            <img src={l.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
                           ) : (
                             <div className="h-9 w-9 rounded bg-muted flex items-center justify-center flex-shrink-0 border border-dashed border-border">
                               <Package className="h-4 w-4 text-muted-foreground/60" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="truncate font-medium">{it.picked.title || "—"}</div>
-                            <div className="text-[10px] text-muted-foreground tabular-nums">of {it.quantity}</div>
+                            <div className="truncate font-medium flex items-center gap-1.5">
+                              {l.variantLabel && (
+                                <span
+                                  className="h-3 w-3 rounded-sm border border-border shrink-0"
+                                  style={{ background: l.variantHex || "#e5e7eb" }}
+                                />
+                              )}
+                              <span className="truncate">{l.title}</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground tabular-nums truncate">
+                              {l.variantLabel ? `${l.variantLabel} · ` : ""}of {l.qty}
+                            </div>
                           </div>
                           <Input
-                            type="number" min={0} max={it.quantity}
+                            type="number" min={0} max={l.qty}
                             className={cn("w-16 h-8 text-right tabular-nums", over && "border-red-400 text-red-600")}
-                            value={alloc}
-                            onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
+                            value={alloc || ""}
+                            placeholder="0"
+                            onChange={(e) => setAlloc(c.id, l.key, Number(e.target.value) || 0)}
                           />
                         </div>
                       );
