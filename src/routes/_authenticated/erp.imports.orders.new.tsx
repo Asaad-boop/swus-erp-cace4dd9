@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Plus, Trash2, Package, Boxes, Wallet, Truck, AlertTriangle,
   Loader2, FileText, Sparkles, SplitSquareHorizontal, Save,
@@ -44,8 +44,14 @@ type CartonDraft = {
   id: string;
   carton_number: number;
   weight_kg: number;
+  // key = `${itemId}|${variantId ?? ''}`
   allocations: Record<string, number>;
 };
+
+type VariantMeta = { id: string; color_name: string | null; color_hex: string | null; image: string | null; sku?: string | null; stock?: number | null };
+
+const leafKey = (itemId: string, variantId: string | null) => `${itemId}|${variantId ?? ""}`;
+const variantLabel = (v: VariantMeta) => v.color_name || v.sku || `Variant ${v.id.slice(0, 4)}`;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const emptyPick = (): PickedProduct => ({ id: null, title: "", sku: null, image: null });
@@ -92,6 +98,15 @@ function NewPoPage() {
     { id: uid(), carton_number: 1, weight_kg: 0, allocations: {} },
   ]);
 
+  // Variants meta populated by ImportColorAllocator; used by carton allocator for labels.
+  const [variantsByProduct, setVariantsByProduct] = useState<Record<string, VariantMeta[]>>({});
+  const registerVariants = (productId: string, vs: VariantMeta[]) =>
+    setVariantsByProduct((m) => {
+      const prev = m[productId];
+      if (prev && prev.length === vs.length && prev.every((x, i) => x.id === vs[i].id)) return m;
+      return { ...m, [productId]: vs };
+    });
+
   // initial payment
   const [payEnabled, setPayEnabled] = useState(false);
   const [payAmount, setPayAmount] = useState<number>(0);
@@ -103,26 +118,72 @@ function NewPoPage() {
   const productSubtotalForeign = items.reduce((s, i) => s + i.quantity * i.unit_cost_foreign, 0);
   const productSubtotalBdt = productSubtotalForeign * (fxRate || 0);
 
+  type Leaf = {
+    key: string;
+    itemId: string;
+    variantId: string | null;
+    title: string;
+    image: string | null;
+    variantLabel: string | null;
+    variantHex: string | null;
+    qty: number;
+  };
+  const leaves: Leaf[] = useMemo(() => {
+    const out: Leaf[] = [];
+    for (const it of items) {
+      const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
+      if (allocs.length > 0) {
+        const vmap = new Map((variantsByProduct[it.picked.id ?? ""] ?? []).map((v) => [v.id, v]));
+        for (const [vid, q] of allocs) {
+          const v = vmap.get(vid);
+          out.push({
+            key: leafKey(it.id, vid),
+            itemId: it.id,
+            variantId: vid,
+            title: it.picked.title || "—",
+            image: v?.image || it.picked.image || null,
+            variantLabel: v ? variantLabel(v) : `Variant ${vid.slice(0, 4)}`,
+            variantHex: v?.color_hex ?? null,
+            qty: Number(q) || 0,
+          });
+        }
+      } else {
+        out.push({
+          key: leafKey(it.id, null),
+          itemId: it.id,
+          variantId: null,
+          title: it.picked.title || "—",
+          image: it.picked.image || null,
+          variantLabel: null,
+          variantHex: null,
+          qty: it.quantity,
+        });
+      }
+    }
+    return out;
+  }, [items, variantsByProduct]);
+
   const totalAllocated = useMemo(() => {
     const map: Record<string, number> = {};
-    items.forEach((it) => { map[it.id] = 0; });
+    leaves.forEach((l) => { map[l.key] = 0; });
     cartons.forEach((c) => {
-      Object.entries(c.allocations).forEach(([itemId, q]) => {
-        if (map[itemId] !== undefined) map[itemId] += Number(q) || 0;
+      Object.entries(c.allocations).forEach(([k, q]) => {
+        if (map[k] !== undefined) map[k] += Number(q) || 0;
       });
     });
     return map;
-  }, [items, cartons]);
+  }, [leaves, cartons]);
 
   const reconciliationErrors = useMemo(() => {
-    return items.flatMap((it) => {
-      const allocated = totalAllocated[it.id] ?? 0;
-      if (allocated !== it.quantity) {
-        return [`${it.picked.title || "Item"}: allocated ${allocated} / ${it.quantity}`];
+    return leaves.flatMap((l) => {
+      const allocated = totalAllocated[l.key] ?? 0;
+      if (allocated !== l.qty) {
+        const label = l.variantLabel ? `${l.title} — ${l.variantLabel}` : l.title;
+        return [`${label}: allocated ${allocated} / ${l.qty}`];
       }
       return [];
     });
-  }, [items, totalAllocated]);
+  }, [leaves, totalAllocated]);
 
   const selectedWallet = wallets.find((w) => w.id === payWalletId);
   const walletAfter = selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
@@ -135,18 +196,24 @@ function NewPoPage() {
   const addCarton = () => setCartons((cs) => [...cs, { id: uid(), carton_number: cs.length + 1, weight_kg: 0, allocations: {} }]);
   const removeCarton = (id: string) => setCartons((cs) => cs.filter((c) => c.id !== id).map((c, idx) => ({ ...c, carton_number: idx + 1 })));
   const updCarton = (id: string, patch: Partial<CartonDraft>) => setCartons((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-  const setAlloc = (cartonId: string, itemId: string, q: number) =>
-    setCartons((cs) => cs.map((c) => (c.id === cartonId ? { ...c, allocations: { ...c.allocations, [itemId]: q } } : c)));
+  const setAlloc = (cartonId: string, leaf: string, q: number) =>
+    setCartons((cs) => cs.map((c) => {
+      if (c.id !== cartonId) return c;
+      const next = { ...c.allocations };
+      if (q > 0) next[leaf] = q; else delete next[leaf];
+      return { ...c, allocations: next };
+    }));
 
   const autoSplit = () => {
     if (cartons.length === 0) return;
     setCartons((cs) =>
       cs.map((c, ci) => {
         const newAlloc: Record<string, number> = {};
-        items.forEach((it) => {
-          const base = Math.floor(it.quantity / cs.length);
-          const rem = it.quantity - base * cs.length;
-          newAlloc[it.id] = base + (ci < rem ? 1 : 0);
+        leaves.forEach((l) => {
+          const base = Math.floor(l.qty / cs.length);
+          const rem = l.qty - base * cs.length;
+          const share = base + (ci < rem ? 1 : 0);
+          if (share > 0) newAlloc[l.key] = share;
         });
         return { ...c, allocations: newAlloc };
       }),
@@ -160,16 +227,14 @@ function NewPoPage() {
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
 
-      // Expand color allocations into per-variant items.
-      // Track parent draft -> expanded index range so cartons can map proportionally.
+      // Build itemList (one entry per leaf) and leafKey -> item_index map.
       const itemList: any[] = [];
-      const expansionMap: Array<{ draftId: string; indexes: number[]; weights: number[]; totalQty: number }> = [];
-      items.forEach((it) => {
+      const leafIndex: Record<string, number> = {};
+      for (const it of items) {
         const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
-        const startIdx = itemList.length;
         if (allocs.length > 0) {
-          const weights: number[] = [];
-          allocs.forEach(([variant_id, qty]) => {
+          for (const [variant_id, qty] of allocs) {
+            leafIndex[leafKey(it.id, variant_id)] = itemList.length;
             itemList.push({
               product_id: it.picked.id ?? undefined,
               variant_id,
@@ -179,15 +244,9 @@ function NewPoPage() {
               quantity: qty,
               unit_cost_foreign: it.unit_cost_foreign,
             });
-            weights.push(qty);
-          });
-          expansionMap.push({
-            draftId: it.id,
-            indexes: weights.map((_, i) => startIdx + i),
-            weights,
-            totalQty: weights.reduce((s, n) => s + n, 0),
-          });
+          }
         } else {
+          leafIndex[leafKey(it.id, null)] = itemList.length;
           itemList.push({
             product_id: it.picked.id ?? undefined,
             name_snapshot: it.picked.title.trim(),
@@ -196,29 +255,17 @@ function NewPoPage() {
             quantity: it.quantity,
             unit_cost_foreign: it.unit_cost_foreign,
           });
-          expansionMap.push({ draftId: it.id, indexes: [startIdx], weights: [it.quantity], totalQty: it.quantity });
         }
-      });
+      }
 
       const cartonList = cartons.map((c) => {
         const allocs: { item_index: number; quantity: number }[] = [];
-        for (const exp of expansionMap) {
-          const total = c.allocations[exp.draftId] ?? 0;
-          if (total <= 0) continue;
-          if (exp.indexes.length === 1) {
-            allocs.push({ item_index: exp.indexes[0], quantity: total });
-          } else {
-            // Proportional split with remainder going to first
-            let assigned = 0;
-            exp.indexes.forEach((idx, i) => {
-              const isLast = i === exp.indexes.length - 1;
-              const share = isLast
-                ? total - assigned
-                : Math.floor((total * exp.weights[i]) / exp.totalQty);
-              if (share > 0) allocs.push({ item_index: idx, quantity: share });
-              assigned += share;
-            });
-          }
+        for (const [k, qty] of Object.entries(c.allocations)) {
+          const q = Number(qty) || 0;
+          if (q <= 0) continue;
+          const idx = leafIndex[k];
+          if (idx === undefined) continue;
+          allocs.push({ item_index: idx, quantity: q });
         }
         return {
           carton_number: c.carton_number,
@@ -507,6 +554,7 @@ function NewPoPage() {
                               quantity: total > 0 ? total : it.quantity,
                             });
                           }}
+                          onVariantsLoaded={(vs) => registerVariants(it.picked.id!, vs)}
                         />
                       </div>
                     )}
@@ -557,33 +605,44 @@ function NewPoPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {items.map((it) => {
-                      const alloc = c.allocations[it.id] ?? 0;
-                      const over = alloc > it.quantity;
+                    {leaves.map((l) => {
+                      const alloc = c.allocations[l.key] ?? 0;
+                      const over = alloc > l.qty;
                       return (
                         <div
-                          key={it.id}
+                          key={l.key}
                           className={cn(
                             "flex items-center gap-2 text-xs p-1.5 rounded border bg-background/60",
                             over ? "border-red-300" : "border-border/60",
                           )}
                         >
-                          {it.picked.image ? (
-                            <img src={it.picked.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
+                          {l.image ? (
+                            <img src={l.image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0 border border-border" />
                           ) : (
                             <div className="h-9 w-9 rounded bg-muted flex items-center justify-center flex-shrink-0 border border-dashed border-border">
                               <Package className="h-4 w-4 text-muted-foreground/60" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="truncate font-medium">{it.picked.title || "—"}</div>
-                            <div className="text-[10px] text-muted-foreground tabular-nums">of {it.quantity}</div>
+                            <div className="truncate font-medium flex items-center gap-1.5">
+                              {l.variantLabel && (
+                                <span
+                                  className="h-3 w-3 rounded-sm border border-border shrink-0"
+                                  style={{ background: l.variantHex || "#e5e7eb" }}
+                                />
+                              )}
+                              <span className="truncate">{l.title}</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground tabular-nums truncate">
+                              {l.variantLabel ? `${l.variantLabel} · ` : ""}of {l.qty}
+                            </div>
                           </div>
                           <Input
-                            type="number" min={0} max={it.quantity}
+                            type="number" min={0} max={l.qty}
                             className={cn("w-16 h-8 text-right tabular-nums", over && "border-red-400 text-red-600")}
-                            value={alloc}
-                            onChange={(e) => setAlloc(c.id, it.id, Number(e.target.value) || 0)}
+                            value={alloc || ""}
+                            placeholder="0"
+                            onChange={(e) => setAlloc(c.id, l.key, Number(e.target.value) || 0)}
                           />
                         </div>
                       );
@@ -717,11 +776,12 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
 }
 
 function ImportColorAllocator({
-  productId, allocations, onChange,
+  productId, allocations, onChange, onVariantsLoaded,
 }: {
   productId: string;
   allocations?: Record<string, number>;
   onChange: (a: Record<string, number>) => void;
+  onVariantsLoaded?: (variants: VariantMeta[]) => void;
 }) {
   const { data: variants = [], isLoading } = useQuery({
     queryKey: ["product-variants-active", productId],
@@ -736,6 +796,11 @@ function ImportColorAllocator({
       return (data ?? []) as any[];
     },
   });
+
+  useEffect(() => {
+    if (variants.length > 0) onVariantsLoaded?.(variants as VariantMeta[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variants]);
 
   if (isLoading || variants.length === 0) return null;
 
