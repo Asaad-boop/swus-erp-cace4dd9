@@ -196,18 +196,24 @@ function NewPoPage() {
   const addCarton = () => setCartons((cs) => [...cs, { id: uid(), carton_number: cs.length + 1, weight_kg: 0, allocations: {} }]);
   const removeCarton = (id: string) => setCartons((cs) => cs.filter((c) => c.id !== id).map((c, idx) => ({ ...c, carton_number: idx + 1 })));
   const updCarton = (id: string, patch: Partial<CartonDraft>) => setCartons((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-  const setAlloc = (cartonId: string, itemId: string, q: number) =>
-    setCartons((cs) => cs.map((c) => (c.id === cartonId ? { ...c, allocations: { ...c.allocations, [itemId]: q } } : c)));
+  const setAlloc = (cartonId: string, leaf: string, q: number) =>
+    setCartons((cs) => cs.map((c) => {
+      if (c.id !== cartonId) return c;
+      const next = { ...c.allocations };
+      if (q > 0) next[leaf] = q; else delete next[leaf];
+      return { ...c, allocations: next };
+    }));
 
   const autoSplit = () => {
     if (cartons.length === 0) return;
     setCartons((cs) =>
       cs.map((c, ci) => {
         const newAlloc: Record<string, number> = {};
-        items.forEach((it) => {
-          const base = Math.floor(it.quantity / cs.length);
-          const rem = it.quantity - base * cs.length;
-          newAlloc[it.id] = base + (ci < rem ? 1 : 0);
+        leaves.forEach((l) => {
+          const base = Math.floor(l.qty / cs.length);
+          const rem = l.qty - base * cs.length;
+          const share = base + (ci < rem ? 1 : 0);
+          if (share > 0) newAlloc[l.key] = share;
         });
         return { ...c, allocations: newAlloc };
       }),
