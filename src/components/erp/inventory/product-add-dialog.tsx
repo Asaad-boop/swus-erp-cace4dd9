@@ -557,6 +557,16 @@ function Field({
   );
 }
 
+function TabTrig({ value, icon, label, done }: { value: string; icon: React.ReactNode; label: string; done: boolean }) {
+  return (
+    <TabsTrigger value={value} className="gap-1.5 relative">
+      {icon}
+      <span>{label}</span>
+      {done && <span className="ml-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-2.5 w-2.5" /></span>}
+    </TabsTrigger>
+  );
+}
+
 function ToggleRow({ icon, label, checked, onChange }: {
   icon: React.ReactNode; label: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
