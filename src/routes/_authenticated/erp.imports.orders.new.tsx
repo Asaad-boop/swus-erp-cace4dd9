@@ -118,26 +118,72 @@ function NewPoPage() {
   const productSubtotalForeign = items.reduce((s, i) => s + i.quantity * i.unit_cost_foreign, 0);
   const productSubtotalBdt = productSubtotalForeign * (fxRate || 0);
 
+  type Leaf = {
+    key: string;
+    itemId: string;
+    variantId: string | null;
+    title: string;
+    image: string | null;
+    variantLabel: string | null;
+    variantHex: string | null;
+    qty: number;
+  };
+  const leaves: Leaf[] = useMemo(() => {
+    const out: Leaf[] = [];
+    for (const it of items) {
+      const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
+      if (allocs.length > 0) {
+        const vmap = new Map((variantsByProduct[it.picked.id ?? ""] ?? []).map((v) => [v.id, v]));
+        for (const [vid, q] of allocs) {
+          const v = vmap.get(vid);
+          out.push({
+            key: leafKey(it.id, vid),
+            itemId: it.id,
+            variantId: vid,
+            title: it.picked.title || "—",
+            image: v?.image || it.picked.image || null,
+            variantLabel: v ? variantLabel(v) : `Variant ${vid.slice(0, 4)}`,
+            variantHex: v?.color_hex ?? null,
+            qty: Number(q) || 0,
+          });
+        }
+      } else {
+        out.push({
+          key: leafKey(it.id, null),
+          itemId: it.id,
+          variantId: null,
+          title: it.picked.title || "—",
+          image: it.picked.image || null,
+          variantLabel: null,
+          variantHex: null,
+          qty: it.quantity,
+        });
+      }
+    }
+    return out;
+  }, [items, variantsByProduct]);
+
   const totalAllocated = useMemo(() => {
     const map: Record<string, number> = {};
-    items.forEach((it) => { map[it.id] = 0; });
+    leaves.forEach((l) => { map[l.key] = 0; });
     cartons.forEach((c) => {
-      Object.entries(c.allocations).forEach(([itemId, q]) => {
-        if (map[itemId] !== undefined) map[itemId] += Number(q) || 0;
+      Object.entries(c.allocations).forEach(([k, q]) => {
+        if (map[k] !== undefined) map[k] += Number(q) || 0;
       });
     });
     return map;
-  }, [items, cartons]);
+  }, [leaves, cartons]);
 
   const reconciliationErrors = useMemo(() => {
-    return items.flatMap((it) => {
-      const allocated = totalAllocated[it.id] ?? 0;
-      if (allocated !== it.quantity) {
-        return [`${it.picked.title || "Item"}: allocated ${allocated} / ${it.quantity}`];
+    return leaves.flatMap((l) => {
+      const allocated = totalAllocated[l.key] ?? 0;
+      if (allocated !== l.qty) {
+        const label = l.variantLabel ? `${l.title} — ${l.variantLabel}` : l.title;
+        return [`${label}: allocated ${allocated} / ${l.qty}`];
       }
       return [];
     });
-  }, [items, totalAllocated]);
+  }, [leaves, totalAllocated]);
 
   const selectedWallet = wallets.find((w) => w.id === payWalletId);
   const walletAfter = selectedWallet ? Number(selectedWallet.current_balance) - payAmount : null;
