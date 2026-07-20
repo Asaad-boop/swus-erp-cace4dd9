@@ -61,7 +61,7 @@ export function NetProfitCard({
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(
           supabase.from("order_items").select(
-            "quantity, unit_cost_snapshot, courier_cost_allocated, packaging_cost_allocated, orders!inner(brand_id, status, created_at)",
+            "product_id, quantity, unit_cost_snapshot, courier_cost_allocated, packaging_cost_allocated, orders!inner(brand_id, status, created_at)",
           ),
           brandIds,
           "orders.brand_id" as any,
@@ -81,10 +81,28 @@ export function NetProfitCard({
       const shipFallback = (rev.data ?? []).reduce((s: number, r: any) => s + Number(r.actual_shipping_cost ?? 0), 0);
       const revenueMissing = (rev.data ?? []).length === 0;
 
+      // Fallback: unit_cost_snapshot 0/null hole product-er WAC ba cost_price theke neya
+      const itemsArr = (items.data ?? []) as any[];
+      const missingCostPids = Array.from(new Set(
+        itemsArr.filter((r) => !(Number(r.unit_cost_snapshot ?? 0) > 0) && r.product_id).map((r) => r.product_id as string)
+      ));
+      const fallbackCost = new Map<string, number>();
+      if (missingCostPids.length > 0) {
+        const { data: prods } = await supabase
+          .from("products")
+          .select("id, weighted_avg_cost, cost_price")
+          .in("id", missingCostPids);
+        for (const p of (prods ?? []) as any[]) {
+          const c = Number(p.weighted_avg_cost ?? 0) || Number(p.cost_price ?? 0);
+          if (c > 0) fallbackCost.set(p.id, c);
+        }
+      }
+
       let cogs = 0, courier = 0, pack = 0;
       let cogsSeen = false, courierSeen = false, packSeen = false;
-      for (const r of (items.data ?? []) as any[]) {
-        const unit = Number(r.unit_cost_snapshot ?? 0);
+      for (const r of itemsArr) {
+        let unit = Number(r.unit_cost_snapshot ?? 0);
+        if (!(unit > 0) && r.product_id) unit = fallbackCost.get(r.product_id) ?? 0;
         const qty = Number(r.quantity ?? 0);
         if (unit > 0) cogsSeen = true;
         cogs += unit * qty;
