@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Plus, Trash2, Package, Boxes, Wallet, Truck, AlertTriangle,
   Loader2, FileText, Sparkles, SplitSquareHorizontal, Save,
