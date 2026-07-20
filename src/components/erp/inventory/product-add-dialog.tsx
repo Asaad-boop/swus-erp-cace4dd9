@@ -271,12 +271,12 @@ export function ProductAddDialog({ open, onClose }: Props) {
         <Tabs value={tab} onValueChange={setTab} className="flex flex-col">
           <div className="px-6 pt-3">
             <TabsList className="grid grid-cols-6 w-full">
-              <TabsTrigger value="basics" className="gap-1.5"><Info className="h-3.5 w-3.5" />Basics</TabsTrigger>
-              <TabsTrigger value="images" className="gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Images</TabsTrigger>
-              <TabsTrigger value="pricing" className="gap-1.5"><DollarSign className="h-3.5 w-3.5" />Pricing</TabsTrigger>
-              <TabsTrigger value="colors" className="gap-1.5"><Palette className="h-3.5 w-3.5" />Colors</TabsTrigger>
-              <TabsTrigger value="shipping" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Shipping</TabsTrigger>
-              <TabsTrigger value="details" className="gap-1.5"><Star className="h-3.5 w-3.5" />Details</TabsTrigger>
+              <TabTrig value="basics" icon={<Info className="h-3.5 w-3.5" />} label="Basics" done={tabDone.basics} />
+              <TabTrig value="images" icon={<ImagePlus className="h-3.5 w-3.5" />} label="Images" done={tabDone.images} />
+              <TabTrig value="pricing" icon={<DollarSign className="h-3.5 w-3.5" />} label="Pricing" done={tabDone.pricing} />
+              <TabTrig value="colors" icon={<Palette className="h-3.5 w-3.5" />} label="Colors" done={tabDone.colors} />
+              <TabTrig value="shipping" icon={<Truck className="h-3.5 w-3.5" />} label="Shipping" done={tabDone.shipping} />
+              <TabTrig value="details" icon={<Star className="h-3.5 w-3.5" />} label="Details" done={tabDone.details} />
             </TabsList>
           </div>
 
