@@ -227,16 +227,14 @@ function NewPoPage() {
       if (reconciliationErrors.length > 0) throw new Error("Carton allocations don't match item quantities");
       if (payEnabled && (payAmount <= 0 || !payWalletId)) throw new Error("Payment amount & wallet required");
 
-      // Expand color allocations into per-variant items.
-      // Track parent draft -> expanded index range so cartons can map proportionally.
+      // Build itemList (one entry per leaf) and leafKey -> item_index map.
       const itemList: any[] = [];
-      const expansionMap: Array<{ draftId: string; indexes: number[]; weights: number[]; totalQty: number }> = [];
-      items.forEach((it) => {
+      const leafIndex: Record<string, number> = {};
+      for (const it of items) {
         const allocs = it.allocations ? Object.entries(it.allocations).filter(([, q]) => q > 0) : [];
-        const startIdx = itemList.length;
         if (allocs.length > 0) {
-          const weights: number[] = [];
-          allocs.forEach(([variant_id, qty]) => {
+          for (const [variant_id, qty] of allocs) {
+            leafIndex[leafKey(it.id, variant_id)] = itemList.length;
             itemList.push({
               product_id: it.picked.id ?? undefined,
               variant_id,
@@ -246,15 +244,9 @@ function NewPoPage() {
               quantity: qty,
               unit_cost_foreign: it.unit_cost_foreign,
             });
-            weights.push(qty);
-          });
-          expansionMap.push({
-            draftId: it.id,
-            indexes: weights.map((_, i) => startIdx + i),
-            weights,
-            totalQty: weights.reduce((s, n) => s + n, 0),
-          });
+          }
         } else {
+          leafIndex[leafKey(it.id, null)] = itemList.length;
           itemList.push({
             product_id: it.picked.id ?? undefined,
             name_snapshot: it.picked.title.trim(),
@@ -263,29 +255,17 @@ function NewPoPage() {
             quantity: it.quantity,
             unit_cost_foreign: it.unit_cost_foreign,
           });
-          expansionMap.push({ draftId: it.id, indexes: [startIdx], weights: [it.quantity], totalQty: it.quantity });
         }
-      });
+      }
 
       const cartonList = cartons.map((c) => {
         const allocs: { item_index: number; quantity: number }[] = [];
-        for (const exp of expansionMap) {
-          const total = c.allocations[exp.draftId] ?? 0;
-          if (total <= 0) continue;
-          if (exp.indexes.length === 1) {
-            allocs.push({ item_index: exp.indexes[0], quantity: total });
-          } else {
-            // Proportional split with remainder going to first
-            let assigned = 0;
-            exp.indexes.forEach((idx, i) => {
-              const isLast = i === exp.indexes.length - 1;
-              const share = isLast
-                ? total - assigned
-                : Math.floor((total * exp.weights[i]) / exp.totalQty);
-              if (share > 0) allocs.push({ item_index: idx, quantity: share });
-              assigned += share;
-            });
-          }
+        for (const [k, qty] of Object.entries(c.allocations)) {
+          const q = Number(qty) || 0;
+          if (q <= 0) continue;
+          const idx = leafIndex[k];
+          if (idx === undefined) continue;
+          allocs.push({ item_index: idx, quantity: q });
         }
         return {
           carton_number: c.carton_number,
