@@ -532,8 +532,21 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
         <DialogFooter className="border-t bg-muted/30 px-6 py-3 flex !justify-between items-center">
           <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-            {!valid && <Badge variant="outline" className="text-amber-700 border-amber-300">Missing: title, slug, brand, price</Badge>}
-            {valid && <Badge variant="outline" className="text-emerald-700 border-emerald-300">Ready to save</Badge>}
+            {!valid ? (
+              <button
+                type="button"
+                onClick={() => setTab("basics")}
+                className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-700 hover:bg-amber-100 transition"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Missing: {[!f.title.trim() && "title", !f.slug.trim() && "slug", !f.brand_id && "brand", !(Number(f.price) > 0) && "price"].filter(Boolean).join(", ")}
+              </button>
+            ) : (
+              <Badge variant="outline" className="text-emerald-700 border-emerald-300 gap-1">
+                <Check className="h-3 w-3" /> Ready to save
+                {hasColors && <span className="text-muted-foreground">· {f.colors.filter((c) => c.color_name.trim()).length} colors, {colorStockSum} pcs</span>}
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} disabled={save.isPending}>Cancel</Button>
