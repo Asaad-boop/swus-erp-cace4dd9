@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import {
   Package, Tag, Barcode, DollarSign, AlertTriangle, RotateCcw, ImagePlus,
-  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette, Trash2,
+  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette, Trash2, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
