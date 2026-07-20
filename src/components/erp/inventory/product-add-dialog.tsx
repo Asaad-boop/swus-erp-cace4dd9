@@ -136,13 +136,37 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
   const valid = f.title.trim() && f.slug.trim() && f.brand_id && Number(f.price) > 0;
 
+  const hasColors = f.colors.some((c) => c.color_name.trim());
+  const colorStockSum = f.colors.reduce((a, c) => a + (Math.max(0, Math.floor(c.opening_stock || 0))), 0);
+
+  // Tab completeness dots — helps user see what's filled
+  const tabDone = useMemo(() => ({
+    basics: !!(f.title.trim() && f.slug.trim() && f.brand_id),
+    images: !!f.image,
+    pricing: Number(f.price) > 0,
+    colors: hasColors,
+    shipping: !!(f.shipping_fee_inside || f.shipping_fee_outside),
+    details: f.benefits.length > 0 || f.specs.some((s) => s.key.trim()),
+  }), [f, hasColors]);
+
   const save = useMutation({
     mutationFn: async () => {
       if (!valid) throw new Error("Title, slug, brand and price required");
+      // Duplicate slug pre-check (per brand)
+      const { data: dup } = await supabase
+        .from("products")
+        .select("id")
+        .eq("brand_id", f.brand_id)
+        .eq("slug", f.slug.trim())
+        .maybeSingle();
+      if (dup) throw new Error(`Slug "${f.slug}" already used by another product on this brand.`);
+
       const num = (v: string) => (v === "" ? null : Number(v));
       const cleanSpecs = f.specs.filter((s) => s.key.trim()).reduce<Record<string, string>>(
         (a, s) => { a[s.key.trim()] = s.value; return a; }, {},
       );
+      // If color variants own the stock, use their sum as parent stock (single source of truth)
+      const parentStock = hasColors ? colorStockSum : (Number(f.initial_stock) || 0);
       const payload: Record<string, unknown> = {
         title: f.title.trim(),
         slug: f.slug.trim(),
@@ -154,7 +178,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         cost_price: f.cost_price === "" ? 0 : Number(f.cost_price),
         sku: f.sku || null,
         barcode: f.barcode || null,
-        stock: Number(f.initial_stock) || 0,
+        stock: parentStock,
         low_stock_threshold: num(f.low_stock_threshold),
         reorder_point: num(f.reorder_point),
         reorder_qty: num(f.reorder_qty),
@@ -174,9 +198,9 @@ export function ProductAddDialog({ open, onClose }: Props) {
       if (error) throw error;
       const newProductId = (data as { id: string }).id;
 
-      // Seed opening stock movement so weighted_avg_cost is correct
+      // Seed parent-level opening stock movement ONLY if no color variants (variants seed their own below)
       const startStock = Number(f.initial_stock) || 0;
-      if (startStock > 0) {
+      if (!hasColors && startStock > 0) {
         await supabase.rpc("adjust_stock_v2", {
           _product_id: newProductId,
           _variant_id: null as unknown as string,
