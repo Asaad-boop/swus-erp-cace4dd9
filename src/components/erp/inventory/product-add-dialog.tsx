@@ -408,8 +408,17 @@ export function ProductAddDialog({ open, onClose }: Props) {
                 <Separator />
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stock & reorder</div>
                 <div className="grid grid-cols-4 gap-4">
-                  <Field label="Opening stock" icon={<Package className="h-3.5 w-3.5" />}>
-                    <Input type="number" value={f.initial_stock} onChange={(e) => set("initial_stock", e.target.value)} />
+                  <Field
+                    label="Opening stock"
+                    icon={<Package className="h-3.5 w-3.5" />}
+                    hint={hasColors ? `Auto = ${colorStockSum} (sum of colors)` : undefined}
+                  >
+                    <Input
+                      type="number"
+                      value={hasColors ? String(colorStockSum) : f.initial_stock}
+                      onChange={(e) => set("initial_stock", e.target.value)}
+                      disabled={hasColors}
+                    />
                   </Field>
                   <Field label="Low stock alert" icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}>
                     <Input type="number" value={f.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} placeholder="5" />
