@@ -44,8 +44,14 @@ type CartonDraft = {
   id: string;
   carton_number: number;
   weight_kg: number;
+  // key = `${itemId}|${variantId ?? ''}`
   allocations: Record<string, number>;
 };
+
+type VariantMeta = { id: string; color_name: string | null; color_hex: string | null; image: string | null; sku?: string | null; stock?: number | null };
+
+const leafKey = (itemId: string, variantId: string | null) => `${itemId}|${variantId ?? ""}`;
+const variantLabel = (v: VariantMeta) => v.color_name || v.sku || `Variant ${v.id.slice(0, 4)}`;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const emptyPick = (): PickedProduct => ({ id: null, title: "", sku: null, image: null });
