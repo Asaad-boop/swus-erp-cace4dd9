@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBrand } from "@/contexts/brand-context";
 import {
   Package, Tag, Barcode, DollarSign, AlertTriangle, RotateCcw, ImagePlus,
-  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette, Trash2,
+  Truck, Sparkles, X, Plus, Loader2, Star, Zap, Info, Film, Play, Palette, Trash2, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -136,13 +136,37 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
   const valid = f.title.trim() && f.slug.trim() && f.brand_id && Number(f.price) > 0;
 
+  const hasColors = f.colors.some((c) => c.color_name.trim());
+  const colorStockSum = f.colors.reduce((a, c) => a + (Math.max(0, Math.floor(c.opening_stock || 0))), 0);
+
+  // Tab completeness dots — helps user see what's filled
+  const tabDone = useMemo(() => ({
+    basics: !!(f.title.trim() && f.slug.trim() && f.brand_id),
+    images: !!f.image,
+    pricing: Number(f.price) > 0,
+    colors: hasColors,
+    shipping: !!(f.shipping_fee_inside || f.shipping_fee_outside),
+    details: f.benefits.length > 0 || f.specs.some((s) => s.key.trim()),
+  }), [f, hasColors]);
+
   const save = useMutation({
     mutationFn: async () => {
       if (!valid) throw new Error("Title, slug, brand and price required");
+      // Duplicate slug pre-check (per brand)
+      const { data: dup } = await supabase
+        .from("products")
+        .select("id")
+        .eq("brand_id", f.brand_id)
+        .eq("slug", f.slug.trim())
+        .maybeSingle();
+      if (dup) throw new Error(`Slug "${f.slug}" already used by another product on this brand.`);
+
       const num = (v: string) => (v === "" ? null : Number(v));
       const cleanSpecs = f.specs.filter((s) => s.key.trim()).reduce<Record<string, string>>(
         (a, s) => { a[s.key.trim()] = s.value; return a; }, {},
       );
+      // If color variants own the stock, use their sum as parent stock (single source of truth)
+      const parentStock = hasColors ? colorStockSum : (Number(f.initial_stock) || 0);
       const payload: Record<string, unknown> = {
         title: f.title.trim(),
         slug: f.slug.trim(),
@@ -154,7 +178,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         cost_price: f.cost_price === "" ? 0 : Number(f.cost_price),
         sku: f.sku || null,
         barcode: f.barcode || null,
-        stock: Number(f.initial_stock) || 0,
+        stock: parentStock,
         low_stock_threshold: num(f.low_stock_threshold),
         reorder_point: num(f.reorder_point),
         reorder_qty: num(f.reorder_qty),
@@ -174,9 +198,9 @@ export function ProductAddDialog({ open, onClose }: Props) {
       if (error) throw error;
       const newProductId = (data as { id: string }).id;
 
-      // Seed opening stock movement so weighted_avg_cost is correct
+      // Seed parent-level opening stock movement ONLY if no color variants (variants seed their own below)
       const startStock = Number(f.initial_stock) || 0;
-      if (startStock > 0) {
+      if (!hasColors && startStock > 0) {
         await supabase.rpc("adjust_stock_v2", {
           _product_id: newProductId,
           _variant_id: null as unknown as string,
@@ -247,12 +271,12 @@ export function ProductAddDialog({ open, onClose }: Props) {
         <Tabs value={tab} onValueChange={setTab} className="flex flex-col">
           <div className="px-6 pt-3">
             <TabsList className="grid grid-cols-6 w-full">
-              <TabsTrigger value="basics" className="gap-1.5"><Info className="h-3.5 w-3.5" />Basics</TabsTrigger>
-              <TabsTrigger value="images" className="gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Images</TabsTrigger>
-              <TabsTrigger value="pricing" className="gap-1.5"><DollarSign className="h-3.5 w-3.5" />Pricing</TabsTrigger>
-              <TabsTrigger value="colors" className="gap-1.5"><Palette className="h-3.5 w-3.5" />Colors</TabsTrigger>
-              <TabsTrigger value="shipping" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Shipping</TabsTrigger>
-              <TabsTrigger value="details" className="gap-1.5"><Star className="h-3.5 w-3.5" />Details</TabsTrigger>
+              <TabTrig value="basics" icon={<Info className="h-3.5 w-3.5" />} label="Basics" done={tabDone.basics} />
+              <TabTrig value="images" icon={<ImagePlus className="h-3.5 w-3.5" />} label="Images" done={tabDone.images} />
+              <TabTrig value="pricing" icon={<DollarSign className="h-3.5 w-3.5" />} label="Pricing" done={tabDone.pricing} />
+              <TabTrig value="colors" icon={<Palette className="h-3.5 w-3.5" />} label="Colors" done={tabDone.colors} />
+              <TabTrig value="shipping" icon={<Truck className="h-3.5 w-3.5" />} label="Shipping" done={tabDone.shipping} />
+              <TabTrig value="details" icon={<Star className="h-3.5 w-3.5" />} label="Details" done={tabDone.details} />
             </TabsList>
           </div>
 
@@ -384,8 +408,17 @@ export function ProductAddDialog({ open, onClose }: Props) {
                 <Separator />
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stock & reorder</div>
                 <div className="grid grid-cols-4 gap-4">
-                  <Field label="Opening stock" icon={<Package className="h-3.5 w-3.5" />}>
-                    <Input type="number" value={f.initial_stock} onChange={(e) => set("initial_stock", e.target.value)} />
+                  <Field
+                    label="Opening stock"
+                    icon={<Package className="h-3.5 w-3.5" />}
+                    hint={hasColors ? `Auto = ${colorStockSum} (sum of colors)` : undefined}
+                  >
+                    <Input
+                      type="number"
+                      value={hasColors ? String(colorStockSum) : f.initial_stock}
+                      onChange={(e) => set("initial_stock", e.target.value)}
+                      disabled={hasColors}
+                    />
                   </Field>
                   <Field label="Low stock alert" icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}>
                     <Input type="number" value={f.low_stock_threshold} onChange={(e) => set("low_stock_threshold", e.target.value)} placeholder="5" />
@@ -499,8 +532,21 @@ export function ProductAddDialog({ open, onClose }: Props) {
 
         <DialogFooter className="border-t bg-muted/30 px-6 py-3 flex !justify-between items-center">
           <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-            {!valid && <Badge variant="outline" className="text-amber-700 border-amber-300">Missing: title, slug, brand, price</Badge>}
-            {valid && <Badge variant="outline" className="text-emerald-700 border-emerald-300">Ready to save</Badge>}
+            {!valid ? (
+              <button
+                type="button"
+                onClick={() => setTab("basics")}
+                className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-700 hover:bg-amber-100 transition"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Missing: {[!f.title.trim() && "title", !f.slug.trim() && "slug", !f.brand_id && "brand", !(Number(f.price) > 0) && "price"].filter(Boolean).join(", ")}
+              </button>
+            ) : (
+              <Badge variant="outline" className="text-emerald-700 border-emerald-300 gap-1">
+                <Check className="h-3 w-3" /> Ready to save
+                {hasColors && <span className="text-muted-foreground">· {f.colors.filter((c) => c.color_name.trim()).length} colors, {colorStockSum} pcs</span>}
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} disabled={save.isPending}>Cancel</Button>
@@ -530,6 +576,16 @@ function Field({
       {children}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
+  );
+}
+
+function TabTrig({ value, icon, label, done }: { value: string; icon: React.ReactNode; label: string; done: boolean }) {
+  return (
+    <TabsTrigger value={value} className="gap-1.5 relative">
+      {icon}
+      <span>{label}</span>
+      {done && <span className="ml-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-2.5 w-2.5" /></span>}
+    </TabsTrigger>
   );
 }
 
