@@ -554,6 +554,7 @@ function NewPoPage() {
                               quantity: total > 0 ? total : it.quantity,
                             });
                           }}
+                          onVariantsLoaded={(vs) => registerVariants(it.picked.id!, vs)}
                         />
                       </div>
                     )}
@@ -775,11 +776,12 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
 }
 
 function ImportColorAllocator({
-  productId, allocations, onChange,
+  productId, allocations, onChange, onVariantsLoaded,
 }: {
   productId: string;
   allocations?: Record<string, number>;
   onChange: (a: Record<string, number>) => void;
+  onVariantsLoaded?: (variants: VariantMeta[]) => void;
 }) {
   const { data: variants = [], isLoading } = useQuery({
     queryKey: ["product-variants-active", productId],
@@ -794,6 +796,11 @@ function ImportColorAllocator({
       return (data ?? []) as any[];
     },
   });
+
+  useEffect(() => {
+    if (variants.length > 0) onVariantsLoaded?.(variants as VariantMeta[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variants]);
 
   if (isLoading || variants.length === 0) return null;
 
