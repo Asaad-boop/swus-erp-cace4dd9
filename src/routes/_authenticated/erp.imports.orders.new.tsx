@@ -98,6 +98,15 @@ function NewPoPage() {
     { id: uid(), carton_number: 1, weight_kg: 0, allocations: {} },
   ]);
 
+  // Variants meta populated by ImportColorAllocator; used by carton allocator for labels.
+  const [variantsByProduct, setVariantsByProduct] = useState<Record<string, VariantMeta[]>>({});
+  const registerVariants = (productId: string, vs: VariantMeta[]) =>
+    setVariantsByProduct((m) => {
+      const prev = m[productId];
+      if (prev && prev.length === vs.length && prev.every((x, i) => x.id === vs[i].id)) return m;
+      return { ...m, [productId]: vs };
+    });
+
   // initial payment
   const [payEnabled, setPayEnabled] = useState(false);
   const [payAmount, setPayAmount] = useState<number>(0);
