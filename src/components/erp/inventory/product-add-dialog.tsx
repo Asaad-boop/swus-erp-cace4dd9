@@ -151,7 +151,7 @@ export function ProductAddDialog({ open, onClose }: Props) {
         category_id: f.category_id || null,
         price: Number(f.price),
         old_price: num(f.old_price),
-        cost_price: num(f.cost_price),
+        cost_price: f.cost_price === "" ? 0 : Number(f.cost_price),
         sku: f.sku || null,
         barcode: f.barcode || null,
         stock: Number(f.initial_stock) || 0,
