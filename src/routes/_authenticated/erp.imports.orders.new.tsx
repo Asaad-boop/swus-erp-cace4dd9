@@ -728,12 +728,12 @@ function ImportColorAllocator({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("product_variants")
-        .select("id,color_name,color_hex,image,stock")
+        .select("id,color_name,color_hex,image,stock,sku")
         .eq("product_id", productId)
         .eq("is_active", true)
         .order("display_order");
       if (error) throw error;
-      return ((data ?? []) as any[]).filter((v) => v.color_name);
+      return (data ?? []) as any[];
     },
   });
 
@@ -760,6 +760,7 @@ function ImportColorAllocator({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {variants.map((v: any) => {
           const cur = allocations?.[v.id] ?? 0;
+          const label = v.color_name || v.sku || `Variant ${v.id.slice(0, 4)}`;
           return (
             <div
               key={v.id}
@@ -770,7 +771,7 @@ function ImportColorAllocator({
             >
               <div className="h-8 w-8 rounded shrink-0 border" style={{ background: v.color_hex || "#e5e7eb" }} />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium truncate">{v.color_name}</div>
+                <div className="text-xs font-medium truncate">{label}</div>
                 <div className="text-[10px] text-muted-foreground tabular-nums">Stock: {v.stock ?? 0}</div>
               </div>
               <Input
