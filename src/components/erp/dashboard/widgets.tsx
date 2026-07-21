@@ -57,7 +57,7 @@ export function NetProfitCard({
         applyBrandScope(
           supabase.from("orders").select("total, actual_shipping_cost"),
           brandIds,
-        ).not("status", "in", "(cancelled,returned)")
+        ).not("status", "in", "(new,cancelled,returned)")
           .gte("created_at", fromISO).lte("created_at", toISO),
         applyBrandScope(
           supabase.from("order_items").select(
@@ -65,7 +65,7 @@ export function NetProfitCard({
           ),
           brandIds,
           "orders.brand_id" as any,
-        ).not("orders.status", "in", "(cancelled,returned)")
+        ).not("orders.status", "in", "(new,cancelled,returned)")
           .gte("orders.created_at", fromISO).lte("orders.created_at", toISO),
         applyBrandScope(
           supabase.from("mkt_insights_daily").select("spend, spend_bdt_fifo"),
