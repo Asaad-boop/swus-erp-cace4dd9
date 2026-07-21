@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, Boxes, Wallet, Truck, Settings, Users, UserCog,
-  TrendingDown, TrendingUp, PackagePlus, Megaphone, Container, Heart, BriefcaseBusiness,
+  TrendingDown, TrendingUp, PackagePlus, Megaphone, Container, Heart,
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2, Search, PackageCheck, ShieldCheck, CheckCircle2, Clock, FileBarChart2,
+  FileBarChart, Target, Banknote, Building2, Search, PackageCheck, ShieldCheck, CheckCircle2, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalSearch } from "@/components/erp/global-search";
