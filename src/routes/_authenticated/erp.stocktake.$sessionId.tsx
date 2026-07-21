@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { exportToXlsx } from "@/lib/erp/hr/excel";
+import { exportToXlsx } from "@/lib/erp/utils/excel";
 import { useBrand } from "@/contexts/brand-context";
 import { ProductPicker, type PickedProduct } from "@/components/erp/imports/product-picker";
 import {

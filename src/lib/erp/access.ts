@@ -10,7 +10,6 @@
 
 export type Module =
   | "dashboard"
-  | "workspace"
   | "orders"
   | "inventory"
   | "fulfillment"
@@ -19,7 +18,6 @@ export type Module =
   | "marketing"
   | "crm"
   | "analytics"
-  | "hr"
   | "staff_accounts"
   | "customer_accounts"
   | "settings"
@@ -27,23 +25,20 @@ export type Module =
 
 export const ROLE_MODULES: Record<string, Module[]> = {
   admin: [
-    "dashboard", "workspace", "orders", "inventory", "fulfillment", "supply",
-    "finance", "marketing", "crm", "analytics", "hr",
+    "dashboard", "orders", "inventory", "fulfillment", "supply",
+    "finance", "marketing", "crm", "analytics",
     "staff_accounts", "customer_accounts", "settings", "diagnostics",
   ],
   operations: [
-    "dashboard", "workspace", "orders", "inventory", "fulfillment",
-    "supply", "crm", "analytics", "hr",
+    "dashboard", "orders", "inventory", "fulfillment",
+    "supply", "crm", "analytics",
   ],
-  accountant: ["dashboard", "workspace", "finance", "analytics"],
-  warehouse_staff: ["dashboard", "workspace", "inventory", "fulfillment", "supply"],
-  packer: ["dashboard", "workspace", "fulfillment"],
-  customer_service: ["dashboard", "workspace", "orders", "crm", "customer_accounts"],
-  marketing_manager: ["dashboard", "workspace", "marketing", "analytics"],
-  moderator: ["dashboard", "workspace"],
-  hr_admin: ["dashboard", "workspace", "hr"],
-  hr_manager: ["dashboard", "workspace", "hr"],
-  employee: ["workspace"],
+  accountant: ["dashboard", "finance", "analytics"],
+  warehouse_staff: ["dashboard", "inventory", "fulfillment", "supply"],
+  packer: ["dashboard", "fulfillment"],
+  customer_service: ["dashboard", "orders", "crm", "customer_accounts"],
+  marketing_manager: ["dashboard", "marketing", "analytics"],
+  moderator: ["dashboard"],
   customer: [],
 };
 
@@ -58,11 +53,7 @@ export function getAllowedModules(roles: string[]): Set<Module> {
 
 /** Path → module. Order matters: more specific patterns first. */
 const PATH_RULES: { test: (p: string) => boolean; module: Module }[] = [
-  { test: (p) => p === "/me" || p.startsWith("/me/"), module: "workspace" },
   { test: (p) => p === "/erp" || p === "/erp/", module: "dashboard" },
-  // HR staff/users live inside /erp/hr but need their own modules
-  { test: (p) => p.startsWith("/erp/hr/staff"), module: "staff_accounts" },
-  { test: (p) => p.startsWith("/erp/hr"), module: "hr" },
   { test: (p) => p.startsWith("/erp/orders"), module: "orders" },
   {
     test: (p) =>
@@ -124,9 +115,5 @@ export function canAccessPath(roles: string[], pathname: string): boolean {
 export function hasAnyBackoffice(roles: string[]): boolean {
   if (roles.includes("admin")) return true;
   const allowed = getAllowedModules(roles);
-  // workspace alone (employee/customer) is NOT backoffice
-  for (const m of allowed) {
-    if (m !== "workspace") return true;
-  }
-  return false;
+  return allowed.size > 0;
 }

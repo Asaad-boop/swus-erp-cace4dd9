@@ -1,5 +1,5 @@
-import { printHtml } from "@/lib/erp/hr/pdf";
-import { exportToXlsx } from "@/lib/erp/hr/excel";
+import { printHtml } from "@/lib/erp/utils/pdf";
+import { exportToXlsx } from "@/lib/erp/utils/excel";
 
 export type AgingBuckets = {
   current: number;

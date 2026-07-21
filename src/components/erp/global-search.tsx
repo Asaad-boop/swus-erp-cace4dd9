@@ -51,7 +51,6 @@ const PAGES: { name: string; path: string; section: string; icon: typeof LayoutD
   { name: "CRM Customers", path: "/erp/crm", section: "Growth", icon: Heart },
   { name: "Analytics", path: "/erp/analytics", section: "Growth", icon: BarChart3 },
   { name: "Live Analytics", path: "/erp/analytics/live", section: "Growth", icon: BarChart3 },
-  { name: "HR", path: "/erp/hr", section: "Workspace", icon: Users },
   { name: "Users", path: "/erp/users", section: "Workspace", icon: Users },
   { name: "Settings", path: "/erp/settings", section: "Workspace", icon: Wallet },
   { name: "Diagnostics", path: "/erp/diagnostics", section: "Workspace", icon: BarChart3 },

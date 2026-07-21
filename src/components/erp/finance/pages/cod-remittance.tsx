@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtBdt } from "@/lib/erp/finance";
-import { exportToXlsx } from "@/lib/erp/hr/excel";
+import { exportToXlsx } from "@/lib/erp/utils/excel";
 import { RemittanceForm, type RemittanceRow } from "@/components/erp/finance/remittance-form";
 import { CodCollectionDialog } from "@/components/erp/finance/cod-collection-dialog";
 import { SettlementUploadDialog } from "@/components/erp/finance/settlement-upload-dialog";

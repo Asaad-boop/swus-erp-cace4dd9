@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
   Search, RefreshCw, Users as UsersIcon, Mail, Phone, ShieldCheck,
-  ShoppingBag, Calendar, Ban, CheckCircle2, ExternalLink, UserCog,
+  ShoppingBag, Calendar, Ban, CheckCircle2, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -85,17 +85,13 @@ function CustomerAccountsPage() {
             Customer Accounts
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Website signups — customers who created accounts to shop. Staff management lives in{" "}
-            <Link to="/erp/hr/staff" className="text-primary underline underline-offset-2">HR → Staff</Link>.
+            Website signups — customers who created accounts to shop.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
-          </Button>
-          <Button asChild size="sm" variant="secondary">
-            <Link to="/erp/hr/staff"><UserCog className="h-4 w-4 mr-2" />Manage Staff</Link>
           </Button>
         </div>
       </div>

@@ -27,7 +27,6 @@ import { applyBrandScope } from "@/lib/erp/apply-brand-scope";
 import { moneyTier } from "@/lib/erp/money-tier";
 import { cn } from "@/lib/utils";
 import { useCurrentRole } from "@/hooks/use-current-role";
-import { StaffDashboard } from "@/components/erp/staff-dashboard";
 import {
   NetProfitCard, CashPositionCard, CodRemittancePipelineCard, RoasComparisonCard,
   AdWalletBalanceCard, StuckOrdersCard, ReturnRateByProductCard, CourierPerformanceCard,
@@ -79,7 +78,18 @@ function DashboardPage() {
       </div>
     );
   }
-  if (!isAdmin) return <StaffDashboard />;
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-muted/30">
+        <div className="max-w-md text-center space-y-2 p-6">
+          <h2 className="text-lg font-semibold">Restricted</h2>
+          <p className="text-sm text-muted-foreground">
+            Your account doesn't have dashboard access. Contact an admin if this is unexpected.
+          </p>
+        </div>
+      </div>
+    );
+  }
   return <AdminDashboard />;
 }
 

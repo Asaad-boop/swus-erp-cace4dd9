@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Globe, PlusCircle, Boxes, Wallet, Truck, Settings, Users, UserCog,
-  TrendingDown, TrendingUp, PackagePlus, Megaphone, Container, Heart, BriefcaseBusiness,
+  TrendingDown, TrendingUp, PackagePlus, Megaphone, Container, Heart,
   ChevronsLeft, ChevronRight, Sparkles, ClipboardList, ClipboardCheck, PackageSearch,
   Activity, BarChart3, RotateCcw, FileSpreadsheet, Zap, Briefcase, Stethoscope, ChevronDown,
   Receipt, BookOpen, Landmark, Coins, ArrowDownCircle, ArrowUpCircle, HandCoins, Scale,
-  FileBarChart, Target, Banknote, Building2, Search, PackageCheck, ShieldCheck, CheckCircle2, Clock, FileBarChart2,
+  FileBarChart, Target, Banknote, Building2, Search, PackageCheck, ShieldCheck, CheckCircle2, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalSearch } from "@/components/erp/global-search";
@@ -133,28 +133,6 @@ const groups: Group[] = [
         items: [
           { to: "/erp/analytics", label: "Analytics", icon: BarChart3, exact: true },
           { to: "/erp/analytics/live", label: "Live Analytics", icon: Activity },
-        ],
-      },
-    ],
-  },
-  {
-    kind: "accordion",
-    label: "HRM",
-    defaultClosed: true,
-    sections: [
-      {
-        key: "hrm",
-        label: "HRM",
-        icon: BriefcaseBusiness,
-        items: [
-          { to: "/erp/hr", label: "Live Dashboard", icon: LayoutDashboard, exact: true },
-          { to: "/erp/hr/attendance/muster", label: "Activities", icon: Activity },
-          { to: "/erp/hr/attendance", label: "Admin Attendance", icon: ShieldCheck, exact: true },
-          { to: "/erp/hr/reports", label: "Attendance Report", icon: FileBarChart2, exact: true },
-          { to: "/erp/hr/leave", label: "Approvals", icon: CheckCircle2 },
-          { to: "/erp/hr/reports", label: "Late Report", icon: Clock },
-          { to: "/erp/hr/settings", label: "Settings", icon: Settings },
-          { to: "/erp/hr/staff", label: "Staff Logins (advanced)", icon: UserCog },
         ],
       },
     ],

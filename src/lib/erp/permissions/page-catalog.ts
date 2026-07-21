@@ -53,14 +53,6 @@ export const PAGE_CATALOG: PageEntry[] = [
   { group: "Analytics", path: "/erp/analytics", label: "Analytics" },
   { group: "Analytics", path: "/erp/analytics/live", label: "Live Analytics" },
 
-  { group: "HRM", path: "/erp/hr", label: "Live Dashboard" },
-  { group: "HRM", path: "/erp/hr/attendance/muster", label: "Activities" },
-  { group: "HRM", path: "/erp/hr/attendance", label: "Admin Attendance" },
-  { group: "HRM", path: "/erp/hr/reports", label: "Attendance Report" },
-  { group: "HRM", path: "/erp/hr/leave", label: "Approvals" },
-  { group: "HRM", path: "/erp/hr/settings", label: "HR Settings" },
-  { group: "HRM", path: "/erp/hr/staff", label: "Staff Logins" },
-
   { group: "System", path: "/erp/settings", label: "Settings" },
   { group: "System", path: "/erp/diagnostics", label: "Diagnostics" },
 ];
@@ -99,8 +91,6 @@ export function pathAllowedBy(allowed: string[] | null | undefined, pathname: st
     { test: /^\/erp\/imports\/orders\/[^/]+$/, anyOf: ["/erp/imports"] },
     { test: /^\/erp\/returns\/[^/]+$/, anyOf: ["/erp/returns"] },
     { test: /^\/erp\/stocktake\/[^/]+$/, anyOf: ["/erp/stocktake"] },
-    { test: /^\/erp\/hr\/employees\/[^/]+$/, anyOf: ["/erp/hr", "/erp/hr/staff"] },
-    { test: /^\/erp\/hr\/payroll\/[^/]+$/, anyOf: ["/erp/hr"] },
   ];
   for (const d of detailParents) {
     if (d.test.test(pathname) && d.anyOf.some((p) => effectiveAllowed.includes(p))) return true;
