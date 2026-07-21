@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Outlet, useLocation, useNavigate, Link } fro
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { canAccessPath, hasAnyBackoffice, moduleForPath, getAllowedModules } from "@/lib/erp/access";
+import { canAccessPath, hasAnyBackoffice, moduleForPath } from "@/lib/erp/access";
 import { pathAllowedBy } from "@/lib/erp/permissions/page-catalog";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 
@@ -67,14 +67,9 @@ function AuthGate() {
   const isAdmin = roles.includes("admin");
   const path = location.pathname;
   const isErp = path === "/erp" || path.startsWith("/erp/");
-  const isMe = path === "/me" || path.startsWith("/me/");
 
-  // 1. No backoffice roles at all & trying to open /erp → bounce to /me
+  // 1. No backoffice roles at all & trying to open /erp → access denied
   if (isErp && !hasAnyBackoffice(roles)) {
-    // Employees only get the personal workspace
-    if (getAllowedModules(roles).has("workspace")) {
-      return <Navigate to="/me" replace />;
-    }
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-center bg-background">
         <div className="max-w-sm space-y-3">
@@ -109,7 +104,7 @@ function AuthGate() {
   }
   if (!allowed) {
     const mod = moduleForPath(path);
-    const fallback = hasAnyBackoffice(roles) ? "/erp" : "/me";
+    const fallback = "/erp";
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <div className="max-w-md w-full space-y-4 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
@@ -126,7 +121,7 @@ function AuthGate() {
           </div>
           <div className="flex items-center justify-center gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => navigate({ to: fallback as never })}>
-              <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back to {fallback === "/me" ? "Workspace" : "Dashboard"}
+              <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back to Dashboard
             </Button>
           </div>
           <div className="pt-2 text-[11px] text-muted-foreground">
@@ -137,7 +132,5 @@ function AuthGate() {
     );
   }
 
-  // 3. Authenticated but landed on a route we don't classify (e.g. /me) — let it render
-  void isMe;
   return <Outlet />;
 }
