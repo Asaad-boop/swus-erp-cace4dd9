@@ -139,28 +139,6 @@ const groups: Group[] = [
   },
   {
     kind: "accordion",
-    label: "HRM",
-    defaultClosed: true,
-    sections: [
-      {
-        key: "hrm",
-        label: "HRM",
-        icon: BriefcaseBusiness,
-        items: [
-          { to: "/erp/hr", label: "Live Dashboard", icon: LayoutDashboard, exact: true },
-          { to: "/erp/hr/attendance/muster", label: "Activities", icon: Activity },
-          { to: "/erp/hr/attendance", label: "Admin Attendance", icon: ShieldCheck, exact: true },
-          { to: "/erp/hr/reports", label: "Attendance Report", icon: FileBarChart2, exact: true },
-          { to: "/erp/hr/leave", label: "Approvals", icon: CheckCircle2 },
-          { to: "/erp/hr/reports", label: "Late Report", icon: Clock },
-          { to: "/erp/hr/settings", label: "Settings", icon: Settings },
-          { to: "/erp/hr/staff", label: "Staff Logins (advanced)", icon: UserCog },
-        ],
-      },
-    ],
-  },
-  {
-    kind: "accordion",
     label: "System",
     defaultClosed: true,
     sections: [
