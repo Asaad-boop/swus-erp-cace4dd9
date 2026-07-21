@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
 import { getCashflowStatement, type CashflowStatement } from "@/lib/erp/finance-overview.functions";
-import { exportAoaXlsx } from "@/lib/erp/hr/excel";
+import { exportAoaXlsx } from "@/lib/erp/utils/excel";
 
 export const Route = createFileRoute("/_authenticated/erp/finance/reports")({
   head: () => ({ meta: [{ title: "Financial Reports — ERP" }] }),

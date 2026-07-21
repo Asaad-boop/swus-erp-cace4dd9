@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fmtBdt } from "@/lib/erp/finance";
-import { exportToXlsx } from "@/lib/erp/hr/excel";
+import { exportToXlsx } from "@/lib/erp/utils/excel";
 import { getDrilldownTransactions, type DrilldownRow } from "@/lib/erp/finance-overview.functions";
 
 type Props = {
