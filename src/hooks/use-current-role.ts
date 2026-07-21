@@ -3,9 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole =
   | "admin"
-  | "hr_admin"
-  | "hr_manager"
-  | "employee"
   | "operations"
   | "accountant"
   | "warehouse_staff"
