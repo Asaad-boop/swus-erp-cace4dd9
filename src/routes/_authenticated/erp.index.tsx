@@ -258,8 +258,8 @@ function KpiStrip({
       const inPrev = (q: any) => q.gte("created_at", range.prevFrom.toISOString()).lte("created_at", range.prevTo.toISOString());
 
       const [cur, prev, confirmed, inTransit, codPending, attention, cancelled, items, users] = await Promise.all([
-        inRange(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
-        inPrev(applyBrandScope(supabase.from("orders").select("total"), brandIds)),
+        inRange(applyBrandScope(supabase.from("orders").select("total,status,source_website"), brandIds)),
+        inPrev(applyBrandScope(supabase.from("orders").select("total,status,source_website"), brandIds)),
         // Snapshot: orders created in range whose CURRENT status is a confirmed-side state.
         inRange(applyBrandScope(supabase.from("orders").select("id", { count: "exact", head: true }), brandIds))
           .in("status", ["confirmed","packaging","packed","ready_to_ship","shipped","in_transit","delivered","partial_delivered"]),
@@ -283,6 +283,24 @@ function KpiStrip({
       const prevOrders = prevRows.length;
       const revenue = curRows.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
       const prevRevenue = prevRows.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0);
+      const CONFIRMED_STATUSES = new Set([
+        "confirmed","packaging","packed","ready_to_ship","shipped","in_transit","delivered","partial_delivered",
+      ]);
+      const EXCLUDED_STATUSES = new Set(["cancelled","returned"]);
+      let revenueConfirmed = 0, prevRevenueConfirmed = 0;
+      let revenueWebPending = 0, prevRevenueWebPending = 0;
+      for (const r of curRows as any[]) {
+        const st = String(r.status ?? "");
+        const total = Number(r.total ?? 0);
+        if (CONFIRMED_STATUSES.has(st)) revenueConfirmed += total;
+        else if (!EXCLUDED_STATUSES.has(st) && r.source_website) revenueWebPending += total;
+      }
+      for (const r of prevRows as any[]) {
+        const st = String(r.status ?? "");
+        const total = Number(r.total ?? 0);
+        if (CONFIRMED_STATUSES.has(st)) prevRevenueConfirmed += total;
+        else if (!EXCLUDED_STATUSES.has(st) && r.source_website) prevRevenueWebPending += total;
+      }
       const codRows = codPending.data ?? [];
       const codAmount = codRows.reduce((s: number, r: any) =>
         s + Math.max(0, Number(r.total ?? 0) - Number(r.partial_amount ?? 0)), 0);
@@ -311,6 +329,8 @@ function KpiStrip({
 
       return {
         curOrders, prevOrders, revenue, prevRevenue,
+        revenueConfirmed, prevRevenueConfirmed,
+        revenueWebPending, prevRevenueWebPending,
         confirmed: confirmed.count ?? 0, confirmRate,
         inTransit: inTransit.count ?? 0,
         codAmount, codCount: codRows.length,
@@ -319,6 +339,8 @@ function KpiStrip({
         aov, newCust: newCust.size, retCust: retCust.size,
         ordersTrend: trend(curOrders, prevOrders),
         revTrend: trend(revenue, prevRevenue),
+        revConfirmedTrend: trend(revenueConfirmed, prevRevenueConfirmed),
+        revWebPendingTrend: trend(revenueWebPending, prevRevenueWebPending),
       };
     },
   });
@@ -327,7 +349,8 @@ function KpiStrip({
     { icon: ShoppingCart, label: "Orders", value: data?.curOrders ?? 0, trend: data?.ordersTrend, sub: "vs previous", tone: "indigo", to: "/erp/orders/web" },
     { icon: CheckCircle2, label: "Confirmed", value: data?.confirmed ?? 0, sub: `${(data?.confirmRate ?? 0).toFixed(0)}% confirm rate`, tone: "emerald", to: "/erp/orders/web" },
     { icon: Truck, label: "In Transit", value: data?.inTransit ?? 0, sub: "Pathao + Steadfast", tone: "blue", to: "/erp/orders/web" },
-    { icon: Wallet, label: "Revenue", value: BDT(data?.revenue ?? 0), amount: data?.revenue ?? 0, trend: data?.revTrend, sub: "vs previous", tone: "emerald", to: "/erp/finance" },
+    { icon: Wallet, label: "Sales Revenue", value: BDT(data?.revenueConfirmed ?? 0), amount: data?.revenueConfirmed ?? 0, trend: data?.revConfirmedTrend, sub: "confirmed orders", tone: "emerald", to: "/erp/orders/web" },
+    { icon: ShoppingCart, label: "Web Pending Rev", value: BDT(data?.revenueWebPending ?? 0), amount: data?.revenueWebPending ?? 0, trend: data?.revWebPendingTrend, sub: "not confirmed yet", tone: "amber", to: "/erp/orders/web" },
     { icon: Banknote, label: "COD Pending", value: BDT(data?.codAmount ?? 0), amount: data?.codAmount ?? 0, sub: `${data?.codCount ?? 0} orders`, tone: "amber", to: "/erp/reconciliation" },
     { icon: AlertTriangle, label: "Attention", value: data?.attention ?? 0, sub: "needs action", tone: "rose", to: "/erp/orders/web" },
     { icon: XCircle, label: "Cancelled", value: data?.cancelled ?? 0, sub: `${(data?.cancelRate ?? 0).toFixed(1)}% cancel rate`, tone: "rose", to: "/erp/orders/web" },
