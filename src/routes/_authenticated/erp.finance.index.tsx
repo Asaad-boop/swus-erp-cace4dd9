@@ -224,7 +224,7 @@ function CapitalStrip({ data, onDrill }: {
         label={capital.receivableNet >= 0 ? "Net Receivable" : "Net Payable"}
         value={Math.abs(capital.receivableNet)}
         tone={capital.receivableNet >= 0 ? "sky" : "rose"}
-        hint={`COD ${fmtBdt(capital.breakdown.codReceivable)} + AR ${fmtBdt(capital.breakdown.arDue)} + Adv ${fmtBdt(capital.breakdown.importsAdvance)} − Pay ${fmtBdt(capital.breakdown.supplierPayable + capital.breakdown.importsDue)}`}
+        hint={`COD ${fmtBdt(capital.breakdown.codReceivable)} + AR ${fmtBdt(capital.breakdown.arDue)} − Pay ${fmtBdt(capital.breakdown.supplierPayable + capital.breakdown.importsDue)}`}
       />
     </section>
   );

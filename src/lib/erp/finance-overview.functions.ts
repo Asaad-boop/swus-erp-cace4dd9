@@ -79,7 +79,7 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       dailyOrdRes, dailyTxnRes,
     ] = await Promise.all([
       supabase.from("brands").select("id,name").in("id", brandIds),
-      applyBrandScope(supabase.from("erp_accounts").select("id,name,account_type,current_balance,brand_id").eq("is_active", true), brandIds, "brand_id", { includeNull: true }).order("current_balance", { ascending: false }),
+      applyBrandScope(supabase.from("erp_accounts").select("id,name,account_type,account_subtype,current_balance,brand_id").eq("is_active", true), brandIds, "brand_id", { includeNull: true }).order("current_balance", { ascending: false }),
       applyBrandScope(supabase.from("products").select("id,brand_id,stock,cost_price,price"), brandIds),
       supabase.from("product_variants").select("product_id,stock"),
       applyBrandScope(supabase.from("orders").select("total,subtotal,created_at").in("status", ["delivered", "partial_delivered", "paid"]), brandIds).gte("created_at", fromTs).lte("created_at", toTs),
@@ -108,12 +108,18 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       id: a.id as string,
       name: a.name as string,
       type: a.account_type as string,
+      subtype: (a as { account_subtype?: string | null }).account_subtype ?? null,
       balance: num(a.current_balance),
     }));
     const accMap = new Map(accounts.map((a) => [a.id, a]));
     const cash = accounts.filter((a) => a.type === "cash").reduce((s, a) => s + a.balance, 0);
     const bank = accounts.filter((a) => a.type === "bank").reduce((s, a) => s + a.balance, 0);
     const mfs = accounts.filter((a) => ["bkash", "nagad", "rocket", "mfs"].includes(a.type)).reduce((s, a) => s + a.balance, 0);
+    // Authoritative COD Receivable = balance of dedicated COD Receivable wallets
+    // (maintained by fn_post_order_delivery_to_finance + reconcile_courier_settlement).
+    const codReceivableWallet = accounts
+      .filter((a) => a.subtype === "receivable")
+      .reduce((s, a) => s + a.balance, 0);
 
     // Inventory valuation (products use product.stock; variants stock summed under their parent product cost)
     const variantsByProduct = new Map<string, number>();
@@ -142,11 +148,13 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     const revenue = sum(rangeOrdRes.data as { total: number }[] | null, (x) => num(x.total));
     const refundLoss = sum(refundOrdRes.data as { total: number }[] | null, (x) => num(x.total));
 
-    // COD receivable by courier — fetch shipments separately and join in-memory
+    // COD receivable = authoritative wallet balance (already netted for reconciled remittances)
+    const codReceivable = codReceivableWallet;
+    // Breakdown by courier: use in-flight orders (shipped + delivered-unpaid) purely for display.
     const codOrders = (codOrdRes.data ?? []) as { id: string; total: number }[];
     const codOrderMap = new Map(codOrders.map((o) => [o.id, num(o.total)]));
     const orderIds = codOrders.map((o) => o.id);
-    let codReceivable = 0;
+    const shippedOrderIds = new Set<string>();
     const codByCourier = new Map<string, { amount: number; orders: number }>();
     if (orderIds.length > 0) {
       const { data: ships } = await supabase
@@ -157,32 +165,25 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       for (const s of (ships ?? []) as { order_id: string; provider: string | null }[]) {
         if (seen.has(s.order_id)) continue;
         seen.add(s.order_id);
+        shippedOrderIds.add(s.order_id);
         const amt = codOrderMap.get(s.order_id) ?? 0;
         const provider = s.provider ?? "unknown";
         const cur = codByCourier.get(provider) ?? { amount: 0, orders: 0 };
         cur.amount += amt;
         cur.orders += 1;
         codByCourier.set(provider, cur);
-        codReceivable += amt;
-      }
-      // Orders without a shipment row
-      let noShipAmt = 0; let noShipCount = 0;
-      for (const o of codOrders) {
-        if (!seen.has(o.id)) { noShipAmt += num(o.total); noShipCount += 1; }
-      }
-      if (noShipCount > 0) {
-        codByCourier.set("no_shipment", { amount: noShipAmt, orders: noShipCount });
-        codReceivable += noShipAmt;
       }
     }
     const codByCourierArr = Array.from(codByCourier.entries())
       .map(([provider, v]) => ({ provider, ...v }))
       .sort((a, b) => b.amount - a.amount);
 
-    // AR top (by phone/customer aggregate)
+    // AR = delivered+unpaid orders NOT already tracked by a courier shipment
+    // (courier COD is captured in codReceivable wallet — avoid double count).
     const arMap = new Map<string, { name: string; phone: string | null; amount: number; orders: number }>();
     let arDue = 0;
-    for (const o of (arOrdRes.data ?? []) as { total: number; shipping_name: string | null; shipping_phone: string | null }[]) {
+    for (const o of (arOrdRes.data ?? []) as { id: string; total: number; shipping_name: string | null; shipping_phone: string | null }[]) {
+      if (shippedOrderIds.has(o.id)) continue;
       const key = (o.shipping_phone || o.shipping_name || "Unknown").toString();
       const cur = arMap.get(key) ?? { name: o.shipping_name ?? "Unknown", phone: o.shipping_phone, amount: 0, orders: 0 };
       cur.amount += num(o.total);
@@ -325,7 +326,9 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     }));
 
     const liquid = cash + bank + mfs;
-    const receivableNet = codReceivable + arDue + importsAdvance - supplierPayable - importsDueTotal;
+    // Net receivable = money owed TO us (COD wallet + non-courier AR) minus what we owe.
+    // Imports advance is a prepaid asset, not a receivable — kept in totalCapital only.
+    const receivableNet = codReceivable + arDue - supplierPayable - importsDueTotal;
     const totalCapital = liquid + inventoryValue + codReceivable + arDue + importsAdvance - supplierPayable - importsDueTotal;
 
     return {
