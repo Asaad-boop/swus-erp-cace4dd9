@@ -106,10 +106,12 @@ export function NetProfitCard({
         const qty = Number(r.quantity ?? 0);
         if (unit > 0) cogsSeen = true;
         cogs += unit * qty;
-        if (r.courier_cost_allocated != null) { courierSeen = true; courier += Number(r.courier_cost_allocated); }
-        if (r.packaging_cost_allocated != null) { packSeen = true; pack += Number(r.packaging_cost_allocated); }
+        const cc = Number(r.courier_cost_allocated ?? 0);
+        if (cc > 0) { courierSeen = true; courier += cc; }
+        const pc = Number(r.packaging_cost_allocated ?? 0);
+        if (pc > 0) { packSeen = true; pack += pc; }
       }
-      if (!courierSeen && shipFallback > 0) { courier = shipFallback; courierSeen = true; }
+      if (courier <= 0 && shipFallback > 0) { courier = shipFallback; courierSeen = true; }
 
       let adSpend = 0; let adSpendSeen = false;
       for (const r of (ads.data ?? []) as any[]) {
