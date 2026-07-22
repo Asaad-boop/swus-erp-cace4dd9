@@ -50,7 +50,7 @@ export const Route = createFileRoute("/api/public/cron/sync-courier")({
         let q = supabaseAdmin
           .from("orders")
           .select("id,invoice_no,status,courier_name,tracking_number,brand_id,shipped_at")
-          .in("status", ["ready_to_ship", "shipped", "in_transit"])
+          .in("status", ["ready_to_ship", "shipped", "in_transit", "on_hold"])
           .order("shipped_at", { ascending: true, nullsFirst: false })
           .limit(candidateLimit);
         if (body.brandId) q = q.eq("brand_id", body.brandId);
