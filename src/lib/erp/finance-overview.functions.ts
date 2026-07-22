@@ -326,7 +326,9 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
     }));
 
     const liquid = cash + bank + mfs;
-    const receivableNet = codReceivable + arDue + importsAdvance - supplierPayable - importsDueTotal;
+    // Net receivable = money owed TO us (COD wallet + non-courier AR) minus what we owe.
+    // Imports advance is a prepaid asset, not a receivable — kept in totalCapital only.
+    const receivableNet = codReceivable + arDue - supplierPayable - importsDueTotal;
     const totalCapital = liquid + inventoryValue + codReceivable + arDue + importsAdvance - supplierPayable - importsDueTotal;
 
     return {
