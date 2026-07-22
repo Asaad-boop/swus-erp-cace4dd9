@@ -108,12 +108,18 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       id: a.id as string,
       name: a.name as string,
       type: a.account_type as string,
+      subtype: (a as { account_subtype?: string | null }).account_subtype ?? null,
       balance: num(a.current_balance),
     }));
     const accMap = new Map(accounts.map((a) => [a.id, a]));
     const cash = accounts.filter((a) => a.type === "cash").reduce((s, a) => s + a.balance, 0);
     const bank = accounts.filter((a) => a.type === "bank").reduce((s, a) => s + a.balance, 0);
     const mfs = accounts.filter((a) => ["bkash", "nagad", "rocket", "mfs"].includes(a.type)).reduce((s, a) => s + a.balance, 0);
+    // Authoritative COD Receivable = balance of dedicated COD Receivable wallets
+    // (maintained by fn_post_order_delivery_to_finance + reconcile_courier_settlement).
+    const codReceivableWallet = accounts
+      .filter((a) => a.subtype === "receivable")
+      .reduce((s, a) => s + a.balance, 0);
 
     // Inventory valuation (products use product.stock; variants stock summed under their parent product cost)
     const variantsByProduct = new Map<string, number>();
