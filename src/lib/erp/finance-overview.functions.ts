@@ -79,7 +79,7 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
       dailyOrdRes, dailyTxnRes,
     ] = await Promise.all([
       supabase.from("brands").select("id,name").in("id", brandIds),
-      applyBrandScope(supabase.from("erp_accounts").select("id,name,account_type,current_balance,brand_id").eq("is_active", true), brandIds, "brand_id", { includeNull: true }).order("current_balance", { ascending: false }),
+      applyBrandScope(supabase.from("erp_accounts").select("id,name,account_type,account_subtype,current_balance,brand_id").eq("is_active", true), brandIds, "brand_id", { includeNull: true }).order("current_balance", { ascending: false }),
       applyBrandScope(supabase.from("products").select("id,brand_id,stock,cost_price,price"), brandIds),
       supabase.from("product_variants").select("product_id,stock"),
       applyBrandScope(supabase.from("orders").select("total,subtotal,created_at").in("status", ["delivered", "partial_delivered", "paid"]), brandIds).gte("created_at", fromTs).lte("created_at", toTs),
