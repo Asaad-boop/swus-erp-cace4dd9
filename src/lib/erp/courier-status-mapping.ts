@@ -11,6 +11,7 @@ export function normalizeCourierStatus(raw: string | null | undefined): string {
 export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   pickup_requested: "ready_to_ship",
   assigned_for_pickup: "ready_to_ship",
+  pending: "ready_to_ship",
   picked: "shipped",
   pickup: "shipped",
   pickup_failed: "on_hold",
@@ -20,6 +21,8 @@ export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   at_sorting_hub: "in_transit",
   in_transit: "in_transit",
   received_at_last_mile_hub: "in_transit",
+  at_delivery_hub: "in_transit",
+  on_the_way_to_delivery_hub: "in_transit",
   assigned_for_delivery: "in_transit",
   on_delivery: "in_transit",
   out_for_delivery: "in_transit",
@@ -27,6 +30,8 @@ export const DEFAULT_PATHAO_MAP: Record<string, OrderStatus> = {
   delivered: "delivered",
   partial_delivery: "partial_delivered",
   partial_delivered: "partial_delivered",
+  paid_return: "paid_return",
+  unpaid_return: "unpaid_return",
   // Payment/settlement events — NOT fulfillment. Do NOT transition order.status
   // from raw courier payment pings; `completed` is set only via the
   // reconcile_courier_settlement / apply_settlement_variance_action RPCs.
