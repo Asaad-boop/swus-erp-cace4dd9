@@ -199,9 +199,19 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
           .eq("id", matchedOrderId)
           .maybeSingle();
         if (ord) {
-          amountDiff = r.collected - Number(ord.total);
-          status =
-            Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          // Return/partial rows should NOT be compared against order.total.
+          // For `return` (incl. paid_return) collected = return-delivery fee
+          // paid by customer, not the goods amount. For `partial` collected
+          // is the partial COD, which is expected to be less than order.total.
+          const rt = r.row_type ?? "paid";
+          if (rt === "return" || rt === "partial") {
+            amountDiff = null;
+            status = "matched";
+          } else {
+            amountDiff = r.collected - Number(ord.total);
+            status =
+              Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          }
           rowBrandId = (ord as { brand_id: string | null }).brand_id ?? rowBrandId;
         } else {
           status = "matched"; // already linked though we couldn't re-read
