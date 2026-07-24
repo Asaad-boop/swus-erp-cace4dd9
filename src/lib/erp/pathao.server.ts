@@ -166,6 +166,15 @@ export function createPathaoClient(creds: PathaoCreds) {
       clearAuthToken();
       res = await doFetch(await getAuthToken());
     }
+    // Retry-on-429 with exponential backoff. Pathao rate-limits burst traffic
+    // (bulk courier sync) — retry a few times before surfacing the error.
+    let attempt = 0;
+    while (res.status === 429 && attempt < 3) {
+      const wait = 1500 * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+      await new Promise((r) => setTimeout(r, wait));
+      res = await doFetch(await getAuthToken());
+      attempt++;
+    }
     const text = await res.text();
     let json: any = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
