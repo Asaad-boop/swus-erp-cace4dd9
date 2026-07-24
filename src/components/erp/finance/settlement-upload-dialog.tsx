@@ -259,7 +259,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
     },
   });
 
-  const showBrandPicker = !brandId && brandIds.length > 1;
+  const showBrandPicker = brandIds.length > 1;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
