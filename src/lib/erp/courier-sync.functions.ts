@@ -437,7 +437,10 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
     // status, delete that row and try the next one. The "active" consignment
     // wins; cancelled rows leave no trace.
     const results: CourierSyncResult[] = [];
-    const batchSize = 4;
+    // Pathao rate-limits burst traffic aggressively. Each order triggers 2-3
+    // API calls (track + parse-address + price), so keep concurrency at 2 with
+    // a small inter-batch delay to avoid 429 storms on 50-order bulk syncs.
+    const batchSize = 2;
     const list = (orders ?? []) as Array<Parameters<typeof syncOne>[2]>;
     const orderById = new Map(list.map((o) => [o.id, o]));
     const tryOne = async (o: Parameters<typeof syncOne>[2]): Promise<CourierSyncResult> => {
@@ -474,6 +477,9 @@ export const syncCourierStatusFn = createServerFn({ method: "POST" })
       const batch = list.slice(i, i + batchSize);
       const settled = await Promise.all(batch.map((o) => tryOne(o)));
       results.push(...settled);
+      if (i + batchSize < list.length) {
+        await new Promise((r) => setTimeout(r, 350));
+      }
     }
 
     // Fallback: if track API didn't return a fee, use the fee captured at booking time.
