@@ -433,6 +433,16 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         const partialAmount = Number((r as { partial_amount?: number }).partial_amount ?? 0);
         const payoutNum = Number(r.payout);
 
+        // Replace-on-reconciliation: the invoice is the ground truth, so drop any
+        // delivery-time postings for this order (posted by fn_post_order_delivery_to_finance
+        // or older backfills) before writing the reconciliation rows. Prevents the
+        // duplicate courier-expense / income bug seen in the invoice-upload flow.
+        await supabase
+          .from("erp_transactions")
+          .delete()
+          .eq("reference_id", r.matched_order_id)
+          .in("reference_type", ["order_courier", "order_delivery", "order_return_charge"]);
+
         // Income (collected). For "return" rows the customer paid the courier
         // a return-delivery fee — that money is NOT ours; the only cash effect
         // on us is the courier's net deduction (negative payout). So income=0
