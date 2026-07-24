@@ -433,6 +433,16 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         const partialAmount = Number((r as { partial_amount?: number }).partial_amount ?? 0);
         const payoutNum = Number(r.payout);
 
+        // Replace-on-reconciliation: the invoice is the ground truth, so drop any
+        // delivery-time postings for this order (posted by fn_post_order_delivery_to_finance
+        // or older backfills) before writing the reconciliation rows. Prevents the
+        // duplicate courier-expense / income bug seen in the invoice-upload flow.
+        await supabase
+          .from("erp_transactions")
+          .delete()
+          .eq("reference_id", r.matched_order_id)
+          .in("reference_type", ["order_courier", "order_delivery", "order_return_charge"]);
+
         // Income (collected). For "return" rows the customer paid the courier
         // a return-delivery fee — that money is NOT ours; the only cash effect
         // on us is the courier's net deduction (negative payout). So income=0
@@ -589,7 +599,7 @@ export const revertPathaoReconciliationRun = createServerFn({ method: "POST" })
 
     const { data: rows, error: rowErr } = await supabase
       .from("erp_reconciliation_rows")
-      .select("id, applied_income_txn_id, applied_expense_txn_id")
+      .select("id, matched_order_id, match_type, applied_income_txn_id, applied_expense_txn_id")
       .eq("run_id", data.runId);
     if (rowErr) throw new Error(rowErr.message);
 
@@ -599,6 +609,29 @@ export const revertPathaoReconciliationRun = createServerFn({ method: "POST" })
 
     if (txnIds.length) {
       await supabase.from("erp_transactions").delete().in("id", txnIds);
+    }
+
+    // Re-post delivery-time baseline for every matched order. Since apply now
+    // deletes the pre-reconciliation order_delivery/order_courier/order_return_charge
+    // rows (replace-on-reconciliation), revert must restore them — otherwise the
+    // orders would be left with zero finance entries. We do this by flipping
+    // orders.status back to the appropriate delivered-side state; the
+    // fn_post_order_delivery_to_finance trigger then re-posts the baseline rows.
+    const matchedOrders = (rows ?? [])
+      .filter((r) => r.matched_order_id)
+      .map((r) => ({
+        orderId: r.matched_order_id as string,
+        matchType: (r as { match_type?: string }).match_type ?? "paid",
+      }));
+    for (const { orderId, matchType } of matchedOrders) {
+      const restoredStatus =
+        matchType === "return" ? "paid_return" : matchType === "partial" ? "partial_delivered" : "delivered";
+      const restoreUpdate: Record<string, unknown> = {
+        status: restoredStatus,
+        reconciliation_status: "pending",
+      };
+      if (matchType !== "return") restoreUpdate.payment_status = "pending";
+      await supabase.from("orders").update(restoreUpdate as never).eq("id", orderId);
     }
 
     await supabase
@@ -611,7 +644,7 @@ export const revertPathaoReconciliationRun = createServerFn({ method: "POST" })
       .update({ status: "reverted", reverted_at: new Date().toISOString() })
       .eq("id", data.runId);
 
-    return { ok: true, reverted: txnIds.length };
+    return { ok: true, reverted: txnIds.length, restored: matchedOrders.length };
   });
 
 // ---------- Delete draft run ----------
