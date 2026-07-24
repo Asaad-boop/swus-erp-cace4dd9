@@ -8836,10 +8836,19 @@ export type Database = {
         }
         Returns: string
       }
-      record_courier_expense: {
-        Args: { _account_id?: string; _amount: number; _shipment_id: string }
-        Returns: string
-      }
+      record_courier_expense:
+        | {
+            Args: { _amount: number; _shipment_id: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _account_id?: string
+              _amount: number
+              _shipment_id: string
+            }
+            Returns: string
+          }
       record_order_courier_expense: {
         Args: { _account_id?: string; _amount: number; _order_id: string }
         Returns: string
