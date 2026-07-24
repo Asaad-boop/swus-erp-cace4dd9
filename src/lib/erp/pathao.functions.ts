@@ -585,9 +585,9 @@ export const pathaoBookOrderFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (actualCost.total > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
-    }
+    // Removed: record_courier_expense (booking-time estimate caused duplicate courier
+    // expense posting alongside record_order_courier_expense during sync). Actual
+    // courier cost is now posted idempotently at delivery via order_courier flow.
 
     const orderUpdate: Record<string, unknown> = {
       courier_name: "pathao",
@@ -794,9 +794,8 @@ export const pathaoBookOrderAutoFn = createServerFn({ method: "POST" })
       .single();
     if (sErr) throw sErr;
 
-    if (actualCost.total > 0) {
-      await supabase.rpc("record_courier_expense", { _shipment_id: shipment.id, _amount: actualCost.total });
-    }
+    // Removed: record_courier_expense (see note above — booking-time estimate is
+    // superseded by delivery-time record_order_courier_expense).
 
     await supabase
       .from("orders")
