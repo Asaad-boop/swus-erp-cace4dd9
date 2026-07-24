@@ -95,7 +95,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
   const [checkingDups, setCheckingDups] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const effectiveBrand = brandId ?? pickedBrand;
+  const effectiveBrand = pickedBrand || brandId || "";
 
   const dupKey = (l: Pick<ParsedLine, "consignment_id" | "invoice_type" | "created_date">) =>
     `${l.consignment_id ?? ""}|${l.invoice_type ?? ""}|${l.created_date ?? ""}`;
@@ -259,7 +259,7 @@ export function SettlementUploadDialog({ open, onClose, brandId, brandIds }: Pro
     },
   });
 
-  const showBrandPicker = !brandId && brandIds.length > 1;
+  const showBrandPicker = brandIds.length > 1;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
