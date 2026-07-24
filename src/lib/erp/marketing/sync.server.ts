@@ -157,7 +157,10 @@ export async function runStructureSync(supabase: any, accountId: string) {
 
         if (camps.length) {
           // Preserve existing brand_id — do NOT overwrite manual mappings on re-sync.
-          // New campaigns start with brand_id = NULL (unassigned) until manually confirmed.
+          // For NEW campaigns: auto-assign brand_id ONLY when the ad account is
+          // linked to exactly one brand via mkt_ad_account_brands. Multi-brand
+          // accounts leave brand_id = NULL so the campaign shows as "Unassigned"
+          // and can be manually tagged — we never guess which brand it belongs to.
           const { data: existingCamps } = await supabase
             .from("mkt_campaigns")
             .select("external_id,brand_id")
@@ -165,10 +168,19 @@ export async function runStructureSync(supabase: any, accountId: string) {
           const existingBrandByExt = new Map<string, string | null>(
             (existingCamps ?? []).map((r: any) => [r.external_id, r.brand_id ?? null]),
           );
+          const { data: linkedBrands } = await supabase
+            .from("mkt_ad_account_brands")
+            .select("brand_id")
+            .eq("ad_account_id", acc.id);
+          const linkedBrandIds = (linkedBrands ?? [])
+            .map((r: any) => r.brand_id)
+            .filter(Boolean);
+          const autoBrandForNew: string | null =
+            linkedBrandIds.length === 1 ? linkedBrandIds[0] : null;
           const rows = camps.map((c) => ({
             brand_id: existingBrandByExt.has(c.id)
               ? existingBrandByExt.get(c.id) ?? null
-              : null,
+              : autoBrandForNew,
             account_id: acc.id,
             external_id: c.id,
             name: c.name,
