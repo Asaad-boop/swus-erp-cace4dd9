@@ -276,6 +276,7 @@ function ReconciliationPage() {
             merchant_order_id: r.merchant_order_id,
             recipient_phone: r.recipient_phone,
             collected: r.collected,
+            row_type: r.row_type,
           })),
         },
       }),
