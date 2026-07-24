@@ -199,9 +199,19 @@ export const createPathaoReconciliationRun = createServerFn({ method: "POST" })
           .eq("id", matchedOrderId)
           .maybeSingle();
         if (ord) {
-          amountDiff = r.collected - Number(ord.total);
-          status =
-            Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          // Return/partial rows should NOT be compared against order.total.
+          // For `return` (incl. paid_return) collected = return-delivery fee
+          // paid by customer, not the goods amount. For `partial` collected
+          // is the partial COD, which is expected to be less than order.total.
+          const rt = r.row_type ?? "paid";
+          if (rt === "return" || rt === "partial") {
+            amountDiff = null;
+            status = "matched";
+          } else {
+            amountDiff = r.collected - Number(ord.total);
+            status =
+              Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          }
           rowBrandId = (ord as { brand_id: string | null }).brand_id ?? rowBrandId;
         } else {
           status = "matched"; // already linked though we couldn't re-read
@@ -421,10 +431,19 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
         const matchType = (r as { match_type?: string }).match_type ?? "paid";
         const returnFee = Number((r as { return_fee?: number }).return_fee ?? 0);
         const partialAmount = Number((r as { partial_amount?: number }).partial_amount ?? 0);
+        const payoutNum = Number(r.payout);
 
-        // Income (collected). For "return" rows, no income (no COD collected).
+        // Income (collected). For "return" rows the customer paid the courier
+        // a return-delivery fee — that money is NOT ours; the only cash effect
+        // on us is the courier's net deduction (negative payout). So income=0
+        // for return regardless of the CSV `collected` field.
         let incomeId: string | null = null;
-        const incomeAmount = matchType === "return" ? 0 : (matchType === "partial" && partialAmount > 0 ? partialAmount : Number(r.collected));
+        const incomeAmount =
+          matchType === "return"
+            ? 0
+            : matchType === "partial" && partialAmount > 0
+              ? partialAmount
+              : Number(r.collected);
         if (incomeAmount > 0) {
           const { data: inc, error: incErr } = await supabase
             .from("erp_transactions")
@@ -445,9 +464,19 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           incomeId = (inc as { id: string }).id;
         }
 
-        // Expense (total fee + return fee if applicable)
+        // Expense. For paid/partial: total_fee (collected - payout).
+        // For return: use net courier deduction = -payout when negative.
+        // If payout ≥ 0 on a return (rare courier refund) → no expense.
+        // Old formula double-counted (total_fee already includes return fees
+        // that Pathao writes into Final_Fee/Delivery_Fee).
+        void returnFee; // kept in schema for history, no longer added on top
         let expenseId: string | null = null;
-        const expenseAmount = Number(r.total_fee) + (matchType === "return" ? returnFee : 0);
+        const expenseAmount =
+          matchType === "return"
+            ? payoutNum < 0
+              ? -payoutNum
+              : 0
+            : Number(r.total_fee);
         if (expenseAmount > 0) {
           const { data: exp, error: expErr } = await supabase
             .from("erp_transactions")
@@ -681,6 +710,7 @@ const PreviewRow = z.object({
   merchant_order_id: z.string().nullable().optional(),
   recipient_phone: z.string().nullable().optional(),
   collected: z.number(),
+  row_type: z.enum(["paid", "return", "partial"]).optional().default("paid"),
 });
 
 export type PreviewMatchResult = {
@@ -860,8 +890,15 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
           orderTotal = Number(ord.total);
           orderStatus = ord.status;
           orderName = ord.shipping_name ?? null;
-          amountDiff = r.collected - orderTotal;
-          status = Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          const rt = r.row_type ?? "paid";
+          if (rt === "return" || rt === "partial") {
+            // Return/partial rows are expected to have collected != order.total.
+            amountDiff = null;
+            status = "matched";
+          } else {
+            amountDiff = r.collected - orderTotal;
+            status = Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          }
         } else {
           status = "matched";
         }

@@ -276,6 +276,7 @@ function ReconciliationPage() {
             merchant_order_id: r.merchant_order_id,
             recipient_phone: r.recipient_phone,
             collected: r.collected,
+            row_type: r.row_type,
           })),
         },
       }),
@@ -726,6 +727,7 @@ type Row = {
   matched_order_id: string | null;
   matched_via: string | null;
   amount_diff: number | null;
+  match_type?: string | null;
   applied_income_txn_id: string | null;
   applied_expense_txn_id: string | null;
   orders?: { id: string; total: number; shipping_name: string | null; shipping_phone: string | null; status: string; payment_status: string | null } | null;
@@ -952,10 +954,24 @@ function RowItem({ row, brandId, runId }: { row: Row; brandId: string | null; ru
     return <Badge variant="outline" className="text-xs">Unmatched</Badge>;
   })();
 
+  const typeBadge = (() => {
+    const t = row.match_type ?? "paid";
+    if (t === "return")
+      return <Badge variant="outline" className="text-[10px] text-rose-700 border-rose-300">Return</Badge>;
+    if (t === "partial")
+      return <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300">Partial</Badge>;
+    return null;
+  })();
+
   return (
     <>
       <TableRow>
-        <TableCell>{statusBadge}</TableCell>
+        <TableCell>
+          <div className="flex flex-col items-start gap-1">
+            {statusBadge}
+            {typeBadge}
+          </div>
+        </TableCell>
         <TableCell className="text-xs font-mono">
           <div>{row.consignment_id ?? "—"}</div>
           <div className="text-muted-foreground">{row.merchant_order_id ?? ""}</div>
@@ -979,9 +995,13 @@ function RowItem({ row, brandId, runId }: { row: Row; brandId: string | null; ru
         <TableCell className="text-right font-mono text-amber-700">{fmtBdt(row.total_fee)}</TableCell>
         <TableCell className="text-right font-mono text-emerald-700">{fmtBdt(row.payout)}</TableCell>
         <TableCell className="text-right font-mono text-xs">
-          {row.amount_diff !== null && row.amount_diff !== 0
-            ? `${row.amount_diff > 0 ? "+" : ""}${row.amount_diff.toFixed(0)}`
-            : "—"}
+          {(row.match_type === "return" || row.match_type === "partial")
+            ? row.payout < 0
+              ? <span className="text-rose-700">−{Math.abs(row.payout).toFixed(0)}</span>
+              : "—"
+            : row.amount_diff !== null && row.amount_diff !== 0
+              ? `${row.amount_diff > 0 ? "+" : ""}${row.amount_diff.toFixed(0)}`
+              : "—"}
         </TableCell>
         <TableCell className="text-right">
           {!row.applied_income_txn_id && (
