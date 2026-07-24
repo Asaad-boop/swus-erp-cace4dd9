@@ -691,6 +691,7 @@ const PreviewRow = z.object({
   merchant_order_id: z.string().nullable().optional(),
   recipient_phone: z.string().nullable().optional(),
   collected: z.number(),
+  row_type: z.enum(["paid", "return", "partial"]).optional().default("paid"),
 });
 
 export type PreviewMatchResult = {
@@ -870,8 +871,15 @@ export const previewPathaoReconciliation = createServerFn({ method: "POST" })
           orderTotal = Number(ord.total);
           orderStatus = ord.status;
           orderName = ord.shipping_name ?? null;
-          amountDiff = r.collected - orderTotal;
-          status = Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          const rt = r.row_type ?? "paid";
+          if (rt === "return" || rt === "partial") {
+            // Return/partial rows are expected to have collected != order.total.
+            amountDiff = null;
+            status = "matched";
+          } else {
+            amountDiff = r.collected - orderTotal;
+            status = Math.abs(amountDiff) <= data.tolerance ? "matched" : "amount_mismatch";
+          }
         } else {
           status = "matched";
         }
