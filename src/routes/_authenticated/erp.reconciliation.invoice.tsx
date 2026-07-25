@@ -727,7 +727,33 @@ function ReconciliationPage() {
 
       {/* History */}
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">History</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">History</h2>
+          <div className="flex items-end gap-2">
+            <div>
+              <Label className="text-[10px] uppercase text-muted-foreground">From</Label>
+              <Input
+                type="date"
+                value={sumFrom}
+                onChange={(e) => setSumFrom(e.target.value)}
+                className="h-8 w-[140px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase text-muted-foreground">To</Label>
+              <Input
+                type="date"
+                value={sumTo}
+                onChange={(e) => setSumTo(e.target.value)}
+                className="h-8 w-[140px]"
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={downloadSummary} disabled={sumBusy}>
+              {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download summary
+            </Button>
+          </div>
+        </div>
         <Card>
           <Table>
             <TableHeader>
