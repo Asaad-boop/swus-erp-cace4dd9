@@ -264,13 +264,7 @@ function ReconciliationPage() {
   const [sumTo, setSumTo] = useState<string>(today.toISOString().slice(0, 10));
   const [sumBusy, setSumBusy] = useState(false);
 
-  async function downloadSummary() {
-    if (!sumFrom || !sumTo) {
-      toast.error("Select a date range");
-      return;
-    }
-    setSumBusy(true);
-    try {
+  async function buildSummaryData() {
       const fromIso = new Date(`${sumFrom}T00:00:00`).toISOString();
       const toIso = new Date(`${sumTo}T23:59:59.999`).toISOString();
       const { data: runs, error: rErr } = await supabase
@@ -320,6 +314,17 @@ function ReconciliationPage() {
         if (p >= 0) cashIn += p;
         else cashOut += -p;
       }
+    return { runs: runs ?? [], rows, typeCounts, statusCounts, affected, totCollected, totFee, totPayout, cashIn, cashOut };
+  }
+
+  async function downloadSummary() {
+    if (!sumFrom || !sumTo) {
+      toast.error("Select a date range");
+      return;
+    }
+    setSumBusy(true);
+    try {
+      const { runs, rows, typeCounts, statusCounts, affected, totCollected, totFee, totPayout, cashIn, cashOut } = await buildSummaryData();
 
       const esc = (v: unknown) => {
         if (v === null || v === undefined) return "";
@@ -332,7 +337,7 @@ function ReconciliationPage() {
       lines.push(`Generated,${new Date().toLocaleString()}`);
       lines.push("");
       lines.push("Totals");
-      lines.push(`Runs,${runs?.length ?? 0}`);
+      lines.push(`Runs,${runs.length}`);
       lines.push(`Rows,${rows.length}`);
       lines.push(`Affected orders,${affected.size}`);
       lines.push(`Total collected (BDT),${totCollected.toFixed(2)}`);
@@ -358,7 +363,7 @@ function ReconciliationPage() {
       lines.push("");
       lines.push("Per-run breakdown");
       lines.push(["Date", "File", "Status", "Rows", "Matched", "Mismatch", "Unmatched", "Collected", "Fees", "Net Payout"].join(","));
-      for (const r of runs ?? []) {
+      for (const r of runs) {
         lines.push([
           new Date(r.created_at).toLocaleString(),
           r.source_filename ?? "",
@@ -382,9 +387,127 @@ function ReconciliationPage() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`Summary downloaded — ${runs?.length ?? 0} runs, ${rows.length} rows`);
+      toast.success(`Summary downloaded — ${runs.length} runs, ${rows.length} rows`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to build summary");
+    } finally {
+      setSumBusy(false);
+    }
+  }
+
+  async function downloadSummaryPdf() {
+    if (!sumFrom || !sumTo) {
+      toast.error("Select a date range");
+      return;
+    }
+    setSumBusy(true);
+    try {
+      const { runs, rows, typeCounts, statusCounts, affected, totCollected, totFee, totPayout, cashIn, cashOut } = await buildSummaryData();
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const margin = 36;
+      const pageW = doc.internal.pageSize.getWidth();
+      let y = margin;
+
+      // Header
+      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text("Pathao Reconciliation Summary", margin, y); y += 18;
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90);
+      doc.text(`Date range: ${sumFrom} → ${sumTo}`, margin, y); y += 12;
+      doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y); y += 6;
+      doc.setTextColor(0);
+
+      // KPI grid
+      const kpis: [string, string][] = [
+        ["Runs", String(runs.length)],
+        ["Rows", String(rows.length)],
+        ["Affected orders", String(affected.size)],
+        ["Total collected", fmtBdt(totCollected)],
+        ["Courier charges", fmtBdt(totFee)],
+        ["Cash in (payouts)", fmtBdt(cashIn)],
+        ["Cash out (neg. payouts)", fmtBdt(cashOut)],
+        ["Net cash delta", fmtBdt(totPayout)],
+      ];
+      autoTable(doc, {
+        startY: y + 8,
+        head: [["Metric", "Value"]],
+        body: kpis,
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [37, 99, 235] },
+        margin: { left: margin, right: margin },
+        tableWidth: 260,
+      });
+      // @ts-expect-error autoTable adds lastAutoTable
+      y = (doc.lastAutoTable?.finalY ?? y) + 18;
+
+      // Split: by type + by status side by side (simple stacked)
+      const typeOrder = ["paid", "return", "partial", "insta_fee", ...Object.keys(typeCounts).filter((k) => !["paid","return","partial","insta_fee"].includes(k))];
+      autoTable(doc, {
+        startY: y,
+        head: [["Match type", "Count"]],
+        body: typeOrder.map((k) => [k, String(typeCounts[k] ?? 0)]),
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [37, 99, 235] },
+        margin: { left: margin },
+        tableWidth: 220,
+      });
+      // @ts-expect-error autoTable adds lastAutoTable
+      const yLeft = doc.lastAutoTable?.finalY ?? y;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Match status", "Count"]],
+        body: ["matched", "amount_mismatch", "duplicate", "unmatched"].map((k) => [k, String(statusCounts[k] ?? 0)]),
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [37, 99, 235] },
+        margin: { left: margin + 240 },
+        tableWidth: 220,
+      });
+      // @ts-expect-error autoTable adds lastAutoTable
+      const yRight = doc.lastAutoTable?.finalY ?? y;
+      y = Math.max(yLeft, yRight) + 18;
+
+      // Per-run
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text(`Per-run breakdown (${runs.length})`, margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 4,
+        head: [["Date", "File", "Status", "Rows", "Matched", "Mismatch", "Unmatched", "Collected", "Fees", "Net Payout"]],
+        body: runs.map((r) => [
+          new Date(r.created_at).toLocaleDateString(),
+          (r.source_filename ?? "—").slice(0, 26),
+          r.status,
+          String(r.total_rows),
+          String(r.matched_count),
+          String(r.mismatched_count),
+          String(r.unmatched_count),
+          fmtBdt(Number(r.total_collected ?? 0)),
+          fmtBdt(Number(r.total_fee ?? 0)),
+          fmtBdt(Number(r.total_payout ?? 0)),
+        ]),
+        styles: { fontSize: 8, cellPadding: 3, overflow: "linebreak" },
+        headStyles: { fillColor: [37, 99, 235] },
+        margin: { left: margin, right: margin },
+        columnStyles: {
+          3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" },
+          6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right" }, 9: { halign: "right" },
+        },
+      });
+
+      // Footer page numbers
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8); doc.setTextColor(120);
+        doc.text(`Page ${i} of ${pageCount}`, pageW - margin, doc.internal.pageSize.getHeight() - 14, { align: "right" });
+      }
+      doc.save(`reconciliation-summary-${sumFrom}_${sumTo}.pdf`);
+      toast.success(`PDF downloaded — ${runs.length} runs, ${rows.length} rows`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to build PDF");
     } finally {
       setSumBusy(false);
     }
@@ -750,7 +873,11 @@ function ReconciliationPage() {
             </div>
             <Button size="sm" variant="outline" onClick={downloadSummary} disabled={sumBusy}>
               {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Download summary
+              CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={downloadSummaryPdf} disabled={sumBusy}>
+              {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              PDF
             </Button>
           </div>
         </div>
