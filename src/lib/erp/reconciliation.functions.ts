@@ -443,17 +443,22 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           .eq("reference_id", r.matched_order_id)
           .in("reference_type", ["order_courier", "order_delivery", "order_return_charge"]);
 
-        // Income (collected). For "return" rows the customer paid the courier
-        // a return-delivery fee — that money is NOT ours; the only cash effect
-        // on us is the courier's net deduction (negative payout). So income=0
-        // for return regardless of the CSV `collected` field.
+        // Wallet cash model (approach b): the courier deducts its fees
+        // BEFORE handing us the payout. We therefore only book what actually
+        // lands in (or comes out of) the wallet — the payout itself — and
+        // do NOT post a separate courier-charge expense against our account.
+        //   payout > 0 → income = payout
+        //   payout < 0 → expense = -payout (courier ate into other rows'
+        //                collections inside this same invoice)
+        //   payout = 0 → no cash txn (pure return with zero fee)
+        // Fee visibility lives on erp_reconciliation_rows.total_fee and on
+        // order_items.courier_cost_allocated (per-SKU P&L below).
+        void returnFee; // kept in schema for history, no longer used on apply
+        void partialAmount; // status/amount handled below via orderUpdate
         let incomeId: string | null = null;
-        const incomeAmount =
-          matchType === "return"
-            ? 0
-            : matchType === "partial" && partialAmount > 0
-              ? partialAmount
-              : Number(r.collected);
+        let expenseId: string | null = null;
+        const incomeAmount = payoutNum > 0 ? payoutNum : 0;
+        const expenseAmount = payoutNum < 0 ? -payoutNum : 0;
         if (incomeAmount > 0) {
           const { data: inc, error: incErr } = await supabase
             .from("erp_transactions")
@@ -465,7 +470,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
               transaction_date: txnDate,
               reference_type: "order",
               reference_id: r.matched_order_id,
-              description: `${description} · ${matchType === "partial" ? "partial collected" : "collected"}`,
+              description: `${description} · payout`,
               created_by: userId,
             })
             .select("id")
@@ -473,20 +478,6 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           if (incErr) throw incErr;
           incomeId = (inc as { id: string }).id;
         }
-
-        // Expense. For paid/partial: total_fee (collected - payout).
-        // For return: use net courier deduction = -payout when negative.
-        // If payout ≥ 0 on a return (rare courier refund) → no expense.
-        // Old formula double-counted (total_fee already includes return fees
-        // that Pathao writes into Final_Fee/Delivery_Fee).
-        void returnFee; // kept in schema for history, no longer added on top
-        let expenseId: string | null = null;
-        const expenseAmount =
-          matchType === "return"
-            ? payoutNum < 0
-              ? -payoutNum
-              : 0
-            : Number(r.total_fee);
         if (expenseAmount > 0) {
           const { data: exp, error: expErr } = await supabase
             .from("erp_transactions")
@@ -499,7 +490,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
               transaction_date: txnDate,
               reference_type: "order",
               reference_id: r.matched_order_id,
-              description: `${description} · ${matchType === "return" ? "return + courier charges" : "courier charges"}`,
+              description: `${description} · courier deduction (return/fee)`,
               created_by: userId,
             })
             .select("id")
@@ -507,12 +498,16 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           if (expErr) throw expErr;
           expenseId = (exp as { id: string }).id;
         }
+        // For downstream displays: courier_fee = the invoice total_fee (what
+        // the courier charged for this shipment — visibility only, not a
+        // wallet debit). net_collected = payout (actual wallet effect).
+        const displayFee = Number(r.total_fee);
 
         // Update order — branch by match_type
         const orderUpdate: Record<string, unknown> = {
           reconciliation_status: "reconciled",
-          courier_fee: expenseAmount,
-          net_collected: incomeAmount - expenseAmount,
+          courier_fee: displayFee,
+          net_collected: payoutNum,
         };
         if (matchType === "return") {
           orderUpdate.status = "returned";
@@ -532,8 +527,11 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           .eq("id", r.matched_order_id);
         if (oErr) throw oErr;
 
-        // Allocate courier_fee proportionally across order_items for per-SKU P&L
-        if (expenseAmount > 0) {
+        // Allocate courier fee proportionally across order_items for per-SKU
+        // P&L. Uses invoice total_fee (actual reconciled courier cost per
+        // shipment) so mkt_delivered_line_costs reflects reality, not the
+        // delivery-time estimate. Independent of the cash txns above.
+        if (displayFee > 0) {
           const { data: lines } = await supabase
             .from("order_items")
             .select("id, line_total")
@@ -541,7 +539,7 @@ export const applyPathaoReconciliationRun = createServerFn({ method: "POST" })
           const totalLine = (lines ?? []).reduce((s, l) => s + (Number(l.line_total) || 0), 0);
           if (totalLine > 0 && lines?.length) {
             for (const l of lines) {
-              const share = ((Number(l.line_total) || 0) / totalLine) * expenseAmount;
+              const share = ((Number(l.line_total) || 0) / totalLine) * displayFee;
               await supabase
                 .from("order_items")
                 .update({ courier_cost_allocated: +share.toFixed(2) } as never)
