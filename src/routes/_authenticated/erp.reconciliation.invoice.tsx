@@ -873,7 +873,11 @@ function ReconciliationPage() {
             </div>
             <Button size="sm" variant="outline" onClick={downloadSummary} disabled={sumBusy}>
               {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Download summary
+              CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={downloadSummaryPdf} disabled={sumBusy}>
+              {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              PDF
             </Button>
           </div>
         </div>
