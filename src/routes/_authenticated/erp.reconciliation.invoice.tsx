@@ -136,7 +136,7 @@ function cleanId(v: string | undefined): string | null {
 function getRowType(invoiceType: string | undefined): "paid" | "return" | "partial" {
   if (!invoiceType) return "paid";
   const t = invoiceType.toLowerCase();
-  if (t.includes("return")) return "return";
+  if (t.includes("return") || t.includes("reverse")) return "return";
   if (t.includes("partial")) return "partial";
   // `delivery` and `insta_fee` (extra delivery fee row, grouped with its
   // delivery row by Consignment_ID) both count as paid.
@@ -172,11 +172,23 @@ function parsePathaoCsv(text: string): NormalizedRow[] {
     const primary = rs.find((r) => (r.Invoice_type ?? "").toLowerCase() === "delivery") ?? rs[0];
     // Row type: detect from any row in the group (return/partial dominates)
     const types = rs.map((r) => getRowType(r.Invoice_type));
-    const rowType: "paid" | "return" | "partial" =
+    let rowType: "paid" | "return" | "partial" =
       types.find((t) => t === "return") ?? types.find((t) => t === "partial") ?? "paid";
     // Aggregate across all sub-rows for this consignment (delivery + insta_fee, etc).
     const collected = rs.reduce((s, r) => s + num(r.Collected_Amount), 0);
     const payout = rs.reduce((s, r) => s + num(r.Payout), 0);
+    const collectable = rs.reduce((s, r) => s + num(r.Collectable_Amount), 0);
+    // Signal-based fallback: Pathao's Invoice_type label is inconsistent
+    // (blank / "Delivery" for actual returns and partials). Trust the money
+    // signals when the text says "paid" but the numbers say otherwise.
+    //   collected == 0 AND payout < 0 → return (courier deducted a fee, no
+    //     money collected from customer)
+    //   0 < collected < collectable   → partial (customer paid less than
+    //     the invoice amount)
+    if (rowType === "paid") {
+      if (collected <= 0 && payout < 0) rowType = "return";
+      else if (collectable > 0 && collected > 0 && collected < collectable) rowType = "partial";
+    }
     const deliveryFee = rs.reduce((s, r) => s + num(r.Delivery_Fee), 0);
     const codFee = rs.reduce((s, r) => s + num(r.COD_fee), 0);
     const discount = rs.reduce((s, r) => s + num(r.Discount) + num(r.Promo_Discount), 0);
