@@ -403,6 +403,8 @@ function ReconciliationPage() {
     setSumBusy(true);
     try {
       const { runs, rows, typeCounts, statusCounts, affected, totCollected, totFee, totPayout, cashIn, cashOut } = await buildSummaryData();
+      // jsPDF built-in helvetica supports Latin-1 only. ৳ (U+09F3) and → render as garbage.
+      const money = (n: number) => `Tk ${new Intl.NumberFormat("en-BD", { maximumFractionDigits: 0 }).format(Number(n ?? 0))}`;
       const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
         import("jspdf"),
         import("jspdf-autotable"),
@@ -416,7 +418,7 @@ function ReconciliationPage() {
       doc.setFontSize(16); doc.setFont("helvetica", "bold");
       doc.text("Pathao Reconciliation Summary", margin, y); y += 18;
       doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90);
-      doc.text(`Date range: ${sumFrom} → ${sumTo}`, margin, y); y += 12;
+      doc.text(`Date range: ${sumFrom} to ${sumTo}`, margin, y); y += 12;
       doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y); y += 6;
       doc.setTextColor(0);
 
@@ -425,11 +427,11 @@ function ReconciliationPage() {
         ["Runs", String(runs.length)],
         ["Rows", String(rows.length)],
         ["Affected orders", String(affected.size)],
-        ["Total collected", fmtBdt(totCollected)],
-        ["Courier charges", fmtBdt(totFee)],
-        ["Cash in (payouts)", fmtBdt(cashIn)],
-        ["Cash out (neg. payouts)", fmtBdt(cashOut)],
-        ["Net cash delta", fmtBdt(totPayout)],
+        ["Total collected", money(totCollected)],
+        ["Courier charges", money(totFee)],
+        ["Cash in (payouts)", money(cashIn)],
+        ["Cash out (neg. payouts)", money(cashOut)],
+        ["Net cash delta", money(totPayout)],
       ];
       autoTable(doc, {
         startY: y + 8,
@@ -484,9 +486,9 @@ function ReconciliationPage() {
           String(r.matched_count),
           String(r.mismatched_count),
           String(r.unmatched_count),
-          fmtBdt(Number(r.total_collected ?? 0)),
-          fmtBdt(Number(r.total_fee ?? 0)),
-          fmtBdt(Number(r.total_payout ?? 0)),
+          money(Number(r.total_collected ?? 0)),
+          money(Number(r.total_fee ?? 0)),
+          money(Number(r.total_payout ?? 0)),
         ]),
         styles: { fontSize: 8, cellPadding: 3, overflow: "linebreak" },
         headStyles: { fillColor: [37, 99, 235] },
