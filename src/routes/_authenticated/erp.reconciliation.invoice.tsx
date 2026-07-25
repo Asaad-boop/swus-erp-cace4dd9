@@ -257,6 +257,139 @@ function ReconciliationPage() {
   const [preview, setPreview] = useState<NormalizedRow[] | null>(null);
   const [openRunId, setOpenRunId] = useState<string | null>(null);
 
+  // Summary export date range (defaults to last 30 days)
+  const today = new Date();
+  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const [sumFrom, setSumFrom] = useState<string>(monthAgo.toISOString().slice(0, 10));
+  const [sumTo, setSumTo] = useState<string>(today.toISOString().slice(0, 10));
+  const [sumBusy, setSumBusy] = useState(false);
+
+  async function downloadSummary() {
+    if (!sumFrom || !sumTo) {
+      toast.error("Select a date range");
+      return;
+    }
+    setSumBusy(true);
+    try {
+      const fromIso = new Date(`${sumFrom}T00:00:00`).toISOString();
+      const toIso = new Date(`${sumTo}T23:59:59.999`).toISOString();
+      const { data: runs, error: rErr } = await supabase
+        .from("erp_reconciliation_runs")
+        .select("id, created_at, source_filename, status, total_rows, matched_count, mismatched_count, unmatched_count, total_collected, total_fee, total_payout")
+        .gte("created_at", fromIso)
+        .lte("created_at", toIso)
+        .order("created_at", { ascending: false });
+      if (rErr) throw rErr;
+      const runIds = (runs ?? []).map((r) => r.id);
+      let rows: Array<{
+        run_id: string;
+        match_type: string | null;
+        match_status: string | null;
+        matched_order_id: string | null;
+        collected: number | null;
+        total_fee: number | null;
+        payout: number | null;
+      }> = [];
+      if (runIds.length > 0) {
+        // Chunked fetch to avoid URL limits
+        for (let i = 0; i < runIds.length; i += 25) {
+          const slice = runIds.slice(i, i + 25);
+          const { data: rr, error: rrErr } = await supabase
+            .from("erp_reconciliation_rows")
+            .select("run_id, match_type, match_status, matched_order_id, collected, total_fee, payout")
+            .in("run_id", slice);
+          if (rrErr) throw rrErr;
+          rows = rows.concat(rr ?? []);
+        }
+      }
+
+      const typeCounts: Record<string, number> = {};
+      const statusCounts: Record<string, number> = {};
+      const affected = new Set<string>();
+      let totCollected = 0, totFee = 0, totPayout = 0, cashIn = 0, cashOut = 0;
+      for (const r of rows) {
+        const t = r.match_type ?? "paid";
+        const s = r.match_status ?? "unmatched";
+        typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+        statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+        if (r.matched_order_id) affected.add(r.matched_order_id);
+        totCollected += Number(r.collected ?? 0);
+        totFee += Number(r.total_fee ?? 0);
+        const p = Number(r.payout ?? 0);
+        totPayout += p;
+        if (p >= 0) cashIn += p;
+        else cashOut += -p;
+      }
+
+      const esc = (v: unknown) => {
+        if (v === null || v === undefined) return "";
+        const s = String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines: string[] = [];
+      lines.push("Pathao Reconciliation Summary");
+      lines.push(`Date range,${sumFrom} to ${sumTo}`);
+      lines.push(`Generated,${new Date().toLocaleString()}`);
+      lines.push("");
+      lines.push("Totals");
+      lines.push(`Runs,${runs?.length ?? 0}`);
+      lines.push(`Rows,${rows.length}`);
+      lines.push(`Affected orders,${affected.size}`);
+      lines.push(`Total collected (BDT),${totCollected.toFixed(2)}`);
+      lines.push(`Total courier charges (BDT),${totFee.toFixed(2)}`);
+      lines.push(`Cash in — payouts (BDT),${cashIn.toFixed(2)}`);
+      lines.push(`Cash out — negative payouts (BDT),${cashOut.toFixed(2)}`);
+      lines.push(`Net cash delta (BDT),${totPayout.toFixed(2)}`);
+      lines.push("");
+      lines.push("By match type");
+      lines.push("Type,Count");
+      for (const k of ["paid", "return", "partial", "insta_fee"]) {
+        lines.push(`${k},${typeCounts[k] ?? 0}`);
+      }
+      for (const k of Object.keys(typeCounts)) {
+        if (!["paid", "return", "partial", "insta_fee"].includes(k)) lines.push(`${k},${typeCounts[k]}`);
+      }
+      lines.push("");
+      lines.push("By match status");
+      lines.push("Status,Count");
+      for (const k of ["matched", "amount_mismatch", "duplicate", "unmatched"]) {
+        lines.push(`${k},${statusCounts[k] ?? 0}`);
+      }
+      lines.push("");
+      lines.push("Per-run breakdown");
+      lines.push(["Date", "File", "Status", "Rows", "Matched", "Mismatch", "Unmatched", "Collected", "Fees", "Net Payout"].join(","));
+      for (const r of runs ?? []) {
+        lines.push([
+          new Date(r.created_at).toLocaleString(),
+          r.source_filename ?? "",
+          r.status,
+          r.total_rows,
+          r.matched_count,
+          r.mismatched_count,
+          r.unmatched_count,
+          Number(r.total_collected ?? 0).toFixed(2),
+          Number(r.total_fee ?? 0).toFixed(2),
+          Number(r.total_payout ?? 0).toFixed(2),
+        ].map(esc).join(","));
+      }
+
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reconciliation-summary-${sumFrom}_${sumTo}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Summary downloaded — ${runs?.length ?? 0} runs, ${rows.length} rows`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to build summary");
+    } finally {
+      setSumBusy(false);
+    }
+  }
+
   const listFn = useServerFn(listPathaoReconciliationRuns);
   const createFn = useServerFn(createPathaoReconciliationRun);
   const deleteFn = useServerFn(deletePathaoReconciliationRun);
@@ -594,7 +727,33 @@ function ReconciliationPage() {
 
       {/* History */}
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">History</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">History</h2>
+          <div className="flex items-end gap-2">
+            <div>
+              <Label className="text-[10px] uppercase text-muted-foreground">From</Label>
+              <Input
+                type="date"
+                value={sumFrom}
+                onChange={(e) => setSumFrom(e.target.value)}
+                className="h-8 w-[140px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase text-muted-foreground">To</Label>
+              <Input
+                type="date"
+                value={sumTo}
+                onChange={(e) => setSumTo(e.target.value)}
+                className="h-8 w-[140px]"
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={downloadSummary} disabled={sumBusy}>
+              {sumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download summary
+            </Button>
+          </div>
+        </div>
         <Card>
           <Table>
             <TableHeader>
