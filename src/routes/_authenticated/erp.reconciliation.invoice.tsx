@@ -512,17 +512,6 @@ function ReconciliationPage() {
       setSumBusy(false);
     }
   }
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`Summary downloaded — ${runs?.length ?? 0} runs, ${rows.length} rows`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to build summary");
-    } finally {
-      setSumBusy(false);
-    }
-  }
 
   const listFn = useServerFn(listPathaoReconciliationRuns);
   const createFn = useServerFn(createPathaoReconciliationRun);
