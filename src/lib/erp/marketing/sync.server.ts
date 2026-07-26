@@ -452,11 +452,9 @@ export async function runInsightsSync(
           })
           .eq("id", acc.id);
 
-        // Legacy per-account finance posting DISABLED — canonical daily poster
-        // `post_meta_ad_spend_daily` (pg_cron) is the single source of truth for
-        // erp_transactions Meta ad-spend rows. Keeping this on caused duplicate
-        // uncategorized `reference_type='meta_spend'` rows in erp_transactions.
-        const financePosted: any = { skipped: "legacy_disabled_use_post_meta_ad_spend_daily" };
+        // Finance posting DISABLED — daily Meta spend is informational only.
+        // Dollar purchase/funding is the real accounting expense.
+        const financePosted: any = { skipped: "informational_only_no_wallet_posting" };
 
         return {
           rows: rows.length,
@@ -503,10 +501,8 @@ export async function postMetaSpendToFinance(
   }
 
   // Daily ad spend is INFORMATIONAL ONLY. Real cash leaves the business at
-  // dollar-purchase time, so no erp_transactions row is ever created against a
-  // wallet here — that double-counted the expense and drained real accounts
-  // (e.g. bKash Advance). We only maintain mkt_manual_expenses rows.
-  const walletId: string | null = null;
+  // dollar-purchase time, so this sync must never create/delete/update
+  // erp_transactions. It only maintains marketing reporting rows.
 
   // Aggregate daily spend (USD) for this account in window
   const { data: insRows, error: insErr } = await supabase
@@ -556,49 +552,12 @@ export async function postMetaSpendToFinance(
       // No spend — remove any prior posting for this date
       if (ex) {
         await supabase.from("mkt_manual_expenses").delete().eq("id", ex.id);
-        if (ex.transaction_id) {
-          await supabase.from("erp_transactions").delete().eq("id", ex.transaction_id);
-        }
         removed++;
       }
       continue;
     }
 
     totalBdt += bdt;
-    const description = `Meta Ads — ${acc.name} (${date})`;
-
-    let txId: string | null = ex?.transaction_id ?? null;
-    if (walletId) {
-      if (txId) {
-        const { error } = await supabase
-          .from("erp_transactions")
-          .update({
-            amount: bdt,
-            account_id: walletId,
-            transaction_date: date,
-            description,
-          })
-          .eq("id", txId);
-        if (error) throw error;
-      } else {
-        const { data: txIns, error } = await supabase
-          .from("erp_transactions")
-          .insert({
-            brand_id: acc.brand_id,
-            txn_type: "expense",
-            account_id: walletId,
-            amount: bdt,
-            transaction_date: date,
-            description,
-            reference_type: "meta_spend",
-            reference_id: acc.id,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        txId = txIns!.id;
-      }
-    }
 
     if (ex) {
       const { error } = await supabase
@@ -606,7 +565,8 @@ export async function postMetaSpendToFinance(
         .update({
           amount: bdt,
           currency: "BDT",
-          transaction_id: txId,
+          account_id: null,
+          transaction_id: null,
         })
         .eq("id", ex.id);
       if (error) throw error;
@@ -621,22 +581,18 @@ export async function postMetaSpendToFinance(
         currency: "BDT",
         vendor: "Meta",
         category: "meta_ads",
-        account_id: walletId,
-        transaction_id: txId,
+        account_id: null,
+        transaction_id: null,
         note: `Auto-synced from Meta Ads — ${acc.name}`,
       });
       if (error) throw error;
       inserted++;
     }
-    if (txId) txByDate.set(date, txId);
   }
 
   // Any existing rows in window with no insight day anymore → remove (Meta returned 0)
   for (const ex of existingByDate.values()) {
     await supabase.from("mkt_manual_expenses").delete().eq("id", ex.id);
-    if (ex.transaction_id) {
-      await supabase.from("erp_transactions").delete().eq("id", ex.transaction_id);
-    }
     removed++;
   }
 
@@ -718,8 +674,8 @@ export async function postMetaSpendToFinance(
       removed,
       total_bdt: +totalBdt.toFixed(2),
       fx,
-      wallet_id: walletId,
-      wallet_missing: !walletId,
+      wallet_id: null,
+      wallet_missing: true,
       allocation_error: String(e?.message ?? e),
     };
   }
@@ -730,8 +686,8 @@ export async function postMetaSpendToFinance(
     removed,
     total_bdt: +totalBdt.toFixed(2),
     fx,
-    wallet_id: walletId,
-    wallet_missing: !walletId,
+    wallet_id: null,
+    wallet_missing: true,
     allocations,
   };
 }
