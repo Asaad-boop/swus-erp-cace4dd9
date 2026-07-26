@@ -502,19 +502,11 @@ export async function postMetaSpendToFinance(
     return { skipped: "auto_post_disabled" };
   }
 
-  // Pick wallet: configured one, else first active wallet for brand
-  let walletId = acc.finance_wallet_id ?? null;
-  if (!walletId) {
-    const { data: w } = await supabase
-      .from("erp_accounts")
-      .select("id")
-      .eq("brand_id", acc.brand_id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    walletId = w?.id ?? null;
-  }
+  // Wallet is ONLY the explicitly configured one. No "first active account"
+  // fallback — that silently drained unrelated wallets (e.g. bKash Advance).
+  // Cash leaves the business at dollar-purchase time; daily ad spend is
+  // informational only and must never deduct from a real account.
+  const walletId: string | null = acc.finance_wallet_id ?? null;
 
   // Aggregate daily spend (USD) for this account in window
   const { data: insRows, error: insErr } = await supabase
