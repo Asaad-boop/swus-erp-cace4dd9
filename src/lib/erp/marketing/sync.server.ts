@@ -452,11 +452,9 @@ export async function runInsightsSync(
           })
           .eq("id", acc.id);
 
-        // Legacy per-account finance posting DISABLED — canonical daily poster
-        // `post_meta_ad_spend_daily` (pg_cron) is the single source of truth for
-        // erp_transactions Meta ad-spend rows. Keeping this on caused duplicate
-        // uncategorized `reference_type='meta_spend'` rows in erp_transactions.
-        const financePosted: any = { skipped: "legacy_disabled_use_post_meta_ad_spend_daily" };
+        // Finance posting DISABLED — daily Meta spend is informational only.
+        // Dollar purchase/funding is the real accounting expense.
+        const financePosted: any = { skipped: "informational_only_no_wallet_posting" };
 
         return {
           rows: rows.length,
