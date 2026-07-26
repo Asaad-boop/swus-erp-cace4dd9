@@ -502,11 +502,11 @@ export async function postMetaSpendToFinance(
     return { skipped: "auto_post_disabled" };
   }
 
-  // Wallet is ONLY the explicitly configured one. No "first active account"
-  // fallback — that silently drained unrelated wallets (e.g. bKash Advance).
-  // Cash leaves the business at dollar-purchase time; daily ad spend is
-  // informational only and must never deduct from a real account.
-  const walletId: string | null = acc.finance_wallet_id ?? null;
+  // Daily ad spend is INFORMATIONAL ONLY. Real cash leaves the business at
+  // dollar-purchase time, so no erp_transactions row is ever created against a
+  // wallet here — that double-counted the expense and drained real accounts
+  // (e.g. bKash Advance). We only maintain mkt_manual_expenses rows.
+  const walletId: string | null = null;
 
   // Aggregate daily spend (USD) for this account in window
   const { data: insRows, error: insErr } = await supabase
