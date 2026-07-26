@@ -66,8 +66,8 @@
   --color-hr-leave: var(--hr-leave);
   --color-hr-holiday: var(--hr-holiday);
   --color-hr-accent: var(--hr-accent);
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
